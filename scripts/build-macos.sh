@@ -38,6 +38,7 @@ cmake_args=(
     "-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}"
     "-DELECTRY_BUILD_UNIVERSAL=${BUILD_UNIVERSAL}"
     -DELECTRY_BUILD_PLUGIN=ON
+    -DELECTRY_BUILD_CLAP=ON
     -DELECTRY_MEASURED_BODY_RESPONSE=ON
     -DELECTRY_DECOUPLED_PICK_RELEASE=ON
     -DBUILD_TESTING=ON
@@ -52,6 +53,9 @@ fi
 if [[ -n "${JUCE_PATH:-}" ]]; then
     cmake_args+=("-DELECTRY_JUCE_PATH=${JUCE_PATH}")
 fi
+if [[ -n "${CLAP_JUCE_EXTENSIONS_PATH:-}" ]]; then
+    cmake_args+=("-DELECTRY_CLAP_JUCE_EXTENSIONS_PATH=${CLAP_JUCE_EXTENSIONS_PATH}")
+fi
 
 cmake "${cmake_args[@]}"
 cmake --build "${BUILD_DIR}" --config "${CONFIG}" --parallel
@@ -62,6 +66,7 @@ ARTIFACT_DIR="${BUILD_DIR}/Electry_artefacts/${CONFIG}"
 artifacts=(
     "${ARTIFACT_DIR}/VST3/Electry.vst3"
     "${ARTIFACT_DIR}/AU/Electry.component"
+    "${ARTIFACT_DIR}/CLAP/Electry.clap"
     "${ARTIFACT_DIR}/Standalone/Electry.app"
 )
 
@@ -76,7 +81,7 @@ done
 
 "${SCRIPT_DIR}/validate-macos-artifacts.sh" "${ARTIFACT_DIR}"
 ctest --test-dir "${BUILD_DIR}" -C "${CONFIG}" \
-    --output-on-failure -R '^Electry\.VST3Artifact$'
+    --output-on-failure -R '^Electry\.(VST3|CLAP)Artifact$'
 
 echo
 echo "Build complete. Artifacts:"

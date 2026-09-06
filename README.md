@@ -1,6 +1,6 @@
 # Electry
 
-An original, physically modeled **dry electric guitar**: VST3, Audio Unit and
+An original, physically modeled **dry electric guitar**: VST3, CLAP, Audio Unit and
 Standalone for macOS, plus Linux and Windows builds.
 
 ![Electry](Docs/screenshots/electry-standalone.png)
@@ -4932,8 +4932,9 @@ cmake -DELECTRY_MUTE_CAPTURE_COLLECTION_DIR=/absolute/collection/root \
   -P cmake/ValidateMuteCaptureCollection.cmake
 ```
 
-The full plug-in (JUCE 8.0.14 is fetched pinned at configure time, or pass
-`-DELECTRY_JUCE_PATH=/path/to/JUCE`):
+The full plug-in (JUCE 8.0.14 and clap-juce-extensions are fetched at pinned
+commits at configure time; pass `-DELECTRY_JUCE_PATH=/path/to/JUCE` to use a
+local JUCE checkout, or `-DELECTRY_BUILD_CLAP=OFF` to omit CLAP):
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -4952,15 +4953,39 @@ deadline, p50/p95/p99/max milliseconds and `misses=N/blocks`. The benchmark is
 diagnostic rather than a portable pass/fail performance claim.
 
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
-universal VST3, Audio Unit and Standalone app and renders the committed editor
+universal VST3, Audio Unit, CLAP and Standalone app and renders the committed editor
 screenshot while the suite runs. After final signing it runs
 `./scripts/validate-macos-artifacts.sh` against those exact bundles, including
-strict signature and identity checks plus direct AU and VST3 load/render/state
+strict signature and identity checks plus direct AU, VST3 and CLAP load/render/state
 smokes. After installation, `auval -strict -v aumu Elc1 Eltr` remains a useful
 registry check, but it selects by type/subtype/manufacturer and therefore is not
 proof that it found the just-built component. `./scripts/sign-and-package-macos.sh`
-stages, signs and packages all three products; provide the signing and
-notarization environment described by that script for distribution.
+stages, signs and packages all four products; provide the signing and
+notarization environment described by that script for Developer ID distribution.
+
+Every push to `main` (including a merged pull request) runs the
+[Main build workflow](.github/workflows/nightly.yml). It builds macOS universal
+(Apple Silicon + Intel) VST3, Audio Unit, CLAP and Standalone as a ZIP and PKG;
+Windows x64 VST3, CLAP and Standalone as a ZIP; and Linux x64 VST3, CLAP and
+Standalone as a tarball. Audio Unit is macOS-only. Windows Release builds link
+the C++ runtime statically. macOS bundles are ad-hoc signed; the CI installer
+is unsigned and is not notarized.
+
+Each main build also renders the editor screenshot and all 23 canonical audio
+demos from the same source commit. After every platform build succeeds, one
+commit refreshes the screenshot, demos and generated README peak table together.
+Unchanged media produces no commit. An older run keeps its downloads but skips
+the repository update if relevant source changes have already landed on `main`.
+
+Download `electry-main-build` from the completed run's **Artifacts** section in
+GitHub Actions. It includes versioned packages, the screenshot and audio demos
+under `media/`, SHA-256 checksums and the source commit, retained for 14 days.
+Each merge gets its own run, including when other builds are still in progress.
+The same workflow also runs daily at 03:00 UTC and supports **Run workflow**
+manually. Manual branch builds keep their outputs as artifacts; only builds of
+`main` update the committed media.
+For a local Windows Release build, `./scripts/package-windows.ps1 -BuildDir
+build-win` packages the built products and dependency notices.
 
 ## Licensing
 

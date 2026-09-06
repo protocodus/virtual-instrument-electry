@@ -4,6 +4,7 @@
 /cmake-build-*/
 CMakeUserPresets.json
 compile_commands.json
+__pycache__/
 
 # Xcode user state
 *.xcuserstate
@@ -13,6 +14,7 @@ DerivedData/
 # Generated plug-in bundles and packages
 *.vst3
 *.component
+*.clap
 *.app
 *.pkg
 *.dmg

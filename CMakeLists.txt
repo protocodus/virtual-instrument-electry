@@ -31,6 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ELECTRY_BUILD_PLUGIN "Build the JUCE plug-in and standalone app" ON)
+option(ELECTRY_BUILD_CLAP "Build the CLAP plug-in alongside the JUCE formats" ON)
 option(ELECTRY_MEASURED_BODY_RESPONSE
     "Use the shipping matched-material modal body response" ON)
 option(ELECTRY_DECOUPLED_PICK_RELEASE
@@ -49,6 +50,8 @@ option(ELECTRY_PASSIVE_REPICK_SPRING
     "Build the default-off passive dynamic repick-contact candidate" OFF)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
     "Optional path to a local JUCE 8.0.14 checkout (avoids downloading JUCE)")
+set(ELECTRY_CLAP_JUCE_EXTENSIONS_PATH "" CACHE PATH
+    "Optional local clap-juce-extensions checkout with initialized submodules")
 
 include(CTest)
 
@@ -137,6 +140,34 @@ if(ELECTRY_BUILD_PLUGIN)
         FetchContent_MakeAvailable(JUCE)
     endif()
 
+    if(ELECTRY_BUILD_CLAP)
+        if(ELECTRY_CLAP_JUCE_EXTENSIONS_PATH)
+            foreach(required_file CMakeLists.txt
+                    clap-libs/clap/CMakeLists.txt
+                    clap-libs/clap-helpers/CMakeLists.txt)
+                if(NOT EXISTS "${ELECTRY_CLAP_JUCE_EXTENSIONS_PATH}/${required_file}")
+                    message(FATAL_ERROR
+                        "ELECTRY_CLAP_JUCE_EXTENSIONS_PATH needs a complete checkout with submodules: missing ${required_file}")
+                endif()
+            endforeach()
+            add_subdirectory("${ELECTRY_CLAP_JUCE_EXTENSIONS_PATH}"
+                             "${CMAKE_CURRENT_BINARY_DIR}/clap-juce-extensions"
+                             EXCLUDE_FROM_ALL)
+        else()
+            include(FetchContent)
+            FetchContent_Declare(
+                clap_juce_extensions
+                GIT_REPOSITORY https://github.com/free-audio/clap-juce-extensions.git
+                # This commit supports JUCE 8 and records immutable gitlinks for
+                # CLAP 29ffcc273be7c7c651f6c9953b99e69700e2387a and
+                # clap-helpers a61bcdf0ecc2c8db1e80bfe8bf9cb7e8d9fd2bbc.
+                GIT_TAG c1a5ad025f95d01e03267857fa8276ebeed16500
+                GIT_SUBMODULES clap-libs/clap clap-libs/clap-helpers
+                GIT_SUBMODULES_RECURSE TRUE)
+            FetchContent_MakeAvailable(clap_juce_extensions)
+        endif()
+    endif()
+
     if(APPLE)
         set(ELECTRY_PLUGIN_FORMATS VST3 AU Standalone)
     else()
@@ -189,6 +220,12 @@ if(ELECTRY_BUILD_PLUGIN)
             JUCE_WEB_BROWSER=0
             JUCE_USE_CURL=0
             JUCE_VST3_CAN_REPLACE_VST2=0)
+
+    if(ELECTRY_BUILD_CLAP)
+        clap_juce_extensions_plugin(TARGET Electry
+            CLAP_ID "audio.electry.synth"
+            CLAP_FEATURES instrument synthesizer stereo)
+    endif()
 endif()
 
 # The committed demonstration WAVs under Docs/audio are rendered by this tool
@@ -354,6 +391,30 @@ if(BUILD_TESTING)
         set_tests_properties(Electry.VST3Artifact PROPERTIES
             TIMEOUT 60)
 
+        if(ELECTRY_BUILD_CLAP)
+            # Exercise the exported CLAP ABI from the actual binary, including
+            # MIDI rendering and state restore, without linking the processor.
+            add_executable(ElectryCLAPArtifactSmokeTests
+                Tests/CLAPArtifactSmokeTests.cpp)
+            target_link_libraries(ElectryCLAPArtifactSmokeTests PRIVATE
+                clap ${CMAKE_DL_LIBS})
+            target_compile_features(ElectryCLAPArtifactSmokeTests PRIVATE cxx_std_20)
+            target_compile_definitions(ElectryCLAPArtifactSmokeTests PRIVATE
+                ELECTRY_EXPECTED_VERSION="${PROJECT_VERSION}")
+            add_dependencies(ElectryCLAPArtifactSmokeTests Electry_CLAP)
+            if(MSVC)
+                target_compile_options(ElectryCLAPArtifactSmokeTests PRIVATE
+                    /W4 /permissive-)
+            else()
+                target_compile_options(ElectryCLAPArtifactSmokeTests PRIVATE
+                    -Wall -Wextra -Wpedantic)
+            endif()
+            add_test(NAME Electry.CLAPArtifact
+                     COMMAND ElectryCLAPArtifactSmokeTests
+                         "$<TARGET_FILE:Electry_CLAP>")
+            set_tests_properties(Electry.CLAPArtifact PROPERTIES TIMEOUT 60)
+        endif()
+
         if(APPLE)
             # Load the exact AU binary through its exported factory and Core
             # Audio's process-local registration API. This avoids validating a
@@ -378,6 +439,9 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME Electry.RefreshGeneratedMedia
+                 COMMAND "${Python3_EXECUTABLE}"
+                         "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RefreshGeneratedMediaTests.py")
         add_test(NAME Electry.PrepareBlindListening
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PrepareBlindListeningTests.py")
@@ -394,6 +458,7 @@ if(BUILD_TESTING)
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/FitDispersionTests.py")
         set_tests_properties(
+            Electry.RefreshGeneratedMedia
             Electry.PrepareBlindListening Electry.ScoreBlindListening
             Electry.ValidateReferenceFixture Electry.CompareReferenceFixture
             Electry.FitDispersion
