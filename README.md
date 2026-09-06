@@ -1,9 +1,74 @@
 # Electry
 
-An original, physically modeled **dry electric guitar**: VST3, CLAP, Audio Unit and
-Standalone for macOS, plus Linux and Windows builds.
+An original, physically modeled **eight-string electric guitar** for macOS,
+Windows and Linux. Play a dry DI or use the built-in amps and effects, with
+palm muting, hammer-ons, slides, harmonics and vibrato.
+
+**[Download the latest build](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
+· [Audio demos](#listen-and-play)
+· [Release history](#release-history)
+· [Technical details](#technical-details)
 
 ![Electry](Docs/screenshots/electry-standalone.png)
+
+## Downloads
+
+Open the newest run in **[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**,
+then download **electry-main-build** from its **Artifacts** section. GitHub
+requires sign-in to download workflow artifacts.
+
+| Platform | Formats | Package |
+| --- | --- | --- |
+| macOS — Apple Silicon + Intel | VST3, Audio Unit, CLAP, standalone | Universal ZIP and PKG installer |
+| Windows — x64 | VST3, CLAP, standalone | ZIP |
+| Linux — x64 | VST3, CLAP, standalone | tar.gz |
+
+Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
+demos. Each download includes that complete set, source revision and SHA-256
+checksums, and remains available for 14 days. Builds also refresh daily.
+
+macOS bundles are ad-hoc signed; the PKG installer is unsigned and the builds
+are not notarized. Audio Unit is available only on macOS.
+
+## Listen and play
+
+[Dry rhythm](Docs/audio/04-drop-e-rhythm-dry.wav)
+· [Amplified rhythm](Docs/audio/05-drop-e-rhythm-amp.wav)
+· [Lead showcase](Docs/audio/17-extended-technique-solo.wav)
+· [Three amp voices](Docs/audio/23-amp-voices.wav)
+· [All 23 demos](Docs/audio)
+
+Start with **Factory Default** for dry DI, **Drop-E Metal** for heavy rhythm,
+or **Blues Rock Lead** for a lead with amp, delay and room.
+See [factory rigs and quick start](#factory-rigs-and-quick-start) for playing
+instructions and [demo notes](#audio-demos) for the full listening guide.
+
+## Release history
+
+Current distributions are development builds from `main`; no tagged releases
+have been published yet.
+
+- **2026-09-06 — [Automated distribution builds](https://github.com/protocodus/virtual-instrument-electry/commit/b35242589674680bf4db5c7f0b7264bcb0fe7fb4):**
+  macOS, Windows and Linux packages with CLAP support, plus screenshot and audio
+  refreshes on every merge to `main`.
+- **2026-09-05 — [String precision and retained hand state](#2026-09-05-string-precision-and-retained-hand-state):**
+  more precise fractional string delays, preserved saddle resonance on repicks,
+  and retained palm damping through legato and slides.
+
+[Build history](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain)
+· [Tagged release archive](https://github.com/protocodus/virtual-instrument-electry/releases)
+· [Full development checkpoints](#development-checkpoints)
+
+---
+
+## Technical details
+
+[Build from source](#build) · [MIDI and playing controls](#how-it-works)
+· [Host parameters](#28-host-parameters) · [Sound architecture](#sound-architecture)
+· [References](#references-and-claim-boundaries) · [Known gaps](#known-gaps)
+· [Licensing](#licensing)
+
+### Instrument model
 
 Eight string voices run dual-polarisation waveguide loops with physically
 derived stiffness dispersion, decay-targeted damping and exact fundamental
