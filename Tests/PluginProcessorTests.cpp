@@ -4192,8 +4192,12 @@ void testTextButtonKeyboardActivation()
         visualButton.setEnabled (enabled);
         juce::Image image (juce::Image::ARGB, visualButton.getWidth(),
                            visualButton.getHeight(), true);
-        juce::Graphics graphics (image);
-        visualButton.paintEntireComponent (graphics, true);
+        {
+            // Direct2D completes batched drawing when the context is destroyed.
+            // Read the pixels only after that drawing context has ended.
+            juce::Graphics graphics (image);
+            visualButton.paintEntireComponent (graphics, true);
+        }
         return image.getPixelAt (6, 6).getAlpha();
     };
     const auto enabledAlpha = renderedAlpha (true);
@@ -4351,14 +4355,19 @@ void testEditorRendering()
                 >= 3.0f,
             "factory-rig popup selection fell below 3:1 state contrast");
     juce::Image popupImage (juce::Image::ARGB, 160, 28, true);
-    juce::Graphics popupGraphics (popupImage);
-    editorLookAndFeel.drawPopupMenuBackground (
-        popupGraphics, popupImage.getWidth(), popupImage.getHeight());
+    {
+        juce::Graphics popupGraphics (popupImage);
+        editorLookAndFeel.drawPopupMenuBackground (
+            popupGraphics, popupImage.getWidth(), popupImage.getHeight());
+    }
     expect (popupImage.getPixelAt (80, 4) == popupBackground,
             "factory-rig popup did not paint its matched panel background");
-    editorLookAndFeel.drawPopupMenuItem (
-        popupGraphics, popupImage.getBounds(), false, true, true, false,
-        false, {}, {}, nullptr, nullptr);
+    {
+        juce::Graphics popupGraphics (popupImage);
+        editorLookAndFeel.drawPopupMenuItem (
+            popupGraphics, popupImage.getBounds(), false, true, true, false,
+            false, {}, {}, nullptr, nullptr);
+    }
     expect (popupImage.getPixelAt (4, 4) == popupHighlight,
             "factory-rig popup did not paint its matched selection colour");
 
