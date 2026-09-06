@@ -5145,7 +5145,7 @@ void testEditorRendering()
             const int physicalString = electry::ElectryEngine::stringCount
                                      - sympatheticString;
             semanticDisplay.keyPressed (juce::KeyPress {
-                static_cast<juce::juce_wchar> ('0' + physicalString) });
+                '0' + physicalString });
             const auto title = accessibleTitle();
             expect (title.contains ("physical string "
                                     + juce::String (physicalString))
