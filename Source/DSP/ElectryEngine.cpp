@@ -1346,6 +1346,10 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     // literal it would give the hand a different physical response time at
     // every host rate.
     handEnvelopeCoefficient_ = rateAdjustedCoefficient(0.0015f, internalRate);
+    // Two-ms pole: 95% of a contact change is traversed in the existing
+    // six-ms string-delay settling interval, independently of the host rate.
+    articulationMakeupRetention_ = std::exp(-1.0f / (0.002f * internalRate));
+    slideFrictionEnergyCoefficient_ = 1.0f - std::exp(-1.0f / (0.010f * internalRate));
 #if ELECTRY_ENERGY_ATTACK_PITCH
     attackPitchTensionRatioRetention_ = std::exp(
         -static_cast<float>(controlPeriod)
@@ -2608,17 +2612,28 @@ void ElectryEngine::allNotesOff()
     resetVibratoOnset();
 }
 
+float ElectryEngine::legatoPitchOffset(const Voice& voice) noexcept
+{
+    if (voice.legatoBlend >= 1.0f || voice.legatoFromFrequency <= 0.0f)
+        return 0.0f;
+    const float position = smoothStep(voice.legatoBlend);
+    if (voice.legatoUsesLengthTrajectory)
+    {
+        // Frequency is inverse speaking length at unchanged string tension.
+        // Interpolate that physical length, then convert the same finger
+        // location to pitch for damping, allocation, pickups and retargets.
+        const float sourceLengthRatio = voice.baseFrequency
+                                      / voice.legatoFromFrequency;
+        return -12.0f * std::log2(lerp(sourceLengthRatio, 1.0f, position));
+    }
+    return 12.0f * std::log2(voice.legatoFromFrequency / voice.baseFrequency)
+         * (1.0f - position);
+}
+
 float ElectryEngine::performedFret(const Voice& voice) noexcept
 {
-    float fret = static_cast<float>(voice.fret);
-    if (voice.legatoBlend < 1.0f && voice.legatoFromFrequency > 0.0f)
-    {
-        const float remainingSemitones = 12.0f * std::log2(
-            voice.legatoFromFrequency / voice.baseFrequency)
-            * (1.0f - smoothStep(voice.legatoBlend));
-        fret += remainingSemitones;
-    }
-    return clampf(fret, 0.0f, static_cast<float>(fretCount));
+    return clampf(static_cast<float>(voice.fret) + legatoPitchOffset(voice),
+                  0.0f, static_cast<float>(fretCount));
 }
 
 int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
@@ -3076,6 +3091,18 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
     t60 = clampf(t60, 0.02f, 26.0f);
 #endif
     float t60High = t60 * highRatio;
+    // Shortening a wound string raises its vibration-cycle rate. A constant
+    // material loss factor therefore gives a fundamental T60 proportional to
+    // speaking length (Fleischer 2005, section 6.1.1). The open-string target
+    // remains the anchor; this is a construction-law approximation, not a fit
+    // of loss factors to the uncontrolled eight-string reference recordings.
+    // Plain treble strings also have appreciable air loss, so do not apply
+    // this wound-string approximation to their composite decay targets.
+    // Keep the already-calibrated fixed-Hz upper target above: fretting changes
+    // the fundamental's frequency, not that reference frequency. Hand losses
+    // join below in parallel and retain their own physical timescales.
+    if (spec.wound && liveFret > 0.0f)
+        t60 *= std::exp2(-liveFret / 12.0f);
 #if ELECTRY_MEASURED_BODY_RESPONSE
     // Ray's controlled material comparison found no significant fundamental-
     // decay difference and supplies no complex, fret-specific termination
@@ -3398,10 +3425,8 @@ void ElectryEngine::configureVoiceDispersion(
 #if ELECTRY_ANALYTIC_RELEASE_IC || ELECTRY_ENERGY_ATTACK_PITCH
     voice.stringTensionNewtons = liveTension;
 #endif
-#if ELECTRY_PASSIVE_REPICK_SPRING
     voice.stringWaveImpedance = std::sqrt(
         std::max(liveTension * linearMass, 1.0e-12f));
-#endif
     const float bendingStiffness = pi * pi * pi * steelYoungModulus
                                  * bendingDiameter * bendingDiameter
                                  * bendingDiameter * bendingDiameter / 64.0f;
@@ -3516,13 +3541,7 @@ void ElectryEngine::configureVoiceDispersion(
 
 void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexcept
 {
-    float legatoOffset = 0.0f;
-    if (voice.legatoBlend < 1.0f && voice.legatoFromFrequency > 0.0f)
-    {
-        const float fromSemis = 12.0f * std::log2(voice.legatoFromFrequency
-                                                  / voice.baseFrequency);
-        legatoOffset = fromSemis * (1.0f - smoothStep(voice.legatoBlend));
-    }
+    const float legatoOffset = legatoPitchOffset(voice);
 
     // Legacy pitch bend is one interval for every ID-0 string. A member voice
     // reads its per-expression member and master components separately. Note
@@ -4698,11 +4717,34 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     const float pickControl = std::pow(parameters.pickNoise, 0.75f);
     const float fingerControl = std::pow(parameters.fingerNoise, 0.75f);
     float noiseLevel = pickControl * (0.12f + 0.63f * profile.noise);
-    noiseLevel += fingerControl * (voice.fret > 0 ? 0.055f : 0.012f)
-                * profile.noise;
+    // The plectrum scrapes on each stroke, but a finger already holding its
+    // fret does not land again when B0/E6 or a repeated Note On repicks it.
+    // Its own Hammer/Slide contact is voiced separately below.
+    if (voice.frettingContactPending)
+        noiseLevel += fingerControl * (voice.fret > 0 ? 0.055f : 0.012f)
+                    * profile.noise;
+    voice.frettingContactPending = false;
     float noiseMs = lerp(4.8f, 0.8f, effectivePickHardness);
     const auto& spec = stringSpecs()[static_cast<std::size_t>(voice.stringIndex)];
     float noiseCutoff = spec.wound ? 2100.0f : 4800.0f;
+    if (plectrumContact && spec.wound)
+    {
+        // An oblique pick edge crosses the winding ridges at v / w. The
+        // release-rate/hardness factors below already describe its speed;
+        // supply the missing ridge spacing here, using the same wrap-pitch
+        // estimate as a sliding finger. A .098 eighth string has coarser
+        // ridges than the low E2, so its scrape is lower and less hiss-like.
+        // This estimate is geometric voicing, not a measured wrap-wire fit.
+        // Normalize to the established default E2 contact to retain its tone.
+        constexpr float referenceGaugeScale = 11.0f / 9.0f;
+        constexpr float referenceWindingMm =
+            0.100f + 0.130f * 1.0668f * referenceGaugeScale;
+        const float gaugeScale = lerp(1.0f, 11.0f / 9.0f,
+                                      parameters.stringGauge);
+        const float windingMm = 0.100f
+            + 0.130f * spec.plainDiameterMm * gaugeScale;
+        noiseCutoff *= clampf(referenceWindingMm / windingMm, 0.55f, 1.65f);
+    }
     float modalBrightness = 1.0f;
     voice.excitationPolarity = 1.0f;
 
@@ -4933,8 +4975,62 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
                               * modalProjectionGain;
     voice.excitationTransientAmplitude = amplitude * transientGain
                                        * modalProjectionGain;
-    voice.excitationLength = std::max(
+    // The initial loading follows the hand; the final slip follows the
+    // string's kink velocity F/Z. makeVelocityProfile() already accounts for
+    // force and pick recoil, but previously omitted Z altogether. Retain the
+    // original load time and scale only the slip portion with sqrt(T*mu).
+    // This gives the thick low strings a rounder release without changing
+    // their force, pitch, or the separately voiced modal low-pass corner.
+    // The reference is the default 27.6-inch heavy-set E2. Bounds cover the
+    // ordinary set while keeping extreme MPE bends and plain strings usable;
+    // they are conservative voicing limits, not calibrated material data.
+    constexpr float referenceGaugeScale = 11.0f / 9.0f;
+    constexpr float referenceDiameterMetres = 0.0010668f * referenceGaugeScale;
+    constexpr float referenceLinearMass = 0.85f * steelDensity * pi * 0.25f
+        * referenceDiameterMetres * referenceDiameterMetres;
+    constexpr float referenceScaleMetres = conventionalScaleMetres
+        + 0.85f * (baritoneScaleMetres - conventionalScaleMetres);
+    constexpr float referenceImpedance = referenceLinearMass
+        * (2.0f * referenceScaleMetres * 82.40689f);
+    const float impedanceSlipScale = plectrumContact
+        ? clampf(voice.stringWaveImpedance / referenceImpedance, 0.75f, 2.60f)
+        : 1.0f;
+    const float nominalSlipPoint = lerp(0.62f, 0.82f, effectivePickHardness);
+    const float releaseDurationScale = nominalSlipPoint
+        + (1.0f - nominalSlipPoint) * impedanceSlipScale;
+    const float slipPoint = nominalSlipPoint / releaseDurationScale;
+    const int nominalExcitationLength = std::max(
         8, static_cast<int>(pulseMs * 0.001f * sampleRate));
+    voice.excitationLength = std::max(
+        8, static_cast<int>(pulseMs * releaseDurationScale * 0.001f * sampleRate));
+    // The pulse is a force/area source for the modal projection. Broader slip
+    // must redistribute that source in time rather than add another level
+    // gain on top of the player's velocity. Account for the sampled pulse,
+    // too: at the eight-sample floor a short slip can fit between samples,
+    // making the continuous half-window approximation measurably inaccurate.
+    // Summed squares/cubes integrate the two smoothsteps exactly in constant
+    // work; a longer contact adds no per-note or per-frame loop here.
+    const auto sampledReleaseArea = [] (int length, float split)
+    {
+        const double loadLength = static_cast<double>(length) * split;
+        const double slipLength = static_cast<double>(length) - loadLength;
+        const int loadCount = static_cast<int>(loadLength);
+        const auto halfArea = [] (int count, double duration)
+        {
+            const double n = static_cast<double>(count);
+            const double sumSquares = n * (n + 1.0) * (2.0 * n + 1.0) / 6.0;
+            const double sumCubes = n * n * (n + 1.0) * (n + 1.0) * 0.25;
+            return (3.0 * sumSquares - 2.0 * sumCubes / duration)
+                 / (duration * duration);
+        };
+        return halfArea(loadCount, loadLength)
+             + halfArea(length - loadCount - 1, slipLength);
+    };
+    const float releaseAreaScale = static_cast<float>(
+        sampledReleaseArea(nominalExcitationLength, nominalSlipPoint)
+        / sampledReleaseArea(voice.excitationLength, slipPoint));
+    voice.excitationAmplitude *= releaseAreaScale;
+    voice.excitationTransientAmplitude *= releaseAreaScale;
     // Solved once here instead of on every rendered sample of the Release
     // phase below, which divides by this same clamped length once per
     // sample to form its progress fraction.
@@ -4980,17 +5076,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // sounding-length coordinate. Finger-only Hammer/Slide contacts retain
     // their destination geometry: this correction belongs to the pick that
     // physically meets the moving string.
-    float contactFret = static_cast<float>(voice.fret);
-    if (plectrumContact && voice.legatoBlend < 1.0f
-        && voice.legatoFromFrequency > 0.0f)
-    {
-        const float fromSemitones = 12.0f * std::log2(
-            voice.legatoFromFrequency / voice.baseFrequency);
-        contactFret = clampf(
-            contactFret
-                + fromSemitones * (1.0f - smoothStep(voice.legatoBlend)),
-            0.0f, static_cast<float>(fretCount));
-    }
+    const float contactFret = plectrumContact
+        ? performedFret(voice) : static_cast<float>(voice.fret);
     const float fretStretch = std::exp2(contactFret / 12.0f);
     const float strokePluckFraction = pluckFraction
         + strokeContactOffsetMetres / scaleLengthMetres();
@@ -5108,7 +5195,6 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // The pick draws the string aside over most of the contact and then slips
     // off it: the release edge is several times faster than the load, and a
     // stiffer pick lets go later and more abruptly.
-    const float slipPoint = lerp(0.62f, 0.82f, effectivePickHardness);
     voice.excitationLoadScale = 1.0f / slipPoint;
     voice.excitationSlipScale = 1.0f / (1.0f - slipPoint);
 
@@ -5465,6 +5551,25 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     const bool sameOwnedNote = wasRinging && voice.keyDown
                             && voice.midiNote == midiNote
                             && voice.expressionId == expressionId;
+    const auto heldIndex = static_cast<std::size_t>(voice.stringIndex);
+    const bool sameDurableFinger = heldNoteCounts_[heldIndex] > 0
+        && heldMidiNotes_[heldIndex] == midiNote
+        && heldExpressionIds_[heldIndex] == expressionId;
+    // Audible retirement is independent of the hand: a silent Palm/Dead
+    // string may still have its fretting key held when B0 picks it again.
+    // Preserve an unconsumed landing through rescheduling, but never invent
+    // another landing merely because startVoice rewrites MIDI ownership.
+    const bool newFrettingContact = keyStateAlreadyApplied
+        ? voice.frettingContactPending
+        : voice.frettingContactPending || ! (sameOwnedNote || sameDurableFinger);
+    voice.frettingContactPending = newFrettingContact;
+    if (newFrettingContact || ! wasRinging)
+    {
+        voice.slideRidgePhase = 0.0;
+        voice.slideFrictionEnergy = 0.0f;
+        voice.slideShaperHigh.reset();
+        voice.slideShaperLow.reset();
+    }
     const bool sameHeldFinger = sameOwnedNote
         && (! voice.pendingRepick.active
             || voice.pendingRepick.preservesVibratoFinger);
@@ -5565,6 +5670,7 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     if (! sameHeldFinger)
         seedVibratoFinger(voice);
     voice.ageSamples = 0;
+    voice.releaseMotionPeak = voice.outputEnergy;
     // Per-note, for the same reason ageSamples is: the relax factor is
     // measured against this note's own peak. Carried over, a quiet note
     // following a loud one on the same string is divided by the loud one's
@@ -5612,6 +5718,7 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     {
         voice.legatoBlend = 1.0f;
         voice.legatoFromFrequency = 0.0f;
+        voice.legatoUsesLengthTrajectory = false;
     }
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
@@ -5671,6 +5778,8 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     voice.pendingContactPreservesRing = wasRinging
                                      && voice.startDelaySamples > 0;
     updateStyleWeights(voice);
+    if (! wasRinging)
+        voice.articulationMakeupCurrent = voice.articulationMakeup;
     if (voice.startDelaySamples == 0)
         startExcitation(voice, velocity, false,
                         preservesExistingStringState);
@@ -5708,21 +5817,13 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
                                         - voice.horizontal.targetDelay;
     // A new gesture can arrive before the preceding glide reaches its target.
     // Continue from the pitch and fractional fret under the finger now, not
-    // from that unfinished destination. This is the same log-frequency
-    // smoothstep configureVoicePitch() uses, evaluated before target state is
-    // overwritten, so the handoff is position-continuous without new state.
-    float fromFrequency = voice.baseFrequency;
-    float fromFret = static_cast<float>(voice.fret);
-    if (voice.legatoBlend < 1.0f && voice.legatoFromFrequency > 0.0f)
-    {
-        const float remainingSemitones = 12.0f * std::log2(
-            voice.legatoFromFrequency / voice.baseFrequency)
-            * (1.0f - smoothStep(voice.legatoBlend));
-        fromFrequency = voice.baseFrequency
-            * std::exp2(remainingSemitones / 12.0f);
-        fromFret = clampf(fromFret + remainingSemitones, 0.0f,
-                          static_cast<float>(fretCount));
-    }
+    // from that unfinished destination. This is the same physical trajectory
+    // configureVoicePitch() uses, evaluated before target state is
+    // overwritten, so the handoff remains position-continuous for both the
+    // physical slide and the finger-landing pitch trajectory.
+    const float fromFrequency = voice.baseFrequency
+        * std::exp2(legatoPitchOffset(voice) / 12.0f);
+    const float fromFret = performedFret(voice);
     const bool travellingContact = voice.startDelaySamples > 0;
     const bool freshFingerPending = travellingContact
                                  && voice.pendingRepick.active
@@ -5785,18 +5886,27 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
 
     // A hammered finger lands over roughly ten milliseconds rather than
     // instantly. A slide does not land at all: it stays down and travels, so
-    // its duration is a distance divided by a hand speed rather than a fixed
-    // time, and a twelve-fret slide takes six times as long as a two-fret one.
-    // The hand speed follows the Bend Time control - the same travel-time
-    // control the wheel uses - at 8% of it per fret, so the 280 ms default is
-    // 22 ms per fret.
+    // its duration is a distance divided by a hand speed. Frets shrink toward
+    // the bridge, so the same interval is quicker higher up the neck. Retain
+    // the established 44.8 ms default two-fret travel near the nut on the
+    // default 27.625-inch scale; Bend Time still scales the hand's speed.
     const float frets = std::abs(static_cast<float>(voice.fret) - fromFret);
+    const float openLength = scaleLengthMetres();
+    const float fromPosition = openLength * (1.0f - std::exp2(-fromFret / 12.0f));
+    const float toPosition = openLength
+        * (1.0f - std::exp2(-static_cast<float>(voice.fret) / 12.0f));
+    const float travelMetres = std::abs(toPosition - fromPosition);
     float glideSeconds = 0.010f;
     if (playStyle == PlayStyle::Slide)
-        glideSeconds = clampf(0.08f * smoothedParameters_.bendTimeSeconds
-                                  * std::max(frets, 1.0f),
+    {
+        const float referenceTravel = 27.625f * 0.0254f
+                                   * (1.0f - std::exp2(-2.0f / 12.0f));
+        glideSeconds = clampf(0.16f * smoothedParameters_.bendTimeSeconds
+                                  * travelMetres / referenceTravel,
                               0.030f, 1.200f);
+    }
     voice.legatoBlend = 0.0f;
+    voice.legatoUsesLengthTrajectory = playStyle == PlayStyle::Slide;
     voice.legatoIncrement = static_cast<float>(controlPeriod)
         / (glideSeconds * static_cast<float>(sampleRate_));
 
@@ -5809,16 +5919,11 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
     voice.slideNoiseAmplitude = 0.0f;
     voice.slideNoiseLevel = 0.0f;
     voice.slideAverageBandCentreHz = 0.0f;
-    voice.slideShaperHigh.reset();
-    voice.slideShaperLow.reset();
+    voice.slideHasWinding = spec.wound;
+    voice.slideRidgeCyclesPerSample = 0.0f;
     if (playStyle == PlayStyle::Slide && frets > 0.0f)
     {
-        const float openLength = scaleLengthMetres();
-        const float fromPosition = openLength
-            * (1.0f - std::exp2(-fromFret / 12.0f));
-        const float toPosition = openLength
-            * (1.0f - std::exp2(-static_cast<float>(voice.fret) / 12.0f));
-        const float speed = std::abs(toPosition - fromPosition) / glideSeconds;
+        const float speed = travelMetres / glideSeconds;
 
         // Winding pitch. A real wrap wire runs from about 0.36 mm on a .080 to
         // about 0.18 mm on a .024, which is far flatter than the string
@@ -5883,6 +5988,29 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
         voice.excitationCombWidth = 0.0f;
         std::swap(voice.verticalWeight, voice.horizontalWeight);
     }
+    else if (playStyle == PlayStyle::Hammer
+             && static_cast<float>(voice.fret) > fromFret)
+    {
+        // The landing finger excites the string at the NEW fret, measured on
+        // the still-ringing source length. It does not strike at the picking
+        // hand's old fixed 12%-of-open-length position. L_new/L_source is
+        // 2^(-deltaFret/12); retain its far-side phase, as for a pull-off.
+        // lastCompensatedPeriod includes the live wheel/MPE tension already.
+        const float landingFraction = std::exp2(
+            -(static_cast<float>(voice.fret) - fromFret) / 12.0f);
+        voice.excitationCombDelay = landingFraction
+                                  * voice.lastCompensatedPeriod;
+        // A fingertip distributes its contact over millimetres, rather than
+        // borrowing the plectrum's sub-millimetre edge. The 8 mm pad is an
+        // explicit geometric voicing estimate, independent of Pick Hardness.
+        const float sourceLength = scaleLengthMetres()
+                                  * std::exp2(-fromFret / 12.0f);
+        const float halfWidthFraction = std::min(
+            0.004f / sourceLength,
+            0.5f * std::min(landingFraction, 1.0f - landingFraction));
+        voice.excitationCombWidth = halfWidthFraction
+                                  * voice.lastCompensatedPeriod;
+    }
 }
 
 void ElectryEngine::freezeExpressionPitchBend(Voice& voice) noexcept
@@ -5905,6 +6033,7 @@ void ElectryEngine::stopLegatoTravel(Voice& voice) noexcept
     voice.legatoIncrement = 0.0f;
     voice.slideNoiseAmplitude = 0.0f;
     voice.slideNoiseLevel = 0.0f;
+    voice.slideRidgeCyclesPerSample = 0.0f;
 }
 
 void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
@@ -5994,8 +6123,23 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     const float sampleRate = static_cast<float>(sampleRate_);
     voice.releaseGainTarget = releaseLoopGain(
         voice.lastCompensatedPeriod, sampleRate);
+    // A stopped fret can be released by relaxing that finger; an open string
+    // requires a damping hand. An already planted palm likewise remains the
+    // dominant contact. Use the same 10 ms finger landing time as legato and
+    // the established 22 ms broad-hand closure; neither changes final T60.
+    const float palmDepth = voice.dampingStyle == PlayStyle::PalmMute
+        ? 0.55f + 0.45f * smoothedParameters_.muteDamping : 0.0f;
+    // A pull-off or slide toward the open string may be interrupted before
+    // arriving. The written destination is already fret zero, but the finger
+    // is still stopping the performed length when this Note Off lands.
+    const float stoppingFret = performedFret(voice);
+    const bool broadHandStop = stoppingFret <= 0.0f
+                              || voice.dampingStyle == PlayStyle::Dead;
+    const float handStop = broadHandStop ? 1.0f
+        : 1.0f - (1.0f - palmDepth) * (1.0f - palmMuteBlend_);
+    const float closureSeconds = lerp(0.010f, 0.022f, handStop);
     voice.releaseGainCoefficient =
-        1.0f - std::exp(-1.0f / (0.022f * sampleRate));
+        1.0f - std::exp(-1.0f / (closureSeconds * sampleRate));
 
     if (! voice.releaseNoiseDone && smoothedParameters_.releaseNoise > 0.0f)
     {
@@ -6011,7 +6155,14 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
         const float level = std::pow(smoothedParameters_.releaseNoise, 0.75f)
                           * (spec.wound ? 0.20f : 0.13f)
                           * voice.velocityProfile.noise;
-        voice.noiseAmplitude = level;
+        const float remainingMotion = voice.releaseMotionPeak > 1.0e-12f
+            ? std::sqrt(clampf(voice.outputEnergy / voice.releaseMotionPeak,
+                               0.0f, 1.0f)) : 0.0f;
+        // A hand stopping an open string has no fretting-finger lift scrape.
+        // Keep its quieter, darker contact through the existing noise control.
+        // These endpoint weights are voicing, not a fitted capture claim.
+        const float contactWeight = lerp(1.0f, 0.35f, handStop);
+        voice.noiseAmplitude = level * remainingMotion * contactWeight;
         const float releaseSeconds = lerp(
             0.006f, 0.015f,
             0.55f * smoothedParameters_.stringAge
@@ -6020,7 +6171,9 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
             8, static_cast<int>(releaseSeconds * sampleRate));
         voice.noiseLengthDenominator = static_cast<float>(std::max(1, voice.noiseLength));
         voice.noiseRemaining = voice.noiseLength;
-        voice.noiseBandCoefficient = std::exp(-twoPi * (spec.wound ? 1500.0f : 2600.0f)
+        const float releaseCorner = (spec.wound ? 1500.0f : 2600.0f)
+                                    * lerp(1.0f, 0.50f, handStop);
+        voice.noiseBandCoefficient = std::exp(-twoPi * releaseCorner
                                               * inverseSampleRate_);
         voice.noiseShaper.reset();
         voice.noiseBandState = 0.0f;
@@ -6061,8 +6214,8 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
 #endif
     voice.excitationTailLength = 0;
     voice.contactFeedbackGain = 1.0f;
-#if ELECTRY_PASSIVE_REPICK_SPRING
     voice.stringWaveImpedance = 1.0f;
+#if ELECTRY_PASSIVE_REPICK_SPRING
     voice.passiveRepickSpringActive = false;
     voice.passiveRepickState = 0.0f;
 #endif
@@ -6082,13 +6235,21 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
     voice.releaseGainCoefficient = 0.0f;
+    voice.releaseMotionPeak = 0.0f;
+    voice.articulationMakeupCurrent = 1.0f;
     voice.legatoBlend = 1.0f;
+    voice.legatoUsesLengthTrajectory = false;
+    voice.frettingContactPending = false;
     voice.touchDepth = 0.0f;
     voice.touchHoldRemaining = 0;
     voice.touchFraction = 0.0f;
     voice.slideNoiseAmplitude = 0.0f;
     voice.slideNoiseLevel = 0.0f;
     voice.slideAverageBandCentreHz = 0.0f;
+    voice.slideRidgePhase = 0.0;
+    voice.slideRidgeCyclesPerSample = 0.0f;
+    voice.slideHasWinding = false;
+    voice.slideFrictionEnergy = 0.0f;
     voice.slideShaperHigh.reset();
     voice.slideShaperLow.reset();
     voice.vibratoSemitones = 0.0f;
@@ -6426,6 +6587,11 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
             const float b = voice.legatoBlend;
             const float motion = 6.0f * b * (1.0f - b);
             voice.slideNoiseLevel = voice.slideNoiseAmplitude * motion;
+            const float direction = voice.baseFrequency >= voice.legatoFromFrequency
+                                  ? 1.0f : -1.0f;
+            voice.slideRidgeCyclesPerSample = direction * std::min(
+                voice.slideAverageBandCentreHz * motion,
+                0.40f * static_cast<float>(sampleRate_)) * inverseSampleRate_;
             if (voice.legatoBlend < 1.0f)
             {
                 const float centre = clampf(
@@ -6441,6 +6607,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
             {
                 voice.slideNoiseAmplitude = 0.0f;
                 voice.slideNoiseLevel = 0.0f;
+                voice.slideRidgeCyclesPerSample = 0.0f;
             }
         }
     }
@@ -6488,6 +6655,34 @@ inline void ElectryEngine::accumulateStereoContribution(RenderSums& sums,
     sums.neck[1] += neckWeight * neckSignal * (1.0f + side);
     sums.bridge[0] += bridgeWeight * bridgeSignal * (1.0f - side);
     sums.bridge[1] += bridgeWeight * bridgeSignal * (1.0f + side);
+}
+
+float ElectryEngine::renderSlideFriction(Voice& voice) noexcept
+{
+    if (voice.slideNoiseLevel <= 0.0f)
+        return 0.0f;
+    const float raw = bipolarNoise(voice.noiseState);
+    const float high = voice.slideShaperHigh.process(raw, voice.slideBandHigh);
+    const float friction = high - voice.slideShaperLow.process(high, voice.slideBandLow);
+    if (! voice.slideHasWinding)
+        return voice.slideNoiseLevel * friction;
+
+    // A wound string has regular ridges as well as microscopic roughness.
+    // Their phase advances with signed finger distance / winding pitch,
+    // rather than restarting an unrelated noise waveform each control tick.
+    voice.slideRidgePhase += static_cast<double>(voice.slideRidgeCyclesPerSample);
+    voice.slideRidgePhase -= std::floor(voice.slideRidgePhase);
+    voice.slideFrictionEnergy += slideFrictionEnergyCoefficient_
+        * (friction * friction - voice.slideFrictionEnergy);
+    const float ridge = std::sqrt(2.0f * std::max(voice.slideFrictionEnergy, 0.0f))
+        * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * voice.slideRidgePhase));
+    // Modest texture, with the same expected RMS as the original friction.
+    // Tracking energy after its filters avoids amplifying a coherent ridge by
+    // concentrating broadband source energy into the narrow passing band.
+    // The 18% blend is voicing, not an identified finger/winding coefficient.
+    constexpr float ridgeMix = 0.18f;
+    constexpr float roughnessMix = 0.9836666102f; // sqrt(1 - ridgeMix^2)
+    return voice.slideNoiseLevel * (roughnessMix * friction + ridgeMix * ridge);
 }
 
 void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
@@ -6882,11 +7077,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     // motion, so it is exactly zero when the finger is still.
     if (voice.slideNoiseLevel > 0.0f)
     {
-        const float raw = bipolarNoise(voice.noiseState);
-        const float high = voice.slideShaperHigh.process(raw, voice.slideBandHigh);
-        noiseSample += voice.slideNoiseLevel
-                     * (high - voice.slideShaperLow.process(
-                            high, voice.slideBandLow));
+        noiseSample += renderSlideFriction(voice);
     }
 
     if (voice.excitationPhase == ExcitationPhase::Contact)
@@ -7099,6 +7290,14 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     float neckSignal = 0.0f;
     float bridgeSignal = 0.0f;
 
+    // Makeup is a voicing convenience, not a switched pickup gain. Preserve
+    // the old observation of a ringing string while the new contact forms.
+    voice.articulationMakeupCurrent = voice.articulationMakeup
+        + articulationMakeupRetention_
+            * (voice.articulationMakeupCurrent - voice.articulationMakeup);
+    if (std::abs(voice.articulationMakeupCurrent - voice.articulationMakeup) < 1.0e-6f)
+        voice.articulationMakeupCurrent = voice.articulationMakeup;
+
     // Neck and bridge run the identical tap/aperture/coil/flux/EMF chain over
     // their own delay tap, aperture window and coil pair; only the artifact
     // and contact-noise blend weights differ between the two anchors. One
@@ -7134,7 +7333,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         // Local contact motion reaches the pickup as a short velocity-like
         // transient. It still passes through the shared loaded-coil circuit,
         // but does not masquerade as a persistent pitched wave on the string.
-        signal = (signal + noiseWeight * noiseSample) * voice.articulationMakeup;
+        signal = (signal + noiseWeight * noiseSample) * voice.articulationMakeupCurrent;
         return signal;
     };
 
@@ -7216,6 +7415,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         ? retireAttackCoefficient_ : retireReleaseCoefficient_;
     voice.outputEnergy += retireCoefficient
                         * (instantaneousLoopEnergy - voice.outputEnergy);
+    voice.releaseMotionPeak = std::max(voice.releaseMotionPeak, voice.outputEnergy);
 
     if (voice.releasing)
         voice.releaseGain += voice.releaseGainCoefficient

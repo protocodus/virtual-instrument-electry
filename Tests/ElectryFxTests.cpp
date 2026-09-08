@@ -1029,7 +1029,7 @@ std::vector<float> throughSelectedChain(const FxParameters& parameters,
     return left;
 }
 
-// Model-only guard for the 30-80 ms body of the shipping rapid-Palm demo.
+// Model-only guard for the string body of the shipping rapid-Palm demo.
 // The real reference take is useful evidence that this region needs more upper
 // body and less periodic ring, but its amp, cabinet and mastering are unknown,
 // so it is deliberately not treated as a numeric target here.
@@ -1112,101 +1112,120 @@ void testRapidPalmBodyDirection()
     expect(holdSamples + gapSamples == 3674,
            "the rapid-Palm fixture no longer has the demo's 83.31 ms cadence");
 
-    constexpr int fftSize = 4096;
-    const int windowStart = static_cast<int>(0.030 * rate);
-    const int windowEnd = static_cast<int>(0.080 * rate);
-    const int windowLength = windowEnd - windowStart;
-    std::array<double, hitCount> upperBody {};
-    std::array<double, hitCount> harmonicity {};
-    for (int hit = 0; hit < hitCount; ++hit)
+    const auto measureBody = [&] (double startSeconds, double endSeconds)
     {
-        std::vector<double> window(static_cast<std::size_t>(windowLength));
-        const auto first = hitStarts[static_cast<std::size_t>(hit)]
-                         + static_cast<std::size_t>(windowStart);
-        double mean = 0.0;
-        for (int i = 0; i < windowLength; ++i)
-            mean += left[first + static_cast<std::size_t>(i)];
-        mean /= windowLength;
-        for (int i = 0; i < windowLength; ++i)
-            window[static_cast<std::size_t>(i)] =
-                left[first + static_cast<std::size_t>(i)] - mean;
+        constexpr int fftSize = 4096;
+        const int windowStart = static_cast<int>(startSeconds * rate);
+        const int windowEnd = static_cast<int>(endSeconds * rate);
+        const int windowLength = windowEnd - windowStart;
+        std::array<double, hitCount> upperBody {};
+        std::array<double, hitCount> harmonicity {};
+        for (int hit = 0; hit < hitCount; ++hit)
+        {
+            std::vector<double> window(static_cast<std::size_t>(windowLength));
+            const auto first = hitStarts[static_cast<std::size_t>(hit)]
+                             + static_cast<std::size_t>(windowStart);
+            double mean = 0.0;
+            for (int i = 0; i < windowLength; ++i)
+                mean += left[first + static_cast<std::size_t>(i)];
+            mean /= windowLength;
+            for (int i = 0; i < windowLength; ++i)
+                window[static_cast<std::size_t>(i)] =
+                    left[first + static_cast<std::size_t>(i)] - mean;
 
-        std::vector<std::complex<double>> spectrum(
-            static_cast<std::size_t>(fftSize));
-        for (int i = 0; i < windowLength; ++i)
-        {
-            const double hann = 0.5 - 0.5 * std::cos(
-                2.0 * pi * i / static_cast<double>(windowLength - 1));
-            spectrum[static_cast<std::size_t>(i)] =
-                { window[static_cast<std::size_t>(i)] * hann, 0.0 };
-        }
-        fft(spectrum);
-        double upperPower = 0.0;
-        double audiblePower = 0.0;
-        for (int bin = 1; bin <= fftSize / 2; ++bin)
-        {
-            const double frequency = bin * rate / fftSize;
-            if (frequency >= 20.0 && frequency <= 8000.0)
+            std::vector<std::complex<double>> spectrum(
+                static_cast<std::size_t>(fftSize));
+            for (int i = 0; i < windowLength; ++i)
             {
-                const double power = std::norm(
-                    spectrum[static_cast<std::size_t>(bin)]);
-                audiblePower += power;
-                if (frequency > 500.0)
-                    upperPower += power;
+                const double hann = 0.5 - 0.5 * std::cos(
+                    2.0 * pi * i / static_cast<double>(windowLength - 1));
+                spectrum[static_cast<std::size_t>(i)] =
+                    { window[static_cast<std::size_t>(i)] * hann, 0.0 };
             }
-        }
-        upperBody[static_cast<std::size_t>(hit)] = upperPower
-            / std::max(audiblePower, 1.0e-30);
-
-        // Autocorrelation uses the mean-removed body itself. The Hann belongs
-        // only to spectral power; applying it here would compare two different
-        // window gains one period apart and falsely lower harmonicity.
-        double strongestPeriod = -1.0;
-        const int firstLag = static_cast<int>(std::ceil(rate / 48.0));
-        const int lastLag = static_cast<int>(std::floor(rate / 36.0));
-        for (int lag = firstLag; lag <= lastLag; ++lag)
-        {
-            double product = 0.0;
-            double earlyPower = 0.0;
-            double latePower = 0.0;
-            for (int i = 0; i + lag < windowLength; ++i)
+            fft(spectrum);
+            double upperPower = 0.0;
+            double audiblePower = 0.0;
+            for (int bin = 1; bin <= fftSize / 2; ++bin)
             {
-                const double early = window[static_cast<std::size_t>(i)];
-                const double late = window[static_cast<std::size_t>(i + lag)];
-                product += early * late;
-                earlyPower += early * early;
-                latePower += late * late;
+                const double frequency = bin * rate / fftSize;
+                if (frequency >= 20.0 && frequency <= 8000.0)
+                {
+                    const double power = std::norm(
+                        spectrum[static_cast<std::size_t>(bin)]);
+                    audiblePower += power;
+                    if (frequency > 500.0)
+                        upperPower += power;
+                }
             }
-            strongestPeriod = std::max(
-                strongestPeriod,
-                product / std::sqrt(std::max(earlyPower * latePower, 1.0e-30)));
-        }
-        harmonicity[static_cast<std::size_t>(hit)] = strongestPeriod;
-    }
+            upperBody[static_cast<std::size_t>(hit)] = upperPower
+                / std::max(audiblePower, 1.0e-30);
 
-    const auto median = [] (auto values)
-    {
-        std::sort(values.begin(), values.end());
-        return 0.5 * (values[values.size() / 2 - 1]
-                    + values[values.size() / 2]);
+            // Autocorrelation uses the mean-removed body itself. The Hann belongs
+            // only to spectral power; applying it here would compare two different
+            // window gains one period apart and falsely lower harmonicity.
+            double strongestPeriod = -1.0;
+            const int firstLag = static_cast<int>(std::ceil(rate / 48.0));
+            const int lastLag = static_cast<int>(std::floor(rate / 36.0));
+            for (int lag = firstLag; lag <= lastLag; ++lag)
+            {
+                double product = 0.0;
+                double earlyPower = 0.0;
+                double latePower = 0.0;
+                for (int i = 0; i + lag < windowLength; ++i)
+                {
+                    const double early = window[static_cast<std::size_t>(i)];
+                    const double late = window[static_cast<std::size_t>(i + lag)];
+                    product += early * late;
+                    earlyPower += early * early;
+                    latePower += late * late;
+                }
+                strongestPeriod = std::max(
+                    strongestPeriod,
+                    product / std::sqrt(std::max(earlyPower * latePower, 1.0e-30)));
+            }
+            harmonicity[static_cast<std::size_t>(hit)] = strongestPeriod;
+        }
+
+        const auto median = [] (auto values)
+        {
+            std::sort(values.begin(), values.end());
+            return 0.5 * (values[values.size() / 2 - 1]
+                        + values[values.size() / 2]);
+        };
+        return std::array<double, 2> { median(upperBody), median(harmonicity) };
     };
-    const double medianUpperBody = median(upperBody);
-    const double medianHarmonicity = median(harmonicity);
+
+    // The demo sends note-off at 55 ms. The old 30-80 ms brightness gate
+    // therefore counted the release-noise burst as string body: merely
+    // bypassing Release Noise changed its fraction from 0.07586 to 0.02998
+    // on the previous engine. Keep the same 50 ms measurement length, start
+    // after the first 5 ms pick impulse, and stop before note-off instead.
+    // This pre-stop window measured 0.08104 before and 0.08067 after the
+    // contact changes; bypassing Release Noise moved either by under 0.00002.
+    // The unchanged 0.06 rail thus still rejects a substantial loss of upper
+    // string energy without requiring a synthetic key-up burst to supply it.
+    const auto preStop = measureBody(0.005, 0.055);
+    const auto complete = measureBody(0.030, 0.080);
     const auto previousPrecision = std::cout.precision(9);
+    std::cout << "Rapid Palm pre-stop 5-55 ms upper-body fraction "
+                 "(>500-8k / 20-8k): "
+              << preStop[0] << " ("
+              << 10.0 * std::log10(std::max(preStop[0], 1.0e-30))
+              << " dB), harmonicity: " << preStop[1] << '\n';
     std::cout << "Rapid Palm 30-80 ms upper-body fraction (>500-8k / 20-8k): "
-              << medianUpperBody << " ("
-              << 10.0 * std::log10(std::max(medianUpperBody, 1.0e-30))
-              << " dB), harmonicity: " << medianHarmonicity << '\n';
+              << complete[0] << " ("
+              << 10.0 * std::log10(std::max(complete[0], 1.0e-30))
+              << " dB), harmonicity: " << complete[1] << '\n';
     std::cout.precision(previousPrecision);
 
     // Loose one-sided rails: only a material regression toward a darker or
     // more periodic chug should fail. They are not fits to the confounded real
     // reference and intentionally leave room for evidence-led model work.
 #if ! ELECTRY_MEASURED_MODERN_CABINET
-    expect(medianUpperBody > 0.06,
-           "the rapid Palm body became materially darker");
+    expect(preStop[0] > 0.06,
+           "the rapid Palm string body before note-off became materially darker");
 #endif
-    expect(medianHarmonicity < 0.97,
+    expect(complete[1] < 0.97,
            "the rapid Palm body became materially more periodic");
 }
 

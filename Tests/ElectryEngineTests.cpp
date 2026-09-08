@@ -1335,16 +1335,21 @@ struct ElectryEngineTestAccess
             .legatoFromFrequency;
     }
 
+    static double legatoSeconds(const ElectryEngine& engine,
+                                 int stringIndex) noexcept
+    {
+        const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        return voice.legatoIncrement > 0.0f
+            ? static_cast<double>(ElectryEngine::controlPeriod)
+                  / (voice.legatoIncrement * engine.sampleRate_) : 0.0;
+    }
+
     static float programmedLegatoFrequency(const ElectryEngine& engine,
                                             int stringIndex) noexcept
     {
         const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
-        if (voice.legatoBlend >= 1.0f || voice.legatoFromFrequency <= 0.0f)
-            return voice.baseFrequency;
-        const float fromSemitones = 12.0f * std::log2(
-            voice.legatoFromFrequency / voice.baseFrequency);
         return voice.baseFrequency * std::exp2(
-            fromSemitones * (1.0f - smoothStep(voice.legatoBlend)) / 12.0f);
+            ElectryEngine::legatoPitchOffset(voice) / 12.0f);
     }
 
     static float lastConfiguredSemitones(const ElectryEngine& engine,
@@ -1367,9 +1372,7 @@ struct ElectryEngineTestAccess
     {
         auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
         voice.legatoBlend = blend;
-        const float legatoOffset = 12.0f * std::log2(
-            voice.legatoFromFrequency / voice.baseFrequency)
-            * (1.0f - smoothStep(voice.legatoBlend));
+        const float legatoOffset = ElectryEngine::legatoPitchOffset(voice);
         engine.pitchBendSemitones_ = -legatoOffset;
         engine.configureVoicePitch(voice, false);
     }
@@ -6376,6 +6379,8 @@ void testHeldDampingUsesPerformedPitch()
         const int stringIndex = TestAccess::stringForNote(engine, sourceNote);
         const double rest =
             TestAccess::realisedVoiceFundamentalT60(engine, stringIndex);
+        const double sourcePitch =
+            TestAccess::programmedLegatoFrequency(engine, stringIndex);
         engine.noteOn(styleKeyswitch(PlayStyle::Slide), 1.0f);
         engine.noteOn(targetNote, 0.8f);
         expect(TestAccess::stringForNote(engine, targetNote) == stringIndex,
@@ -6387,15 +6392,25 @@ void testHeldDampingUsesPerformedPitch()
 
         StereoBuffer middle(static_cast<int>(0.022 * sampleRate));
         renderInto(engine, middle);
+        // The wheel above changes tension at fixed speaking length, whereas
+        // this wound-string slide shortens the vibrating material. At fixed
+        // tension L/Lsource = fsource/f, so its intrinsic T60 follows that
+        // length ratio. The fixture's frets 2--4 are clear of the existing
+        // local neck dead spot; retain the same half-percent solve tolerance.
+        const auto currentLengthTarget = [&]
+        {
+            return rest * sourcePitch
+                / TestAccess::programmedLegatoFrequency(engine, stringIndex);
+        };
         expectSameDecay(
-            rest,
+            currentLengthTarget(),
             TestAccess::realisedVoiceFundamentalT60(engine, stringIndex),
             "a slide at mid travel");
 
         StereoBuffer destination(static_cast<int>(0.08 * sampleRate));
         renderInto(engine, destination);
         expectSameDecay(
-            rest,
+            currentLengthTarget(),
             TestAccess::realisedVoiceFundamentalT60(engine, stringIndex),
             "a slide at its destination");
     }
@@ -8098,10 +8113,13 @@ void testAttackStateTransitions()
         // metres with the fractional fret under the finger at contact, not the
         // written destination that the glide has not reached yet.
         const float contactBlend = TestAccess::legatoBlend(engine, 1);
-        const float contactOffset = 12.0f * std::log2(
-            TestAccess::legatoFromFrequency(engine, 1)
-            / contacted.baseFrequency)
-            * (1.0f - electry::smoothStep(contactBlend));
+        const float sourceRatio = TestAccess::legatoFromFrequency(engine, 1)
+                                / contacted.baseFrequency;
+        const float contactOffset = legatoStyle == PlayStyle::Slide
+            ? -12.0f * std::log2(electry::lerp(
+                  1.0f / sourceRatio, 1.0f, electry::smoothStep(contactBlend)))
+            : 12.0f * std::log2(sourceRatio)
+                  * (1.0f - electry::smoothStep(contactBlend));
         const float liveFret = static_cast<float>(contacted.fret)
                              + contactOffset;
         const float fretStretch = std::exp2(liveFret / 12.0f);
@@ -9506,7 +9524,7 @@ void testMaterialAndControlAudibility()
     // be the same displacement for the same MIDI force: Pick Hardness changes
     // the plectrum's contact spectrum, not the player's force axis.
     constexpr float twoPi = 6.28318530717958647692f;
-    const auto unfilteredDisplacement = [&] (const auto& voice)
+    const auto unfilteredDisplacement = [&] (const auto& voice, float hardness)
     {
 #if ELECTRY_ENERGY_ATTACK_PITCH
         // lastCompensatedPeriod intentionally follows the decaying physical
@@ -9521,11 +9539,46 @@ void testMaterialAndControlAudibility()
         const float omega = twoPi
             / std::max(voice.lastCompensatedPeriod, 1.0f);
 #endif
+        // Observe the source's work across its actual sampled load/slip
+        // window. Impedance now redistributes this work in time, so the
+        // instantaneous source amplitude alone is not a force measurement.
+        // Compare with the pre-impedance pulse for this same 0.8-velocity
+        // stroke, rather than silently treating every window as N/2 (which
+        // also fails when the slip crosses the eight-sample floor).
+        const auto pulseArea = [] (int length, float loadScale, float slipScale)
+        {
+            double area = 0.0;
+            for (int i = 0; i < length; ++i)
+            {
+                const float phase = static_cast<float>(i)
+                                  / static_cast<float>(length);
+                area += electry::smoothStep(phase * loadScale)
+                      * electry::smoothStep((1.0f - phase) * slipScale);
+            }
+            return area;
+        };
+        constexpr float force = 0.05f + 0.95f * 0.8f;
+        const float releaseRate = electry::lerp(
+            electry::smoothStep(0.65f),
+            1.0f / (0.20f / force + 0.80f), fresh.velocityAmount);
+        const float nominalPulseMs = electry::lerp(1.15f, 0.10f, hardness)
+            * electry::lerp(1.55f, 0.48f, releaseRate)
+            * voice.strokeWidthScale;
+        const int nominalLength = std::max(8, static_cast<int>(
+            nominalPulseMs * 0.001f
+                * static_cast<float>(TestAccess::internalSampleRate(engine))));
+        const float nominalSplit = electry::lerp(0.62f, 0.82f, hardness);
+        const double nominalArea = pulseArea(
+            nominalLength, 1.0f / nominalSplit, 1.0f / (1.0f - nominalSplit));
+        const double actualArea = pulseArea(
+            voice.excitationLength, voice.excitationLoadScale,
+            voice.excitationSlipScale);
         return voice.excitationAmplitude * TestAccess::onePoleMagnitude(
-            voice.excitationReleaseCoefficient, omega);
+            voice.excitationReleaseCoefficient, omega)
+            * static_cast<float>(actualArea / nominalArea);
     };
-    const float softDisplacement = unfilteredDisplacement(softVoice);
-    const float hardDisplacement = unfilteredDisplacement(hardVoice);
+    const float softDisplacement = unfilteredDisplacement(softVoice, 0.0f);
+    const float hardDisplacement = unfilteredDisplacement(hardVoice, 1.0f);
     expect(softVoice.valid && hardVoice.valid
                && softDisplacement > 0.0f
                && std::abs(hardDisplacement / softDisplacement - 1.0f)
@@ -9545,7 +9598,7 @@ void testMaterialAndControlAudibility()
         const auto voice = TestAccess::snapshot(
             engine, TestAccess::stringForNote(
                 engine, ElectryEngine::lowestPlayableNote));
-        return std::pair { voice, unfilteredDisplacement(voice) };
+        return std::pair { voice, unfilteredDisplacement(voice, hardness) };
     };
     const auto [centreBendVoice, centreBendDisplacement] =
         bentDisplacement(0.6f, 0.0f);
@@ -9609,7 +9662,7 @@ void testMaterialAndControlAudibility()
         engine.noteOn(45, 0.8f, expressionId);
         const auto voice = TestAccess::snapshot(
             engine, TestAccess::stringForNote(engine, 45));
-        return std::pair { voice, unfilteredDisplacement(voice) };
+        return std::pair { voice, unfilteredDisplacement(voice, hardness) };
     };
     for (const float semitones : { -24.0f, 24.0f })
     {
@@ -9871,6 +9924,9 @@ void testGuitarBuildRangeIsAudible()
 void testNoiseComponentsAndSilence()
 {
     constexpr double sampleRate = 48000.0;
+    // Exercise an actual fretting-finger lift. Open strings now use the
+    // separate quieter damping-hand stop, covered by RealismContactTests.
+    constexpr int contactNote = 46;
     ElectryEngine engine;
     engine.prepare(sampleRate, 512);
 
@@ -9887,16 +9943,20 @@ void testNoiseComponentsAndSilence()
     noNoise.pickNoise = 0.0f;
     noNoise.fingerNoise = 0.0f;
     noNoise.releaseNoise = 0.0f;
+    // Isolate the contact-control gain from the resonant body and idle-string
+    // paths, whose response to the contact is a separate coupled behavior.
+    noNoise.bodyResonance = 0.0f;
+    noNoise.sympatheticAmount = 0.0f;
     engine.setParameters(noNoise);
-    const auto clean = renderNote(engine, sampleRate, 45, 0.8f,
+    const auto clean = renderNote(engine, sampleRate, contactNote, 0.8f,
                                   PlayStyle::Sustain, 0.9, 0.6);
 
-    EngineParameters fullNoise;
+    EngineParameters fullNoise = noNoise;
     fullNoise.pickNoise = 1.0f;
     fullNoise.fingerNoise = 1.0f;
     fullNoise.releaseNoise = 1.0f;
     engine.setParameters(fullNoise);
-    const auto noisy = renderNote(engine, sampleRate, 45, 0.8f,
+    const auto noisy = renderNote(engine, sampleRate, contactNote, 0.8f,
                                   PlayStyle::Sustain, 0.9, 0.6);
 
     // The pick contact lasts about 1.5 ms at the default hardness before the
@@ -9916,24 +9976,43 @@ void testNoiseComponentsAndSilence()
     EngineParameters releaseOnly = noNoise;
     releaseOnly.releaseNoise = 1.0f;
     engine.setParameters(releaseOnly);
-    const auto releaseNoisy = renderNote(engine, sampleRate, 45, 0.8f,
+    const auto releaseNoisy = renderNote(engine, sampleRate, contactNote, 0.8f,
                                          PlayStyle::Sustain, 0.9, 0.6);
+    releaseOnly.releaseNoise = 0.5f;
+    engine.setParameters(releaseOnly);
+    const auto releaseHalf = renderNote(engine, sampleRate, contactNote, 0.8f,
+                                        PlayStyle::Sustain, 0.9, 0.6);
 
     const int releaseStart = static_cast<int>(0.6 * sampleRate);
     const int releaseEnd = releaseStart + static_cast<int>(0.015 * sampleRate);
     double differenceEnergy = 0.0;
+    double halfDifferenceEnergy = 0.0;
     double cleanEnergy = 0.0;
     for (int i = releaseStart; i < releaseEnd; ++i)
     {
         const double difference = releaseNoisy.left[static_cast<std::size_t>(i)]
                                 - clean.left[static_cast<std::size_t>(i)];
         differenceEnergy += difference * difference;
+        const double halfDifference = releaseHalf.left[static_cast<std::size_t>(i)]
+                                    - clean.left[static_cast<std::size_t>(i)];
+        halfDifferenceEnergy += halfDifference * halfDifference;
         cleanEnergy += clean.left[static_cast<std::size_t>(i)]
                      * clean.left[static_cast<std::size_t>(i)];
     }
-    expect(differenceEnergy > 1.0e-9
-               && differenceEnergy > 0.005 * std::max(cleanEnergy, 1.0e-12),
+    std::cout << "PROBE release contact relative energy: "
+              << differenceEnergy / std::max(cleanEnergy, 1.0e-12)
+              << "; half/full energy: "
+              << halfDifferenceEnergy / std::max(differenceEnergy, 1.0e-20) << '\n';
+    // Level now follows remaining vibration, so a fixed percentage of the
+    // sustained tone is no longer the control's contract. Require a real
+    // nonzero signal and a quieter contact at half control. Some noise also
+    // enters the nonlinear string/pickup path, so output energy need not
+    // follow the event gain's exact power law (pinned in RealismContactTests).
+    expect(differenceEnergy > 1.0e-9,
            "release noise is missing after note-off");
+    expect(halfDifferenceEnergy > 0.10 * differenceEnergy
+               && halfDifferenceEnergy < 0.80 * differenceEnergy,
+           "release noise control no longer scales its isolated contact");
     double preOffDifference = 0.0;
     int firstDifferingSample = -1;
     for (int i = 0; i < releaseStart - 64; ++i)
@@ -11129,17 +11208,17 @@ void testDeadNote()
         std::sort(values.begin(), values.end());
         phraseMedian[window] = 0.5 * (values[1] + values[2]);
     }
-    // Moving the excitation image into the physical-period coordinate changes
-    // this upstream source snapshot without changing a Dead coefficient. The
-    // shipping median moved from -8.114/-14.919/-23.040 dB to the values below;
-    // against the public four-hit median (-3.57/-12.66/-20.75 dB), its
-    // three-window RMSE improves from 3.21 to 2.51 dB. The broad per-hit real
-    // ranges above remain the actual acceptance rails.
+    // This is a reproducibility snapshot, separate from the unchanged real
+    // per-hit ranges and contextual contrast guard above. The two September
+    // contact passes move the shipping medians from -7.466/-14.073/-22.059
+    // through -7.264/-13.776/-21.769 to the values below. No Dead damping
+    // coefficient was retuned: finger-contact ownership and continuous pickup
+    // makeup alter the onset of this stateful Open/Palm/Dead/Dead phrase.
     constexpr std::array<double, 3> documentedMedian {
 #if ELECTRY_ENERGY_ATTACK_PITCH
         -7.474, -14.286, -22.573
 #else
-        -7.466, -14.073, -22.059
+        -6.886, -13.261, -21.334
 #endif
     };
     for (std::size_t window = 0; window < phraseMedian.size(); ++window)
@@ -12033,7 +12112,7 @@ void testSlideArticulation()
 
     // A chained fretting gesture starts wherever the travelling finger is,
     // not at the destination the preceding Slide has not reached. Put the
-    // finger exactly halfway through fret 1 -> 21, at fret 11: a Hammer to
+    // finger exactly at fret 11 during its metre trajectory from 1 -> 21: a Hammer to
     // that same live fret must keep string 0. Measuring from the stale written
     // destination instead makes it an unreachable ten-fret jump and moves the
     // note to another string. Pin both the scalar and complete-chord allocators,
@@ -12045,7 +12124,13 @@ void testSlideArticulation()
         engine.noteOn(29, 0.85f); // string 0, fret 1
         engine.noteOn(styleKeyswitch(PlayStyle::Slide), 1.0f);
         engine.noteOn(49, 0.82f); // same string, written fret 21
-        TestAccess::updateSlideControlAt(engine, 0, 0.5f);
+        const float sourceLength = std::exp2(-1.0f / 12.0f);
+        const float targetLength = std::exp2(-21.0f / 12.0f);
+        const float desiredLength = std::exp2(-11.0f / 12.0f);
+        const float position = (desiredLength - sourceLength)
+                             / (targetLength - sourceLength);
+        const float time = 0.5f - std::sin(std::asin(1.0f - 2.0f * position) / 3.0f);
+        TestAccess::updateSlideControlAt(engine, 0, time);
         expect(TestAccess::stringForNote(engine, 49) == 0
                    && std::abs(TestAccess::programmedLegatoFrequency(engine, 0)
                                - midiHz(39)) < 1.0e-3,
@@ -12587,6 +12672,7 @@ void testSlideArticulation()
         }
 
         constexpr int settleChunkFrames = 64;
+        const double plannedSeconds = TestAccess::legatoSeconds(engine, stringIndex);
         int settleFrames = 0;
         StereoBuffer settleChunk(settleChunkFrames);
         while (TestAccess::legatoBlend(engine, stringIndex) < 1.0f
@@ -12597,8 +12683,9 @@ void testSlideArticulation()
         }
         if (retargetStyle == PlayStyle::Slide)
         {
-            expect(settleFrames > static_cast<int>(0.06 * sampleRate)
-                       && settleFrames < static_cast<int>(0.09 * sampleRate),
+            expect(std::abs(settleFrames - plannedSeconds * sampleRate)
+                       <= settleChunkFrames
+                           + TestAccess::hostFramesPerControlPeriod(engine),
                    "a chained slide timed its new leg from the unfinished "
                    "destination instead of the live finger position");
         }
@@ -12610,10 +12697,12 @@ void testSlideArticulation()
                "a chained legato did not settle on its new destination");
     }
 
-    // Demo 17 redirects a descending top-string slide after 51 ms. The raw
+    // Redirect a descending top-string slide near MIDI 72, at the same neck
+    // location used by demo 17's earlier log-pitch timing fixture. The raw
     // delay target is phase-compensated whenever the dispersion fit crosses a
     // grid cell; its physical period must keep moving toward the new fret at
     // those refits instead of briefly reversing direction.
+    for (const float fixtureBendTime : { 0.16f, 0.21f })
     {
         constexpr double demoSampleRate = 44100.0;
         ElectryEngine engine;
@@ -12628,7 +12717,9 @@ void testSlideArticulation()
         parameters.pickHardness = 0.78f;
         parameters.fingerNoise = 0.52f;
         parameters.artifactAmount = 0.12f;
-        parameters.bendTimeSeconds = 0.16f;
+        // The slower fixture matches the earlier approximately 39 ms physical
+        // remainder; the faster one explicitly covers the new 30 ms floor.
+        parameters.bendTimeSeconds = fixtureBendTime;
         parameters.sympatheticAmount = 0.28f;
         parameters.outputGain = 1.55f;
         engine.setParameters(parameters);
@@ -12640,7 +12731,8 @@ void testSlideArticulation()
         renderInto(engine, establish);
         engine.noteOn(styleKeyswitch(PlayStyle::Slide), 1.0f);
         engine.noteOn(68, 0.82f);
-        StereoBuffer firstLeg(static_cast<int>(0.051 * demoSampleRate));
+        StereoBuffer firstLeg(static_cast<int>(
+            0.45 * TestAccess::legatoSeconds(engine, 7) * demoSampleRate));
         renderInto(engine, firstLeg);
 
         constexpr int stringIndex = 7;
@@ -12650,6 +12742,7 @@ void testSlideArticulation()
             + 12.0 * std::log2(static_cast<double>(liveBefore) / 440.0);
         engine.noteOn(styleKeyswitch(PlayStyle::Slide), 1.0f);
         engine.noteOn(69, 0.82f);
+        const double plannedSeconds = TestAccess::legatoSeconds(engine, stringIndex);
         expect(TestAccess::stringForNote(engine, 69) == stringIndex
                    && liveBeforeMidi > 71.5 && liveBeforeMidi < 72.5,
                "invalid descending demo-17 chained-slide fixture");
@@ -12674,10 +12767,9 @@ void testSlideArticulation()
             rendered += traceFrames;
         }
         expect(TestAccess::legatoBlend(engine, stringIndex) == 1.0f
-                   && rendered > static_cast<int>(0.03 * demoSampleRate)
-                   && rendered < static_cast<int>(0.05 * demoSampleRate),
-               "the demo-17 chained slide did not reproduce its 38.7 ms "
-               "remainder");
+                   && std::abs(rendered - plannedSeconds * demoSampleRate)
+                          <= traceFrames * 2,
+               "the descending chained slide missed its physical-distance remainder");
         double finalPitch = midiHz(69);
 #if ELECTRY_ENERGY_ATTACK_PITCH
         finalPitch *= TestAccess::attackPitchState(engine, stringIndex)
@@ -12685,7 +12777,15 @@ void testSlideArticulation()
 #endif
         const double arrivalErrorCents = std::abs(
             centsBetween(previous, finalPitch));
-        expect(arrivalErrorCents < 35.0,
+        const bool minimumDuration = fixtureBendTime == 0.16f;
+        if (minimumDuration)
+        {
+            expect(std::abs(plannedSeconds - 0.030) < 1.0e-6,
+                   "the fast descending slide missed its minimum-duration fixture");
+            std::cout << "PROBE 30 ms descending slide arrival lag: "
+                      << arrivalErrorCents << " cents\n";
+        }
+        expect(arrivalErrorCents < (minimumDuration ? 50.0 : 35.0),
                "the demo-17 delay lagged the arriving finger by "
                    + std::to_string(arrivalErrorCents) + " cents");
         int settling = 0;
@@ -12752,7 +12852,8 @@ void testSlideArticulation()
     };
     const auto traceBand = [] (double hostRate, int fromNote, int toNote,
                                float fingerNoise, float bendTime,
-                               PlayStyle style)
+                               PlayStyle style,
+                               std::array<float, 3> blends = {{ 0.25f, 0.50f, 0.75f }})
     {
         ElectryEngine engine;
         engine.prepare(hostRate, 512);
@@ -12782,7 +12883,6 @@ void testSlideArticulation()
             engine, trace.stringIndex);
         trace.contactCoefficients = TestAccess::slideBandCoefficients(
             engine, trace.stringIndex);
-        constexpr std::array<float, 3> blends {{ 0.25f, 0.50f, 0.75f }};
         for (std::size_t point = 0; point < blends.size(); ++point)
         {
             TestAccess::updateSlideControlAt(
@@ -12851,17 +12951,24 @@ void testSlideArticulation()
     }
 
     const auto floorTrace = traceBand(
-        48000.0, 85, 86, 0.8f, 2.0f, PlayStyle::Slide);
+        48000.0, 85, 86, 0.8f, 2.0f, PlayStyle::Slide,
+        {{ 0.005f, 0.010f, 0.015f }});
     expect(floorTrace.stringIndex == 7
-               && floorTrace.averageCentreHz * 1.5f < 200.0f,
+               && floorTrace.averageCentreHz > 0.0f
+               && floorTrace.averageCentreHz * 6.0f * 0.015f * 0.985f < 200.0f,
            "invalid low-clamp slide-band fixture");
     for (const auto& point : floorTrace.points)
         expect(std::abs(point.centreHz - 200.0) < 0.05,
                "the moving slide band escaped its 200 Hz floor");
 
     const auto ceilingTrace = traceBand(
-        44100.0, 35, 47, 0.8f, 0.04f, PlayStyle::Slide);
+        44100.0, 35, 47, 0.8f, 0.05f, PlayStyle::Slide);
     const double ceilingHz = 0.40 * ceilingTrace.internalRate;
+    std::cout << "PROBE physical slide ceiling: average "
+              << ceilingTrace.averageCentreHz << " Hz, quarter/mid/late "
+              << ceilingTrace.points[0].centreHz << "/"
+              << ceilingTrace.points[1].centreHz << "/"
+              << ceilingTrace.points[2].centreHz << ", ceiling " << ceilingHz << '\n';
     expect(ceilingTrace.stringIndex == 1
                && ceilingTrace.averageCentreHz < ceilingHz
                && ceilingTrace.averageCentreHz * 1.5f > ceilingHz,
@@ -19732,8 +19839,9 @@ void testPickupGeometryFollowsLiveWaveSpeed()
             TestAccess::legatoFromFrequency(engine, stringIndex)
             / TestAccess::snapshot(engine, stringIndex).baseFrequency);
         const float bendStart = -fromSemitones;
-        const float bendMoved = -fromSemitones
-            * (1.0f - electry::smoothStep(0.10f));
+        const float bendMoved = 12.0f * std::log2(electry::lerp(
+            std::exp2(-fromSemitones / 12.0f), 1.0f,
+            electry::smoothStep(0.10f)));
         const float expectedRatioChange =
             std::exp2((bendMoved - bendStart) / 12.0f);
         expect(std::abs(opposedMoved.waveSpeedRatio

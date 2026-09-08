@@ -48,6 +48,14 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-08 — [Five further realism improvements](Docs/realism-pass2-2026-09-08.md):**
+  speaking-length decay on wound strings, physical-distance slides, coherent
+  winding texture, retained fretting-finger noise ownership and smooth
+  articulation makeup, with 39 matched dry/metal audition phrases.
+- **2026-09-08 — [Five contact realism improvements](Docs/realism-2026-09-08.md):**
+  string-dependent pick recoil, winding-aware scrape, vibration-aware release
+  noise, distinct finger/hand stops and fret-local hammer-ons, with real
+  eight-string reference checks and matched dry/metal auditions.
 - **2026-09-08 — [Faster effects and oversampling choice](#2026-09-08-faster-effects-and-oversampling-choice):**
   prepared pedal and phase-inverter math, with Standard/High FX oversampling.
   New rigs use Standard; older saved states retain High.

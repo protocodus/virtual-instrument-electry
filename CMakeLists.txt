@@ -265,6 +265,26 @@ if(ELECTRY_BUILD_TOOLS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(ElectryRealismExcitationTests Tests/RealismExcitationTests.cpp)
+    target_link_libraries(ElectryRealismExcitationTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismExcitation COMMAND ElectryRealismExcitationTests)
+
+    add_executable(ElectryRealismContactTests Tests/RealismContactTests.cpp)
+    target_link_libraries(ElectryRealismContactTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismContact COMMAND ElectryRealismContactTests)
+
+    add_executable(ElectryRealismTextureTests Tests/RealismTextureTests.cpp)
+    target_link_libraries(ElectryRealismTextureTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismTexture COMMAND ElectryRealismTextureTests)
+
+    add_executable(ElectryRealismGestureTests Tests/RealismGestureTests.cpp)
+    target_link_libraries(ElectryRealismGestureTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismGesture COMMAND ElectryRealismGestureTests)
+
+    add_executable(ElectryRealismDecayTests Tests/RealismDecayTests.cpp)
+    target_link_libraries(ElectryRealismDecayTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismDecay COMMAND ElectryRealismDecayTests)
+
     add_executable(ElectryEngineTests Tests/ElectryEngineTests.cpp)
     target_link_libraries(ElectryEngineTests PRIVATE ElectryDSP)
     target_compile_features(ElectryEngineTests PRIVATE cxx_std_20)

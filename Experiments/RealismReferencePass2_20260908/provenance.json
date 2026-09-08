@@ -1,0 +1,84 @@
+{
+  "description": "Isolated wound-string speaking-length correction. Its implementation is now present in main DSP; these renders isolate it from the four other second-pass changes.",
+  "source_hashes": {
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/DspMath.h": "1055f318b3bec6247998c302f61c1299704f7fa67aed22d57ebceecef365c3bc",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryEngine.cpp": "168858f61fecc54e3bf503340717e66360aec6351212385fb99d8055b57056d5",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryEngine.h": "0f169dfb8b5cdb3e4fea5fcc574020526df59004ac9334b2088bac7c2f592fc3",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+    "build-realism-20260908-pass2/reference/baseline-source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f",
+    "build-realism-20260908-pass2/reference/length-source/DSP/DspMath.h": "1055f318b3bec6247998c302f61c1299704f7fa67aed22d57ebceecef365c3bc",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryEngine.cpp": "da2f183b938c4bc0697b803aebeb7479c498b8c53226c41592759acc9e39ede2",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryEngine.h": "0f169dfb8b5cdb3e4fea5fcc574020526df59004ac9334b2088bac7c2f592fc3",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+    "build-realism-20260908-pass2/reference/length-source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f"
+  },
+  "metrics": [
+    {
+      "midi": 30,
+      "real_late_rms": -10.158570312342817,
+      "before_late_rms": -2.777219029522797,
+      "length_late_rms": -2.962532710649846,
+      "real_h1_slope": -7.066566025038214,
+      "before_h1_slope": -2.127890717562978,
+      "length_h1_slope": -2.3870905699972504,
+      "cooling_delta": -0.0003802499435900941
+    },
+    {
+      "midi": 36,
+      "real_late_rms": -7.5959456291653495,
+      "before_late_rms": -2.484838251958262,
+      "length_late_rms": -3.3658348111416743,
+      "real_h1_slope": -3.225709287791793,
+      "before_h1_slope": -2.11851945604895,
+      "length_h1_slope": -3.3625558068324426,
+      "cooling_delta": 0.006039661186702183
+    },
+    {
+      "midi": 42,
+      "real_late_rms": -10.876944867153702,
+      "before_late_rms": -2.1230115149855706,
+      "length_late_rms": -3.9956109814191194,
+      "real_h1_slope": -6.0571332325287655,
+      "before_h1_slope": -2.102626927847467,
+      "length_h1_slope": -4.743006436811211,
+      "cooling_delta": 0.028600929315700796
+    }
+  ],
+  "source_basis": "working-tree first-pass baseline, not repository HEAD",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101), arm64-apple-darwin25.5.0; C++20 -O2 -DNDEBUG",
+  "definitions": {
+    "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
+    "ELECTRY_MEASURED_BODY_RESPONSE": 1
+  },
+  "reference_provenance": "../RealismReference20260908/reference-{30,36,42}.json and ../../Docs/realism-reference-2026-09-08.md",
+  "candidate_difference": "After float t60High = t60 * highRatio: if (spec.wound) t60 *= std::exp2(-liveFret / 12.0f); production explicitly bypasses liveFret=0, mathematically identical.",
+  "artifacts": {
+    "Experiments/Realism20260908/RenderRealism.cpp": "9aaa21c56bf1b33d1d92feba16d46e72c4f42d9ea28cdc3155f46708ae7697ef",
+    "Experiments/RealismReference20260908/analyze.py": "55a5c59b3d5f81c41866834ae498cd24207d593bbfdbaec53f1148f193f2693e",
+    "build-realism-20260908-pass2/reference/render-length": "0634ea4835e81d35ac5ce3c81326117761690ebfd731e1a2c78ce6561e4a3a58",
+    "build-realism-20260908-pass2/reference/length-audio/manifest.json": "da394ae2c81cd61e4e3102bf926fc01f7947ba8ded0c6434d6889783faf66390"
+  },
+  "raw_audio": {
+    "build-realism-20260908-pass2/baseline/reference-midi30-held-1500ms-dry.wav": "af582e48b9bcfcbb52d81217f172ce6a32bcc1ba089326297f939eb8f0af6e39",
+    "build-realism-20260908-pass2/reference/length-audio/reference-midi30-held-1500ms-dry.wav": "acf562d3186ff0a60138111658b6683fdef6cb1e8efdd5c5e5313da96e66dd8f",
+    "build-realism-20260908-pass2/baseline/reference-midi36-held-1500ms-dry.wav": "090d0122ccc0b3bd58338334ad679d5c0cd542b0c97164f61cdde7b63e615ac5",
+    "build-realism-20260908-pass2/reference/length-audio/reference-midi36-held-1500ms-dry.wav": "72b707dac34f7a49d9dcaaea39dd9384f9ed38b963151d345b7a4916c971a3fa",
+    "build-realism-20260908-pass2/baseline/reference-midi42-held-1500ms-dry.wav": "488651e49d27fbf3a887b4b7f6a53a144e95a8af8de6072752fe414bf6f2e3fb",
+    "build-realism-20260908-pass2/reference/length-audio/reference-midi42-held-1500ms-dry.wav": "fd763428e822028b0b943562f02262dc6679fe195a6235852be2e6518b11208d"
+  },
+  "open_e1_dry_byte_identical_scores": [
+    "e1-palm-repick-8hz",
+    "e1-palm-repick-12hz",
+    "e1-palm-repick-16hz",
+    "e1-sustain-soft",
+    "e1-sustain-hard",
+    "e1-short-release",
+    "e1-late-palm-release"
+  ]
+}

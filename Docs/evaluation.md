@@ -1755,8 +1755,15 @@ body checkpoint the isolated Dead evaluator WAV was byte-identical while the
 ringing Palm state preceding the ghosts changed. With the later live-damping
 phase correction, relative-RMS medians at that checkpoint were
 -8.178/-15.086/-23.257 dB. The physical-period pick-geometry correction moves
-the current shipping medians to -7.466/-14.073/-22.059 dB. Those remain inside
-the observed ranges and are the pinned contextual snapshot.
+its checkpoint medians to -7.466/-14.073/-22.059 dB. The first September
+contact pass measures -7.264/-13.776/-21.769 dB; the second measures
+-6.886/-13.261/-21.334 dB and is the new pinned contextual snapshot.
+All remain inside the observed ranges. The first-to-repick contextual RMSE
+improves from 4.767 to 4.298 dB between these two passes. The real per-hit
+range and 5.0 dB contextual RMSE guards retain their original thresholds;
+only the separate reproducibility snapshot changes. These stateful phrase
+changes include finger-contact ownership and pickup makeup continuity,
+without retuning a Dead damping coefficient.
 
 That median also concealed a repeat-context miss. Relative to each hit's own
 0-30 ms onset, the second Dead attack decays faster than the first in both real
@@ -2508,13 +2515,20 @@ guitar/pickup/chain, raw-edit history and a synchronized stop marker.
 
 Those are verified vocabulary differences, not evidence that any product is
 more realistic. Sample counts, controls and vendor prose provide no held-out
-physical-stop comparison. Conversely, Electry's `beginVoiceRelease()` applies
+physical-stop comparison. Before 8 September 2026, Electry's `beginVoiceRelease()` applied
 one 60 ms loop-decay target through a 22 ms smoother and one procedural burst:
 6-15 ms from String Age/Gauge, wound/plain bandwidth and an attack-velocity
-level scale. It distinguishes string construction, but not whether a fretting
+level scale. It distinguished string construction, but not whether a fretting
 finger relaxed or the bridge hand stopped the note. This end-stop boundary is
 separate from the [attack-time plectrum-scrape
 gate](../README.md#angle-conditioned-plectrum-scrape-research).
+
+The [8 September contact update](realism-2026-09-08.md) adds a remaining-motion
+release level and uses the performed fret and planted-hand state to distinguish
+finger relaxation from a broad-hand stop. Its 10/22 ms closure scales and
+quieter/darker hand contact are explicit engineering voicing. The reference
+previews contain no controlled stop markers, so these changes do not complete
+the physical-stop capture experiment below.
 
 The smallest useful experiment changes no MIDI, parameter or DSP. On the
 production eight-string, record fret-5 notes on physical strings 8, 6 and 1.

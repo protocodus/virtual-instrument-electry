@@ -1155,6 +1155,14 @@ private:
         float legatoFromFrequency { 0.0f };
         float legatoBlend { 1.0f };
         float legatoIncrement { 0.0f };
+        // A sliding finger moves in metres; a hammer still lands over the
+        // existing short fret/pitch curve. Retain this trajectory through a
+        // picking-hand repick, which can change playStyle while it travels.
+        bool legatoUsesLengthTrajectory { false };
+        // A physical fretting contact can wait for a scheduled plectrum.
+        // Repeated picks on its existing key owner do not land that finger
+        // again, even after the audible string has retired.
+        bool frettingContactPending { false };
 
         float palmImpactState { 0.0f };
         float palmImpactVel { 0.0f };
@@ -1192,11 +1200,9 @@ private:
 #if ELECTRY_ANALYTIC_RELEASE_IC || ELECTRY_ENERGY_ATTACK_PITCH
         float stringTensionNewtons { 80.0f };
 #endif
-#if ELECTRY_PASSIVE_REPICK_SPRING
-        // Characteristic transverse impedance sqrt(T mu), frozen into the
-        // repick contact when the plectrum arrives.
+        // Characteristic transverse impedance sqrt(T mu), used by the pick's
+        // release time and frozen into the optional repick contact.
         float stringWaveImpedance { 1.0f };
-#endif
 #if ELECTRY_ENERGY_ATTACK_PITCH
         // Candidate-only normalised tension increment q = dT/T. Physical
         // transverse-string energy and the Bank elastic scale derive its seed
@@ -1313,6 +1319,10 @@ private:
         float releaseGainTarget { 1.0f };
         float releaseGainCoefficient { 0.0f };
         bool releaseNoiseDone { true };
+        // Peak of the existing displacement-energy follower since the last
+        // picked attack. A note ending follows the string still under the hand,
+        // rather than replaying its original attack strength after silence.
+        float releaseMotionPeak { 0.0f };
 
         // Strum travel: a chord's later strings start after the pick reaches
         // them. Zero for a simultaneous (non-strummed) note-on.
@@ -1368,6 +1378,10 @@ private:
         float verticalWeight { 0.92f };
         float horizontalWeight { 0.42f };
         float articulationMakeup { 1.0f };
+        // The pickup observes an existing ringing string continuously when a
+        // new articulation changes its voiced makeup. Target above; applied
+        // gain below follows the contact instead of jumping in one sample.
+        float articulationMakeupCurrent { 1.0f };
 
         // Bridge-coupled sympathetic ring of an unfingered string. The voice
         // reuses its own otherwise-idle vertical waveguide and pickup path, so
@@ -1428,6 +1442,10 @@ private:
         float slideNoiseAmplitude { 0.0f };
         float slideNoiseLevel { 0.0f };
         float slideAverageBandCentreHz { 0.0f };
+        double slideRidgePhase { 0.0 }; // cycles, retained by the same finger
+        float slideFrictionEnergy { 0.0f };
+        float slideRidgeCyclesPerSample { 0.0f };
+        bool slideHasWinding { false };
         float slideBandHigh { 0.5f };
         float slideBandLow { 0.9f };
         OnePole slideShaperHigh {};
@@ -1637,6 +1655,8 @@ private:
     // decisions need the fractional fret under the finger at this event.
     [[nodiscard]] static float performedFret(
         const Voice& voice) noexcept;
+    [[nodiscard]] static float legatoPitchOffset(
+        const Voice& voice) noexcept;
     // What it costs the fretting hand to take this note on this string, in
     // fret-distance units. Lower wins; ties resolve toward the thicker string,
     // as they did when the rule was simply the lowest fret.
@@ -1658,6 +1678,7 @@ private:
                                              float bridgeWeight,
                                              float bridgeSignal) const noexcept;
     void renderVoice(Voice& voice, RenderSums& sums) noexcept;
+    float renderSlideFriction(Voice& voice) noexcept;
     void renderSympatheticString(Voice& voice, RenderSums& sums,
                                  float drive) noexcept;
     void freezeSharedPath() noexcept;
@@ -1926,6 +1947,8 @@ private:
     // every rendered sample of every string. They depend only on the internal
     // clock, so prepare() is their only correct home.
     float handEnvelopeCoefficient_ { 0.0015f };
+    float articulationMakeupRetention_ { 0.99f };
+    float slideFrictionEnergyCoefficient_ { 0.001f };
 #if ELECTRY_ENERGY_ATTACK_PITCH
     float attackPitchTensionRatioRetention_ { 0.999f };
 #endif
