@@ -214,7 +214,6 @@ private:
 
     juce::Label logoLabel;
     juce::Label editionLabel;
-    juce::Label factoryProgramLabel;
     juce::ComboBox factoryProgramSelector;
     ElectryStatusDisplay statusDisplay;
     ElectryTextButton panicButton { "PANIC" };

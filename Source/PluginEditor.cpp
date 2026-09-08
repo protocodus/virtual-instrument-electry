@@ -1755,14 +1755,6 @@ ElectryAudioProcessorEditor::ElectryAudioProcessorEditor (ElectryAudioProcessor&
     editionLabel.setJustificationType (juce::Justification::centredLeft);
     addAndMakeVisible (editionLabel);
 
-    factoryProgramLabel.setText ("RIG", juce::dontSendNotification);
-    factoryProgramLabel.setFont (juce::FontOptions (11.0f, juce::Font::bold));
-    factoryProgramLabel.setColour (juce::Label::textColourId,
-                                   colours::binding.withAlpha (0.8f));
-    factoryProgramLabel.setJustificationType (juce::Justification::centredLeft);
-    factoryProgramLabel.setAccessible (false);
-    addAndMakeVisible (factoryProgramLabel);
-
     for (int index = 0; index < electryProcessor.getNumPrograms(); ++index)
         factoryProgramSelector.addItem (
             electryProcessor.getProgramName (index), index + 1);
@@ -2331,7 +2323,6 @@ void ElectryAudioProcessorEditor::resized()
     statusDisplay.setBounds (header.removeFromRight (statusDisplayWidth)
                                  .reduced (0, 14));
     header.removeFromRight (20);
-    factoryProgramLabel.setBounds (header.withHeight (20));
     factoryProgramSelector.setBounds (header.withTrimmedTop (22)
                                           .withTrimmedBottom (8));
     area.removeFromTop (10);

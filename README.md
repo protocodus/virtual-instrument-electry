@@ -276,7 +276,7 @@ capture- and listening-calibrated physical mapping.
 
 ## Factory rigs and quick start
 
-The editor's **RIG** selector provides four deterministic starting points and
+The editor's preset selector provides four deterministic starting points and
 sets the 29 tone and performance parameters. Rigs preserve the global FX
 toggle, Pick Stroke, the base Play Style and the `LATCH | HOLD` choice.
 Compact knob captions remain short enough for the faceplate, while each knob's
