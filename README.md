@@ -5017,6 +5017,26 @@ Its `BENCH` rows include rate, frame count, scenario, measured-block count,
 deadline, p50/p95/p99/max milliseconds and `misses=N/blocks`. The benchmark is
 diagnostic rather than a portable pass/fail performance claim.
 
+To measure the effects separately, `ElectryBenchmarkFx` is also available in
+the JUCE-free Release build. It exercises each module, each amplifier with
+all effects enabled, and control/model automation at 44.1, 48 and 96 kHz:
+
+```bash
+./build-dsp/ElectryBenchmarkFx --benchmark > fx-timing.csv
+./build-dsp/ElectryBenchmarkFx --capture build-dsp/fx-reference
+# Run the same command-line settings with a candidate build:
+./build-candidate/ElectryBenchmarkFx --compare build-dsp/fx-reference
+```
+
+The timing excludes preparation, input generation and buffer copies. Compare
+builds with matching compiler settings, run them sequentially in alternating
+order, and inspect the per-scenario elapsed time. The comparison checks every
+stereo sample, including quiet passages, high drive, switching and tails, and
+fails on missing references, non-finite audio or exceeded peak/RMS limits.
+Use `--help` for individual scenarios, rates, block sizes and error limits.
+The [FX CPU optimization measurements](Docs/fx-cpu-optimization.md) record the
+current changes and their validation.
+
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
 universal VST3, Audio Unit, CLAP and Standalone app and renders the committed editor
 screenshot while the suite runs. After final signing it runs

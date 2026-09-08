@@ -232,7 +232,7 @@ endif()
 # from the same JUCE-free path the plug-in uses, so they cannot drift away from
 # what Electry actually produces. It is built by default, including on Linux CI,
 # so it cannot rot unnoticed.
-option(ELECTRY_BUILD_TOOLS "Build the demo and evaluation WAV renderers" ON)
+option(ELECTRY_BUILD_TOOLS "Build the demo/evaluation renderers and FX benchmark" ON)
 
 if(ELECTRY_BUILD_TOOLS)
     add_executable(ElectryRenderDemos Tools/RenderDemos.cpp)
@@ -246,13 +246,20 @@ if(ELECTRY_BUILD_TOOLS)
         ELECTRY_EVALUATION_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/evaluation"
         ELECTRY_EVALUATION_PROJECT_VERSION="${PROJECT_VERSION}")
 
+    add_executable(ElectryBenchmarkFx Tools/BenchmarkFx.cpp)
+    target_link_libraries(ElectryBenchmarkFx PRIVATE ElectryDSP)
+    target_compile_features(ElectryBenchmarkFx PRIVATE cxx_std_20)
+
     if(MSVC)
         target_compile_options(ElectryRenderDemos PRIVATE /W4 /permissive-)
         target_compile_options(ElectryRenderEvaluation PRIVATE /W4 /permissive-)
+        target_compile_options(ElectryBenchmarkFx PRIVATE /W4 /permissive-)
     else()
         target_compile_options(ElectryRenderDemos PRIVATE
             -Wall -Wextra -Wpedantic)
         target_compile_options(ElectryRenderEvaluation PRIVATE
+            -Wall -Wextra -Wpedantic)
+        target_compile_options(ElectryBenchmarkFx PRIVATE
             -Wall -Wextra -Wpedantic)
     endif()
 endif()

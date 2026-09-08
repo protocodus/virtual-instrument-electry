@@ -428,6 +428,7 @@ private:
 
     void designFilters() noexcept;
     void updateDriveConstants() noexcept;
+    void updateAmpModelSelection() noexcept;
     // The output transformer's core, isolated as a pure function of the signal
     // and its flux state so the regression suite can measure it at the stage
     // rather than through the cabinet that follows it - which, being a
@@ -529,13 +530,17 @@ private:
     float pedalWet_ { 0.0f };
     float ampWet_ { 0.0f };
     std::array<float, 3> ampModelWeights_ { 0.0f, 0.0f, 1.0f };
+    std::size_t soleAmpModel_ { 2 };
     float compressorMix_ { 0.0f };
     float delayMix_ { 0.0f };
     float roomMix_ { 0.0f };
     float gainEngagement_ { 0.0f };
 
     // Values derived from the smoothed mixes once per host sample rather than
-    // per channel per oversampled frame.
+    // per channel per oversampled frame. Once a smoother stops moving, retain
+    // its exact derived values instead of repeating the gain divisions.
+    float cachedDistortionDrive_ { -1.0f };
+    float cachedAmpDrive_ { -1.0f };
     float pedalDrive_ { 1.0f };
     float pedalMakeup_ { 1.0f };
     std::array<float, 3> ampDriveFirst_ { 1.0f, 1.0f, 1.0f };

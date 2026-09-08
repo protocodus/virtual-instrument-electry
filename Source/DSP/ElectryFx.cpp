@@ -169,14 +169,20 @@ PhaseInverterCurrent phaseInverterCurrentAndSlopes(
     const double root = std::sqrt(tube.kneeVoltage + plate * plate);
     const double drive = tube.kneeSoftness
         * (1.0 / tube.mu + grid / root);
-    const double softened = softplus(drive);
+    // The current and its Newton slope share the same exponential. Keeping
+    // it non-positive preserves the stable softplus/sigmoid evaluation even
+    // when a bounded solver candidate is far from the operating point.
+    const double exponential = std::exp(-std::abs(drive));
+    const double softened = std::max(drive, 0.0) + std::log1p(exponential);
     const double e1 = plate / tube.kneeSoftness * softened;
     if (e1 <= 1.0e-18 || plate <= 0.0)
         return {};
 
     const double current = std::pow(e1, tube.exponent) / tube.plateScale;
     const double currentPerE = tube.exponent * current / e1;
-    const double softSlope = sigmoid(drive);
+    const double softSlope = drive >= 0.0
+        ? 1.0 / (1.0 + exponential)
+        : exponential / (1.0 + exponential);
     const double drivePlate = -tube.kneeSoftness * grid * plate
         / (root * root * root);
     const double ePlate = softened / tube.kneeSoftness
@@ -2736,6 +2742,12 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
 
 void ElectryFx::updateDriveConstants() noexcept
 {
+    if (cachedDistortionDrive_ == distortionDrive_
+        && cachedAmpDrive_ == ampDrive_)
+        return;
+    cachedDistortionDrive_ = distortionDrive_;
+    cachedAmpDrive_ = ampDrive_;
+
     // A pedal's gain range, and two amplifier stages whose drives rise
     // together. The three pairs deliberately do not collapse to different EQ
     // presets: the American path keeps its first voltage stage clean and moves
@@ -2931,8 +2943,11 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     return stage * ampMakeup_[index];
 }
 
-float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
+void ElectryFx::updateAmpModelSelection() noexcept
 {
+    // Model weights change only at the host sample clock. Select once for
+    // both channels and every oversampled frame, retiring a faded-out circuit
+    // before its first frame just as the per-frame path did.
     std::size_t soleModel = ampModelWeights_.size();
     int activeCount = 0;
     for (std::size_t index = 0; index < ampModelWeights_.size(); ++index)
@@ -2942,26 +2957,35 @@ float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
             soleModel = index;
             ++activeCount;
         }
-        else if (channel.amplifiers[index].wasActive)
+        else
         {
-            channel.amplifiers[index].reset();
+            for (auto& channel : gain_)
+            {
+                if (! channel.amplifiers[index].wasActive)
+                    continue;
+                channel.amplifiers[index].reset();
 #if ELECTRY_MEASURED_MODERN_CABINET
-            if (index == ampModelIndex(AmpModel::ModernHighGain))
-                channel.modernCabinet->reset();
+                if (index == ampModelIndex(AmpModel::ModernHighGain))
+                    channel.modernCabinet->reset();
 #endif
+            }
         }
     }
+    soleAmpModel_ = activeCount == 1 ? soleModel : ampModelWeights_.size();
+}
 
+float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
+{
     // The steady-state fast path also preserves each model's arithmetic: no
     // selector multiply, sum or normalisation is put around its result.
-    if (activeCount == 1)
+    if (soleAmpModel_ < ampModelWeights_.size())
     {
-        auto& amplifier = channel.amplifiers[soleModel];
+        auto& amplifier = channel.amplifiers[soleAmpModel_];
         amplifier.wasActive = true;
         float output = ampStage(
-            amplifier, static_cast<AmpModel>(soleModel), input);
+            amplifier, static_cast<AmpModel>(soleAmpModel_), input);
 #if ELECTRY_MEASURED_MODERN_CABINET
-        if (soleModel == ampModelIndex(AmpModel::ModernHighGain))
+        if (soleAmpModel_ == ampModelIndex(AmpModel::ModernHighGain))
             output = channel.modernCabinet->process(
                 output, *modernCabinetKernel_);
 #endif
@@ -3022,8 +3046,10 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
     // Every stage is stateful, so each one has to see its frames strictly in
     // time order; two fixed eight-frame scratch buffers are ping-ponged rather
     // rewriting a source frame that a later pair still needs.
-    std::array<float, maximumOversampledFrames> frames {};
-    std::array<float, maximumOversampledFrames> scratch {};
+    std::array<float, maximumOversampledFrames> firstBuffer {};
+    std::array<float, maximumOversampledFrames> secondBuffer {};
+    auto* frames = firstBuffer.data();
+    auto* scratch = secondBuffer.data();
     frames[0] = input;
     int frameCount = 1;
     for (int stage = 0; stage < oversamplingStages_; ++stage)
@@ -3034,7 +3060,7 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
                                   scratch[static_cast<std::size_t>(2 * frame)],
                                   scratch[static_cast<std::size_t>(2 * frame + 1)]);
         frameCount *= 2;
-        frames.swap(scratch);
+        std::swap(frames, scratch);
     }
 
     for (int frame = 0; frame < frameCount; ++frame)
@@ -3051,7 +3077,7 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
             scratch[static_cast<std::size_t>(frame)] = decimator.decimate(
                 frames[static_cast<std::size_t>(2 * frame)],
                 frames[static_cast<std::size_t>(2 * frame + 1)]);
-        frames.swap(scratch);
+        std::swap(frames, scratch);
     }
     return frames[0];
 }
@@ -3147,6 +3173,8 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
         if (gainEngagement_ > 0.0f)
         {
             updateDriveConstants();
+            if (ampWet_ > 0.0f)
+                updateAmpModelSelection();
             for (int channel = 0; channel < 2; ++channel)
             {
                 const auto index = static_cast<std::size_t>(channel);
@@ -3192,7 +3220,9 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
             const auto index = static_cast<std::size_t>(channel);
             auto& line = delayLines_[index];
             const int tap = std::min(delayTaps_[index], lineSize - 1);
-            const int readIndex = (delayWriteIndex_ - tap + lineSize) % lineSize;
+            int readIndex = delayWriteIndex_ - tap;
+            if (readIndex < 0)
+                readIndex += lineSize;
             delayed[index] = line[static_cast<std::size_t>(readIndex)];
 
             float feedback = delayDamping_[index].process(delayed[index],
@@ -3211,7 +3241,8 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
                 tail += comb.process(diffused);
             ambience[index] = 0.5f * tail;
         }
-        delayWriteIndex_ = (delayWriteIndex_ + 1) % lineSize;
+        if (++delayWriteIndex_ == lineSize)
+            delayWriteIndex_ = 0;
 
         for (int channel = 0; channel < 2; ++channel)
         {
