@@ -42,7 +42,7 @@ struct ParameterExpectation
 // struct, so reading it here too would make the check tautological. This table is
 // the independent statement of what the plug-in promises a new instance, and it is
 // what would have caught the two lists silently drifting apart.
-constexpr std::array<ParameterExpectation, 28> expectedParameters {{
+constexpr std::array<ParameterExpectation, 29> expectedParameters {{
     { electry::parameters::pickupSelector, 2.0f,  1.0e-5f },
     { electry::parameters::pickupType,     0.32f,  1.0e-5f },
     { electry::parameters::tone,           0.70f,  1.0e-5f },
@@ -71,6 +71,7 @@ constexpr std::array<ParameterExpectation, 28> expectedParameters {{
     { electry::parameters::resonanceDepth,  35.0f,  1.0e-4f },
     { electry::parameters::tremoloRate,    12.0f, 1.0e-4f },
     { electry::parameters::ampModel,        2.0f, 1.0e-5f },
+    { electry::parameters::fxOversampling,  0.0f, 1.0e-5f },
 }};
 
 float parameterValue (const ElectryAudioProcessor& processor, const char* id)
@@ -249,7 +250,7 @@ void testParameterLayoutAndDefaults()
     ElectryAudioProcessor processor;
     expect (processor.getParameters().size()
                 == static_cast<int> (expectedParameters.size()),
-            "processor does not expose exactly 28 APVTS parameters");
+            "processor does not expose exactly 29 APVTS parameters");
 
     std::set<std::string> uniqueIds;
     for (std::size_t index = 0; index < expectedParameters.size(); ++index)
@@ -262,6 +263,10 @@ void testParameterLayoutAndDefaults()
         expect (indexed != nullptr && indexed->paramID == expected.id,
                 std::string ("host parameter index drifted at ")
                     + std::to_string (index));
+        expect (indexed != nullptr
+                    && indexed->getVersionHint()
+                           == (index == expectedParameters.size() - 1 ? 2 : 1),
+                std::string ("AU parameter ordering changed for ") + expected.id);
         const auto value = parameterValue (processor, expected.id);
         expect (std::abs (value - expected.defaultValue) <= expected.tolerance,
                 std::string ("wrong default for ") + expected.id + ": got "
@@ -486,6 +491,10 @@ void testParameterTextFormatting()
                          "British Crunch");
     expectParameterText (processor, electry::parameters::ampModel, 2.0f,
                          "Modern High-Gain");
+    expectParameterText (processor, electry::parameters::fxOversampling, 0.0f,
+                         "Standard");
+    expectParameterText (processor, electry::parameters::fxOversampling, 1.0f,
+                         "High");
     expectParameterText (processor, electry::parameters::bendTime, 0.28f, "280 ms");
     expectParameterText (processor, electry::parameters::pickupType, 0.0f, "Humbucker");
     expectParameterText (processor, electry::parameters::pickupType, 1.0f, "Single coil");
@@ -612,6 +621,7 @@ void testStateRoundTrip()
     setParameterValue (source, electry::parameters::tremoloRate, 16.0f);
     setParameterValue (source, electry::parameters::resonanceDepth, 80.0f);
     setParameterValue (source, electry::parameters::ampModel, 1.0f);
+    setParameterValue (source, electry::parameters::fxOversampling, 1.0f);
     source.triggerArticulation (static_cast<int> (electry::PickStyle::Up));
     source.triggerArticulation (
         electry::ElectryEngine::pickStyleKeyswitchCount
@@ -663,6 +673,9 @@ void testStateRoundTrip()
     expect (std::abs (parameterValue (restored, electry::parameters::ampModel)
                           - 1.0f) < 1.0e-4f,
             "amp model did not survive a state round trip");
+    expect (std::abs (parameterValue (restored, electry::parameters::fxOversampling)
+                          - 1.0f) < 1.0e-4f,
+            "High oversampling did not survive a state round trip");
     expect (restored.getCurrentPickStyleIndex()
                 == static_cast<int> (electry::PickStyle::Up)
                 && restored.getCurrentPlayStyleIndex()
@@ -685,6 +698,11 @@ void testStateRoundTrip()
         expect (ampModelState.isValid(),
                 "saved state omitted the new amp-model parameter");
         legacyState.removeChild (ampModelState, nullptr);
+        const auto oversamplingState = legacyState.getChildWithProperty (
+            "id", electry::parameters::fxOversampling);
+        expect (oversamplingState.isValid(),
+                "saved state omitted the oversampling parameter");
+        legacyState.removeChild (oversamplingState, nullptr);
 
         juce::MemoryBlock legacyData;
         if (const auto legacyXml = legacyState.createXml())
@@ -698,7 +716,20 @@ void testStateRoundTrip()
                             legacyRestored, electry::parameters::ampModel) - 2.0f)
                     < 1.0e-4f,
                 "legacy state did not migrate to the established Modern amp");
+        expect (std::abs (parameterValue (
+                            legacyRestored, electry::parameters::fxOversampling) - 1.0f)
+                    < 1.0e-4f,
+                "legacy state did not preserve its full oversampling rate");
     }
+
+    // An explicit Standard value is a new-format decision, even when loading
+    // it over an instance that previously restored a legacy High session.
+    setParameterValue (source, electry::parameters::fxOversampling, 0.0f);
+    source.getStateInformation (state);
+    restored.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
+    expect (std::abs (parameterValue (restored, electry::parameters::fxOversampling))
+                < 1.0e-4f,
+            "explicit Standard oversampling was mistaken for a legacy session");
 
 }
 
@@ -4023,6 +4054,146 @@ void testPerformanceControls()
             "strum spread did not stagger the chord's attack");
 }
 
+void testFxOversamplingInLiveFeedbackPath()
+{
+    // Exercise the real string -> amp -> acoustic-return loop, including
+    // host quality/output changes while notes and shared time-effect tails run.
+    const auto render = [] (float quality, bool wet, bool automate,
+                            bool changeOutputMode = false)
+    {
+        ElectryAudioProcessor processor;
+        setParameterValue (processor, electry::parameters::fxOversampling, quality);
+        setParameterValue (processor, electry::parameters::outputMode, 0.0f);
+        setParameterValue (processor, electry::parameters::ampModel, 0.0f);
+        setParameterValue (processor, electry::parameters::resonanceDepth, 85.0f);
+        if (wet)
+        {
+            setParameterValue (processor, electry::parameters::distortion, 0.8f);
+            setParameterValue (processor, electry::parameters::amp, 0.9f);
+            setParameterValue (processor, electry::parameters::delay, 0.5f);
+            setParameterValue (processor, electry::parameters::room, 0.5f);
+        }
+        constexpr int frames = 128;
+        constexpr int blocks = 192;
+        processor.prepareToPlay (sampleRate, frames);
+        juce::AudioBuffer<float> audio (2, frames);
+        juce::MidiBuffer midi;
+        std::vector<float> result;
+        result.reserve (2 * frames * blocks);
+        bool finiteAndBounded = true;
+        for (int block = 0; block < blocks; ++block)
+        {
+            if (changeOutputMode)
+            {
+                if (block == 32 || block == 96)
+                    setParameterValue (processor, electry::parameters::outputMode,
+                                       block == 32 ? 1.0f : 2.0f);
+                else if (block == 64 || block == 144)
+                    setParameterValue (processor, electry::parameters::outputMode, 0.0f);
+            }
+            if (block == 0)
+                midi.addEvent (juce::MidiMessage::controllerEvent (1, 1, 100), 0);
+            // Double starts a separate player; repick after entering it so
+            // both real engine lanes feed the gain-state divergence path.
+            if (block == 0 || block == 104)
+            {
+                for (int note : { 40, 47, 52 })
+                    midi.addEvent (juce::MidiMessage::noteOn (
+                        1, note, static_cast<juce::uint8> (110)), 0);
+            }
+            if (block == 100 || block == 172)
+                for (int note : { 40, 47, 52 })
+                    midi.addEvent (juce::MidiMessage::noteOff (1, note), 37);
+            if (automate && block > 20 && block % 17 == 0)
+                setParameterValue (processor, electry::parameters::fxOversampling,
+                                   static_cast<float> ((block / 17) & 1));
+            renderBlock (processor, audio, midi, frames);
+            for (int channel = 0; channel < 2; ++channel)
+                for (int frame = 0; frame < frames; ++frame)
+                {
+                    const float value = audio.getSample (channel, frame);
+                    finiteAndBounded = finiteAndBounded
+                        && std::isfinite (value) && std::abs (value) <= 2.0f;
+                    result.push_back (value);
+                }
+        }
+        expect (finiteAndBounded,
+                "FX quality selection destabilised the live acoustic-return path");
+        if (changeOutputMode)
+        {
+            processor.releaseResources();
+            processor.prepareToPlay (sampleRate, frames);
+            renderBlock (processor, audio, midi, frames);
+            bool silentAfterPrepare = true;
+            for (int channel = 0; channel < 2; ++channel)
+                for (int frame = 0; frame < frames; ++frame)
+                    silentAfterPrepare = silentAfterPrepare
+                        && audio.getSample (channel, frame) == 0.0f;
+            expect (silentAfterPrepare,
+                    "output/quality transitions left gain or feedback history after reprepare");
+        }
+        return result;
+    };
+    expect (render (0.0f, false, false) == render (1.0f, false, true),
+            "FX oversampling changed the exact dry instrument output");
+    const auto standard = render (0.0f, true, false);
+    const auto high = render (1.0f, true, false);
+    const auto switching = render (0.0f, true, true);
+    const auto outputSwitching = render (0.0f, true, true, true);
+    double difference = 0.0, switchingEnergy = 0.0;
+    for (std::size_t i = 0; i < standard.size(); ++i)
+    {
+        const double delta = static_cast<double> (standard[i]) - high[i];
+        difference += delta * delta;
+        switchingEnergy += static_cast<double> (switching[i]) * switching[i];
+    }
+    expect (std::sqrt (difference / static_cast<double> (standard.size())) > 1.0e-6,
+            "host oversampling parameter did not reach the nonlinear FX path");
+    expect (switchingEnergy > 1.0e-6,
+            "quality automation silenced the live amplifier/feedback path");
+
+    constexpr int frames = 128;
+    constexpr int blocks = 192;
+    double outputDifference = 0.0, stereoEnergy = 0.0, doubleEnergy = 0.0;
+    double referenceStep = 0.0, outputStep = 0.0;
+    std::array<float, 2> previousReference {}, previousOutput {};
+    for (int block = 0; block < blocks; ++block)
+    {
+        const auto offset = static_cast<std::size_t> (2 * frames * block);
+        for (int frame = 0; frame < frames; ++frame)
+        {
+            const auto left = offset + static_cast<std::size_t> (frame);
+            const auto right = left + frames;
+            const double side = static_cast<double> (outputSwitching[left])
+                              - outputSwitching[right];
+            if (block >= 36 && block < 64)
+                stereoEnergy += side * side;
+            if (block >= 108 && block < 144)
+                doubleEnergy += side * side;
+            for (int channel = 0; channel < 2; ++channel)
+            {
+                const auto index = left + static_cast<std::size_t> (channel * frames);
+                const double delta = static_cast<double> (outputSwitching[index])
+                                   - switching[index];
+                outputDifference += delta * delta;
+                if (block != 0 || frame != 0)
+                {
+                    referenceStep = std::max (referenceStep, std::abs (
+                        static_cast<double> (switching[index]) - previousReference[channel]));
+                    outputStep = std::max (outputStep, std::abs (
+                        static_cast<double> (outputSwitching[index]) - previousOutput[channel]));
+                }
+                previousReference[channel] = switching[index];
+                previousOutput[channel] = outputSwitching[index];
+            }
+        }
+    }
+    expect (outputDifference > 1.0e-6 && stereoEnergy > 1.0e-6 && doubleEnergy > 1.0e-6,
+            "Mono/Stereo/Double transitions lost the distinct live output lanes");
+    expect (outputStep < std::max (0.25, referenceStep + 0.10),
+            "output-mode changes added an abrupt gain/feedback discontinuity");
+}
+
 void testOutputModeAudioField()
 {
     struct ChannelResult
@@ -4493,14 +4664,14 @@ void testEditorRendering()
                                       component->getParentComponent()) != nullptr;
                        }));
     // JUCE exposes each editable knob value as a second native stop. Counting
-    // each knob/value pair once leaves 35 logical controls across the editor.
-    expect (editorTabOrder.size() == 60u
+    // each knob/value pair once leaves 36 logical controls across the editor.
+    expect (editorTabOrder.size() == 61u
                 && editableKnobValueStops == knobs.size()
-                && editorTabOrder.size() - editableKnobValueStops == 35u,
+                && editorTabOrder.size() - editableKnobValueStops == 36u,
             "editor exposed " + std::to_string (editorTabOrder.size())
                 + " native and "
                 + std::to_string (editorTabOrder.size() - editableKnobValueStops)
-                + " logical Tab stops instead of 60 and 35");
+                + " logical Tab stops instead of 61 and 36");
     const auto expectAccessibleChoiceStrip = [&] (const char* componentId)
     {
         auto* strip = findControl (componentId);
@@ -4561,7 +4732,8 @@ void testEditorRendering()
              "pickStyleStrip", "playStyleStrip", "playStyleKeyMode",
              electry::parameters::pickupSelector,
              electry::parameters::outputMode,
-             electry::parameters::ampModel })
+             electry::parameters::ampModel,
+             electry::parameters::fxOversampling })
         expectAccessibleChoiceStrip (componentId);
 
     const auto effectiveDialSize = [&] (const char* componentId)
@@ -4779,12 +4951,56 @@ void testEditorRendering()
         }
     }
 
+    auto* oversamplingControl = findControl (electry::parameters::fxOversampling);
+    expect (oversamplingControl != nullptr, "FX oversampling selector is missing");
+    if (oversamplingControl != nullptr)
+    {
+        std::array<juce::TextButton*, 2> buttons {};
+        int count = 0;
+        for (auto* child : oversamplingControl->getChildren())
+        {
+            auto* button = dynamic_cast<juce::TextButton*> (child);
+            if (button == nullptr)
+                continue;
+            if (count < 2)
+                buttons[static_cast<std::size_t> (count)] = button;
+            ++count;
+            expect (button->getWidth() >= 60 && button->getHeight() >= 20,
+                    "oversampling selector lost its readable button targets");
+            expect (button->getTooltip().contains ("4x")
+                        && button->getTooltip().contains ("8x"),
+                    "oversampling help does not explain the rate choice");
+        }
+        expect (count == 2 && buttons[0] != nullptr && buttons[1] != nullptr,
+                "oversampling selector does not expose two choices");
+        if (buttons[0] != nullptr && buttons[1] != nullptr)
+        {
+            expect (buttons[0]->getButtonText() == "STANDARD"
+                        && buttons[1]->getButtonText() == "HIGH",
+                    "oversampling selector lost its complete labels");
+            setParameterValue (processor, electry::parameters::fxOversampling, 1.0f);
+            expect (buttons[1]->getToggleState() && ! buttons[0]->getToggleState(),
+                    "host oversampling change did not update the editor");
+            buttons[0]->onClick();
+            expect (parameterValue (processor, electry::parameters::fxOversampling) == 0.0f
+                        && buttons[0]->getToggleState(),
+                    "Standard editor button did not select the half rate");
+            buttons[1]->onClick();
+            expect (parameterValue (processor, electry::parameters::fxOversampling) == 1.0f,
+                    "High editor button did not select the full rate");
+            buttons[0]->onClick();
+        }
+    }
+
     auto* ampModelControl = findControl (electry::parameters::ampModel);
     const auto* ampControl = findControl (electry::parameters::amp);
     expect (ampModelControl != nullptr && ampControl != nullptr,
             "FX panel is missing its amp-model buttons or Amp control");
     if (ampModelControl != nullptr && ampControl != nullptr)
     {
+        expect (oversamplingControl != nullptr
+                    && oversamplingControl->getBottom() <= ampModelControl->getY(),
+                "oversampling selector overlaps the amp voice selector");
         expect (! ampModelControl->getBounds().intersects (ampControl->getBounds()),
                 "amp-model buttons overlap the Amp knob");
         expect (ampModelControl->getBottom() <= ampControl->getY(),
@@ -5589,6 +5805,7 @@ int main()
     testUiArticulationTriggerAndPanic();
     testOutputGainImpact();
     testPerformanceControls();
+    testFxOversamplingInLiveFeedbackPath();
     testOutputModeAudioField();
     testTextButtonKeyboardActivation();
     testEditorRendering();

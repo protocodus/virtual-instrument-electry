@@ -1,4 +1,5 @@
 #include "DSP/ElectryFx.h"
+#include "DSP/ElectryEngine.h"
 
 #include <algorithm>
 #include <array>
@@ -6,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -15,6 +17,13 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#if defined(_WIN32)
+ #ifndef NOMINMAX
+  #define NOMINMAX
+ #endif
+ #include <windows.h>
+#endif
 
 namespace
 {
@@ -55,6 +64,8 @@ struct Options
     int blockSize { 128 };
     int sampleRate { 0 };
     std::string scenario;
+    std::string inputMode { "stereo" };
+    electry::FxOversampling oversampling { electry::FxOversampling::Standard };
     double maximumError { 5.0e-5 };
     double maximumRmsError { 1.0e-6 };
 };
@@ -73,11 +84,33 @@ struct Metrics
     std::size_t changedSamples { 0 };
 };
 
+double processCpuNanoseconds()
+{
+#if defined(_WIN32)
+    // MSVC clock() reports elapsed wall time. GetProcessTimes counts user and
+    // kernel CPU in 100 ns ticks, preserving the meaning of the CSV on Windows.
+    FILETIME created {}, exited {}, kernel {}, user {};
+    if (! GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user))
+        throw std::runtime_error("could not read process CPU time");
+    const auto ticks = [](FILETIME value)
+    {
+        return (static_cast<std::uint64_t>(value.dwHighDateTime) << 32u)
+             | static_cast<std::uint64_t>(value.dwLowDateTime);
+    };
+    return 100.0 * static_cast<double>(ticks(kernel) + ticks(user));
+#else
+    const auto elapsed = std::clock();
+    if (elapsed == static_cast<std::clock_t>(-1))
+        throw std::runtime_error("could not read process CPU time");
+    return 1.0e9 * static_cast<double>(elapsed) / CLOCKS_PER_SEC;
+#endif
+}
+
 // Stateless deterministic excitation: different L/R fundamentals and phases,
 // intermodulation tones, noise, pluck-like bursts, and near-full-scale peaks.
 // Capture/compare adds low-level intervals and a final quarter of silence to
 // exercise nonlinear dynamics, smoothed controls, bypass clearing, and tails.
-Audio makeInput(int rate, std::size_t frames, bool includeTail)
+Audio makeInput(int rate, std::size_t frames, bool includeTail, const std::string& inputMode)
 {
     Audio audio { std::vector<float>(frames), std::vector<float>(frames) };
     std::uint32_t random = 0x454c4658u;
@@ -103,6 +136,55 @@ Audio makeInput(int rate, std::size_t frames, bool includeTail)
             + decay * (0.32 * std::sin(2.0 * pi * 440.0 * time)
                        - 0.05 * noise)));
     }
+    if (inputMode == "mono")
+        audio.right = audio.left;
+    else if (inputMode == "switching")
+    {
+        const auto split = frames / 3 + 13;
+        for (std::size_t i = 0; i < frames; ++i)
+            if (i < split || i >= 2 * frames / 3 + 7)
+                audio.right[i] = audio.left[i];
+    }
+    else if (inputMode == "guitar" || inputMode == "guitar-mono")
+    {
+        electry::ElectryEngine engine;
+        engine.prepare(rate, 128);
+        electry::EngineParameters parameters;
+        parameters.outputMode = inputMode == "guitar-mono"
+            ? electry::OutputMode::Mono : electry::OutputMode::Stereo;
+        parameters.outputGain = 0.65f;
+        engine.setParameters(parameters);
+        const std::array<int, 8> notes { 28, 35, 31, 40, 28, 47, 33, 52 };
+        const std::size_t hitLength = static_cast<std::size_t>(rate) / 5;
+        std::size_t offset = 0;
+        int hit = 0;
+        while (offset < frames)
+        {
+            const auto end = std::min(frames, offset + hitLength);
+            const bool tail = includeTail && offset >= 3 * frames / 4;
+            engine.allNotesOff();
+            if (!tail)
+            {
+                parameters.palmMute = hit % 3 == 0 ? 0.65f : 0.0f;
+                engine.setParameters(parameters);
+                engine.noteOn(notes[static_cast<std::size_t>(hit) % notes.size()],
+                              hit % 4 == 0 ? 0.35f : 0.95f);
+                if (hit % 4 == 2)
+                {
+                    engine.noteOn(47, 0.80f);
+                    engine.noteOn(52, 0.75f);
+                }
+            }
+            while (offset < end)
+            {
+                const auto count = std::min<std::size_t>(128, end - offset);
+                engine.process(audio.left.data() + offset,
+                               audio.right.data() + offset, static_cast<int>(count));
+                offset += count;
+            }
+            ++hit;
+        }
+    }
     return audio;
 }
 
@@ -127,7 +209,8 @@ FxParameters parametersAt(const Scenario& scenario, std::size_t offset,
              phase == 7 ? 0.7f : 0.8f * (1.0f - motion) };
 }
 
-void process(ElectryFx& fx, Audio& audio, const Scenario& scenario, int blockSize)
+void process(ElectryFx& fx, Audio& audio, const Scenario& scenario, int blockSize,
+             electry::FxOversampling oversampling)
 {
     for (std::size_t offset = 0; offset < audio.left.size();
          offset += static_cast<std::size_t>(blockSize))
@@ -135,7 +218,9 @@ void process(ElectryFx& fx, Audio& audio, const Scenario& scenario, int blockSiz
         const auto count = std::min(static_cast<std::size_t>(blockSize),
                                     audio.left.size() - offset);
         // Include the once-per-host-block control update in measured cost.
-        fx.setParameters(parametersAt(scenario, offset, audio.left.size()));
+        auto parameters = parametersAt(scenario, offset, audio.left.size());
+        parameters.oversampling = oversampling;
+        fx.setParameters(parameters);
         fx.process(audio.left.data() + offset, audio.right.data() + offset,
                    static_cast<int>(count));
     }
@@ -191,15 +276,18 @@ double db(double amplitude)
 // Deliberately a local, native-endian float reference format. Comparisons
 // require the same architecture/compiler flags; it is not a media interchange
 // format. The header guards scenario, stimulus version, rate, frame count,
-// callback size, and the optional measured-cabinet build configuration.
+// callback size, cabinet build and oversampling. Configuration bit 1 marks
+// Standard; High remains compatible with captures before the selector existed.
 std::array<std::uint32_t, 8> referenceHeader(int rate, std::size_t frames,
-                                          int blockSize, std::size_t scenario)
+                                          int blockSize, std::size_t scenario, const std::string& inputMode,
+                                          electry::FxOversampling oversampling)
 {
     return { 0x58464c45u, 1u, static_cast<std::uint32_t>(rate),
              static_cast<std::uint32_t>(frames),
              static_cast<std::uint32_t>(blockSize),
              static_cast<std::uint32_t>(scenario),
-             ELECTRY_MEASURED_MODERN_CABINET, 2u };
+             ELECTRY_MEASURED_MODERN_CABINET
+                 | (oversampling == electry::FxOversampling::Standard ? 2u : 0u), inputMode == "stereo" ? 2u : inputMode == "mono" ? 3u : inputMode == "switching" ? 4u : inputMode == "guitar" ? 5u : 6u };
 }
 
 void writeReference(const std::filesystem::path& path, const Audio& audio,
@@ -251,7 +339,7 @@ void help()
            "References require the same seconds/block-size/build configuration.\n"
            "Defaults bound peak error to 5e-5 FS and RMS error to -120 dBFS.\n"
            "A numerical null comparison supports, but cannot prove, inaudibility.\n\n"
-           "Scenarios:";
+           "--oversampling standard|high (default standard)\n--input stereo|mono|switching|guitar|guitar-mono\nScenarios:";
     for (const auto& scenario : scenarios)
         std::cout << ' ' << scenario.name;
     std::cout << '\n';
@@ -285,6 +373,15 @@ Options parseOptions(int argc, char** argv)
         else if (option == "--block-size") options.blockSize = std::stoi(value());
         else if (option == "--rate") options.sampleRate = std::stoi(value());
         else if (option == "--scenario") options.scenario = value();
+        else if (option == "--input") options.inputMode = value();
+        else if (option == "--oversampling")
+        {
+            const std::string mode = value();
+            if (mode != "standard" && mode != "high")
+                throw std::runtime_error("oversampling must be standard or high");
+            options.oversampling = mode == "high" ? electry::FxOversampling::High
+                                                 : electry::FxOversampling::Standard;
+        }
         else if (option == "--max-error") options.maximumError = std::stod(value());
         else if (option == "--max-rms-error") options.maximumRmsError = std::stod(value());
         else throw std::runtime_error("unknown option: " + option);
@@ -303,6 +400,9 @@ Options parseOptions(int argc, char** argv)
             return options.scenario == scenario.name;
         }))
         throw std::runtime_error("unknown scenario: " + options.scenario);
+    if (options.inputMode != "stereo" && options.inputMode != "mono"
+        && options.inputMode != "switching" && options.inputMode != "guitar" && options.inputMode != "guitar-mono")
+        throw std::runtime_error("invalid input mode");
     return options;
 }
 } // namespace
@@ -318,16 +418,18 @@ int main(int argc, char** argv)
     {
         const auto options = parseOptions(argc, argv);
         const bool benchmark = options.mode == Options::Mode::benchmark;
+        const auto qualityName = options.oversampling == electry::FxOversampling::High
+            ? "high" : "standard";
         if (options.mode == Options::Mode::capture)
             std::filesystem::create_directories(options.directory);
 
         std::cout << std::setprecision(10);
         if (benchmark)
-            std::cout << "scenario,rate,block_size,frames,repeats,median_ns_per_frame,min_ns_per_frame,median_realtime_percent,checksum\n";
+            std::cout << "scenario,rate,block_size,frames,repeats,median_ns_per_frame,min_ns_per_frame,median_realtime_percent,checksum,median_cpu_ns_per_frame,cpu_realtime_percent,input,oversampling\n";
         else if (options.mode == Options::Mode::compare)
-            std::cout << "scenario,rate,block_size,frames,peak_error,rms_error,rms_error_dbfs,relative_rms_error_db,reference_rms_dbfs,changed_samples,pass\n";
+            std::cout << "scenario,rate,block_size,frames,peak_error,rms_error,rms_error_dbfs,relative_rms_error_db,reference_rms_dbfs,changed_samples,pass,input,oversampling\n";
         else
-            std::cout << "scenario,rate,block_size,frames,reference\n";
+            std::cout << "scenario,rate,block_size,frames,reference,input,oversampling\n";
 
         bool passed = true;
         for (const int rate : sampleRates)
@@ -335,7 +437,7 @@ int main(int argc, char** argv)
             if (options.sampleRate != 0 && options.sampleRate != rate)
                 continue;
             const auto frames = static_cast<std::size_t>(std::llround(options.seconds * rate));
-            const auto input = makeInput(rate, frames, ! benchmark);
+            const auto input = makeInput(rate, frames, ! benchmark, options.inputMode);
             for (std::size_t index = 0; index < scenarios.size(); ++index)
             {
                 const auto& scenario = scenarios[index];
@@ -343,19 +445,29 @@ int main(int argc, char** argv)
                     continue;
                 ElectryFx fx;
                 fx.prepare(rate);
+                FxParameters initial;
+                initial.oversampling = options.oversampling;
+                fx.setParameters(initial);
+                fx.reset();
                 Audio audio = input;
                 if (benchmark)
                 {
-                    process(fx, audio, scenario, options.blockSize); // table/cache warmup
+                    process(fx, audio, scenario, options.blockSize, options.oversampling); // table/cache warmup
                     std::vector<double> timings;
+                    std::vector<double> cpuTimings;
                     double checksum = 0.0;
                     for (int repeat = 0; repeat < options.repeats; ++repeat)
                     {
+                        fx.setParameters(initial);
                         fx.reset();
                         audio = input;
                         const auto start = std::chrono::steady_clock::now();
-                        process(fx, audio, scenario, options.blockSize);
+                        const auto cpuStart = processCpuNanoseconds();
+                        process(fx, audio, scenario, options.blockSize, options.oversampling);
+                        const auto cpuEnd = processCpuNanoseconds();
                         const auto end = std::chrono::steady_clock::now();
+                        cpuTimings.push_back((cpuEnd - cpuStart)
+                            / static_cast<double>(frames));
                         timings.push_back(std::chrono::duration<double, std::nano>(end - start).count()
                                           / static_cast<double>(frames));
                         checkFinite(audio);
@@ -363,18 +475,21 @@ int main(int argc, char** argv)
                                   + std::accumulate(audio.right.begin(), audio.right.end(), 0.0);
                     }
                     std::sort(timings.begin(), timings.end());
+                    std::sort(cpuTimings.begin(), cpuTimings.end());
                     const auto n = timings.size();
                     const double median = (timings[(n - 1) / 2] + timings[n / 2]) * 0.5;
                     std::cout << scenario.name << ',' << rate << ',' << options.blockSize
                               << ',' << frames << ',' << options.repeats << ',' << median
                               << ',' << timings.front() << ',' << median * rate / 1.0e7
-                              << ',' << checksum << '\n';
+                              << ',' << checksum << ',' << (cpuTimings[(n - 1) / 2] + cpuTimings[n / 2]) * 0.5
+                              << ',' << (cpuTimings[(n - 1) / 2] + cpuTimings[n / 2]) * 0.5 * rate / 1.0e7
+                              << ',' << options.inputMode << ',' << qualityName << '\n';
                 }
                 else
                 {
-                    process(fx, audio, scenario, options.blockSize);
+                    process(fx, audio, scenario, options.blockSize, options.oversampling);
                     checkFinite(audio);
-                    const auto header = referenceHeader(rate, frames, options.blockSize, index);
+                    const auto header = referenceHeader(rate, frames, options.blockSize, index, options.inputMode, options.oversampling);
                     const auto path = options.directory
                         / (std::string(scenario.name) + "-" + std::to_string(rate) + ".efxref");
                     if (options.mode == Options::Mode::capture)
@@ -383,7 +498,8 @@ int main(int argc, char** argv)
                         if (compare(audio, readReference(path, header)).changedSamples != 0)
                             throw std::runtime_error("reference round trip changed samples");
                         std::cout << scenario.name << ',' << rate << ',' << options.blockSize
-                                  << ',' << frames << ',' << path.string() << '\n';
+                                  << ',' << frames << ',' << path.string()
+                                  << ',' << options.inputMode << ',' << qualityName << '\n';
                     }
                     else
                     {
@@ -400,7 +516,8 @@ int main(int argc, char** argv)
                                   << ',' << frames << ',' << metrics.peakError << ',' << metrics.rmsError
                                   << ',' << db(metrics.rmsError) << ',' << relative
                                   << ',' << db(metrics.rmsReference) << ',' << metrics.changedSamples
-                                  << ',' << (pass ? "true" : "false") << '\n';
+                                  << ',' << (pass ? "true" : "false")
+                                  << ',' << options.inputMode << ',' << qualityName << '\n';
                     }
                 }
                 std::cout.flush();

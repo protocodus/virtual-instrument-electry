@@ -1,0 +1,128 @@
+--- a/Source/DSP/ElectryFx.cpp
++++ b/Source/DSP/ElectryFx.cpp
+@@ -1661,6 +1661,8 @@
+     oversampledRate_ = static_cast<float>(
+         sampleRate_ * static_cast<double>(1 << oversamplingStages_));
+ 
++    prepareDiodeInverse();
++
+     // The measured-tube calibrations and tables are generated once from the
+     // exact circuit/load-line solves below. Prime every function static during
+     // prepare rather than allowing first use to initialise it on the audio
+@@ -2021,6 +2023,81 @@
+     const float carried = held
+         / std::sqrt(1.0f + held * held * inverseLimitSquared);
+     return input - (held - carried);
++}
++
++void ElectryFx::prepareDiodeInverse()
++{
++    // Same trapezoidal RC equation as diodePairStep. The only nonlinear
++    // unknown depends on a scalar right-hand side, so invert it at prepare.
++    const double step = 1.0 / static_cast<double>(oversampledRate_);
++    const double a = 1.0 + 0.5 * step / (diodeResistance * diodeCapacitance);
++    const double b = step * diodeSaturationCurrent / diodeCapacitance;
++    diodeHalfStep_ = 0.5 * step;
++    diodeInputCoefficient_ = diodeHalfStep_
++        / (diodeResistance * diodeCapacitance);
++    diodeDerivativeCoefficient_ = 2.0 / step;
++    // Margin beyond the bounded +/-12 V input; extreme/corrupt histories use
++    // the unchanged direct solver. Odd symmetry halves table storage.
++    diodeInverseMaximum_ = 2.0 + 12.0 * step
++        / (diodeResistance * diodeCapacitance);
++    const double spacing = diodeInverseMaximum_ / diodeInverseSegments;
++    diodeInverseScale_ = 1.0 / spacing;
++    diodeInverse_.resize(diodeInverseSegments + 1);
++    for (std::size_t i = 0; i <= diodeInverseSegments; ++i)
++    {
++        const double rhs = static_cast<double>(i) * spacing;
++        double v = std::min(rhs / a,
++            diodeThermalVoltage * std::asinh(rhs / b));
++        for (int iteration = 0; iteration < 16; ++iteration)
++        {
++            const double residual = a * v + b * std::sinh(
++                v / diodeThermalVoltage) - rhs;
++            const double slope = a + b / diodeThermalVoltage * std::cosh(
++                v / diodeThermalVoltage);
++            const double correction = residual / slope;
++            v -= correction;
++            if (std::abs(correction) < 1.0e-16)
++                break;
++        }
++        const double slope = a + b / diodeThermalVoltage * std::cosh(
++            v / diodeThermalVoltage);
++        diodeInverse_[i] = { v, spacing / slope };
++    }
++}
++
++float ElectryFx::diodePairLookup(double inputVolts, double& outputVolts,
++                                double& previousDerivative) const noexcept
++{
++    inputVolts = std::isfinite(inputVolts)
++        ? std::clamp(inputVolts, -12.0, 12.0) : 0.0;
++    if (! std::isfinite(outputVolts)
++        || ! std::isfinite(previousDerivative))
++    {
++        outputVolts = 0.0;
++        previousDerivative = 0.0;
++    }
++    const double rhs = outputVolts + diodeHalfStep_ * previousDerivative
++        + diodeInputCoefficient_ * inputVolts;
++    const double magnitude = std::abs(rhs);
++    if (magnitude >= diodeInverseMaximum_)
++        return diodePairStep(inputVolts, oversampledRate_, outputVolts,
++                             previousDerivative);
++    const double coordinate = magnitude * diodeInverseScale_;
++    const auto lower = std::min(static_cast<std::size_t>(coordinate),
++                                diodeInverseSegments - 1);
++    const double t = coordinate - static_cast<double>(lower);
++    const auto& lo = diodeInverse_[lower];
++    const auto& hi = diodeInverse_[lower + 1];
++    const double delta = hi.voltage - lo.voltage;
++    const double v = std::copysign(lo.voltage + t * (lo.slope + t * (
++        3.0 * delta - 2.0 * lo.slope - hi.slope
++        + t * (lo.slope + hi.slope - 2.0 * delta))), rhs);
++    // The solved trapezoidal identity supplies the capacitor derivative;
++    // there is no memoryless approximation and no remaining transcendental.
++    previousDerivative = (v - outputVolts) * diodeDerivativeCoefficient_
++        - previousDerivative;
++    outputVolts = v;
++    return static_cast<float>(v);
+ }
+ 
+ float ElectryFx::diodePairStep(double inputVolts, double sampleRate,
+@@ -2796,7 +2873,7 @@
+ {
+     float sample = channel.pedalHighpass.process(input);
+     sample = channel.pedalVoice.process(sample);
+-    sample = diodePairStep(sample * pedalDrive_, oversampledRate_,
++    sample = diodePairLookup(sample * pedalDrive_,
+                            channel.diodeVoltage,
+                            channel.diodeDerivative);
+     sample = channel.pedalTilt.process(sample);
+--- a/Source/DSP/ElectryFx.h
++++ b/Source/DSP/ElectryFx.h
+@@ -425,6 +425,23 @@
+         void resetAmp() noexcept;
+         void reset() noexcept;
+     };
++
++    struct DiodeInversePoint
++    {
++        double voltage {};
++        double slope {};
++    };
++    static constexpr std::size_t diodeInverseSegments = 4096;
++    std::vector<DiodeInversePoint> diodeInverse_ {};
++    double diodeHalfStep_ {};
++    double diodeInputCoefficient_ {};
++    double diodeDerivativeCoefficient_ {};
++    double diodeInverseScale_ {};
++    double diodeInverseMaximum_ {};
++    void prepareDiodeInverse();
++    [[nodiscard]] float diodePairLookup(double inputVolts,
++                                        double& outputVolts,
++                                        double& previousDerivative) const noexcept;
+ 
+     void designFilters() noexcept;
+     void updateDriveConstants() noexcept;

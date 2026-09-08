@@ -1,0 +1,13 @@
+scenario,rate,block_size,frames,peak_error,rms_error,rms_error_dbfs,relative_rms_error_db,reference_rms_dbfs,changed_samples,pass,input,oversampling
+bypass,48000,128,33600,0,0,-inf,-inf,-36.175196,0,true,guitar-mono,standard
+pedal,48000,128,33600,0,0,-inf,-inf,-37.75766428,0,true,guitar-mono,standard
+american,48000,128,33600,0,0,-inf,-inf,-34.87991429,0,true,guitar-mono,standard
+british,48000,128,33600,0,0,-inf,-inf,-32.32626267,0,true,guitar-mono,standard
+modern,48000,128,33600,0,0,-inf,-inf,-32.75192137,0,true,guitar-mono,standard
+compressor,48000,128,33600,0,0,-inf,-inf,-32.78356986,0,true,guitar-mono,standard
+delay,48000,128,33600,0,0,-inf,-inf,-36.04141906,0,true,guitar-mono,standard
+room,48000,128,33600,0,0,-inf,-inf,-36.09912908,0,true,guitar-mono,standard
+all-american,48000,128,33600,0,0,-inf,-inf,-32.25071248,0,true,guitar-mono,standard
+all-british,48000,128,33600,0,0,-inf,-inf,-29.1871952,0,true,guitar-mono,standard
+all-modern,48000,128,33600,0,0,-inf,-inf,-29.57357603,0,true,guitar-mono,standard
+automation,48000,128,33600,0,0,-inf,-inf,-30.14931471,0,true,guitar-mono,standard

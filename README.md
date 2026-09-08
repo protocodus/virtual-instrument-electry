@@ -48,6 +48,9 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-08 — [Faster effects and oversampling choice](#2026-09-08-faster-effects-and-oversampling-choice):**
+  prepared pedal and phase-inverter math, with Standard/High FX oversampling.
+  New rigs use Standard; older saved states retain High.
 - **2026-09-06 — [Automated distribution builds](https://github.com/protocodus/virtual-instrument-electry/commit/b35242589674680bf4db5c7f0b7264bcb0fe7fb4):**
   macOS, Windows and Linux packages with CLAP support, plus screenshot and audio
   refreshes on every merge to `main`.
@@ -64,7 +67,7 @@ have been published yet.
 ## Technical details
 
 [Build from source](#build) · [MIDI and playing controls](#how-it-works)
-· [Host parameters](#28-host-parameters) · [Sound architecture](#sound-architecture)
+· [Host parameters](#29-host-parameters) · [Sound architecture](#sound-architecture)
 · [References](#references-and-claim-boundaries) · [Known gaps](#known-gaps)
 · [Licensing](#licensing)
 
@@ -96,14 +99,16 @@ only while its key is held, then return to the visible base choice. Any stroke
 can therefore drive any style without programming an Open switch around every
 muted phrase.
 
-The compact FX panel provides five amount controls plus an **Amp Voice**
-selector: a distortion pedal; American Clean, British Crunch and Modern
-High-Gain amplifier/cabinet paths; compression; lead delay; and a stereo room.
+The compact FX panel provides five amount controls, an **Amp Voice**
+selector and **Standard / High Oversampling**: a distortion pedal; American
+Clean, British Crunch and Modern High-Gain amplifier/cabinet paths; compression;
+lead delay; and a stereo room.
 Every amount defaults to a true 0 % dry setting. Once Distortion or Amp is moved
 above zero it is a drive control around a fully connected circuit, so no
-uncabbed DI leaks around an enabled loudspeaker. The pedal solves its
-antiparallel-diode RC circuit at every oversampled step. All three amplifiers
-use dense measured-12AX7 plate-load transfers generated from exact circuit
+uncabbed DI leaks around an enabled loudspeaker. A prepared inverse table
+solves the pedal's antiparallel-diode RC step while retaining its capacitor
+history; accurate scalar tables reduce the phase inverter's repeated math.
+All three amplifiers use dense measured-12AX7 plate-load transfers generated from exact circuit
 solves; the American and British paths add exact third-order passive RC tone
 stacks, measured-curve-fitted 6L6GC beam-tetrode or EL34 pentode push-pull load
 lines, and source-derived nonlinear 12AT7/ECC81 or ECC83 long-tailed-pair phase
@@ -114,8 +119,11 @@ individual 470 Ohm American branches and one common 800 Ohm British branch.
 Negative feedback, plate-plus-screen-current-driven sag, transformer flux and
 six-section speaker/cabinet voicing complete each path. The Modern path retains
 Electry's established metal circuit topology and voicing.
-The nonlinear blocks run inside an up-to-8× oversampled domain, so a high-gain
-tone saturates instead of folding its own harmonics back into the guitar band.
+The nonlinear blocks use **Standard** oversampling by default: 4× at 44.1/48
+kHz. **High** retains the previous 8× rate at those rates and stronger alias
+suppression. Both adapt at higher host rates. Standard lowers processing cost
+with an accepted increase in high-drive aliasing; High retains the original
+antialiasing target.
 These are meticulously bounded circuit-derived families, not capture-accurate
 replicas of named amplifiers, individual power-tube specimens, microphones or
 rooms. Mono is the
@@ -239,7 +247,7 @@ capture- and listening-calibrated physical mapping.
 ## Factory rigs and quick start
 
 The editor's **RIG** selector provides four deterministic starting points and
-sets all 28 host parameters, so it cannot inherit a forgotten control from the
+sets all 29 host parameters, so it cannot inherit a forgotten control from the
 previous patch. Rigs deliberately leave Pick Stroke, the base Play Style and
 the `LATCH | HOLD` choice alone.
 Compact knob captions remain short enough for the faceplate, while each knob's
@@ -919,40 +927,45 @@ behind a 0% knob. CC 120/123 behave as All Sound Off and All Notes Off.
 
 ### Amplifier chain
 
-The five FX amount controls and three-choice Amp Voice selector run in the same
-JUCE-free library as the string model (`Source/DSP/ElectryFx.*`), so the
+The five FX amount controls, three-choice Amp Voice and two-choice Oversampling
+selectors run in the same JUCE-free library as the string model (`Source/DSP/ElectryFx.*`), so the
 complete signal path is regression tested on every platform rather than only
 inside a host. Amp Voice selects a complete nonlinear amplifier and
 speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
 
-- **Oversampled clipping.** At 44.1 and 48 kHz the distortion pedal and the
-  amplifier run inside an 8x oversampled domain, reached through three cascaded
-  Kaiser-windowed halfband stages whose kernels are designed at `prepare()`
-  time rather than tabulated. A
-  gain stage fed at host rate folds its own upper harmonics straight back into
-  the guitar band, and that folded intermodulation is most of what makes a
-  modelled high-gain tone read as digital: across pedal, amplifier, stacked
-  and quiet-amplifier steady-tone probes at both standard rates, the current
-  non-harmonic floor is -70.2 to -83.2 dB; the previous host-rate chain
-  measured -28 to -40 dB on the same class of probes. From a 48 kHz host upward,
-  the smallest 1x, 2x, 4x or 8x path that reaches a 384 kHz internal clock is
-  selected; 44.1 kHz is the maximum-8x exception at 352.8 kHz. The resulting
-  stage boundaries are 96, 192 and 384 kHz, and both sides of each remain below
-  the same -70 dB alias rail. Power-of-two staging puts the 88.2, 176.4 and
-  352.8 kHz host family at a 705.6 kHz internal clock; every rate-derived
-  circuit state uses that actual frame clock rather than the 384 kHz host-rate
-  ceiling.
-  While engaged it adds 20.125 host samples of fixed group delay below 96 kHz
-  (0.42 ms at 48 kHz), then 17.25/11.5/0 samples across the 96/192/384 kHz
-  stage retirements. With both gain controls at zero it is skipped outright,
-  costs nothing, and adds no delay at all.
+- **Selectable oversampling.** Standard is the default for new instances and
+  factory rigs. It uses one fewer Kaiser-windowed halfband stage than High,
+  bounded at 1×. At 44.1/48/88.2 kHz this is 4×; at 96/176.4 kHz it is 2×;
+  and at 192 kHz and above it is 1×. High preserves the previous adaptive
+  policy: from a 48 kHz host upward, it chooses the smallest 1×, 2×, 4× or 8×
+  path reaching a 384 kHz internal clock; 44.1 kHz is capped at 8×/352.8 kHz.
+  Consequently High puts the 88.2/176.4/352.8 kHz family at 705.6 kHz. Every
+  rate-derived circuit state uses its actual nonlinear frame clock.
+  High retains the original −70 dB alias regression target. Standard accepts
+  more alias energy: the matched lower-rate evaluation found roughly 9–12 dB
+  worse full-drive amplifier rejection at standard host rates. This is an
+  explicit CPU/quality choice; Standard does not inherit High's alias rail.
+  Both gain banks, their filters and rate-specific tables are prepared before
+  audio processing. A live change crossfades the two banks over about 20 ms;
+  only the selected bank runs after it settles. Compressor, delay and room
+  remain shared, preserving their histories through the rate change. Reset or
+  a fully bypassed gain stage selects the requested mode immediately.
+  Standard's engaged gain delay is 17.25/11.5/0 host samples below 96 kHz,
+  from 96 to below 192 kHz, and from 192 kHz upward. High retains
+  20.125/17.25/11.5/0 across its 96/192/384 kHz stage boundaries. During a
+  crossfade the latency accessor reports the higher bank delay. With both
+  gain controls fully at zero, the nonlinear processing is skipped and adds
+  no gain-path delay. Older saved states without the selector migrate to High.
 - **Pedal.** A tight 88 Hz input coupling network and a mid-focused voice feed
   the 2.2 kOhm / 10 nF antiparallel Shockley-diode node from
   [Yeh, Abel and Smith's DAFx-07 circuit](https://dafx.de/paper-archive/2007/Papers/p197.pdf).
   Its capacitor voltage is state, not a post-filtered memoryless curve: every
-  oversampled step trapezoidally integrates the RC differential equation and
-  uses a bounded Newton solve for the two diode currents. Passing the whole low
-  end of a Drop-E eighth string into the clipping node turns the fundamental
+  oversampled step trapezoidally integrates the RC differential equation. A
+  4,097-point, rate-specific cubic Hermite inverse is built in `prepare()`;
+  odd symmetry covers both diode polarities, with the original bounded Newton
+  solver retained outside the table domain. This removes repeated iterations
+  while preserving the implicit circuit equation and capacitor memory. Passing
+  the whole low end of a Drop-E eighth string into the clipping node turns the fundamental
   into intermodulation mud instead of a note, so the input and voice filters
   remain part of Electry's metal voicing.
 - **Three circuit families.** American Clean uses a mid-1960s American
@@ -964,8 +977,8 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   and bilinear transformed at the nonlinear stage's internal rate. Their
   measured 1 kHz insertion losses at 384 kHz are −13.0063 and −5.84533 dB;
   recovery happens before the output section, not as post-cabinet EQ. Modern
-  High-Gain retains the established Electry circuit topology and voicing; the
-  higher internal rate intentionally changes its wet samples.
+  High-Gain retains the established Electry circuit topology and voicing;
+  Standard and High run that same topology at their selected internal rates.
 - **Voiced for the eighth string.** The Modern input stage passes the whole Drop-E
   fundamental rather than cutting it at 84 Hz, because clipping it is what
   generates the second and third harmonics the cabinet turns into a chug's
@@ -1004,7 +1017,11 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   plate and leaves a real common negative bias displacement after overload. Its
   companion conductances use the exact nonlinear frame rate: the checked
   384/705.6 kHz small-signal output-capacitor response agrees within the 0.05
-  dB regression bound at 40 Hz relative to 1 kHz.
+  dB regression bound at 40 Hz relative to 1 kHz. Accurate shared cubic tables
+  evaluate softplus and fractional tube powers, with Newton derivatives from
+  the same polynomials. Exact math remains the out-of-domain fallback and is
+  retained for idle calibration and direct curve inspection; the coupled
+  solver keeps its `1e-10 A` convergence tolerance and 12-iteration ceiling.
   Idle remains 4.012 mA / 232.25 V / 225.53 V for ECC81 and 3.180 mA / 261.46
   V / 250.95 V for ECC83; the checked musical burst stays below `1e-10 A`
   residual. One millisecond after the pinned overload the shared American and
@@ -1094,21 +1111,55 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   zero is a bit-exact dry bypass — verified by the regression suite — while
   engaging or disengaging either gain circuit and its oversampled block is
   crossfaded and cannot click.
-- **Cost.** On an Apple M1 Max, a comparable optimized render of all 23 demos
+- **Identical channels.** When L/R samples and their gain histories match,
+  each oversampling bank renders its pedal and amp once and reuses the output
+  for both channels. On the first differing sample it restores the right
+  history before processing L/R independently. Equal samples later do not
+  erase different histories: reuse becomes eligible again after a full bank
+  reset. This preserves the exact stereo output, including quality crossfades;
+  the compressor, delay and room continue their existing stereo processing.
+  At 48 kHz on an Apple M1 Max, complete chains fed identical L/R guitar
+  saved a further **47.8–48.9% FX CPU in Standard and 49.1–50.5% in High**
+  against the same selector/table implementation without channel reuse.
+  These are serial baseline/candidate/candidate/baseline measurements with
+  128-frame blocks, two-second clips and three repeats. Distinct stereo input
+  continues to render both gain channels. A frozen-binary comparison across
+  both modes, mono, stereo and channel transitions found **zero changed bits
+  in 20,573,280 output samples**; regression tests also cover resets and quality
+  crossfades. [Incremental timings](Docs/fx-cpu/mono-reuse/summary.csv) and
+  [measurement metadata](Docs/fx-cpu/mono-reuse/metadata.json) retain the evidence.
+- **Cost.** The pedal inverse and PI scalar tables reduce repeated nonlinear
+  math in both modes. Standard additionally retires one oversampling stage;
+  changing modes briefly runs both prepared gain banks. Before identical-channel
+  reuse, on an Apple M1 Max at 48 kHz, the integrated Standard complete chains
+  with stereo guitar input used **63.5% less process CPU
+  for American, 66.2% for British and 69.1% for Modern** than `f2a5258`.
+  High saved **35.7%, 39.4% and 42.8%**, respectively. These are FX-only
+  measurements using pre-rendered Electry guitar input, 128-frame blocks,
+  two-second clips and three repeats, in baseline/Standard/High/High/Standard/
+  baseline order. Each candidate is compared with the mean bracketing
+  baseline; elapsed time corroborates the reductions but varies more under
+  scheduling. [Raw timings and commands](Docs/fx-cpu/selectable-oversampling/metadata.json)
+  and the [summary](Docs/fx-cpu/selectable-oversampling/summary.csv) retain the
+  evidence. The real live acoustic-return path passes regression checks;
+  whole-plugin CPU and continuous quality-switch automation were not timed.
+- **Historical cost reference, before the selector and table optimizations.**
+  On an Apple M1 Max, a comparable optimized render of all 23 demos
   (289.33 seconds of audio, including the string model and mixed dry/wet
   material) moved from 21.94 seconds CPU / 22.71 seconds wall time with the
-  previous 4x standard-rate path to 33.65 / 35.27 seconds with the current 8x
-  path: +53.4% CPU, +55.3% wall, and 0.116x/0.122x aggregate realtime. This is
+  previous 4x standard-rate path to 33.65 / 35.27 seconds with the then-current
+  8x path: +53.4% CPU, +55.3% wall, and 0.116x/0.122x aggregate realtime. This is
   an end-to-end workload, not a worst-case amp-switch benchmark. The earlier
   isolated harness was not retained, so its 48 kHz rows are historical rather
-  than current claims. Its still-current 96 kHz 4x rows—the same 384 kHz
+  than current claims. Its historical 96 kHz 4x rows—the same 384 kHz
   nonlinear rate with twice the host-rate work—measured the metal/all-max
   chains at 0.169x/0.178x, settled American/British at 0.421x/0.434x, Modern at
   0.055x, continuous A↔B at 0.842x and pathological three-way switching below
-  0.90x. A fresh isolated standard-rate benchmark remains due. Timed process
-  rows make zero heap allocations; the two 3.288 MiB pair tables take about
-  0.65 seconds once per process to construct during the first `prepare()`,
-  while same-rate reprepare is about 0.55 ms.
+  0.90x. Those timings do not describe the new Standard default. Timed process
+  rows in that checkpoint made zero heap allocations; the two 3.288 MiB pair
+  tables took about 0.65 seconds once per process to construct during the
+  first `prepare()`,
+  while same-rate reprepare at that checkpoint was about 0.55 ms.
 
 ### Guitar Build
 
@@ -1167,20 +1218,23 @@ current `testGuitarBuildRangeIsAudible` therefore measures the six complete anch
 while the lower-level material tests state the instrument they measure instead
 of inheriting the default.
 
-### 28 host parameters
+### 29 host parameters
 
 Electry is unreleased, so this development parameter layout makes no
 compatibility promise to earlier snapshots. It exposes one Guitar Build
 parameter in place of six construction axes, one three-choice Output Mode
 parameter in place of a binary field plus a separate Double switch, and one
-three-choice Amp Voice selector. Tonal continuous controls are smoothed inside
-the engine; Tremolo Rate, Strum Spread and Bend Time intentionally reach their
+three-choice Amp Voice selector, plus Standard/High FX Oversampling. Tonal
+continuous controls are smoothed inside the engine; Tremolo Rate, Strum Spread and Bend Time intentionally reach their
 schedulers directly, pickup and output-mode changes crossfade over roughly
 4 ms, and Amp Voice crossfades independent circuit state with a 15 ms
 exponential smoothing time constant.
-The new `ampModel` field is appended, so the first 27 host indices stay fixed;
-development states that do not contain it explicitly migrate to Modern
-High-Gain.
+The `ampModel` field retains index 28; states without it migrate to Modern
+High-Gain. `fxOversampling` is appended at index 29, preserving all 28 earlier
+indices. New instances and factory rigs use Standard (choice 0); older saved
+states missing this field explicitly migrate to High (choice 1), preserving
+their previous rate policy. Live oversampling changes use the prepared-bank
+crossfade described above.
 
 | # | ID | Name | Range and default |
 | --- | --- | --- | --- |
@@ -1212,6 +1266,7 @@ High-Gain.
 | 26 | `resonanceDepth` | Resonance depth | 0..100% full-scale reach of the CC 1 resonance (coupling lift and amplifier feedback), default 35% |
 | 27 | `tremoloRate` | Tremolo picking rate | 4..20 strokes/s for the momentary B0 TRM wrist, default 12 strokes/s; appended after the published controls so their host automation indices remain unchanged |
 | 28 | `ampModel` | Amp voice | American Clean / British Crunch / **Modern High-Gain**; switches the complete amp, output dynamics, transformer and six-section speaker/cabinet voice, with legacy development states defaulting to Modern |
+| 29 | `fxOversampling` | FX oversampling | **Standard (0)** / High (1); Standard uses one fewer nonlinear oversampling stage, while saved states missing the field migrate to High |
 
 ### References and claim boundaries
 
@@ -1245,10 +1300,10 @@ High-Gain.
 | Amplifier feedback | Acoustic guitar-to-amplifier feedback practice: a loudspeaker's pressure field re-excites the strings, while high-gain players control unused strings | A sample-rate-derived FIFO holds a voiced nominal 5.805 ms acoustic delay (256 samples at 44.1 kHz), while the plug-in renders, amplifies and returns causal chunks no longer than that delay so DAW block size cannot select the howl. A soft-clipped, gain-scaled copy drives played strings fully and idle sympathetic strings at a voiced one-quarter direct share while leaving their bridge drive unchanged. CC1 resonance, Resonance Depth and rig acoustic loudness scale the path, so a distorted tone at full wheel regenerates while a dry DI never can; every element is bounded | A fixed-delay, level-gated, saturating regeneration path with a performance-voiced unused-string share; not a measured player-to-speaker distance, finger-by-finger muting, room acoustics, speaker directivity, or a standing-wave model |
 | Controllable artifacts | The same touch/collision literature plus bridge-hardware behavior | An exactly bypassable deterministic path combines a bridge-hardware modal bank driven through the selected pickup mix, incidental fret contact on hard-picked notes, and per-string saddle rattle, all driven by played energy. It is mechanical hardware noise, distinct from the sympathetic string coupling above | Plausible procedural imperfection with bounded feed-forward resonators; not measured hardware-noise statistics |
 | Audible-work culling | Standard realtime-DSP practice | A pickup faded out by the selector is skipped entirely; Mono runs one shared coil/DC/decimation chain and mirrors it; damping-only control moves reuse the existing dispersion fit; the whole engine freezes to exact zero once nothing vibrates and the shared path is below -120 dBFS | Removal of inaudible arithmetic with the audible result unchanged; not a quality/latency trade |
-| Oversampling | Standard nonlinear-audio antialiasing practice | The physical, body, collision, and nonlinear pickup path runs at 2x for host rates through 96 kHz, followed by a fixed 63-tap halfband FIR; higher-rate hosts run 1x. The separate distortion/amplifier domain uses the smallest 1x, 2x, 4x or 8x path reaching 384 kHz from a 48 kHz host upward, with 44.1 kHz bounded at 8x/352.8 kHz | Genuine internal oversampling and filtered decimation, with all tested gain profiles below a -70 dB alias floor on both sides of the 96/192/384 kHz stage transitions; not a quality label applied to a native-rate nonlinear stage |
+| Oversampling | Standard nonlinear-audio antialiasing practice | The physical, body, collision, and nonlinear pickup path runs at 2x for host rates through 96 kHz, followed by a fixed 63-tap halfband FIR; higher-rate hosts run 1x. The separate distortion/amplifier High mode uses the smallest 1x, 2x, 4x or 8x path reaching 384 kHz from a 48 kHz host upward, with 44.1 kHz bounded at 8x/352.8 kHz. Default Standard removes one stage, bounded at 1x; prepared banks crossfade on live mode changes | High retains the original -70 dB alias regression target; Standard accepts roughly 9–12 dB worse full-drive amplifier alias rejection in the matched standard-rate probes for lower CPU cost. This is a stated rate/quality trade, not identical audio across modes |
 | Output modes | Phase-coherent divided/hex pickup practice, ordinary double-tracked guitar performance, and four CC-BY HiMMP rhythm DIs | Mono is the conventional summed DI. Stereo weights one engine's modeled strings by physical lateral position and folds coherently to mono. Double runs two complete, differently seeded mono engines into left and right before one shared FX chain; the second gets one deterministic 0-6 ms causal timing offset per picked wrist stroke, shared across a chord and composed with strum travel | Stereo is a virtual divided-pickup string field and Double is two deterministic modeled performances rather than a delayed copy. Its tight timing envelope is directionally grounded in conventional Drop-C takes, not capture-fitted eight-string timing, and it does not claim to reproduce the decisions of two human performances |
-| Distortion pedal | [Yeh, Abel and Smith's antiparallel-diode RC formulation](https://dafx.de/paper-archive/2007/Papers/p197.pdf) and standard nonlinear-audio antialiasing practice | A 2.2 kOhm / 10 nF Shockley-diode node whose capacitor state is trapezoidally integrated and solved with bounded Newton iterations at every oversampled step, surrounded by Electry's eighth-string input and voice filters | A real circuit solve of the documented clipping node; not a full named pedal schematic, component-tolerance study, or SPICE validation |
-| Amplifier and speaker/cabinet | [Yeh and Smith's exact passive tone-stack derivation](https://dafx.de/paper-archive/2006/papers/p_001.pdf); [Dempwolf and Zölzer's measured 12AX7 model](https://dafx.de/paper-archive/2011/Papers/76_e.pdf); Reefman's measured [uTracer TubeLib ECC81/ECC83/6L6GC/EL34 fits](https://www.dos4ever.com/uTracer3/TubeLib.inc) and [model derivation](https://www.dos4ever.com/uTracer3/Theory.pdf); [Fender Twin Reverb AB763](https://schematicheaven.net/fenderamps/twin_reverb_ab763_schem.pdf), [Marshall 1959](https://www.prowessamplifiers.com/schematics/Marshall/1959_superlead.pdf) and [Macak/Schimmel](https://www.dafx.de/paper-archive/2010/DAFx10/MacakSchimmel_DAFx10_P12.pdf) phase-splitter and grid-coupling circuits; [RCA 6L6GC](https://frank.pocnet.net/sheets/049/6/6L6GC.pdf) and [Mullard EL34](https://frank.pocnet.net/sheets/129/e/EL34.pdf) push-pull operating points; official [Fender amplifier](https://www.fmicassets.com/Damroot/Original/10001/021730_gamp_manual_all_revE.pdf), [Marshall 1959](https://www.marshall.com/us/en/product/1959-handwired-head?pid=1007086) and [Peavey 6505](https://assets.peavey.com/literature/manuals/00575680.pdf) architecture references; official [Jensen C12K](https://www.jensentone.com/vintage-ceramic/c12k), [Celestion G12M](https://celestion.com/product/g12m-greenback/) and [Vintage 30](https://celestion.com/product/vintage-30/) response boundaries | Three complete paths share a residual-checked measured-current 12AX7 preamp table. American and British add exact unloaded third-order passive RC stacks; nonlinear ECC81/ECC83 long-tailed pairs jointly solve two source-valued output capacitors, 220 kOhm bias returns, factory grid stoppers and TubeLib overload-grid conduction; common/differential-sensitive 6L6GC or EL34 load-line tables retain the resulting blocking shift. The American 6L6GC pair solves individual AB763-derived 470 Ohm screen branches around the RCA operating family; the British EL34 pair solves Mullard's common 800 Ohm resistor from its matching pair condition. These screen equations are coupled to the plate load-line solve and baked into the preparation-time tables. Voiced negative feedback, plate-plus-screen-current-driven sag and independent transformer state follow; Modern preserves the established cascaded path. Six biquads per path supply distinct zero-latency speaker/cabinet response voices, and all nonlinear work stays inside the up-to-8× oversampled block | Exact passive RC transfers, translated measured-current preamp/phase-inverter/power-tube formulae, residual-bounded coupled LTP/grid solves and bounded ideal push-pull load-line/screen-resistor solves inside three deliberately voiced paths. Terminal grid conduction and blocking recovery are modeled while positive-grid plate transfer remains explicitly AB1-bounded. The American screen components are a documented-source hybrid, not a complete Twin DC stage; the upstream 1 kOhm / 20 uF dynamic screen node, Marshall quartet/choke supply, reactive transformer/speaker load, full positive-grid plate data, complete named schematic, component-tolerance or specimen fit, cabinet IR, loudspeaker mechanics, microphone and room capture remain outside the claim |
+| Distortion pedal | [Yeh, Abel and Smith's antiparallel-diode RC formulation](https://dafx.de/paper-archive/2007/Papers/p197.pdf) and standard nonlinear-audio antialiasing practice | A 2.2 kOhm / 10 nF Shockley-diode node whose capacitor state is trapezoidally integrated through a prepared rate-specific cubic Hermite inverse, with odd symmetry and a bounded Newton fallback outside its domain, surrounded by Electry's eighth-string input and voice filters | A real circuit solve of the documented clipping node; not a full named pedal schematic, component-tolerance study, or SPICE validation |
+| Amplifier and speaker/cabinet | [Yeh and Smith's exact passive tone-stack derivation](https://dafx.de/paper-archive/2006/papers/p_001.pdf); [Dempwolf and Zölzer's measured 12AX7 model](https://dafx.de/paper-archive/2011/Papers/76_e.pdf); Reefman's measured [uTracer TubeLib ECC81/ECC83/6L6GC/EL34 fits](https://www.dos4ever.com/uTracer3/TubeLib.inc) and [model derivation](https://www.dos4ever.com/uTracer3/Theory.pdf); [Fender Twin Reverb AB763](https://schematicheaven.net/fenderamps/twin_reverb_ab763_schem.pdf), [Marshall 1959](https://www.prowessamplifiers.com/schematics/Marshall/1959_superlead.pdf) and [Macak/Schimmel](https://www.dafx.de/paper-archive/2010/DAFx10/MacakSchimmel_DAFx10_P12.pdf) phase-splitter and grid-coupling circuits; [RCA 6L6GC](https://frank.pocnet.net/sheets/049/6/6L6GC.pdf) and [Mullard EL34](https://frank.pocnet.net/sheets/129/e/EL34.pdf) push-pull operating points; official [Fender amplifier](https://www.fmicassets.com/Damroot/Original/10001/021730_gamp_manual_all_revE.pdf), [Marshall 1959](https://www.marshall.com/us/en/product/1959-handwired-head?pid=1007086) and [Peavey 6505](https://assets.peavey.com/literature/manuals/00575680.pdf) architecture references; official [Jensen C12K](https://www.jensentone.com/vintage-ceramic/c12k), [Celestion G12M](https://celestion.com/product/g12m-greenback/) and [Vintage 30](https://celestion.com/product/vintage-30/) response boundaries | Three complete paths share a residual-checked measured-current 12AX7 preamp table. American and British add exact unloaded third-order passive RC stacks; nonlinear ECC81/ECC83 long-tailed pairs use derivative-consistent scalar tables inside the unchanged coupled Newton solve for two source-valued output capacitors, 220 kOhm bias returns, factory grid stoppers and TubeLib overload-grid conduction; common/differential-sensitive 6L6GC or EL34 load-line tables retain the resulting blocking shift. The American 6L6GC pair solves individual AB763-derived 470 Ohm screen branches around the RCA operating family; the British EL34 pair solves Mullard's common 800 Ohm resistor from its matching pair condition. These screen equations are coupled to the plate load-line solve and baked into the preparation-time tables. Voiced negative feedback, plate-plus-screen-current-driven sag and independent transformer state follow; Modern preserves the established cascaded path. Six biquads per path supply distinct zero-latency speaker/cabinet response voices, and all nonlinear work stays inside the up-to-8× oversampled block | Exact passive RC transfers, translated measured-current preamp/phase-inverter/power-tube formulae, residual-bounded coupled LTP/grid solves and bounded ideal push-pull load-line/screen-resistor solves inside three deliberately voiced paths. Terminal grid conduction and blocking recovery are modeled while positive-grid plate transfer remains explicitly AB1-bounded. The American screen components are a documented-source hybrid, not a complete Twin DC stage; the upstream 1 kOhm / 20 uF dynamic screen node, Marshall quartet/choke supply, reactive transformer/speaker load, full positive-grid plate data, complete named schematic, component-tolerance or specimen fit, cabinet IR, loudspeaker mechanics, microphone and room capture remain outside the claim |
 
 ## Known gaps
 
@@ -1421,8 +1476,8 @@ run. The active worst case uses Stereo, maximum Body Resonance, and maximum
 Artifacts mode. Mono is checked sample-for-sample dual mono; Stereo tests pin
 physical low/high string orientation, coherent fold-down, bounded side level,
 energy balance, determinism, and opposite string endpoints. The plug-in suite
-additionally pins the 28-parameter layout, including Tremolo Rate's and Amp
-Voice's appended indices, Guitar Build's named anchors,
+additionally pins the 29-parameter layout, including Tremolo Rate's, Amp
+Voice's and FX Oversampling's appended indices, Guitar Build's named anchors,
 formatted values, current-state round trips, bus layout, sample-accurate
 note starts, MIDI controller behavior (bit-identical channel-agnostic pitch
 before zone activation; same-sample MPE setup; selective member and additive
@@ -1436,6 +1491,7 @@ all-sound-off, all-notes-off, Panic and prepare lifecycle clearing), UI
 keyswitch triggering of both banks, panic, output-gain and APVTS
 output-mode effects, three visible non-overlapping mode buttons, three visible
 non-overlapping Amp Voice buttons, Modern default and missing-field migration,
+two visible Standard/High oversampling buttons and legacy High migration,
 Space activation for every keyboard-focusable PANIC and exclusive-choice
 button with disabled controls rejecting it, plus wrapping arrow-key selection
 across every exclusive-choice strip,
@@ -1483,7 +1539,8 @@ loss; the six-point response fingerprint and pairwise spectral separation of
 all three amp/speaker paths; model-ordered nonlinear compression and a
 same-performance Drop-E level bound; 48 alias probes covering the pedal, every
 amplifier, stacked gain and a quiet input at both 44.1 and 48 kHz and on both
-sides of the 96/192/384 kHz oversampling transitions, each below -70 dB;
+sides of the 96/192/384 kHz oversampling transitions in High mode, each below
+-70 dB; Standard has separate lower-rate quality and switching coverage;
 direct A/B circuit-state checks that
 plate-plus-screen demand rises under a loud hold and recovers during silence,
 plus the established full-path supply droop/recovery probe; an output transformer whose distortion falls about
@@ -3233,6 +3290,24 @@ bend-return pitch memory; if a well-set locking target remains inside two cents,
 the realistic result is to ship nothing.
 
 ## Development checkpoints
+
+### 2026-09-08 faster effects and oversampling choice
+
+- Replaced repeated pedal Newton iterations with a rate-specific prepared
+  inverse and accelerated the American/British PI scalar functions with
+  derivative-consistent cubic tables. The pedal capacitor history, coupled PI
+  equations, convergence tolerance and direct-math fallbacks remain intact.
+- Added Standard/High FX Oversampling as appended host parameter 29 and a
+  keyboard-accessible selector in the FX header. New instances and factory
+  rigs use Standard; older saved states without the field migrate to High.
+  Standard retires one stage and accepts the measured high-drive aliasing
+  tradeoff; High keeps the original adaptive rate policy and alias target.
+- Prepared both gain banks before rendering and crossfaded live changes over
+  about 20 ms while retaining shared compressor, delay and room histories.
+  The FX benchmark now selects either mode, accepts actual modeled-guitar
+  input and reports process CPU alongside elapsed time. The integrated
+  Standard complete chains saved about 63–69% FX CPU on the measured M1 Max
+  guitar workload; High saved about 36–43% with tiny numerical differences.
 
 ### 2026-09-05 string precision and retained hand state
 
@@ -5022,20 +5097,35 @@ the JUCE-free Release build. It exercises each module, each amplifier with
 all effects enabled, and control/model automation at 44.1, 48 and 96 kHz:
 
 ```bash
-./build-dsp/ElectryBenchmarkFx --benchmark > fx-timing.csv
-./build-dsp/ElectryBenchmarkFx --capture build-dsp/fx-reference
-# Run the same command-line settings with a candidate build:
-./build-candidate/ElectryBenchmarkFx --compare build-dsp/fx-reference
+./build-dsp/ElectryBenchmarkFx --benchmark --oversampling standard > fx-standard.csv
+./build-dsp/ElectryBenchmarkFx --benchmark --oversampling high > fx-high.csv
+./build-dsp/ElectryBenchmarkFx --benchmark --oversampling high --input guitar --rate 48000 > fx-guitar.csv
+./build-dsp/ElectryBenchmarkFx --capture build-dsp/fx-reference --oversampling high
+# Run the same mode and command-line settings with a candidate build:
+./build-candidate/ElectryBenchmarkFx --compare build-dsp/fx-reference --oversampling high
 ```
 
-The timing excludes preparation, input generation and buffer copies. Compare
-builds with matching compiler settings, run them sequentially in alternating
-order, and inspect the per-scenario elapsed time. The comparison checks every
-stereo sample, including quiet passages, high drive, switching and tails, and
-fails on missing references, non-finite audio or exceeded peak/RMS limits.
+`--oversampling standard|high` defaults to Standard. `--input guitar` renders
+an actual ElectryEngine low-note/chord phrase before the timer; `stereo`,
+`mono`, `switching` and `guitar-mono` provide the other deterministic inputs.
+The CSV reports `median_cpu_ns_per_frame`/`cpu_realtime_percent` from process
+CPU time as well as elapsed time. Preparation, input generation, buffer copies,
+reset and validation are excluded; FX processing and per-block parameter
+updates are included. Compare matching input, mode, duration, block size and
+compiler settings, running builds serially in alternating order. Process CPU
+excludes descheduling but remains sensitive to frequency, core and cache
+variation. These are isolated FX measurements, excluding string synthesis and
+the plugin's live acoustic return.
+
+The comparison checks every stereo sample, including quiet passages, high
+drive, switching and tails, and fails on missing/incompatible references,
+non-finite audio or exceeded peak/RMS limits. Reference headers distinguish the
+input and oversampling mode; compare builds in the same mode when evaluating
+small numerical changes. Standard versus High is an intentional rate and
+latency change and is not expected to pass a tiny-error null test.
 Use `--help` for individual scenarios, rates, block sizes and error limits.
-The [FX CPU optimization measurements](Docs/fx-cpu-optimization.md) record the
-current changes and their validation.
+The [earlier FX CPU optimization measurements](Docs/fx-cpu-optimization.md)
+retain the preceding implementation's measurements and validation.
 
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
 universal VST3, Audio Unit, CLAP and Standalone app and renders the committed editor

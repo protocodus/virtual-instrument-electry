@@ -1,0 +1,416 @@
+{
+  "utc_start": "2026-09-08T11:41:59Z",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "processor": "Apple M1 Max",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+  "baseline_description": "Frozen pre-mono-reuse working-tree snapshot, already containing the PI/pedal tables and Standard/High selector. NOT git HEAD f2a5258.",
+  "candidate_description": "Same integrated features plus exact mono gain reuse per prepared bank.",
+  "binary_sha256": {
+    "baseline": "5805d6bf6b8976145b1429bfeda76e2ea77e497abb58c56cc61c741c381e6d7e",
+    "mono-reuse": "5f206d64a437ab7be67fa6899f06221c9dd69f4d04f91c2e4c4b98641d6d8aec"
+  },
+  "source_sha256": {
+    "baseline": {
+      "ElectryFx.cpp": "c78464363c5b83ade4434601548f80272ec904db543b1bcf0ba239fb5ab273ad",
+      "ElectryFx.h": "88cb56b437f53454b5a63f2482cf8c32caf756943238f9a008a562aa72ce0930"
+    },
+    "mono-reuse": {
+      "ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+      "ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734"
+    }
+  },
+  "timing_source": "Process CPU clock is primary; steady_clock elapsed corroborates. 48 kHz, 128-frame blocks, two seconds, three repeats, all 12 scenarios, baseline/candidate/candidate/baseline for each input/quality pair. Input synthesis, setup, reset, buffer copies and checksum are excluded; FX and per-block parameter updates are included. Each repetition starts from bypass. Mean baseline run medians bracket the mean of the two candidate run medians.",
+  "scope": "Incremental FX-only savings from mono reuse, excluding input synthesis and live acoustic return. Short serial local measurements do not establish universal worst-case deadlines.",
+  "diagnostics": {
+    "clock": "steady_clock elapsed time, complete process() frames or complete 128-frame callbacks; not isolated state-copy time",
+    "configurations": "Standard/High x American/British/Modern x steady/crossfading, 64 trials per event",
+    "allocation_result": "All original and repeat rows reported zero audio allocations.",
+    "repeat_commands": [
+      "/usr/bin/time -p ./build-fx-mono-reuse/first-divergence",
+      "/usr/bin/time -p ./build-fx-mono-reuse/first-divergence-cabinet"
+    ],
+    "repeat_exit_codes": [
+      0,
+      0
+    ],
+    "repeat_execution": "Serial, after the original runs; no caffeinate wrapper; originals preserved.",
+    "repeat_process_totals_seconds": {
+      "default": {
+        "real": 13.05,
+        "user": 2.51,
+        "sys": 0.07
+      },
+      "cabinet": {
+        "real": 21.33,
+        "user": 2.88,
+        "sys": 0.07
+      }
+    },
+    "interpretation": "Elapsed outliers include substantial time off CPU. These short standalone normal-priority measurements do not establish realtime callback deadlines."
+  },
+  "diagnostic_sha256": {
+    "build-fx-mono-reuse/FirstDivergence.cpp": "411ee718326c29de9fed052fa0ebf18f17a7379ac595dd7e3bbcc9c742511f0f",
+    "build-fx-mono-reuse/first-divergence": "5fa50357ee97ce3152ec8ba0f39fa5270dcd73002f519b3fe67fec0470e131a6",
+    "build-fx-mono-reuse/first-divergence-cabinet": "a1e5dfd9107996b2ba6763554deb1577b5621392466e189a4de463cb0d461684"
+  },
+  "summary_units": "The summary CPU and elapsed ns columns are nanoseconds per stereo frame. Percent savings are incremental against the integrated pre-reuse baseline; they must not be added to the earlier f2a5258 comparison.",
+  "cmake_build_type": "Release (-O3 -DNDEBUG), default cabinet",
+  "runs_file": "runs.jsonl",
+  "baseline_reconstruction": {
+    "patch": "Experiments/FxCpuOptions/patches/mono_reuse_integration.patch",
+    "direction": "Reverse this baseline-to-candidate patch against the candidate source hashes above to recover the frozen pre-reuse ElectryFx.cpp and ElectryFx.h. Other source files, including BenchmarkFx.cpp, are identical between the two measured builds."
+  },
+  "quality": {
+    "scope": "Frozen pre-reuse binary against candidate, all 12 scenarios. Fixed Standard/High, multitone mono/stereo/within-block switching at 44.1/48/96 kHz and actual guitar-mono at 48 kHz. The regression oracle separately covers quality switching and resets.",
+    "cases": 240,
+    "float_samples": 20573280,
+    "changed_bit_patterns": 0,
+    "groups": [
+      {
+        "file": "quality-high-guitar-mono.csv",
+        "cases": 12,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/high-guitar-mono",
+          "--oversampling",
+          "high",
+          "--input",
+          "guitar-mono",
+          "--seconds",
+          "0.7",
+          "--rate",
+          "48000"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/high-guitar-mono",
+          "--oversampling",
+          "high",
+          "--input",
+          "guitar-mono",
+          "--seconds",
+          "0.7",
+          "--rate",
+          "48000",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-high-mono.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/high-mono",
+          "--oversampling",
+          "high",
+          "--input",
+          "mono",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/high-mono",
+          "--oversampling",
+          "high",
+          "--input",
+          "mono",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-high-stereo.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/high-stereo",
+          "--oversampling",
+          "high",
+          "--input",
+          "stereo",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/high-stereo",
+          "--oversampling",
+          "high",
+          "--input",
+          "stereo",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-high-switching.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/high-switching",
+          "--oversampling",
+          "high",
+          "--input",
+          "switching",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/high-switching",
+          "--oversampling",
+          "high",
+          "--input",
+          "switching",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-standard-guitar-mono.csv",
+        "cases": 12,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/standard-guitar-mono",
+          "--oversampling",
+          "standard",
+          "--input",
+          "guitar-mono",
+          "--seconds",
+          "0.7",
+          "--rate",
+          "48000"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/standard-guitar-mono",
+          "--oversampling",
+          "standard",
+          "--input",
+          "guitar-mono",
+          "--seconds",
+          "0.7",
+          "--rate",
+          "48000",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-standard-mono.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/standard-mono",
+          "--oversampling",
+          "standard",
+          "--input",
+          "mono",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/standard-mono",
+          "--oversampling",
+          "standard",
+          "--input",
+          "mono",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-standard-stereo.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/standard-stereo",
+          "--oversampling",
+          "standard",
+          "--input",
+          "stereo",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/standard-stereo",
+          "--oversampling",
+          "standard",
+          "--input",
+          "stereo",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      },
+      {
+        "file": "quality-standard-switching.csv",
+        "cases": 36,
+        "capture_command": [
+          "build-fx-mono-reuse/baseline/benchmark",
+          "--capture",
+          "build-fx-mono-reuse/reference/standard-switching",
+          "--oversampling",
+          "standard",
+          "--input",
+          "switching",
+          "--seconds",
+          "0.7"
+        ],
+        "compare_command": [
+          "build-fx-cpu/ElectryBenchmarkFx",
+          "--compare",
+          "build-fx-mono-reuse/reference/standard-switching",
+          "--oversampling",
+          "standard",
+          "--input",
+          "switching",
+          "--seconds",
+          "0.7",
+          "--max-error",
+          "0",
+          "--max-rms-error",
+          "0"
+        ]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "description": "Full DSP regression suite, default cabinet",
+      "result": "passed",
+      "log": "dsp-tests.txt",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-fx-cpu",
+        "-R",
+        "Electry.ElectryFx$",
+        "--output-on-failure"
+      ]
+    },
+    {
+      "description": "Full DSP regression suite, optional measured Modern cabinet",
+      "result": "passed",
+      "log": "cabinet-tests.txt",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-fx-cpu-cabinet",
+        "-R",
+        "Electry.ElectryFx$",
+        "--output-on-failure"
+      ]
+    },
+    {
+      "description": "Plugin processor and UI suite, including quality/output-mode automation in the live feedback path",
+      "result": "passed",
+      "log": "plugin-tests.txt",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-clap-agent/native",
+        "-R",
+        "Electry.PluginProcessor$",
+        "--output-on-failure"
+      ]
+    },
+    {
+      "description": "Rebuilt AU/VST3/CLAP artifact smoke checks",
+      "result": "passed",
+      "log": "artifact-tests.txt",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-clap-agent/native",
+        "-R",
+        "Electry.(AUArtifact|VST3Artifact|CLAPArtifact)$",
+        "--output-on-failure"
+      ]
+    }
+  ],
+  "diagnostic_source": "Experiments/FxCpuOptions/probes/stereo/CheckFirstDivergence.cpp",
+  "diagnostic_limit": "Original and repeat wall measurements have severe outliers, including second-divergent frames where no state copy occurs. Repeated program elapsed time greatly exceeds process CPU time. Do not infer a callback deadline guarantee or isolated copy cost from these measurements. Ordinary, array and aligned C++ new calls during processing were zero in both configurations and runs; direct C/system allocations, frees and locks are not instrumented.",
+  "artifact_sha256": {
+    "artifact-tests.txt": "bb5d628ebb2ad9c16bf62305687e845163d5ea3254e404ec7a8df9712b632af9",
+    "cabinet-tests.txt": "0b0edca02cd4e9fef0019466cc64f307de8132d5b802634ee0b2b10126ed7a30",
+    "diagnostic-summary.csv": "d6e0c8dc32cfc9a97e8e09bb8dba3dde78f6e45b7fac6311dd47c96e1bee9ffc",
+    "dsp-tests.txt": "fc7d7a0514e9c66e4139e57c60605cd4b90feff5ebcbe07852bf1f5a5a3ac36d",
+    "first-divergence-cabinet-repeat.csv": "cb395bf1af9cb4c062d93d307764d683a04baa5b59175ef5f0e02a626152e865",
+    "first-divergence-cabinet-repeat.stderr": "84e39839732738bf215ba1f4603c46434dc8697b1e0ee6fd2d7df0407bb66053",
+    "first-divergence-cabinet.csv": "c8a99faeab83b3b6aa43ee7667a3f92f346045eb1ac8bf3a218635effe3c29c2",
+    "first-divergence-cabinet.stderr": "4a5fd7b2fad73fe3159f7b63140f706d8cc1db99501da02b54b222f6c30079c1",
+    "first-divergence-repeat.csv": "100cc904f6ab0f19ccc354ab1c175723de1910dda1f31079def3e60a8fa6bc37",
+    "first-divergence-repeat.stderr": "7f6ee350fe5b9a7899cdff01654054d59e99f3a17d5128486cecc47298a37fb5",
+    "first-divergence.csv": "073a8bf1977cdfd8807ad99ce317de5b0858ef80d6fcfd907390290c27260bfa",
+    "first-divergence.stderr": "abf18b33b06a79adba081a405078bb0716754fc1f03f3837348fa3ffa47c3286",
+    "high-guitar-00-baseline.csv": "bc027c7727a7a7d2363e1ab3082bb0bf0985874bc6e46c9a92a635ce67db185d",
+    "high-guitar-01-mono-reuse.csv": "03185ffbbd650c9a28e4e4df561e9683cf71a063a2aa226560dd6092129acff7",
+    "high-guitar-02-mono-reuse.csv": "cd50cc034152f04aba1c5ed90245beedb562899f592bfe5d47c5e010ff17bacc",
+    "high-guitar-03-baseline.csv": "b05ad10b675586add4569770f18490bb04c227734283e6f7f2c2e56bf7404114",
+    "high-guitar-mono-00-baseline.csv": "d0cdb5e8b04f39bf2ebf9167353b6cb606cf72efa8a0fcaf3ab2c49fa55f939a",
+    "high-guitar-mono-01-mono-reuse.csv": "a46d95b7ff95f19b99c9f97d304cc98bb2196216c315895d31d6e57c2dd253a5",
+    "high-guitar-mono-02-mono-reuse.csv": "6af80dcf9e06784326e28b0ba073180cb61b6eca29ca61add908daf0884ba714",
+    "high-guitar-mono-03-baseline.csv": "38c4a368e4f5871d64102684e66f3567d5c429c5d695e92ed947386e18c5354f",
+    "plugin-tests.txt": "faf660f83fc29bd5b4e278af3ab396e9fb1065f749d96420c3586281a89e6802",
+    "quality-high-guitar-mono.csv": "9bdd5369b09062b259fc9c929ce91a1e3ee98d7f6d4f23d7b862497094c886b1",
+    "quality-high-mono.csv": "16784f35470eb4bd954d5a7903a103888f8785fa9f323b1ddc2803b3aebc9030",
+    "quality-high-stereo.csv": "30404b977cf1f59d623fcdce178591169369e05bf4e01a802df48583b44eed32",
+    "quality-high-switching.csv": "82b036b3ccea4a08c4be0c10a21cc1bc87cc85a90bdf43521f2608498f5bb72e",
+    "quality-standard-guitar-mono.csv": "2f92feb340c9520bcd935263b948170585bf56e000b046d9fa6760313096fb23",
+    "quality-standard-mono.csv": "9f51f038a05ab7f8c9b0b090d2d0fe04f36117d72ab76e44585463f7aa3c8b09",
+    "quality-standard-stereo.csv": "b76ae1da4f6c7e1ba9a2ff0ab32561ef516c3dc69e339c60c7d28f9fb166ee23",
+    "quality-standard-switching.csv": "ecea1d136049e810c5dc625bf7b44085ea809a6b20bd36d5535bd96d96d9352c",
+    "runs.jsonl": "654ae7792925a28fe11f78f0308d3e66b50c1103889ce3956d66a5200ff4cec9",
+    "standard-guitar-00-baseline.csv": "74274196d11c6960c929af03f5938d853bf753749898252d89fbc3a8405b8972",
+    "standard-guitar-01-mono-reuse.csv": "f8b17b76c1092517308b608d8e4c48e034cb86df8551a9514925f5b3b965e94d",
+    "standard-guitar-02-mono-reuse.csv": "eb2290e89e0bb4cc12f3a104e1175ab3336aad18928f6ad042cb7a70dc6e00fb",
+    "standard-guitar-03-baseline.csv": "86542fa5eb33491b4009e62f6eb3224b92b6ca7aaeaf0642c8fad206d0b129e9",
+    "standard-guitar-mono-00-baseline.csv": "bd362130cdd16708823aa9276bc32fd56199bd907bec832efbafa14fbd5744d7",
+    "standard-guitar-mono-01-mono-reuse.csv": "94b24d55ffb0fd543d70ca7d66c7744d94d57750aadca0d5a2d3546988f09a3e",
+    "standard-guitar-mono-02-mono-reuse.csv": "d24d6b90da721b679323b3342103dce690de848ee0526ff07551a07b49f6722d",
+    "standard-guitar-mono-03-baseline.csv": "780414f2cbe8a5fdbf2e01fec3bdcba212ea52875dfb2f0f5e88e728ff558bfe",
+    "summary.csv": "b4db6001ce676eea60cd7e5954e802f7717e6c85768938b0205607df7dad9cc4"
+  }
+}

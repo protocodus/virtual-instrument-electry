@@ -1,0 +1,14 @@
+--- a/Source/DSP/ElectryFx.cpp
++++ b/Source/DSP/ElectryFx.cpp
+@@ -2481,7 +2481,10 @@
+     Evaluation best = evaluate(
+         totalCurrent, gridOffsetOne, gridOffsetTwo);
+ 
+-    constexpr double convergenceTolerance = 1.0e-10;
++    #ifndef ELECTRY_PHASE_CONVERGENCE_TOLERANCE
++#define ELECTRY_PHASE_CONVERGENCE_TOLERANCE 1.0e-9
++#endif
++    constexpr double convergenceTolerance = ELECTRY_PHASE_CONVERGENCE_TOLERANCE;
+     for (int iteration = 0; iteration < 12
+          && best.maximumResidual() > convergenceTolerance; ++iteration)
+     {

@@ -1,0 +1,107 @@
+--- a/Source/DSP/ElectryFx.cpp
++++ b/Source/DSP/ElectryFx.cpp
+@@ -5,6 +5,7 @@
+ #endif
+ 
+ #include <algorithm>
++#include <bit>
+ #include <cmath>
+ #include <limits>
+ 
+@@ -1960,6 +1961,8 @@
+ 
+ void ElectryFx::reset() noexcept
+ {
++    gainChannelsEqual_ = true;
++    rightGainStateStale_ = false;
+     for (auto& channel : gain_)
+         channel.reset();
+     for (auto& line : delayLines_)
+@@ -3086,6 +3089,26 @@
+ // Chain
+ // ---------------------------------------------------------------------------
+ 
++void ElectryFx::synchronizeRightGainChannel() noexcept
++{
++    const auto& from = gain_[0];
++    auto& to = gain_[1];
++    to.interpolators = from.interpolators;
++    to.decimators = from.decimators;
++    to.pedalHighpass = from.pedalHighpass;
++    to.pedalVoice = from.pedalVoice;
++    to.pedalTilt = from.pedalTilt;
++    to.diodeVoltage = from.diodeVoltage;
++    to.diodeDerivative = from.diodeDerivative;
++    to.pedalWasActive = from.pedalWasActive;
++    to.amplifiers = from.amplifiers;
++    to.ampWasActive = from.ampWasActive;
++#if ELECTRY_MEASURED_MODERN_CABINET
++    *to.modernCabinet = *from.modernCabinet;
++#endif
++    rightGainStateStale_ = false;
++}
++
+ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
+ {
+     if (! prepared_ || left == nullptr || right == nullptr || numSamples <= 0)
+@@ -3144,6 +3167,8 @@
+                 // from a stale tail.
+                 for (auto& channel : gain_)
+                     channel.reset();
++                gainChannelsEqual_ = true;
++                rightGainStateStale_ = false;
+             }
+             gainEngagement_ = 0.0f;
+         }
+@@ -3175,11 +3200,28 @@
+             updateDriveConstants();
+             if (ampWet_ > 0.0f)
+                 updateAmpModelSelection();
+-            for (int channel = 0; channel < 2; ++channel)
++            if (gainChannelsEqual_
++                && std::bit_cast<std::uint32_t>(samples[0])
++                    == std::bit_cast<std::uint32_t>(samples[1]))
+             {
+-                const auto index = static_cast<std::size_t>(channel);
+-                const float wet = renderGainStage(gain_[index], samples[index]);
+-                samples[index] = lerp(samples[index], wet, gainEngagement_);
++                // Equal input and equal history give exactly equal nonlinear
++                // output. Defer copying the state until stereo diverges.
++                const float wet = renderGainStage(gain_[0], samples[0]);
++                samples[0] = lerp(samples[0], wet, gainEngagement_);
++                samples[1] = lerp(samples[1], wet, gainEngagement_);
++                rightGainStateStale_ = true;
++            }
++            else
++            {
++                if (rightGainStateStale_)
++                    synchronizeRightGainChannel();
++                gainChannelsEqual_ = false;
++                for (int channel = 0; channel < 2; ++channel)
++                {
++                    const auto index = static_cast<std::size_t>(channel);
++                    const float wet = renderGainStage(gain_[index], samples[index]);
++                    samples[index] = lerp(samples[index], wet, gainEngagement_);
++                }
+             }
+         }
+ 
+--- a/Source/DSP/ElectryFx.h
++++ b/Source/DSP/ElectryFx.h
+@@ -429,6 +429,7 @@
+     void designFilters() noexcept;
+     void updateDriveConstants() noexcept;
+     void updateAmpModelSelection() noexcept;
++    void synchronizeRightGainChannel() noexcept;
+     // The output transformer's core, isolated as a pure function of the signal
+     // and its flux state so the regression suite can measure it at the stage
+     // rather than through the cabinet that follows it - which, being a
+@@ -570,6 +571,8 @@
+     float delayFeedbackDamping_ { 0.5f };
+     float delayFeedbackHighpass_ { 0.02f };
+     bool prepared_ { false };
++    bool gainChannelsEqual_ { true };
++    bool rightGainStateStale_ { false };
+ 
+     std::array<GainChannel, 2> gain_ {};
+ 

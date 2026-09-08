@@ -1,0 +1,16 @@
+table_bytes,59936
+soft_abs,3.1034719238932e-10
+soft_relative,2.4836156558997e-09
+soft_slope_abs,3.0580444287942e-08
+power_relative,4.7536959686419e-12
+power_slope_relative,1.4072214041398e-09
+model,0
+current_abs_A,1.2564036616647e-11
+current_relative,3.3274356372912e-09
+plate_slope_abs,3.362059762535e-12
+grid_slope_abs,2.1754192718049e-10
+model,1
+current_abs_A,1.3527824693771e-12
+current_relative,2.4538106667053e-09
+plate_slope_abs,7.0970551145438e-13
+grid_slope_abs,7.7115807880015e-11

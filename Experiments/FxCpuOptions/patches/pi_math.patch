@@ -1,0 +1,202 @@
+--- a/Source/DSP/ElectryFx.cpp
++++ b/Source/DSP/ElectryFx.cpp
+@@ -5,6 +5,7 @@
+ #endif
+ 
+ #include <algorithm>
++#include <bit>
+ #include <cmath>
+ #include <limits>
+ 
+@@ -156,7 +157,174 @@
+     double gridSlope { 0.0 };
+ };
+ 
++// Experimental option: one-dimensional approximations to the two smooth
++// scalar functions only. All circuit equations and Newton safeguards are kept.
++struct PhaseMathValue
++{
++    double value;
++    double slope;
++};
++
++struct PhaseMathCubic
++{
++    double a, b, c, d;
++
++    PhaseMathValue at(double fraction, double inverseStep) const noexcept
++    {
++        return { ((d * fraction + c) * fraction + b) * fraction + a,
++                 ((3.0 * d * fraction + 2.0 * c) * fraction + b)
++                     * inverseStep };
++    }
++};
++
++PhaseMathCubic phaseMathCubic(double left, double right,
++                            double leftSlope, double rightSlope,
++                            double step) noexcept
++{
++    const double b = step * leftSlope;
++    const double end = step * rightSlope;
++    const double change = right - left;
++    return { left, b, 3.0 * change - 2.0 * b - end,
++             -2.0 * change + b + end };
++}
++
++struct PhaseMathTables
++{
++    static constexpr double softMinimum = -40.0;
++    static constexpr double softInverseStep = 32.0;
++    static constexpr std::size_t softCount = 1536;
++    static constexpr std::size_t powerCount = 128;
++    static constexpr int minimumExponent = -64;
++    static constexpr int maximumExponent = 16;
++    std::array<PhaseMathCubic, softCount> soft {};
++    struct Power
++    {
++        std::array<PhaseMathCubic, powerCount> intervals {};
++        std::array<double, maximumExponent - minimumExponent + 1> scale {};
++        std::array<double, maximumExponent - minimumExponent + 1> slopeScale {};
++    };
++    std::array<Power, 2> powers {};
++
++    PhaseMathTables()
++    {
++        const auto exactSoft = [] (double x) {
++            const double e = std::exp(-std::abs(x));
++            return PhaseMathValue { std::max(x, 0.0) + std::log1p(e),
++                x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
++        };
++        for (std::size_t i = 0; i < softCount; ++i)
++        {
++            const double x = softMinimum + static_cast<double>(i) / softInverseStep;
++            const auto left = exactSoft(x);
++            const auto right = exactSoft(x + 1.0 / softInverseStep);
++            soft[i] = phaseMathCubic(left.value, right.value, left.slope,
++                                    right.slope, 1.0 / softInverseStep);
++        }
++        for (std::size_t model = 0; model < powers.size(); ++model)
++        {
++            const double exponent = model == 1 ? ecc83PhaseInverter.exponent
++                                              : ecc81PhaseInverter.exponent;
++            auto& power = powers[model];
++            for (std::size_t i = 0; i < powerCount; ++i)
++            {
++                const double x = 1.0 + static_cast<double>(i) / powerCount;
++                const double y = x + 1.0 / powerCount;
++                power.intervals[i] = phaseMathCubic(
++                    std::pow(x, exponent), std::pow(y, exponent),
++                    exponent * std::pow(x, exponent - 1.0),
++                    exponent * std::pow(y, exponent - 1.0), 1.0 / powerCount);
++            }
++            for (int e = minimumExponent; e <= maximumExponent; ++e)
++            {
++                power.scale[static_cast<std::size_t>(e - minimumExponent)] =
++                    std::exp2(e * exponent);
++                power.slopeScale[static_cast<std::size_t>(e - minimumExponent)] =
++                    std::exp2(e * (exponent - 1.0));
++            }
++        }
++    }
++};
++
++const PhaseMathTables& phaseMathTables() noexcept
++{
++    static const PhaseMathTables tables;
++    return tables;
++}
++
++PhaseMathValue phaseSoftplus(double x) noexcept
++{
++    const double position = (x - PhaseMathTables::softMinimum)
++                            * PhaseMathTables::softInverseStep;
++    if (!(position >= 0.0 && position < PhaseMathTables::softCount))
++    {
++        const double e = std::exp(-std::abs(x));
++        return { std::max(x, 0.0) + std::log1p(e),
++                 x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
++    }
++    const auto index = static_cast<std::size_t>(position);
++    return phaseMathTables().soft[index].at(position - static_cast<double>(index),
++                                           PhaseMathTables::softInverseStep);
++}
++
++PhaseMathValue phasePower(double x, AmpModel model) noexcept
++{
++    const auto bits = std::bit_cast<std::uint64_t>(x);
++    const int exponent = static_cast<int>((bits >> 52) & 0x7ff) - 1023;
++    if (!(x > 0.0) || exponent < PhaseMathTables::minimumExponent
++        || exponent > PhaseMathTables::maximumExponent)
++    {
++        const double p = phaseInverterParameters(model).exponent;
++        const double value = std::pow(x, p);
++        return { value, p * value / x };
++    }
++    const double mantissa = std::bit_cast<double>(
++        (bits & 0x000fffffffffffffull) | 0x3ff0000000000000ull);
++    const double position = (mantissa - 1.0) * PhaseMathTables::powerCount;
++    const auto index = static_cast<std::size_t>(position);
++    const auto& power = phaseMathTables().powers[model == AmpModel::BritishCrunch ? 1 : 0];
++    const auto point = power.intervals[index].at(position - static_cast<double>(index),
++                                                PhaseMathTables::powerCount);
++    const auto scaleIndex = static_cast<std::size_t>(exponent - PhaseMathTables::minimumExponent);
++    return { point.value * power.scale[scaleIndex],
++             point.slope * power.slopeScale[scaleIndex] };
++}
++
+ PhaseInverterCurrent phaseInverterCurrentAndSlopes(
++    AmpModel model, double plateToCathodeVoltage,
++    double gridToCathodeVoltage) noexcept
++{
++    const auto& tube = phaseInverterParameters(model);
++    const double plate = std::max(plateToCathodeVoltage, 0.0);
++    // This checkpoint remains strictly non-grid-conducting. TubeLib's generic
++    // 2 kOhm/diode grid branch needs the two output coupling-cap states to be
++    // meaningful, so no TriodeK curve is extrapolated past Vgk = 0 here.
++    const double grid = std::min(gridToCathodeVoltage, 0.0);
++    const double root = std::sqrt(tube.kneeVoltage + plate * plate);
++    const double drive = tube.kneeSoftness
++        * (1.0 / tube.mu + grid / root);
++    const auto soft = phaseSoftplus(drive);
++    const double softened = soft.value;
++    const double e1 = plate / tube.kneeSoftness * softened;
++    if (e1 <= 1.0e-18 || plate <= 0.0)
++        return {};
++
++    const auto power = phasePower(e1, model);
++    const double current = power.value / tube.plateScale;
++    const double currentPerE = power.slope / tube.plateScale;
++    const double softSlope = soft.slope;
++    const double drivePlate = -tube.kneeSoftness * grid * plate
++        / (root * root * root);
++    const double ePlate = softened / tube.kneeSoftness
++        + plate / tube.kneeSoftness * softSlope * drivePlate;
++    const double eGrid = gridToCathodeVoltage < 0.0
++        ? plate * softSlope / root : 0.0;
++    return { current,
++             std::max(currentPerE * ePlate, 0.0),
++             std::max(currentPerE * eGrid, 0.0) };
++}
++
++// Keep direct curve inspection and idle calibration on reference math.
++PhaseInverterCurrent exactPhaseInverterCurrentAndSlopes(
+     AmpModel model, double plateToCathodeVoltage,
+     double gridToCathodeVoltage) noexcept
+ {
+@@ -198,7 +366,7 @@
+     AmpModel model, double plateToCathodeVoltage,
+     double gridToCathodeVoltage) noexcept
+ {
+-    return phaseInverterCurrentAndSlopes(
++    return exactPhaseInverterCurrentAndSlopes(
+         model, plateToCathodeVoltage, gridToCathodeVoltage).plate;
+ }
+ 
+@@ -1666,6 +1834,7 @@
+     // prepare rather than allowing first use to initialise it on the audio
+     // thread.
+     static_cast<void>(triodeStageLookup(0.0));
++    static_cast<void>(phaseMathTables()); // no first-use table construction in process()
+     static_cast<void>(phaseInverterDirect(
+         AmpModel::AmericanClean, 0.0));
+     static_cast<void>(phaseInverterDirect(

@@ -228,11 +228,13 @@ void testArtifact (const std::filesystem::path& path)
              "CLAP does not advertise MIDI input");
 
     const auto* params = extension<clap_plugin_params_t> (plugin.get(), CLAP_EXT_PARAMS);
-    require (params->count (plugin.get()) == 28, "CLAP must expose 28 product parameters");
+    require (params->count (plugin.get()) == 29, "CLAP must expose 29 product parameters");
     std::vector<clap_param_info_t> parameterInfo;
     std::unordered_set<clap_id> parameterIDs;
     clap_param_info_t outputLevel {};
+    clap_param_info_t oversampling {};
     bool foundOutputLevel = false;
+    bool foundOversampling = false;
     for (uint32_t index = 0; index < params->count (plugin.get()); ++index)
     {
         clap_param_info_t info {};
@@ -245,27 +247,53 @@ void testArtifact (const std::filesystem::path& path)
             outputLevel = info;
             foundOutputLevel = true;
         }
+        if (std::strcmp (info.name, "FX oversampling") == 0)
+        {
+            foundOversampling = true;
+            oversampling = info;
+            require (info.min_value == 0.0 && info.max_value == 1.0
+                         && info.default_value == 0.0
+                         && (info.flags & CLAP_PARAM_IS_AUTOMATABLE) != 0,
+                     "CLAP oversampling must be Standard/High, default Standard, automatable; got range "
+                         + std::to_string (info.min_value) + ".." + std::to_string (info.max_value)
+                         + ", default " + std::to_string (info.default_value)
+                         + ", flags " + std::to_string (info.flags));
+        }
     }
     require (foundOutputLevel, "CLAP does not expose Output level");
-    const auto setOutputLevel = [&] (double fraction)
+    require (foundOversampling, "CLAP does not expose FX oversampling");
+    const auto setValue = [&] (const clap_param_info_t& info, double fraction)
     {
         clap_event_param_value_t change {};
         change.header = { sizeof (change), 0, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0 };
-        change.param_id = outputLevel.id;
-        change.cookie = outputLevel.cookie;
+        change.param_id = info.id;
+        change.cookie = info.cookie;
         change.note_id = -1;
         change.port_index = change.channel = change.key = -1;
-        change.value = outputLevel.min_value + fraction * (outputLevel.max_value - outputLevel.min_value);
+        change.value = info.min_value + fraction * (info.max_value - info.min_value);
         Events events;
         events.event = &change.header;
         params->flush (plugin.get(), &events.input, &events.output);
         host.serviceCallbacks (plugin.get());
         double actual = 0;
-        require (params->get_value (plugin.get(), outputLevel.id, &actual)
+        require (params->get_value (plugin.get(), info.id, &actual)
                  && std::abs (actual - change.value) < 1.0e-5,
-                 "CLAP parameter event did not set Output level");
+                 std::string ("CLAP parameter event did not set ") + info.name);
     };
-    setOutputLevel (0.65);
+    // The pinned wrapper exposes JUCE choices in the normalised domain and
+    // reserves CLAP_PARAM_IS_STEPPED for booleans. Verify the effective choices
+    // and their state round trip through the exported ABI.
+    std::array<char, 64> qualityText {};
+    require (params->value_to_text (plugin.get(), oversampling.id, 0.0,
+                                    qualityText.data(), qualityText.size())
+                 && std::strcmp (qualityText.data(), "Standard") == 0,
+             "CLAP did not name the default oversampling choice Standard");
+    require (params->value_to_text (plugin.get(), oversampling.id, 1.0,
+                                    qualityText.data(), qualityText.size())
+                 && std::strcmp (qualityText.data(), "High") == 0,
+             "CLAP did not name the full oversampling choice High");
+    setValue (outputLevel, 0.65);
+    setValue (oversampling, 1.0);
     std::vector<double> savedValues;
     for (const auto& info : parameterInfo)
     {
@@ -277,7 +305,8 @@ void testArtifact (const std::filesystem::path& path)
     State state;
     require (stateExtension->save (plugin.get(), &state.output) && ! state.bytes.empty(),
              "CLAP state save failed");
-    setOutputLevel (0.15);
+    setValue (outputLevel, 0.15);
+    setValue (oversampling, 0.0);
     require (stateExtension->load (plugin.get(), &state.input), "CLAP state restore failed");
     host.serviceCallbacks (plugin.get());
     for (std::size_t index = 0; index < parameterInfo.size(); ++index)
@@ -336,7 +365,7 @@ int main (int argc, char** argv)
     {
         require (argc == 2, "usage: ElectryCLAPArtifactSmokeTests <CLAP binary>");
         testArtifact (std::filesystem::absolute (argv[1]));
-        std::cout << "Electry built CLAP artifact smoke test passed (28 parameters, state restore, MIDI audio)\n";
+        std::cout << "Electry built CLAP artifact smoke test passed (29 parameters, state restore, MIDI audio)\n";
         return 0;
     }
     catch (const std::exception& error)

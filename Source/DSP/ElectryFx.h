@@ -24,12 +24,20 @@ enum class AmpModel
     ModernHighGain = 2,
 };
 
-// The five FX amount controls plus the Amp Voice selector. Exactly zero is a
-// bit-exact dry bypass for each amount: no
-// filter, oversampler or recirculated tail reaches the output, so the authentic
-// dry DI is always available. Distortion and Amp are drive amounts once their
-// circuits are enabled; unlike a parallel blend, an enabled amplifier always
-// keeps its cabinet between the strings and the output.
+// High preserves the original adaptive oversampling. Standard halves that
+// factor, down to a minimum of 1x, and is the default for new instruments.
+enum class FxOversampling
+{
+    Standard = 0,
+    High = 1,
+};
+
+// The five FX amount controls, Amp Voice and oversampling quality. Exactly
+// zero is a bit-exact dry bypass for each amount: no filter, oversampler or
+// recirculated tail reaches the output, so the authentic dry DI is always
+// available. Distortion and Amp are drive amounts once their circuits are
+// enabled; unlike a parallel blend, an enabled amplifier always keeps its
+// cabinet between the strings and the output.
 struct FxParameters
 {
     float distortion { 0.0f }; // pedal drive ahead of the amp
@@ -38,6 +46,7 @@ struct FxParameters
     float compressor { 0.0f }; // fast rhythm levelling
     float delay { 0.0f };      // 360 ms lead delay with darkening repeats
     float room { 0.0f };       // compact stereo ambience
+    FxOversampling oversampling { FxOversampling::Standard };
 };
 
 // Electry's post-string signal chain: the distortion pedal, the amplifier and
@@ -57,8 +66,8 @@ struct FxParameters
 class ElectryFx
 {
 public:
-    // Allocates the delay and ambience memory; call from prepareToPlay, never
-    // from the audio thread.
+    // Prepares both gain quality banks and allocates time-effect memory.
+    // Call from prepareToPlay, never from the audio thread.
     void prepare(double sampleRate);
     void reset() noexcept;
     void setParameters(const FxParameters& parameters) noexcept;
@@ -76,8 +85,16 @@ public:
     // host samples, while the gain block is engaged: 6 + 3 + 1.5 + 11/8 +
     // 11/4 + 11/2 at 8x, 6 + 3 + 11/4 + 11/2 at 4x, 6 + 11/2 at 2x, none
     // when the host already runs fast enough that the gain stages need no
-    // detour.
+    // detour. During a quality crossfade, report the longer active path.
     [[nodiscard]] float gainStageLatencySamples() const noexcept;
+    // Requested quality and its prepared factor; switching a running gain
+    // block crossfades the two banks over approximately 20 ms.
+    [[nodiscard]] FxOversampling oversampling() const noexcept
+    {
+        return targetParameters_.oversampling;
+    }
+    // Factor of the requested mode, including while its transition is active.
+    [[nodiscard]] int oversamplingFactor() const noexcept;
 
 private:
     // The JUCE-free regression suite measures the halfband kernel's response,
@@ -424,11 +441,64 @@ private:
         void resetPedal() noexcept;
         void resetAmp() noexcept;
         void reset() noexcept;
+        void copyStateFrom(const GainChannel& source) noexcept;
     };
 
-    void designFilters() noexcept;
+    struct DiodeInversePoint
+    {
+        double voltage {};
+        double slope {};
+    };
+    static constexpr std::size_t diodeInverseSegments = 4096;
+    // Only the nonlinear gain block is doubled. Host-rate compressor, delay
+    // and room histories remain shared and continuous when quality changes.
+    struct GainBank
+    {
+        int oversamplingStages_ { maximumOversamplingStages };
+        float oversampledRate_ { 192000.0f };
+        std::array<float, 3> interstageCoefficient_ { 0.5f, 0.5f, 0.5f };
+        std::array<float, 3> phaseInverterInputCoefficient_ {
+            0.5f, 0.5f, 0.5f };
+        float biasCoefficient_ { 0.001f };
+        std::array<float, 3> sagAttack_ { 0.001f, 0.001f, 0.001f };
+        std::array<float, 3> sagRelease_ { 0.0001f, 0.0001f, 0.0001f };
+        std::array<float, 3> fluxCoefficient_ { 0.99f, 0.99f, 0.99f };
+        std::array<float, 3> feedbackCoefficient_ { 0.5f, 0.5f, 0.5f };
+        std::vector<DiodeInversePoint> diodeInverse_ {};
+        double diodeHalfStep_ {};
+        double diodeInputCoefficient_ {};
+        double diodeDerivativeCoefficient_ {};
+        double diodeInverseScale_ {};
+        double diodeInverseMaximum_ {};
+        std::array<GainChannel, 2> gain_ {};
+        // Equal histories may share one render until the first differing
+        // input. The unclocked right history is materialised only on demand.
+        bool gainChannelsEqual_ { true };
+        bool rightGainStateStale_ { false };
+
+#if ELECTRY_MEASURED_MODERN_CABINET
+        std::unique_ptr<CabinetKernel> modernCabinetKernel_ {};
+#endif
+    };
+    std::array<GainBank, 2> gainBanks_ {};
+    float oversamplingHighMix_ { 0.0f };
+    float oversamplingFadeStep_ { 1.0f };
+
+    void prepareGainBank(GainBank& bank, int stages);
+    void prepareDiodeInverse(GainBank& bank);
+    static void resetGainBank(GainBank& bank) noexcept;
+    template<bool ReuseIdenticalChannels>
+    void processInternal(float* left, float* right, int numSamples) noexcept;
+    // Numerical oracle for the friend regression suite. The public path uses
+    // a separate compile-time specialisation without a runtime test switch.
+    void processIndependentStereo(float* left, float* right, int numSamples) noexcept;
+    [[nodiscard]] float diodePairLookup(const GainBank& bank, double inputVolts,
+                                        double& outputVolts,
+                                        double& previousDerivative) const noexcept;
+
+    void designFilters(GainBank& bank) noexcept;
     void updateDriveConstants() noexcept;
-    void updateAmpModelSelection() noexcept;
+    void updateAmpModelSelection(GainBank& bank) noexcept;
     // The output transformer's core, isolated as a pure function of the signal
     // and its flux state so the regression suite can measure it at the stage
     // rather than through the cabinet that follows it - which, being a
@@ -464,6 +534,10 @@ private:
         double tail { 0.0 };
         double totalCurrent { 0.0 };
     };
+    // Test seam for the actual production polynomials and their derivatives:
+    // softplus value/slope, followed by positive-input power value/slope.
+    [[nodiscard]] static std::array<double, 4> phaseInverterMathValues(
+        AmpModel model, double softplusInput, double powerInput) noexcept;
     [[nodiscard]] static double phaseInverterPlateCurrent(
         AmpModel model, double plateToCathodeVoltage,
         double gridToCathodeVoltage) noexcept;
@@ -514,14 +588,14 @@ private:
     [[nodiscard]] static PowerTubeResult powerTubePairLookup(
         AmpModel model, float commonDrive, float differentialDrive,
         float railScale) noexcept;
-    [[nodiscard]] float renderGainStage(GainChannel& channel,
+    [[nodiscard]] float renderGainStage(GainBank& bank, GainChannel& channel,
                                         float input) noexcept;
-    [[nodiscard]] float renderGainFrame(GainChannel& channel,
+    [[nodiscard]] float renderGainFrame(GainBank& bank, GainChannel& channel,
                                         float input) noexcept;
-    [[nodiscard]] float pedalStage(GainChannel& channel, float input) noexcept;
-    [[nodiscard]] float ampStage(AmpChannel& channel, AmpModel model,
+    [[nodiscard]] float pedalStage(GainBank& bank, GainChannel& channel, float input) noexcept;
+    [[nodiscard]] float ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
                                  float input) noexcept;
-    [[nodiscard]] float blendedAmpStage(GainChannel& channel,
+    [[nodiscard]] float blendedAmpStage(GainBank& bank, GainChannel& channel,
                                         float input) noexcept;
 
     FxParameters targetParameters_ {};
@@ -548,22 +622,8 @@ private:
     std::array<float, 3> ampMakeup_ { 1.0f, 1.0f, 1.0f };
 
     double sampleRate_ { 48000.0 };
-    // A fast host already carries the bandwidth the gain stages need, so it is
-    // given fewer halfband stages instead of an internal clock in the
-    // megahertz; the string engine drops its own oversampling on the same
-    // grounds.
-    int oversamplingStages_ { maximumOversamplingStages };
-    float oversampledRate_ { 192000.0f };
     float parameterCoefficient_ { 0.01f };
     float engagementCoefficient_ { 0.02f };
-    std::array<float, 3> interstageCoefficient_ { 0.5f, 0.5f, 0.5f };
-    std::array<float, 3> phaseInverterInputCoefficient_ {
-        0.5f, 0.5f, 0.5f };
-    float biasCoefficient_ { 0.001f };
-    std::array<float, 3> sagAttack_ { 0.001f, 0.001f, 0.001f };
-    std::array<float, 3> sagRelease_ { 0.0001f, 0.0001f, 0.0001f };
-    std::array<float, 3> fluxCoefficient_ { 0.99f, 0.99f, 0.99f };
-    std::array<float, 3> feedbackCoefficient_ { 0.5f, 0.5f, 0.5f };
     float compressorAttack_ { 0.0f };
     float compressorRelease_ { 0.0f };
     float compressorEnvelope_ { 0.0f };
@@ -571,11 +631,6 @@ private:
     float delayFeedbackHighpass_ { 0.02f };
     bool prepared_ { false };
 
-    std::array<GainChannel, 2> gain_ {};
-
-#if ELECTRY_MEASURED_MODERN_CABINET
-    std::unique_ptr<CabinetKernel> modernCabinetKernel_ {};
-#endif
 
     std::array<std::vector<float>, 2> delayLines_ {};
     std::array<int, 2> delayTaps_ {};

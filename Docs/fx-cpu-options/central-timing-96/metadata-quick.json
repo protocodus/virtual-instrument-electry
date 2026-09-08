@@ -1,0 +1,19 @@
+{
+  "utc_created": "2026-09-08T10:05:14Z",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "processor": "Apple M1 Max",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+  "executable_sha256": {
+    "baseline": "a587130bbac033cf518231d8fbcaeb67f50f78ff9fdbf1480728cbec080413ef",
+    "diode_lut": "11ad22832d16a2f7e4fe69b93b808fca5fdd1a14e0068b834df2875dd9c53f7c",
+    "pi_math": "2feff60856d3a8a32498e37b9c92a4be49f6a6f35ef2b2bee6e3d81a36b4416c",
+    "oversampling": "6dfdb0a50892b655eee3d5294af5233ca169581377990b9b142d4bc3ad9abe08",
+    "stereo": "5e28862bc03fc2be94dd56c8eb5ba3393c4f22b9360dd66c8d95e78b7ae6ceee",
+    "solver_1e7": "043fd106507e25b0a3145cf0460aa463de5f62835ef3a5e195e74bb86f1cbb35",
+    "solver_1e8": "7327fd0e7f439164137df928905a7c38e034f42d329852e61490568d17fa2604",
+    "combined": "10fd9e0448ab936af61fa6ac2ab3446bb7f15641bd6360f1baaa42c80fdb740a"
+  },
+  "measurement": "CPU std::clock process time and steady_clock elapsed; stereo frames at requested rate, block128; process and per-block parameters included; construction/prepare/input/copy/reset/checksum excluded.",
+  "cpu_limitations": "Process CPU excludes descheduling; frequency, core migration, cache/thermal contention remain possible. Serial bracketed alternating sweeps reduce drift sensitivity."
+}

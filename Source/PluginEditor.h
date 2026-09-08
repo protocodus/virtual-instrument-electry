@@ -241,6 +241,10 @@ private:
         "AMP VOICE",
         { "AMERICAN CLEAN", "BRITISH CRUNCH", "MODERN HIGH-GAIN" }
     };
+    ElectryChoiceStrip fxOversamplingStrip {
+        {}, { "STANDARD", "HIGH" }, 2, "FX OVERSAMPLING"
+    };
+    juce::Label fxOversamplingLabel;
 
     ElectryKnob guitarBuildKnob { "BUILD" };
     ElectryKnob bodyResonanceKnob { "BODY RES" };
@@ -279,6 +283,7 @@ private:
     std::unique_ptr<juce::ParameterAttachment> pickupAttachment;
     std::unique_ptr<juce::ParameterAttachment> outputModeAttachment;
     std::unique_ptr<juce::ParameterAttachment> ampModelAttachment;
+    std::unique_ptr<juce::ParameterAttachment> fxOversamplingAttachment;
     std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;
     std::array<juce::Rectangle<int>, sectionCount> sectionBounds {};
 

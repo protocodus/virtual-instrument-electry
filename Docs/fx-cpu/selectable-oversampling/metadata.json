@@ -1,0 +1,122 @@
+{
+  "baseline_revision": "f2a5258b7f14b5dc72ef87250636f3021b3dc241",
+  "machine": "macOS-26.5.1-arm64-arm-64bit",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+  "sha256": {
+    "/Users/vojta/Dev/virtual-instrument-electry/build-fx-options/baseline/evaluate": "a587130bbac033cf518231d8fbcaeb67f50f78ff9fdbf1480728cbec080413ef",
+    "/Users/vojta/Dev/virtual-instrument-electry/build-fx-cpu/ElectryBenchmarkFx": "5805d6bf6b8976145b1429bfeda76e2ea77e497abb58c56cc61c741c381e6d7e"
+  },
+  "protocol": "Serial paired FX measurement: baseline/Standard/High/High/Standard/baseline.\n48 kHz, 128-frame blocks, actual pre-rendered guitar, 2 seconds, 3 repeats.\nRun only when compilation and audio tests have finished. Capture process CPU\nplus elapsed corroboration; no setup/input/reset/checksum in timed interval.\nBaseline is pinned f2a5258. Each candidate is relative to mean bracket baseline.\n",
+  "runs": [
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-options/baseline/evaluate",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar"
+      ],
+      "file": "1-baseline.csv",
+      "start_epoch": 1788866471.639606,
+      "end_epoch": 1788866497.133474
+    },
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-cpu/ElectryBenchmarkFx",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar",
+        "--oversampling",
+        "standard"
+      ],
+      "file": "2-standard.csv",
+      "start_epoch": 1788866497.136582,
+      "end_epoch": 1788866509.237078
+    },
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-cpu/ElectryBenchmarkFx",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar",
+        "--oversampling",
+        "high"
+      ],
+      "file": "3-high.csv",
+      "start_epoch": 1788866509.237875,
+      "end_epoch": 1788866526.86004
+    },
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-cpu/ElectryBenchmarkFx",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar",
+        "--oversampling",
+        "high"
+      ],
+      "file": "4-high.csv",
+      "start_epoch": 1788866526.860437,
+      "end_epoch": 1788866544.864335
+    },
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-cpu/ElectryBenchmarkFx",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar",
+        "--oversampling",
+        "standard"
+      ],
+      "file": "5-standard.csv",
+      "start_epoch": 1788866544.864862,
+      "end_epoch": 1788866553.3098829
+    },
+    {
+      "command": [
+        "/Users/vojta/Dev/virtual-instrument-electry/build-fx-options/baseline/evaluate",
+        "--benchmark",
+        "--rate",
+        "48000",
+        "--seconds",
+        "2",
+        "--repeats",
+        "3",
+        "--input",
+        "guitar"
+      ],
+      "file": "6-baseline.csv",
+      "start_epoch": 1788866553.310231,
+      "end_epoch": 1788866575.87088
+    }
+  ]
+}

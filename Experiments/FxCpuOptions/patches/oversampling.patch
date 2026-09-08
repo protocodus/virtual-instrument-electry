@@ -1,0 +1,10 @@
+--- a/Source/DSP/ElectryFx.cpp
++++ b/Source/DSP/ElectryFx.cpp
+@@ -1658,6 +1658,7 @@
+            && sampleRate_ * static_cast<double>(1 << oversamplingStages_)
+                   < 384000.0)
+         ++oversamplingStages_;
++    oversamplingStages_ = std::max(0, oversamplingStages_ - 1);
+     oversampledRate_ = static_cast<float>(
+         sampleRate_ * static_cast<double>(1 << oversamplingStages_));
+ 

@@ -71,7 +71,7 @@ std::vector<juce::AudioProcessorParameter*> findProductParameters (
     }
 
     expect (result.size() == Size,
-            "VST3 does not expose the exact unique 28-parameter Electry surface");
+            "VST3 does not expose the exact unique 29-parameter Electry surface");
     return result;
 }
 } // namespace
@@ -125,14 +125,14 @@ int main (int argc, char** argv)
                 && plugin->getTotalNumOutputChannels() == 2,
             "instantiated VST3 is not a zero-input, stereo instrument");
 
-    const std::array<juce::String, 28> expectedParameterNames {
+    const std::array<juce::String, 29> expectedParameterNames {
         "Pickup selector", "Pickup type", "Tone", "Guitar build",
         "Body resonance", "String age", "Pick position", "Pick hardness",
         "Pick noise", "Finger noise", "Release noise", "Mute tightness",
         "Bend time", "Velocity response", "Output level", "Artifacts",
         "Output mode", "Distortion", "Amp simulation", "Compressor",
         "Delay", "Room", "Sympathetic ring", "Mute pressure",
-        "Strum spread", "Resonance depth", "Tremolo picking rate", "Amp voice"
+        "Strum spread", "Resonance depth", "Tremolo picking rate", "Amp voice", "FX oversampling"
     };
     const auto productParameters = findProductParameters (*plugin,
                                                           expectedParameterNames);
@@ -243,6 +243,6 @@ int main (int argc, char** argv)
 
     if (failures == 0)
         std::cout << "Electry built VST3 artifact smoke test passed "
-                     "(28 product parameters; JUCE wrapper parameters excluded)\n";
+                     "(29 product parameters; JUCE wrapper parameters excluded)\n";
     return failures == 0 ? 0 : 1;
 }

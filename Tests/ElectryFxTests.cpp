@@ -28,6 +28,22 @@ struct ElectryFxTestAccess
 {
     using HalfbandStage = ElectryFx::HalfbandStage;
 
+    static const ElectryFx::GainBank& selectedBank(const ElectryFx& fx) noexcept
+    {
+        const auto index = fx.gainBanks_[0].oversamplingStages_
+                == fx.gainBanks_[1].oversamplingStages_
+            ? 0 : static_cast<std::size_t>(fx.oversampling());
+        return fx.gainBanks_[index];
+    }
+
+    static ElectryFx::GainBank& selectedBank(ElectryFx& fx) noexcept
+    {
+        const auto index = fx.gainBanks_[0].oversamplingStages_
+                == fx.gainBanks_[1].oversamplingStages_
+            ? 0 : static_cast<std::size_t>(fx.oversampling());
+        return fx.gainBanks_[index];
+    }
+
     static HalfbandStage designedHalfband()
     {
         HalfbandStage stage;
@@ -68,7 +84,7 @@ struct ElectryFxTestAccess
 
     static double internalRate(const ElectryFx& fx) noexcept
     {
-        return fx.oversampledRate_;
+        return selectedBank(fx).oversampledRate_;
     }
 
     // The five control targets exactly as setParameters() sanitised them,
@@ -78,6 +94,36 @@ struct ElectryFxTestAccess
     {
         return fx.targetParameters_;
     }
+
+    static void processIndependentStereo(
+        ElectryFx& fx, float* left, float* right, int frames) noexcept
+    {
+        fx.processIndependentStereo(left, right, frames);
+    }
+
+    static std::array<bool, 4> gainReuseState(const ElectryFx& fx) noexcept
+    {
+        return {fx.gainBanks_[0].gainChannelsEqual_,
+                fx.gainBanks_[0].rightGainStateStale_,
+                fx.gainBanks_[1].gainChannelsEqual_,
+                fx.gainBanks_[1].rightGainStateStale_};
+    }
+
+    static std::size_t selectedGainBankIndex(const ElectryFx& fx) noexcept
+    {
+        return fx.gainBanks_[0].oversamplingStages_ == fx.gainBanks_[1].oversamplingStages_
+            ? 0u : static_cast<std::size_t>(fx.oversampling());
+    }
+
+#if ELECTRY_MEASURED_MODERN_CABINET
+    static std::array<const void*, 4> cabinetStatePointers(const ElectryFx& fx) noexcept
+    {
+        return {fx.gainBanks_[0].gain_[0].modernCabinet.get(),
+                fx.gainBanks_[0].gain_[1].modernCabinet.get(),
+                fx.gainBanks_[1].gain_[0].modernCabinet.get(),
+                fx.gainBanks_[1].gain_[1].modernCabinet.get()};
+    }
+#endif
 
     static std::array<float, 2> compressorState(const ElectryFx& fx) noexcept
     {
@@ -90,6 +136,19 @@ struct ElectryFxTestAccess
     {
         return ElectryFx::diodePairStep(inputVolts, rate, outputVolts,
                                         previousDerivative);
+    }
+
+    static float diodeLookup(ElectryFx& fx, double inputVolts,
+                              double& outputVolts,
+                              double& previousDerivative) noexcept
+    {
+        return fx.diodePairLookup(selectedBank(fx), inputVolts,
+                                  outputVolts, previousDerivative);
+    }
+
+    static double diodeLookupDomain(const ElectryFx& fx) noexcept
+    {
+        return selectedBank(fx).diodeInverseMaximum_;
     }
 
     static double cathodeCurrent(double plateVoltage,
@@ -128,6 +187,12 @@ struct ElectryFxTestAccess
     static float triodeLookup(double gridVoltage) noexcept
     {
         return ElectryFx::triodeStageLookup(gridVoltage);
+    }
+
+    static std::array<double, 4> phaseMathValues(
+        AmpModel model, double softplusInput, double powerInput) noexcept
+    {
+        return ElectryFx::phaseInverterMathValues(model, softplusInput, powerInput);
     }
 
     static double phaseInverterPlateCurrent(
@@ -219,7 +284,7 @@ struct ElectryFxTestAccess
 
     static bool pedalAtRest(const ElectryFx& fx) noexcept
     {
-        return std::all_of(fx.gain_.begin(), fx.gain_.end(), [] (const auto& channel)
+        return std::all_of(selectedBank(fx).gain_.begin(), selectedBank(fx).gain_.end(), [] (const auto& channel)
         {
             return ! channel.pedalWasActive
                 && channel.diodeVoltage == 0.0
@@ -266,7 +331,7 @@ struct ElectryFxTestAccess
 
     static bool ampAtRest(const ElectryFx& fx) noexcept
     {
-        return std::all_of(fx.gain_.begin(), fx.gain_.end(), [] (const auto& channel)
+        return std::all_of(selectedBank(fx).gain_.begin(), selectedBank(fx).gain_.end(), [] (const auto& channel)
         {
             const bool ordinaryStateIsClear = ! channel.ampWasActive
                 && std::all_of(channel.amplifiers.begin(),
@@ -287,7 +352,7 @@ struct ElectryFxTestAccess
     static bool ampModelAtRest(const ElectryFx& fx, AmpModel model) noexcept
     {
         const auto index = static_cast<std::size_t>(model);
-        return std::all_of(fx.gain_.begin(), fx.gain_.end(), [index] (const auto& channel)
+        return std::all_of(selectedBank(fx).gain_.begin(), selectedBank(fx).gain_.end(), [index] (const auto& channel)
         {
             const bool ordinaryStateIsClear = amplifierAtRest(
                 channel.amplifiers[index]);
@@ -306,31 +371,31 @@ struct ElectryFxTestAccess
 #if ELECTRY_MEASURED_MODERN_CABINET
     static double cabinetInternalRate(const ElectryFx& fx) noexcept
     {
-        return fx.oversampledRate_;
+        return selectedBank(fx).oversampledRate_;
     }
 
     static int cabinetTapCount(const ElectryFx& fx) noexcept
     {
-        return fx.modernCabinetKernel_->tapCount;
+        return selectedBank(fx).modernCabinetKernel_->tapCount;
     }
 
     static int cabinetLongPartitionCount(const ElectryFx& fx) noexcept
     {
-        return fx.modernCabinetKernel_->longPartitionCount;
+        return selectedBank(fx).modernCabinetKernel_->longPartitionCount;
     }
 
     static float cabinetNormalisationGain(const ElectryFx& fx) noexcept
     {
-        return fx.modernCabinetKernel_->normalisationGain;
+        return selectedBank(fx).modernCabinetKernel_->normalisationGain;
     }
 
     static double shippingModernCabinetMagnitude(
         const ElectryFx& fx, double frequency) noexcept
     {
-        const auto& cabinet = fx.gain_[0].amplifiers[
+        const auto& cabinet = selectedBank(fx).gain_[0].amplifiers[
             static_cast<std::size_t>(AmpModel::ModernHighGain)].cabinet;
         const double omega = 2.0 * 3.14159265358979323846 * frequency
-                           / fx.oversampledRate_;
+                           / selectedBank(fx).oversampledRate_;
         const std::complex<double> delay = std::polar(1.0, -omega);
         const auto delay2 = delay * delay;
         double magnitude = 1.0;
@@ -347,7 +412,7 @@ struct ElectryFxTestAccess
 
     static std::vector<float> cabinetImpulse(const ElectryFx& fx)
     {
-        const auto& kernel = *fx.modernCabinetKernel_;
+        const auto& kernel = *selectedBank(fx).modernCabinetKernel_;
         return { kernel.impulse.begin(),
                  kernel.impulse.begin() + kernel.tapCount };
     }
@@ -362,7 +427,7 @@ struct ElectryFxTestAccess
         {
             const float sample = index < input.size() ? input[index] : 0.0f;
             output[index] = convolver->process(
-                sample, *fx.modernCabinetKernel_);
+                sample, *selectedBank(fx).modernCabinetKernel_);
         }
         return output;
     }
@@ -376,17 +441,17 @@ struct ElectryFxTestAccess
             const float input = index == 0 ? 1.0f
                 : static_cast<float>((index * 29) % 101 - 50) / 113.0f;
             static_cast<void>(convolver->process(
-                input, *fx.modernCabinetKernel_));
+                input, *selectedBank(fx).modernCabinetKernel_));
         }
         convolver->reset();
         if (! convolver->atRest())
             return false;
         for (int index = 0; index < 1025; ++index)
-            if (convolver->process(0.0f, *fx.modernCabinetKernel_) != 0.0f)
+            if (convolver->process(0.0f, *selectedBank(fx).modernCabinetKernel_) != 0.0f)
                 return false;
         convolver->reset();
-        return convolver->process(1.0f, *fx.modernCabinetKernel_)
-            == fx.modernCabinetKernel_->impulse[0];
+        return convolver->process(1.0f, *selectedBank(fx).modernCabinetKernel_)
+            == selectedBank(fx).modernCabinetKernel_->impulse[0];
     }
 
     static double cabinetStereoLeak(const ElectryFx& fx,
@@ -395,16 +460,16 @@ struct ElectryFxTestAccess
         auto left = std::make_unique<ElectryFx::CabinetConvolver>();
         auto right = std::make_unique<ElectryFx::CabinetConvolver>();
         double leak = 0.0;
-        const int length = fx.modernCabinetKernel_->tapCount + 512;
+        const int length = selectedBank(fx).modernCabinetKernel_->tapCount + 512;
         for (int index = 0; index < length; ++index)
         {
             const float impulse = index == 0 ? 1.0f : 0.0f;
             const float leftOutput = left->process(
                 impulseOnLeft ? impulse : 0.0f,
-                *fx.modernCabinetKernel_);
+                *selectedBank(fx).modernCabinetKernel_);
             const float rightOutput = right->process(
                 impulseOnLeft ? 0.0f : impulse,
-                *fx.modernCabinetKernel_);
+                *selectedBank(fx).modernCabinetKernel_);
             leak = std::max(leak, std::abs(static_cast<double>(
                 impulseOnLeft ? rightOutput : leftOutput)));
         }
@@ -415,7 +480,7 @@ struct ElectryFxTestAccess
     static std::array<double, 7> toneStackCoefficients(
         const ElectryFx& fx, AmpModel model) noexcept
     {
-        const auto& stack = fx.gain_[0].amplifiers[
+        const auto& stack = selectedBank(fx).gain_[0].amplifiers[
             static_cast<std::size_t>(model)].toneStack;
         return { stack.b0, stack.b1, stack.b2, stack.b3,
                  stack.a1, stack.a2, stack.a3 };
@@ -424,7 +489,7 @@ struct ElectryFxTestAccess
     static float phaseInverterInputCoefficient(
         const ElectryFx& fx, AmpModel model) noexcept
     {
-        return fx.phaseInverterInputCoefficient_[
+        return selectedBank(fx).phaseInverterInputCoefficient_[
             static_cast<std::size_t>(model)];
     }
 
@@ -436,7 +501,7 @@ struct ElectryFxTestAccess
 
     static float amplifierSag(const ElectryFx& fx, AmpModel model) noexcept
     {
-        return fx.gain_[0].amplifiers[
+        return selectedBank(fx).gain_[0].amplifiers[
             static_cast<std::size_t>(model)].sag;
     }
 
@@ -510,6 +575,7 @@ using electry::ElectryFx;
 using electry::AmpModel;
 using electry::EngineParameters;
 using electry::FxParameters;
+using electry::FxOversampling;
 using electry::applyGuitarBuild;
 using electry::defaultGuitarBuild;
 using electry::PickStyle;
@@ -623,7 +689,8 @@ constexpr int aliasProbeCycles = 431;
 double aliasFloorDb(float distortion, float amp, double amplitude,
                     AmpModel model = AmpModel::ModernHighGain,
                     double rate = sampleRate,
-                    double fixedFrequencyHz = 0.0)
+                    double fixedFrequencyHz = 0.0,
+                    FxOversampling oversampling = FxOversampling::High)
 {
     const int cycles = fixedFrequencyHz > 0.0
         ? std::max(1, static_cast<int>(std::lround(
@@ -642,7 +709,9 @@ double aliasFloorDb(float distortion, float amp, double amplitude,
     parameters.distortion = distortion;
     parameters.amp = amp;
     parameters.ampModel = model;
+    parameters.oversampling = oversampling;
     fx.setParameters(parameters);
+    fx.reset();
 
     std::vector<float> left;
     std::vector<float> right;
@@ -697,6 +766,7 @@ double gainPathMagnitudeDb(double frequency, float distortion, float amp,
     parameters.distortion = distortion;
     parameters.amp = amp;
     parameters.ampModel = model;
+    parameters.oversampling = FxOversampling::High;
     fx.setParameters(parameters);
     if (startSelected)
         fx.reset();
@@ -750,6 +820,7 @@ double settledAmpPathMagnitude(double frequency, AmpModel model, double rate)
     FxParameters parameters;
     parameters.amp = 0.01f;
     parameters.ampModel = model;
+    parameters.oversampling = FxOversampling::High;
     fx.setParameters(parameters);
     fx.reset();
 
@@ -1253,6 +1324,114 @@ void testExactDryBypass()
     }
 }
 
+void testDiodeInverseCircuit()
+{
+    // Check the inverse against independently assembled trapezoidal KCL, not
+    // just the four-step reference solver: at low rates the new inverse can
+    // have a smaller residual than that bounded Newton approximation.
+    constexpr double rc = 2200.0 * 10.0e-9;
+    constexpr double capacitance = 10.0e-9;
+    constexpr double saturationCurrent = 2.52e-9;
+    constexpr double thermalVoltage = 1.752 * 0.0258;
+    double maximumResidual = 0.0;
+    double maximumQuietError = 0.0;
+    for (double hostRate : {8000.0, 44100.0, 48000.0, 88200.0, 96000.0})
+    for (auto quality : {FxOversampling::Standard, FxOversampling::High})
+    {
+        ElectryFx fx;
+        fx.prepare(hostRate);
+        FxParameters parameters;
+        parameters.distortion = 1.0f;
+        parameters.oversampling = quality;
+        fx.setParameters(parameters);
+        fx.reset();
+        const double rate = FxAccess::internalRate(fx);
+        const double step = 1.0 / rate;
+        const double linear = 1.0 + 0.5 * step / rc;
+        const double nonlinear = step * saturationCurrent / capacitance;
+        const double domain = FxAccess::diodeLookupDomain(fx);
+        expect(domain > 2.0 && std::isfinite(domain),
+               "a prepared diode inverse has no finite domain");
+
+        double previous = 0.0;
+        for (int index = 0; index < 4096; ++index)
+        {
+            // A nonintegral offset exercises between knots, including the
+            // last cell. The positive half must be monotone and odd symmetry
+            // reconstructs the physical antiparallel negative half.
+            const double rhs = domain * (index + 0.371) / 4096.0;
+            double voltage = rhs;
+            double derivative = 0.0;
+            FxAccess::diodeLookup(fx, 0.0, voltage, derivative);
+            maximumResidual = std::max(maximumResidual, std::abs(
+                linear * voltage + nonlinear * std::sinh(voltage / thermalVoltage)
+                    - rhs));
+            expect(voltage >= previous && voltage < 1.0,
+                   "the diode inverse folded back or exceeded its physical rail");
+            previous = voltage;
+            double negativeVoltage = -rhs;
+            double negativeDerivative = 0.0;
+            FxAccess::diodeLookup(fx, 0.0, negativeVoltage, negativeDerivative);
+            expect(negativeVoltage == -voltage && negativeDerivative == -derivative,
+                   "the diode inverse lost antiparallel symmetry");
+        }
+
+        // Capacitor history is part of the lookup input. Compare quiet AC and
+        // its release with the direct solver, and independently check loud
+        // history-dependent steps against KCL.
+        double voltage = 0.0, derivative = 0.0;
+        double referenceVoltage = 0.0, referenceDerivative = 0.0;
+        for (int frame = 0; frame < 4096; ++frame)
+        {
+            const double input = frame < 3072
+                ? 0.001 * std::sin(2.0 * pi * 173.0 * frame / rate) : 0.0;
+            FxAccess::diodeLookup(fx, input, voltage, derivative);
+            FxAccess::diodeStep(input, rate, referenceVoltage, referenceDerivative);
+            maximumQuietError = std::max(maximumQuietError,
+                                         std::abs(voltage - referenceVoltage));
+        }
+        for (int frame = 0; frame < 4096; ++frame)
+        {
+            const double input = frame < 3072
+                ? 12.0 * std::sin(2.0 * pi * 7039.0 * frame / rate) : 0.0;
+            const double rhs = voltage + 0.5 * step * (derivative + input / rc);
+            FxAccess::diodeLookup(fx, input, voltage, derivative);
+            maximumResidual = std::max(maximumResidual, std::abs(
+                linear * voltage + nonlinear * std::sinh(voltage / thermalVoltage)
+                    - rhs));
+            expect(std::isfinite(voltage) && std::isfinite(derivative),
+                   "the diode inverse poisoned capacitor history");
+        }
+
+        // Out-of-domain states must call the safeguarded direct solver;
+        // extrapolating the final cubic could explode a recursive state.
+        for (double initialVoltage : {-2.0 * domain, domain, 2.0 * domain})
+        {
+            voltage = referenceVoltage = initialVoltage;
+            derivative = referenceDerivative = 0.0;
+            const float lookedUp = FxAccess::diodeLookup(
+                fx, 0.0, voltage, derivative);
+            const float direct = FxAccess::diodeStep(
+                0.0, rate, referenceVoltage, referenceDerivative);
+            expect(lookedUp == direct && voltage == referenceVoltage
+                       && derivative == referenceDerivative,
+                   "an out-of-domain diode state did not use the direct fallback");
+        }
+        voltage = std::numeric_limits<double>::quiet_NaN();
+        derivative = std::numeric_limits<double>::infinity();
+        const float sanitised = FxAccess::diodeLookup(
+            fx, std::numeric_limits<double>::infinity(), voltage, derivative);
+        expect(sanitised == 0.0f && voltage == 0.0 && derivative == 0.0,
+               "the diode lookup did not sanitise corrupted input and history");
+    }
+    std::cout << "Diode inverse maximum KCL/quiet reference error: "
+              << maximumResidual << '/' << maximumQuietError << '\n';
+    expect(maximumResidual < 2.0e-9,
+           "the diode inverse no longer solves trapezoidal KCL accurately");
+    expect(maximumQuietError < 2.0e-9,
+           "the diode inverse changed quiet AC or its capacitor recovery");
+}
+
 void testCircuitGainStages()
 {
     // The diode pair's three DC points come from the independent Shockley KCL
@@ -1441,6 +1620,97 @@ void testCircuitGainStages()
     const double loudNegative = FxAccess::triodeOutput(-2.0, negativePlate);
     expect(loudPositive > -loudNegative + 0.20,
            "the measured triode transfer lost its plate-load asymmetry");
+}
+
+void testPhaseInverterScalarMath()
+{
+    double softError = 0.0, softSlopeError = 0.0;
+    double powerRelativeError = 0.0, powerSlopeRelativeError = 0.0;
+    double softDerivativeError = 0.0, powerDerivativeRelativeError = 0.0;
+    const auto exactSoft = [] (double x)
+    {
+        const double exponential = std::exp(-std::abs(x));
+        return std::array<double, 2> {
+            std::max(x, 0.0) + std::log1p(exponential),
+            x >= 0.0 ? 1.0 / (1.0 + exponential)
+                     : exponential / (1.0 + exponential)};
+    };
+    for (auto model : {AmpModel::AmericanClean, AmpModel::BritishCrunch})
+    {
+        const double exponent = model == AmpModel::AmericanClean ? 1.338 : 0.988;
+        double previousSoft = 0.0, previousPower = 0.0;
+        for (int index = 0; index < 4096; ++index)
+        {
+            // Offset samples cover interior cubic values and the power
+            // mantissa/exponent boundaries. The wider range crosses both
+            // sides of each approximation's domain into reference fallback.
+            const double fraction = (index + 0.371) / 4096.0;
+            const double x = -41.0 + 50.0 * fraction;
+            const double powerInput = std::exp2(-66.0 + 84.0 * fraction);
+            const auto point = FxAccess::phaseMathValues(model, x, powerInput);
+            const auto soft = exactSoft(x);
+            const double power = std::pow(powerInput, exponent);
+            const double powerSlope = exponent * power / powerInput;
+            softError = std::max(softError, std::abs(point[0] - soft[0]));
+            softSlopeError = std::max(softSlopeError, std::abs(point[1] - soft[1]));
+            powerRelativeError = std::max(powerRelativeError,
+                std::abs(point[2] - power) / power);
+            powerSlopeRelativeError = std::max(powerSlopeRelativeError,
+                std::abs(point[3] - powerSlope) / powerSlope);
+            expect(point[0] > previousSoft && point[2] > previousPower
+                       && point[1] > 0.0 && point[1] <= 1.0
+                       && point[3] > 0.0 && std::isfinite(point[3]),
+                   "phase-inverter scalar tables lost monotonic finite values/slopes");
+            previousSoft = point[0];
+            previousPower = point[2];
+
+            // Newton must differentiate the curve it actually evaluates.
+            // Finite differences detect an independently approximated slope
+            // even when both slope/value are individually near the reference.
+            constexpr double softStep = 1.0e-4;
+            const double powerStep = powerInput * 1.0e-5;
+            const auto below = FxAccess::phaseMathValues(
+                model, x - softStep, powerInput - powerStep);
+            const auto above = FxAccess::phaseMathValues(
+                model, x + softStep, powerInput + powerStep);
+            softDerivativeError = std::max(softDerivativeError,
+                std::abs((above[0] - below[0]) / (2.0 * softStep) - point[1]));
+            powerDerivativeRelativeError = std::max(powerDerivativeRelativeError,
+                std::abs((above[2] - below[2]) / (2.0 * powerStep) - point[3])
+                    / point[3]);
+        }
+
+        // Outside [-40,8) and positive binary exponents [-64,16], preserve
+        // the reference implementation exactly. nextafter probes the precise
+        // fallback edges rather than just distant, easy exterior values.
+        for (double x : {-100.0, std::nextafter(-40.0, -100.0), 8.0,
+                          std::nextafter(8.0, 100.0), 100.0})
+        {
+            const auto expected = exactSoft(x);
+            const auto actual = FxAccess::phaseMathValues(model, x, 1.0);
+            expect(actual[0] == expected[0] && actual[1] == expected[1],
+                   "phase softplus did not use reference math outside its table");
+        }
+        for (double x : {std::ldexp(1.0, -70),
+                          std::nextafter(std::ldexp(1.0, -64), 0.0),
+                          std::ldexp(1.0, 17), std::ldexp(1.0, 20)})
+        {
+            const double expected = std::pow(x, exponent);
+            const auto actual = FxAccess::phaseMathValues(model, 0.0, x);
+            expect(actual[2] == expected && actual[3] == exponent * expected / x,
+                   "phase power did not use reference math outside its table");
+        }
+    }
+    std::cout << "PI scalar soft value/slope, power relative value/slope, "
+                 "derivative consistency: "
+              << softError << '/' << softSlopeError << ", "
+              << powerRelativeError << '/' << powerSlopeRelativeError << ", "
+              << softDerivativeError << '/' << powerDerivativeRelativeError << '\n';
+    expect(softError < 4.0e-10 && softSlopeError < 4.0e-8
+               && powerRelativeError < 6.0e-12 && powerSlopeRelativeError < 2.0e-9,
+           "phase-inverter scalar approximation exceeded its measured error budget");
+    expect(softDerivativeError < 2.0e-9 && powerDerivativeRelativeError < 2.0e-10,
+           "phase-inverter Newton slopes are inconsistent with their evaluated cubics");
 }
 
 void testPhaseInverterCircuits()
@@ -1790,6 +2060,10 @@ void testPhaseInverterCircuits()
 
     ElectryFx fx;
     fx.prepare(sampleRate); // 8x, so the circuit runs at 384 kHz
+    FxParameters highQuality;
+    highQuality.oversampling = FxOversampling::High;
+    fx.setParameters(highQuality);
+    fx.reset();
     const float americanCoefficient = FxAccess::phaseInverterInputCoefficient(
         fx, AmpModel::AmericanClean);
     const float britishCoefficient = FxAccess::phaseInverterInputCoefficient(
@@ -2091,6 +2365,10 @@ void testGainStageAliasing()
         {
             ElectryFx fx;
             fx.prepare(rate);
+            FxParameters highQuality;
+            highQuality.oversampling = FxOversampling::High;
+            fx.setParameters(highQuality);
+            fx.reset();
             expect(FxAccess::internalRate(fx) >= 384000.0,
                    "the nonlinear bandwidth fell below 384 kHz at "
                        + std::to_string(rate) + " Hz");
@@ -2107,6 +2385,37 @@ void testGainStageAliasing()
                            + probe.name + " (" + std::to_string(floorDb)
                            + " dB)");
             }
+        }
+    }
+
+    // Standard intentionally trades bandwidth for CPU. These separate module
+    // limits retain the measured 4x/2x quality floor, rather than relaxing the
+    // High contract. Evaluation at 44.1/48/96 kHz measured the six probes at
+    // {-70.57,-58.74,-60.79,-64.47,-69.91,-70.75},
+    // {-72.79,-61.28,-62.15,-64.22,-71.64,-71.15}, and
+    // {-81.84,-61.02,-62.21,-63.85,-71.59,-71.29} dB respectively.
+    constexpr std::array<double, 3> standardRates {44100.0, 48000.0, 96000.0};
+    constexpr std::array<std::array<double, 6>, 3> standardLimits {{
+        {-70.0, -58.0, -60.0, -63.5, -69.0, -70.0},
+        {-72.0, -60.5, -61.5, -63.5, -71.0, -70.5},
+        {-81.0, -60.5, -61.5, -63.0, -71.0, -70.5}
+    }};
+    for (std::size_t rateIndex = 0; rateIndex < standardRates.size(); ++rateIndex)
+    {
+        const double rate = standardRates[rateIndex];
+        for (std::size_t probeIndex = 0; probeIndex < probes.size(); ++probeIndex)
+        {
+            const auto& probe = probes[probeIndex];
+            const double floorDb = aliasFloorDb(
+                probe.distortion, probe.amp, probe.amplitude, probe.model,
+                rate, rate == 96000.0 ? fixedToneHz : 0.0,
+                FxOversampling::Standard);
+            std::cout << "Standard alias floor at " << rate << " Hz, "
+                      << probe.name << ": " << floorDb << " dB\n";
+            expect(floorDb < standardLimits[rateIndex][probeIndex],
+                   std::string("Standard alias floor regressed at ")
+                       + std::to_string(rate) + " Hz for " + probe.name
+                       + " (" + std::to_string(floorDb) + " dB)");
         }
     }
 }
@@ -2158,6 +2467,10 @@ void testMeasuredModernCabinet()
     {
         auto fx = std::make_unique<ElectryFx>();
         fx->prepare(rateCase.hostRate);
+        FxParameters highQuality;
+        highQuality.oversampling = FxOversampling::High;
+        fx->setParameters(highQuality);
+        fx->reset();
         const double internalRate = FxAccess::cabinetInternalRate(*fx);
         const auto impulse = FxAccess::cabinetImpulse(*fx);
         expect(internalRate == rateCase.internalRate,
@@ -2246,6 +2559,10 @@ void testMeasuredModernCabinet()
 
     auto fx = std::make_unique<ElectryFx>();
     fx->prepare(sampleRate);
+    FxParameters highQuality;
+    highQuality.oversampling = FxOversampling::High;
+    fx->setParameters(highQuality);
+    fx->reset();
     const auto impulse = FxAccess::cabinetImpulse(*fx);
     const std::vector<float> delta { 1.0f };
     const auto deltaOutput = FxAccess::cabinetConvolve(
@@ -2410,6 +2727,10 @@ void testToneStackCircuits()
 {
     ElectryFx fx;
     fx.prepare(sampleRate); // 8x: tone stacks are designed at 384 kHz
+    FxParameters highQuality;
+    highQuality.oversampling = FxOversampling::High;
+    fx.setParameters(highQuality);
+    fx.reset();
     const auto american = FxAccess::toneStackCoefficients(
         fx, AmpModel::AmericanClean);
     const auto british = FxAccess::toneStackCoefficients(
@@ -3260,6 +3581,8 @@ void testDeterminismAndRateMatrix()
         for (int stage = 0;
              stage < 3 && expectedInternalRate < 384000.0; ++stage)
             expectedInternalRate *= 2.0;
+        if (expectedInternalRate > rate)
+            expectedInternalRate *= 0.5;
         expect(FxAccess::internalRate(fx) == expectedInternalRate,
                "unexpected nonlinear frame rate at " + std::to_string(rate)
                    + " Hz");
@@ -3269,12 +3592,357 @@ void testDeterminismAndRateMatrix()
         fx.process(left.data(), right.data(), length);
         const float latency = fx.gainStageLatencySamples();
         const float expected = rate < 96000.0
-            ? 20.125f : (rate < 192000.0
-                ? 17.25f : (rate < 384000.0 ? 11.5f : 0.0f));
+            ? 17.25f : (rate < 192000.0 ? 11.5f : 0.0f);
         expect(std::abs(latency - expected) < 1.0e-3f,
                "unexpected gain-stage latency at " + std::to_string(rate)
                    + " Hz");
     }
+}
+
+void testOversamplingSelectionAndTransitions()
+{
+    expect(FxParameters {}.oversampling == FxOversampling::Standard,
+           "new FX parameters do not default to Standard oversampling");
+    struct RateCase { double rate; int highFactor; };
+    constexpr std::array<RateCase, 11> rates {{
+        {8000.0, 8}, {44100.0, 8}, {48000.0, 8}, {88200.0, 8},
+        {95999.0, 8}, {96000.0, 4}, {191999.0, 4}, {192000.0, 2},
+        {383999.0, 2}, {384000.0, 1}, {176400.0, 4}
+    }};
+    const auto source = sineBlock(257, 3, 0.15);
+    for (const auto& rate : rates)
+    for (auto quality : {FxOversampling::Standard, FxOversampling::High})
+    {
+        ElectryFx fx;
+        fx.prepare(rate.rate);
+        FxParameters parameters;
+        parameters.distortion = 0.6f;
+        parameters.amp = 0.75f;
+        parameters.oversampling = quality;
+        fx.setParameters(parameters);
+        fx.reset();
+        const int factor = quality == FxOversampling::High
+            ? rate.highFactor : std::max(1, rate.highFactor / 2);
+        const float latency = factor == 8 ? 20.125f
+            : factor == 4 ? 17.25f : factor == 2 ? 11.5f : 0.0f;
+        expect(fx.oversampling() == quality && fx.oversamplingFactor() == factor
+                   && FxAccess::internalRate(fx) == rate.rate * factor,
+               "an oversampling selector used the wrong rate at "
+                   + std::to_string(rate.rate));
+        const auto render = [&] {
+            auto left = source;
+            auto right = source;
+            fx.process(left.data(), right.data(), static_cast<int>(source.size()));
+            return left;
+        };
+        const auto initial = render();
+        expect(std::abs(fx.gainStageLatencySamples() - latency) < 1.0e-6f,
+               "an oversampling mode reports the wrong settled latency");
+        fx.reset();
+        const auto reset = render();
+        fx.prepare(rate.rate);
+        const auto preparedAgain = render();
+        expect(initial == reset && initial == preparedAgain && allFinite(initial),
+               "reset/reprepare changed an oversampling mode's deterministic state");
+        FxParameters dry;
+        dry.oversampling = quality;
+        fx.setParameters(dry);
+        fx.reset();
+        expect(render() == source && fx.gainStageLatencySamples() == 0.0f,
+               "an oversampling mode changed exact dry bypass or its zero latency");
+    }
+
+    // Events fall inside ordinary host blocks and several quality changes
+    // reverse a still-running crossfade. Their sample positions, rather than
+    // how the host partitions the buffers, must determine the result.
+    constexpr int length = 24576;
+    constexpr std::array<int, 9> events {0, 137, 819, 1001, 4057, 5033, 7021, 12287, 16384};
+    const auto renderSwitches = [&] (int blockSize, int fixedQuality)
+    {
+        ElectryFx fx;
+        fx.prepare(sampleRate);
+        std::array<std::vector<float>, 2> output {
+            std::vector<float>(length), std::vector<float>(length)};
+        for (int frame = 0; frame < length; ++frame)
+        {
+            output[0][static_cast<std::size_t>(frame)] = static_cast<float>(
+                0.15 * std::sin(2.0 * pi * 137.0 * frame / sampleRate));
+            output[1][static_cast<std::size_t>(frame)] = static_cast<float>(
+                0.13 * std::sin(2.0 * pi * 223.0 * frame / sampleRate + 0.4));
+        }
+        FxParameters parameters;
+        parameters.distortion = 0.65f;
+        parameters.amp = 0.8f;
+        parameters.delay = 0.3f;
+        parameters.room = 0.25f;
+        for (std::size_t event = 0; event < events.size(); ++event)
+        {
+            parameters.oversampling = static_cast<FxOversampling>(
+                fixedQuality >= 0 ? fixedQuality : static_cast<int>(event % 2));
+            parameters.ampModel = static_cast<AmpModel>(event % 3);
+            parameters.amp = event % 3 == 1 ? 0.3f : 0.8f;
+            fx.setParameters(parameters);
+            if (event == 0)
+                fx.reset();
+            const int end = event + 1 < events.size() ? events[event + 1] : length;
+            for (int offset = events[event]; offset < end; offset += blockSize)
+            {
+                const int count = std::min(blockSize, end - offset);
+                fx.process(output[0].data() + offset, output[1].data() + offset, count);
+            }
+        }
+        return output;
+    };
+    const auto switched = renderSwitches(length, -1);
+    const auto smallBlocks = renderSwitches(73, -1);
+    const auto standard = renderSwitches(length, 0);
+    const auto high = renderSwitches(length, 1);
+    const auto largestStep = [] (const std::vector<float>& samples)
+    {
+        double peak = 0.0;
+        for (std::size_t index = 1; index < samples.size(); ++index)
+            peak = std::max(peak, std::abs(static_cast<double>(samples[index])
+                                        - samples[index - 1]));
+        return peak;
+    };
+    for (std::size_t channel = 0; channel < switched.size(); ++channel)
+    {
+        expect(switched[channel] == smallBlocks[channel],
+               "quality/model automation depends on host block partitioning");
+        const double bound = 1.5 * std::max(largestStep(standard[channel]),
+                                           largestStep(high[channel])) + 0.01;
+        expect(allFinite(switched[channel]) && peakOf(switched[channel]) < 2.0001
+                   && largestStep(switched[channel]) < bound,
+               "rapid oversampling changes produced an unsafe or abrupt transition");
+    }
+
+    // The delay and room run on the host clock. Selecting another nonlinear
+    // rate while the gain stages are bypassed must preserve their exact tail,
+    // including a delay repeat that has not arrived yet when the switch occurs.
+    const auto renderTail = [] (bool switchQuality)
+    {
+        ElectryFx fx;
+        fx.prepare(sampleRate);
+        FxParameters parameters;
+        parameters.delay = 0.7f;
+        parameters.room = 0.6f;
+        fx.setParameters(parameters);
+        fx.reset();
+        constexpr int tailLength = 30000;
+        constexpr int changeAt = 8191;
+        std::array<std::vector<float>, 2> output {
+            std::vector<float>(tailLength, 0.0f), std::vector<float>(tailLength, 0.0f)};
+        output[0][0] = 0.3f;
+        output[1][0] = -0.2f;
+        fx.process(output[0].data(), output[1].data(), changeAt);
+        if (switchQuality)
+        {
+            parameters.oversampling = FxOversampling::High;
+            fx.setParameters(parameters);
+        }
+        fx.process(output[0].data() + changeAt, output[1].data() + changeAt,
+                   tailLength - changeAt);
+        return output;
+    };
+    const auto tail = renderTail(false);
+    expect(tail == renderTail(true),
+           "changing oversampling reset or retimed the host-rate delay/room history");
+    double lateEnergy = 0.0;
+    for (std::size_t frame = 16384; frame < tail[0].size(); ++frame)
+        lateEnergy += static_cast<double>(tail[0][frame]) * tail[0][frame];
+    expect(lateEnergy > 1.0e-8,
+           "the oversampling tail fixture did not retain an audible delayed signal");
+}
+
+void testIdenticalGainChannelReuse()
+{
+    // The reference instantiates the same processor with reuse compiled out.
+    // In particular, an internal bank reset during a quality fade cannot
+    // silently turn its optimization back on and weaken this comparison.
+    std::size_t comparedSamples = 0;
+    enum class Input { mono, oneStereoSample, silence, signedZero, nonFinite };
+    const auto runCase = [&] (double rate, AmpModel model,
+                              FxOversampling initialQuality, bool fullCoverage)
+    {
+        ElectryFx reused;
+        ElectryFx independent;
+        FxParameters parameters;
+        parameters.distortion = 0.8f;
+        parameters.amp = 0.9f;
+        parameters.ampModel = model;
+        parameters.compressor = 0.6f;
+        parameters.delay = 0.7f;
+        parameters.room = 0.6f;
+        parameters.oversampling = initialQuality;
+        const auto reset = [&]
+        {
+            reused.setParameters(parameters);
+            independent.setParameters(parameters);
+            reused.reset();
+            independent.reset();
+        };
+        reused.prepare(rate);
+        independent.prepare(rate);
+        reset();
+#if ELECTRY_MEASURED_MODERN_CABINET
+        const auto cabinetPointers = FxAccess::cabinetStatePointers(reused);
+        expect(std::all_of(cabinetPointers.begin(), cabinetPointers.end(),
+                           [] (const auto* pointer) { return pointer != nullptr; }),
+               "the mono-reuse fixture did not prepare every cabinet state");
+#endif
+        int clock = 0;
+        const auto render = [&] (int count, Input kind)
+        {
+            std::array<std::vector<float>, 2> output {
+                std::vector<float>(static_cast<std::size_t>(count)),
+                std::vector<float>(static_cast<std::size_t>(count))};
+            for (int frame = 0; frame < count; ++frame)
+            {
+                const double time = static_cast<double>(clock + frame) / rate;
+                const float signal = static_cast<float>(
+                    0.19 * std::sin(2.0 * pi * 137.0 * time)
+                    + 0.047 * std::sin(2.0 * pi * 329.63 * time));
+                output[0][static_cast<std::size_t>(frame)] = signal;
+                output[1][static_cast<std::size_t>(frame)] = signal;
+                if (kind == Input::silence || kind == Input::signedZero)
+                {
+                    output[0][static_cast<std::size_t>(frame)] = 0.0f;
+                    output[1][static_cast<std::size_t>(frame)] =
+                        kind == Input::signedZero ? -0.0f : 0.0f;
+                }
+                if (kind == Input::oneStereoSample && frame == count / 3)
+                    output[1][static_cast<std::size_t>(frame)] = signal + 0.07f;
+                if (kind == Input::nonFinite && frame % 7 < 3)
+                {
+                    output[0][static_cast<std::size_t>(frame)] = frame % 2 == 0
+                        ? std::numeric_limits<float>::quiet_NaN()
+                        : std::numeric_limits<float>::infinity();
+                    output[1][static_cast<std::size_t>(frame)] = frame % 3 == 0
+                        ? -std::numeric_limits<float>::infinity() : 0.1f;
+                }
+            }
+            auto expected = output;
+            reused.setParameters(parameters);
+            independent.setParameters(parameters);
+            reused.process(output[0].data(), output[1].data(), count);
+            FxAccess::processIndependentStereo(
+                independent, expected[0].data(), expected[1].data(), count);
+            for (std::size_t channel = 0; channel < output.size(); ++channel)
+                expect(std::memcmp(output[channel].data(), expected[channel].data(),
+                                   output[channel].size() * sizeof(float)) == 0
+                           && allFinite(output[channel]),
+                       "identical-channel reuse changed stereo samples or finite-input recovery");
+            const auto referenceState = FxAccess::gainReuseState(independent);
+            expect(! referenceState[1] && ! referenceState[3],
+                   "the independent stereo reference skipped a channel");
+            comparedSamples += 2 * static_cast<std::size_t>(count);
+            clock += count;
+            return output;
+        };
+        const auto selectedReuse = [&]
+        {
+            const auto state = FxAccess::gainReuseState(reused);
+            const auto index = 2 * FxAccess::selectedGainBankIndex(reused);
+            return std::array<bool, 2> {state[index], state[index + 1]};
+        };
+        expect(FxAccess::gainReuseState(reused)
+                   == std::array<bool, 4> {true, false, true, false},
+               "reset did not restore equal, current gain histories");
+        render(1031, Input::mono);
+        expect(selectedReuse() == std::array<bool, 2> {true, true},
+               "identical gain inputs did not actually reuse the left result");
+        parameters.ampModel = static_cast<AmpModel>((static_cast<int>(model) + 1) % 3);
+        render(1733, Input::mono);
+        expect(selectedReuse() == std::array<bool, 2> {true, true},
+               "a shared model change unnecessarily disabled equal-channel reuse");
+        render(2053, Input::oneStereoSample);
+        render(1009, Input::mono);
+        expect(selectedReuse() == std::array<bool, 2> {false, false},
+               "matching current input re-enabled reuse after histories diverged");
+
+        const auto oldBank = FxAccess::selectedGainBankIndex(reused);
+        parameters.oversampling = initialQuality == FxOversampling::Standard
+            ? FxOversampling::High : FxOversampling::Standard;
+        render(129, Input::mono);
+        const auto newBank = FxAccess::selectedGainBankIndex(reused);
+        if (oldBank != newBank)
+        {
+            const auto state = FxAccess::gainReuseState(reused);
+            expect(! state[2 * oldBank] && ! state[2 * oldBank + 1]
+                       && state[2 * newBank] && state[2 * newBank + 1],
+                   "a quality fade confused an old stereo bank with a fresh equal bank");
+        }
+        // Divergence occurs inside the block while both banks are live; only
+        // the fresh bank needs its stale right state materialized. Reverse
+        // the fade before it completes to cover independently retained banks.
+        parameters.oversampling = initialQuality;
+        render(131, Input::oneStereoSample);
+        render(1009, Input::mono);
+        expect(selectedReuse() == std::array<bool, 2> {false, false},
+               "a reversed quality fade incorrectly restored channel equality");
+        parameters.oversampling = initialQuality == FxOversampling::Standard
+            ? FxOversampling::High : FxOversampling::Standard;
+        render(2067, Input::mono);
+
+        if (fullCoverage)
+        {
+            const int retirementFrames = static_cast<int>(std::ceil(0.20 * rate));
+            parameters.distortion = 0.0f;
+            render(retirementFrames, Input::mono);
+            expect(FxAccess::pedalAtRest(reused),
+                   "mono reuse retained a bypassed pedal's private history");
+            parameters.distortion = 0.8f;
+            parameters.amp = 0.0f;
+            render(retirementFrames, Input::oneStereoSample);
+            render(1009, Input::mono);
+            expect(FxAccess::ampAtRest(reused)
+                       && selectedReuse() == std::array<bool, 2> {false, false},
+                   "an individual amp bypass incorrectly merged stereo gain histories");
+            parameters.distortion = 0.0f;
+            const auto tail = render(retirementFrames, Input::silence);
+            expect(! reused.isGainStageEngaged()
+                       && FxAccess::gainReuseState(reused)
+                           == std::array<bool, 4> {true, false, true, false},
+                   "fully bypassing gain failed to restore known equal reset histories");
+            double tailEnergy = 0.0;
+            for (float value : tail[0])
+                tailEnergy += static_cast<double>(value) * value;
+            expect(tailEnergy > 1.0e-8,
+                   "mono reuse cleared the delay/room tail with the gain state");
+            parameters.distortion = 0.8f;
+            parameters.amp = 0.9f;
+            render(509, Input::mono);
+            expect(selectedReuse() == std::array<bool, 2> {true, true},
+                   "a full gain reset did not make later mono reuse eligible");
+        }
+
+        reset();
+        render(1, Input::signedZero);
+        expect(selectedReuse() == std::array<bool, 2> {false, false},
+               "signed-zero inputs were treated as bit-identical gain samples");
+        reset();
+        render(257, Input::nonFinite);
+        render(1031, Input::mono);
+#if ELECTRY_MEASURED_MODERN_CABINET
+        expect(FxAccess::cabinetStatePointers(reused) == cabinetPointers,
+               "materializing right cabinet history replaced its prepared allocation");
+#endif
+        reused.prepare(rate);
+        independent.prepare(rate);
+        render(257, Input::mono);
+        expect(selectedReuse() == std::array<bool, 2> {true, true},
+               "reprepare did not restore mono-reuse eligibility");
+    };
+    for (double rate : {48000.0, 96000.0})
+    for (auto quality : {FxOversampling::Standard, FxOversampling::High})
+    for (auto model : {AmpModel::AmericanClean, AmpModel::BritishCrunch,
+                       AmpModel::ModernHighGain})
+        runCase(rate, model, quality, true);
+    for (double rate : {44100.0, 384000.0})
+    for (auto quality : {FxOversampling::Standard, FxOversampling::High})
+        runCase(rate, AmpModel::ModernHighGain, quality, false);
+    std::cout << "Independent stereo comparison with mono reuse: "
+              << comparedSamples << " bit-identical samples\n";
 }
 
 void testHostileInput()
@@ -3438,6 +4106,7 @@ void testSetParametersSanitisation()
     outOfRange.delay = 1.0001f;
     outOfRange.room = 100.0f;
     outOfRange.ampModel = static_cast<AmpModel>(99);
+    outOfRange.oversampling = static_cast<FxOversampling>(99);
     const auto clamped = sanitised(outOfRange);
     expect(clamped.distortion == 0.0f, "a negative distortion mix was not clamped to 0.0");
     expect(clamped.amp == 1.0f, "an above-range amp mix was not clamped to 1.0");
@@ -3446,6 +4115,8 @@ void testSetParametersSanitisation()
     expect(clamped.room == 1.0f, "an above-range room mix was not clamped to 1.0");
     expect(clamped.ampModel == AmpModel::ModernHighGain,
            "an invalid amp model did not fall back to Modern");
+    expect(clamped.oversampling == FxOversampling::Standard,
+           "an invalid oversampling mode did not fall back to Standard");
 
     FxParameters ordinary;
     ordinary.distortion = 0.25f;
@@ -3454,11 +4125,13 @@ void testSetParametersSanitisation()
     ordinary.delay = 0.1f;
     ordinary.room = 0.9f;
     ordinary.ampModel = AmpModel::BritishCrunch;
+    ordinary.oversampling = FxOversampling::High;
     const auto passedThrough = sanitised(ordinary);
     expect(passedThrough.distortion == 0.25f && passedThrough.amp == 0.5f
                && passedThrough.compressor == 0.75f && passedThrough.delay == 0.1f
                && passedThrough.room == 0.9f
-               && passedThrough.ampModel == AmpModel::BritishCrunch,
+               && passedThrough.ampModel == AmpModel::BritishCrunch
+               && passedThrough.oversampling == FxOversampling::High,
            "ordinary in-range mixes were altered by sanitisation");
 }
 
@@ -3470,7 +4143,9 @@ int main()
     testHalfbandKernel();
     testExactDryBypass();
     testCircuitGainStages();
+    testDiodeInverseCircuit();
     testPhaseInverterCircuits();
+    testPhaseInverterScalarMath();
     testMeasuredPowerTubes();
     testGainStageAliasing();
 #if ELECTRY_MEASURED_MODERN_CABINET
@@ -3487,6 +4162,8 @@ int main()
     testDelayAndRoom();
     testEngagementIsClickFree();
     testDeterminismAndRateMatrix();
+    testOversamplingSelectionAndTransitions();
+    testIdenticalGainChannelReuse();
     testHostileInput();
     testPrepareSanitisesSampleRate();
     testSetParametersSanitisation();

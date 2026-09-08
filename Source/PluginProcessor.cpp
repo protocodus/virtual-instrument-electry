@@ -288,6 +288,7 @@ ElectryAudioProcessor::ElectryAudioProcessor()
     parameterPointers.tremoloRate    = parameters.getRawParameterValue (tremoloRate);
     parameterPointers.resonanceDepth = parameters.getRawParameterValue (resonanceDepth);
     parameterPointers.ampModel       = parameters.getRawParameterValue (ampModel);
+    parameterPointers.fxOversampling = parameters.getRawParameterValue (fxOversampling);
 
     jassert (parameterPointers.pickupSelector != nullptr
              && parameterPointers.pickupType != nullptr
@@ -302,7 +303,8 @@ ElectryAudioProcessor::ElectryAudioProcessor()
              && parameterPointers.strumSpread != nullptr
              && parameterPointers.tremoloRate != nullptr
              && parameterPointers.resonanceDepth != nullptr
-             && parameterPointers.ampModel != nullptr);
+             && parameterPointers.ampModel != nullptr
+             && parameterPointers.fxOversampling != nullptr);
     keyboardState.addListener (this);
 }
 
@@ -367,7 +369,7 @@ ElectryAudioProcessor::createParameterLayout()
 {
     using namespace electry::parameters;
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> result;
-    result.reserve (28);
+    result.reserve (29);
 
     // Every default below is read from the engine's own struct rather than
     // written out again here. These two lists had drifted apart: the engine's
@@ -482,6 +484,13 @@ ElectryAudioProcessor::createParameterLayout()
         juce::StringArray { "American Clean", "British Crunch",
                             "Modern High-Gain" },
         static_cast<int> (electry::FxParameters {}.ampModel)));
+
+    // Append with a newer AU version hint so existing automation indices keep
+    // their order in both the published list and AU's version/hash ordering.
+    result.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { fxOversampling, 2 }, "FX oversampling",
+        juce::StringArray { "Standard", "High" },
+        static_cast<int> (electry::FxParameters {}.oversampling)));
 
     return { result.begin(), result.end() };
 }
@@ -1605,6 +1614,8 @@ void ElectryAudioProcessor::updateEffectParameters() noexcept
     next.compressor = valueOf (parameterPointers.compressor);
     next.delay = valueOf (parameterPointers.delay);
     next.room = valueOf (parameterPointers.room);
+    next.oversampling = static_cast<electry::FxOversampling> (juce::jlimit (
+        0, 1, juce::roundToInt (valueOf (parameterPointers.fxOversampling))));
     effects.setParameters (next);
 
     // How loud the rig actually is in the room. The chain manages its own
@@ -1818,6 +1829,18 @@ void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInByt
     if (xml != nullptr && xml->hasTagName (parameters.state.getType()))
     {
         auto restoredState = juce::ValueTree::fromXml (*xml);
+        if (! restoredState.getChildWithProperty (
+                  "id", electry::parameters::fxOversampling).isValid())
+        {
+            // Sessions predating the selector always used the full rate.
+            // Preserve their sound while new instances default to Standard.
+            juce::ValueTree legacyOversampling { "PARAM" };
+            legacyOversampling.setProperty (
+                "id", electry::parameters::fxOversampling, nullptr);
+            legacyOversampling.setProperty (
+                "value", static_cast<int> (electry::FxOversampling::High), nullptr);
+            restoredState.appendChild (legacyOversampling, nullptr);
+        }
         if (! restoredState.getChildWithProperty ("id", electry::parameters::ampModel)
                   .isValid())
         {

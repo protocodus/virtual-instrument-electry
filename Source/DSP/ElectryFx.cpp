@@ -5,6 +5,7 @@
 #endif
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -156,7 +157,174 @@ struct PhaseInverterCurrent
     double gridSlope { 0.0 };
 };
 
+// High-accuracy one-dimensional approximations to the two smooth
+// scalar functions only. All circuit equations and Newton safeguards are kept.
+struct PhaseMathValue
+{
+    double value;
+    double slope;
+};
+
+struct PhaseMathCubic
+{
+    double a, b, c, d;
+
+    PhaseMathValue at(double fraction, double inverseStep) const noexcept
+    {
+        return { ((d * fraction + c) * fraction + b) * fraction + a,
+                 ((3.0 * d * fraction + 2.0 * c) * fraction + b)
+                     * inverseStep };
+    }
+};
+
+PhaseMathCubic phaseMathCubic(double left, double right,
+                            double leftSlope, double rightSlope,
+                            double step) noexcept
+{
+    const double b = step * leftSlope;
+    const double end = step * rightSlope;
+    const double change = right - left;
+    return { left, b, 3.0 * change - 2.0 * b - end,
+             -2.0 * change + b + end };
+}
+
+struct PhaseMathTables
+{
+    static constexpr double softMinimum = -40.0;
+    static constexpr double softInverseStep = 32.0;
+    static constexpr std::size_t softCount = 1536;
+    static constexpr std::size_t powerCount = 128;
+    static constexpr int minimumExponent = -64;
+    static constexpr int maximumExponent = 16;
+    std::array<PhaseMathCubic, softCount> soft {};
+    struct Power
+    {
+        std::array<PhaseMathCubic, powerCount> intervals {};
+        std::array<double, maximumExponent - minimumExponent + 1> scale {};
+        std::array<double, maximumExponent - minimumExponent + 1> slopeScale {};
+    };
+    std::array<Power, 2> powers {};
+
+    PhaseMathTables()
+    {
+        const auto exactSoft = [] (double x) {
+            const double e = std::exp(-std::abs(x));
+            return PhaseMathValue { std::max(x, 0.0) + std::log1p(e),
+                x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
+        };
+        for (std::size_t i = 0; i < softCount; ++i)
+        {
+            const double x = softMinimum + static_cast<double>(i) / softInverseStep;
+            const auto left = exactSoft(x);
+            const auto right = exactSoft(x + 1.0 / softInverseStep);
+            soft[i] = phaseMathCubic(left.value, right.value, left.slope,
+                                    right.slope, 1.0 / softInverseStep);
+        }
+        for (std::size_t model = 0; model < powers.size(); ++model)
+        {
+            const double exponent = model == 1 ? ecc83PhaseInverter.exponent
+                                              : ecc81PhaseInverter.exponent;
+            auto& power = powers[model];
+            for (std::size_t i = 0; i < powerCount; ++i)
+            {
+                const double x = 1.0 + static_cast<double>(i) / powerCount;
+                const double y = x + 1.0 / powerCount;
+                power.intervals[i] = phaseMathCubic(
+                    std::pow(x, exponent), std::pow(y, exponent),
+                    exponent * std::pow(x, exponent - 1.0),
+                    exponent * std::pow(y, exponent - 1.0), 1.0 / powerCount);
+            }
+            for (int e = minimumExponent; e <= maximumExponent; ++e)
+            {
+                power.scale[static_cast<std::size_t>(e - minimumExponent)] =
+                    std::exp2(e * exponent);
+                power.slopeScale[static_cast<std::size_t>(e - minimumExponent)] =
+                    std::exp2(e * (exponent - 1.0));
+            }
+        }
+    }
+};
+
+const PhaseMathTables& phaseMathTables() noexcept
+{
+    static const PhaseMathTables tables;
+    return tables;
+}
+
+PhaseMathValue phaseSoftplus(double x) noexcept
+{
+    const double position = (x - PhaseMathTables::softMinimum)
+                            * PhaseMathTables::softInverseStep;
+    if (!(position >= 0.0 && position < PhaseMathTables::softCount))
+    {
+        const double e = std::exp(-std::abs(x));
+        return { std::max(x, 0.0) + std::log1p(e),
+                 x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
+    }
+    const auto index = static_cast<std::size_t>(position);
+    return phaseMathTables().soft[index].at(position - static_cast<double>(index),
+                                           PhaseMathTables::softInverseStep);
+}
+
+PhaseMathValue phasePower(double x, AmpModel model) noexcept
+{
+    const auto bits = std::bit_cast<std::uint64_t>(x);
+    const int exponent = static_cast<int>((bits >> 52) & 0x7ff) - 1023;
+    if (!(x > 0.0) || exponent < PhaseMathTables::minimumExponent
+        || exponent > PhaseMathTables::maximumExponent)
+    {
+        const double p = phaseInverterParameters(model).exponent;
+        const double value = std::pow(x, p);
+        return { value, p * value / x };
+    }
+    const double mantissa = std::bit_cast<double>(
+        (bits & 0x000fffffffffffffull) | 0x3ff0000000000000ull);
+    const double position = (mantissa - 1.0) * PhaseMathTables::powerCount;
+    const auto index = static_cast<std::size_t>(position);
+    const auto& power = phaseMathTables().powers[model == AmpModel::BritishCrunch ? 1 : 0];
+    const auto point = power.intervals[index].at(position - static_cast<double>(index),
+                                                PhaseMathTables::powerCount);
+    const auto scaleIndex = static_cast<std::size_t>(exponent - PhaseMathTables::minimumExponent);
+    return { point.value * power.scale[scaleIndex],
+             point.slope * power.slopeScale[scaleIndex] };
+}
+
 PhaseInverterCurrent phaseInverterCurrentAndSlopes(
+    AmpModel model, double plateToCathodeVoltage,
+    double gridToCathodeVoltage) noexcept
+{
+    const auto& tube = phaseInverterParameters(model);
+    const double plate = std::max(plateToCathodeVoltage, 0.0);
+    // This checkpoint remains strictly non-grid-conducting. TubeLib's generic
+    // 2 kOhm/diode grid branch needs the two output coupling-cap states to be
+    // meaningful, so no TriodeK curve is extrapolated past Vgk = 0 here.
+    const double grid = std::min(gridToCathodeVoltage, 0.0);
+    const double root = std::sqrt(tube.kneeVoltage + plate * plate);
+    const double drive = tube.kneeSoftness
+        * (1.0 / tube.mu + grid / root);
+    const auto soft = phaseSoftplus(drive);
+    const double softened = soft.value;
+    const double e1 = plate / tube.kneeSoftness * softened;
+    if (e1 <= 1.0e-18 || plate <= 0.0)
+        return {};
+
+    const auto power = phasePower(e1, model);
+    const double current = power.value / tube.plateScale;
+    const double currentPerE = power.slope / tube.plateScale;
+    const double softSlope = soft.slope;
+    const double drivePlate = -tube.kneeSoftness * grid * plate
+        / (root * root * root);
+    const double ePlate = softened / tube.kneeSoftness
+        + plate / tube.kneeSoftness * softSlope * drivePlate;
+    const double eGrid = gridToCathodeVoltage < 0.0
+        ? plate * softSlope / root : 0.0;
+    return { current,
+             std::max(currentPerE * ePlate, 0.0),
+             std::max(currentPerE * eGrid, 0.0) };
+}
+
+// Keep direct curve inspection and idle calibration on reference math.
+PhaseInverterCurrent exactPhaseInverterCurrentAndSlopes(
     AmpModel model, double plateToCathodeVoltage,
     double gridToCathodeVoltage) noexcept
 {
@@ -198,7 +366,7 @@ double measuredPhaseInverterPlateCurrent(
     AmpModel model, double plateToCathodeVoltage,
     double gridToCathodeVoltage) noexcept
 {
-    return phaseInverterCurrentAndSlopes(
+    return exactPhaseInverterCurrentAndSlopes(
         model, plateToCathodeVoltage, gridToCathodeVoltage).plate;
 }
 
@@ -1638,6 +1806,25 @@ void ElectryFx::GainChannel::reset() noexcept
     resetAmp();
 }
 
+void ElectryFx::GainChannel::copyStateFrom(const GainChannel& source) noexcept
+{
+    interpolators = source.interpolators;
+    decimators = source.decimators;
+    pedalHighpass = source.pedalHighpass;
+    pedalVoice = source.pedalVoice;
+    pedalTilt = source.pedalTilt;
+    diodeVoltage = source.diodeVoltage;
+    diodeDerivative = source.diodeDerivative;
+    pedalWasActive = source.pedalWasActive;
+    amplifiers = source.amplifiers;
+    ampWasActive = source.ampWasActive;
+#if ELECTRY_MEASURED_MODERN_CABINET
+    // Both fixed-size convolver histories are allocated in prepare(). Copy
+    // their contents, preserving separate ownership and doing no allocation.
+    *modernCabinet = *source.modernCabinet;
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
@@ -1648,24 +1835,19 @@ void ElectryFx::prepare(double sampleRate)
         sampleRate = 48000.0;
     sampleRate_ = std::clamp(sampleRate, minimumSampleRate, maximumSampleRate);
 
-    // Keep at least 384 kHz of nonlinear bandwidth from a 48 kHz host upward.
-    // The maximum 8x path leaves 44.1 kHz at 352.8 kHz; lower diagnostic rates
-    // stay bounded by that same ceiling. Stages therefore retire only at the
-    // real 96, 192 and 384 kHz boundaries, after the lower stage can still
-    // meet the bandwidth floor.
-    oversamplingStages_ = 0;
-    while (oversamplingStages_ < maximumOversamplingStages
-           && sampleRate_ * static_cast<double>(1 << oversamplingStages_)
-                  < 384000.0)
-        ++oversamplingStages_;
-    oversampledRate_ = static_cast<float>(
-        sampleRate_ * static_cast<double>(1 << oversamplingStages_));
+    // High retains the original adaptive bandwidth; Standard retires its
+    // innermost 2x stage. A host already running at 384 kHz needs neither.
+    int highStages = 0;
+    while (highStages < maximumOversamplingStages
+           && sampleRate_ * static_cast<double>(1 << highStages) < 384000.0)
+        ++highStages;
 
     // The measured-tube calibrations and tables are generated once from the
     // exact circuit/load-line solves below. Prime every function static during
     // prepare rather than allowing first use to initialise it on the audio
     // thread.
     static_cast<void>(triodeStageLookup(0.0));
+    static_cast<void>(phaseMathTables()); // no first-use table construction in process()
     static_cast<void>(phaseInverterDirect(
         AmpModel::AmericanClean, 0.0));
     static_cast<void>(phaseInverterDirect(
@@ -1701,119 +1883,9 @@ void ElectryFx::prepare(double sampleRate)
         -twoPi * std::min(4200.0f, 0.40f * hostRate) / hostRate);
     delayFeedbackHighpass_ = 1.0f - std::exp(-twoPi * 150.0f / hostRate);
 
-    interstageCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
-        -twoPi * std::min(7600.0f, 0.40f * oversampledRate_) / oversampledRate_);
-    interstageCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
-        -twoPi * std::min(5600.0f, 0.40f * oversampledRate_) / oversampledRate_);
-    // Keep the original modern circuit's exact coefficient expression.
-    interstageCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] = std::exp(
-        -twoPi * std::min(6800.0f, 0.40f * oversampledRate_) / oversampledRate_);
-    // The driven phase-inverter grids are coupled through the documented
-    // 1 nF / 22 nF capacitors into their 1 MOhm returns. The feedback return
-    // enters the other grid/tail equivalent after this signal capacitor, so
-    // it is deliberately not high-passed with the preamplifier output.
-    phaseInverterInputCoefficient_[ampModelIndex(AmpModel::AmericanClean)] =
-        std::exp(-1.0f / static_cast<float>(
-            ecc81PhaseInverter.inputCapacitance
-            * ecc81PhaseInverter.inputGridResistance
-            * oversampledRate_));
-    phaseInverterInputCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] =
-        std::exp(-1.0f / static_cast<float>(
-            ecc83PhaseInverter.inputCapacitance
-            * ecc83PhaseInverter.inputGridResistance
-            * oversampledRate_));
-    phaseInverterInputCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] =
-        0.0f;
-    // 45 ms on the grid-bias follower: long enough that a held chord shifts the
-    // operating point, short enough to recover between chugs.
-    biasCoefficient_ = 1.0f - std::exp(-1.0f / (0.045f * oversampledRate_));
-    // The reservoir discharges far faster than it recharges, which is the
-    // whole character of sag: the note blooms, ducks, and comes back.
-    sagAttack_[ampModelIndex(AmpModel::AmericanClean)] =
-        1.0f - std::exp(-1.0f / (0.055f * oversampledRate_));
-    sagRelease_[ampModelIndex(AmpModel::AmericanClean)] =
-        1.0f - std::exp(-1.0f / (0.550f * oversampledRate_));
-    sagAttack_[ampModelIndex(AmpModel::BritishCrunch)] =
-        1.0f - std::exp(-1.0f / (0.080f * oversampledRate_));
-    sagRelease_[ampModelIndex(AmpModel::BritishCrunch)] =
-        1.0f - std::exp(-1.0f / (0.300f * oversampledRate_));
-    sagAttack_[ampModelIndex(AmpModel::ModernHighGain)] =
-        1.0f - std::exp(-1.0f / (0.070f * oversampledRate_));
-    sagRelease_[ampModelIndex(AmpModel::ModernHighGain)] =
-        1.0f - std::exp(-1.0f / (0.400f * oversampledRate_));
-
-    fluxCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
-        -twoPi * 35.0f / oversampledRate_);
-    fluxCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
-        -twoPi * 55.0f / oversampledRate_);
-    fluxCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] =
-        transformerFluxCoefficient(oversampledRate_);
-
-    // The feedback return is bandwidth limited by the output transformer and
-    // phase compensation. Stronger, wider American feedback holds the clean
-    // power stage taut; the British path releases it sooner for upper-mid bite.
-    feedbackCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
-        -twoPi * std::min(6200.0f, 0.40f * oversampledRate_)
-        / oversampledRate_);
-    feedbackCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
-        -twoPi * std::min(3900.0f, 0.40f * oversampledRate_)
-        / oversampledRate_);
-    feedbackCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] = 0.0f;
-
-    for (auto& channel : gain_)
-    {
-        // Beta 7.5 over six odd taps rejects the images by better than 70 dB
-        // while keeping the full six-filter 8x chain at 20.125 host samples of
-        // group delay. A wider 8.6 window measured only 55.45 dB at the
-        // 0.35-fs stopband edge because this intentionally short kernel spent
-        // too much of its length on transition width.
-        for (auto& stage : channel.interpolators)
-            stage.design();
-        for (auto& stage : channel.decimators)
-            stage.design();
-    }
-
-    designFilters();
-
-#if ELECTRY_MEASURED_MODERN_CABINET
-    // The capture file is peak-normalised, so its raw gain has no physical
-    // relationship to the circuit feeding it. Match the shipping cabinet at
-    // 1 kHz before changing only measured phase and spectral shape; this also
-    // keeps the downstream compressor from turning a cabinet comparison into
-    // a level comparison.
-    const auto& modern = gain_[0].amplifiers[
-        ampModelIndex(AmpModel::ModernHighGain)];
-    const double omega = 2.0 * pi * 1000.0
-                       / static_cast<double>(oversampledRate_);
-    const double cosine = std::cos(omega);
-    const double sine = std::sin(omega);
-    const double cosine2 = std::cos(2.0 * omega);
-    const double sine2 = std::sin(2.0 * omega);
-    double referenceMagnitude = 1.0;
-    for (const auto& section : modern.cabinet)
-    {
-        const double numeratorReal = section.b0 + section.b1 * cosine
-                                   + section.b2 * cosine2;
-        const double numeratorImaginary = -section.b1 * sine
-                                        - section.b2 * sine2;
-        const double denominatorReal = 1.0 + section.a1 * cosine
-                                     + section.a2 * cosine2;
-        const double denominatorImaginary = -section.a1 * sine
-                                          - section.a2 * sine2;
-        referenceMagnitude *= std::hypot(numeratorReal,
-                                         numeratorImaginary)
-                            / std::max(std::hypot(denominatorReal,
-                                                  denominatorImaginary),
-                                       1.0e-18);
-    }
-    if (modernCabinetKernel_ == nullptr)
-        modernCabinetKernel_ = std::make_unique<CabinetKernel>();
-    for (auto& channel : gain_)
-        if (channel.modernCabinet == nullptr)
-            channel.modernCabinet = std::make_unique<CabinetConvolver>();
-    modernCabinetKernel_->prepare(
-        oversampledRate_, static_cast<float>(referenceMagnitude));
-#endif
+    prepareGainBank(gainBanks_[0], std::max(highStages - 1, 0));
+    prepareGainBank(gainBanks_[1], highStages);
+    oversamplingFadeStep_ = 1.0f / static_cast<float>(0.020 * sampleRate_);
 
     // 360 ms of lead delay plus the right channel's spread, with headroom.
     const auto delaySize = static_cast<std::size_t>(sampleRate_ * 0.60) + 4u;
@@ -1861,6 +1933,136 @@ void ElectryFx::prepare(double sampleRate)
     reset();
 }
 
+void ElectryFx::prepareGainBank(GainBank& bank, int stages)
+{
+    bank.oversamplingStages_ = stages;
+    bank.oversampledRate_ = static_cast<float>(
+        sampleRate_ * static_cast<double>(1 << stages));
+    prepareDiodeInverse(bank);
+
+    bank.interstageCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
+        -twoPi * std::min(7600.0f, 0.40f * bank.oversampledRate_) / bank.oversampledRate_);
+    bank.interstageCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
+        -twoPi * std::min(5600.0f, 0.40f * bank.oversampledRate_) / bank.oversampledRate_);
+    // Keep the original modern circuit's exact coefficient expression.
+    bank.interstageCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] = std::exp(
+        -twoPi * std::min(6800.0f, 0.40f * bank.oversampledRate_) / bank.oversampledRate_);
+    // The driven phase-inverter grids are coupled through the documented
+    // 1 nF / 22 nF capacitors into their 1 MOhm returns. The feedback return
+    // enters the other grid/tail equivalent after this signal capacitor, so
+    // it is deliberately not high-passed with the preamplifier output.
+    bank.phaseInverterInputCoefficient_[ampModelIndex(AmpModel::AmericanClean)] =
+        std::exp(-1.0f / static_cast<float>(
+            ecc81PhaseInverter.inputCapacitance
+            * ecc81PhaseInverter.inputGridResistance
+            * bank.oversampledRate_));
+    bank.phaseInverterInputCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] =
+        std::exp(-1.0f / static_cast<float>(
+            ecc83PhaseInverter.inputCapacitance
+            * ecc83PhaseInverter.inputGridResistance
+            * bank.oversampledRate_));
+    bank.phaseInverterInputCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] =
+        0.0f;
+    // 45 ms on the grid-bias follower: long enough that a held chord shifts the
+    // operating point, short enough to recover between chugs.
+    bank.biasCoefficient_ = 1.0f - std::exp(-1.0f / (0.045f * bank.oversampledRate_));
+    // The reservoir discharges far faster than it recharges, which is the
+    // whole character of sag: the note blooms, ducks, and comes back.
+    bank.sagAttack_[ampModelIndex(AmpModel::AmericanClean)] =
+        1.0f - std::exp(-1.0f / (0.055f * bank.oversampledRate_));
+    bank.sagRelease_[ampModelIndex(AmpModel::AmericanClean)] =
+        1.0f - std::exp(-1.0f / (0.550f * bank.oversampledRate_));
+    bank.sagAttack_[ampModelIndex(AmpModel::BritishCrunch)] =
+        1.0f - std::exp(-1.0f / (0.080f * bank.oversampledRate_));
+    bank.sagRelease_[ampModelIndex(AmpModel::BritishCrunch)] =
+        1.0f - std::exp(-1.0f / (0.300f * bank.oversampledRate_));
+    bank.sagAttack_[ampModelIndex(AmpModel::ModernHighGain)] =
+        1.0f - std::exp(-1.0f / (0.070f * bank.oversampledRate_));
+    bank.sagRelease_[ampModelIndex(AmpModel::ModernHighGain)] =
+        1.0f - std::exp(-1.0f / (0.400f * bank.oversampledRate_));
+
+    bank.fluxCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
+        -twoPi * 35.0f / bank.oversampledRate_);
+    bank.fluxCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
+        -twoPi * 55.0f / bank.oversampledRate_);
+    bank.fluxCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] =
+        transformerFluxCoefficient(bank.oversampledRate_);
+
+    // The feedback return is bandwidth limited by the output transformer and
+    // phase compensation. Stronger, wider American feedback holds the clean
+    // power stage taut; the British path releases it sooner for upper-mid bite.
+    bank.feedbackCoefficient_[ampModelIndex(AmpModel::AmericanClean)] = std::exp(
+        -twoPi * std::min(6200.0f, 0.40f * bank.oversampledRate_)
+        / bank.oversampledRate_);
+    bank.feedbackCoefficient_[ampModelIndex(AmpModel::BritishCrunch)] = std::exp(
+        -twoPi * std::min(3900.0f, 0.40f * bank.oversampledRate_)
+        / bank.oversampledRate_);
+    bank.feedbackCoefficient_[ampModelIndex(AmpModel::ModernHighGain)] = 0.0f;
+
+    for (auto& channel : bank.gain_)
+    {
+        // Beta 7.5 over six odd taps rejects the images by better than 70 dB
+        // while keeping the full six-filter 8x chain at 20.125 host samples of
+        // group delay. A wider 8.6 window measured only 55.45 dB at the
+        // 0.35-fs stopband edge because this intentionally short kernel spent
+        // too much of its length on transition width.
+        for (auto& stage : channel.interpolators)
+            stage.design();
+        for (auto& stage : channel.decimators)
+            stage.design();
+    }
+
+    designFilters(bank);
+
+#if ELECTRY_MEASURED_MODERN_CABINET
+    // The capture file is peak-normalised, so its raw gain has no physical
+    // relationship to the circuit feeding it. Match the shipping cabinet at
+    // 1 kHz before changing only measured phase and spectral shape; this also
+    // keeps the downstream compressor from turning a cabinet comparison into
+    // a level comparison.
+    const auto& modern = bank.gain_[0].amplifiers[
+        ampModelIndex(AmpModel::ModernHighGain)];
+    const double omega = 2.0 * pi * 1000.0
+                       / static_cast<double>(bank.oversampledRate_);
+    const double cosine = std::cos(omega);
+    const double sine = std::sin(omega);
+    const double cosine2 = std::cos(2.0 * omega);
+    const double sine2 = std::sin(2.0 * omega);
+    double referenceMagnitude = 1.0;
+    for (const auto& section : modern.cabinet)
+    {
+        const double numeratorReal = section.b0 + section.b1 * cosine
+                                   + section.b2 * cosine2;
+        const double numeratorImaginary = -section.b1 * sine
+                                        - section.b2 * sine2;
+        const double denominatorReal = 1.0 + section.a1 * cosine
+                                     + section.a2 * cosine2;
+        const double denominatorImaginary = -section.a1 * sine
+                                          - section.a2 * sine2;
+        referenceMagnitude *= std::hypot(numeratorReal,
+                                         numeratorImaginary)
+                            / std::max(std::hypot(denominatorReal,
+                                                  denominatorImaginary),
+                                       1.0e-18);
+    }
+    if (bank.modernCabinetKernel_ == nullptr)
+        bank.modernCabinetKernel_ = std::make_unique<CabinetKernel>();
+    for (auto& channel : bank.gain_)
+        if (channel.modernCabinet == nullptr)
+            channel.modernCabinet = std::make_unique<CabinetConvolver>();
+    bank.modernCabinetKernel_->prepare(
+        bank.oversampledRate_, static_cast<float>(referenceMagnitude));
+#endif
+
+}
+
+int ElectryFx::oversamplingFactor() const noexcept
+{
+    const auto index = targetParameters_.oversampling == FxOversampling::High
+        ? 1u : 0u;
+    return 1 << gainBanks_[index].oversamplingStages_;
+}
+
 float ElectryFx::gainStageLatencySamples() const noexcept
 {
     if (! isGainStageEngaged())
@@ -1871,8 +2073,9 @@ float ElectryFx::gainStageLatencySamples() const noexcept
     // input samples; both are referred back to the host clock here. The
     // interpolator at index n reads at 2^n times the host rate and the
     // decimator at the same index reads at twice that.
+    const auto& bank = gainBanks_[oversamplingHighMix_ > 0.0f ? 1u : 0u];
     float latency = 0.0f;
-    for (int stage = 0; stage < oversamplingStages_; ++stage)
+    for (int stage = 0; stage < bank.oversamplingStages_; ++stage)
     {
         const auto interpolatorRate = static_cast<float>(1 << stage);
         latency += static_cast<float>(HalfbandStage::oddTapCount)
@@ -1883,10 +2086,10 @@ float ElectryFx::gainStageLatencySamples() const noexcept
     return latency;
 }
 
-void ElectryFx::designFilters() noexcept
+void ElectryFx::designFilters(GainBank& bank) noexcept
 {
-    const float rate = oversampledRate_;
-    for (auto& channel : gain_)
+    const float rate = bank.oversampledRate_;
+    for (auto& channel : bank.gain_)
     {
         // Pedal: a tight input coupling network, a mid-focused voice and a soft
         // top. A distortion pedal that passes the whole low end of a Drop-E
@@ -1958,10 +2161,21 @@ void ElectryFx::designFilters() noexcept
     }
 }
 
+void ElectryFx::resetGainBank(GainBank& bank) noexcept
+{
+    for (auto& channel : bank.gain_)
+        channel.reset();
+    bank.gainChannelsEqual_ = true;
+    bank.rightGainStateStale_ = false;
+}
+
 void ElectryFx::reset() noexcept
 {
-    for (auto& channel : gain_)
-        channel.reset();
+    for (auto& bank : gainBanks_)
+        resetGainBank(bank);
+    oversamplingHighMix_ = targetParameters_.oversampling == FxOversampling::High
+        && gainBanks_[0].oversamplingStages_ != gainBanks_[1].oversamplingStages_
+        ? 1.0f : 0.0f;
     for (auto& line : delayLines_)
         std::fill(line.begin(), line.end(), 0.0f);
     for (auto& damping : delayDamping_)
@@ -1996,6 +2210,8 @@ void ElectryFx::setParameters(const FxParameters& parameters) noexcept
     targetParameters_.compressor = sanitiseMix(parameters.compressor);
     targetParameters_.delay = sanitiseMix(parameters.delay);
     targetParameters_.room = sanitiseMix(parameters.room);
+    targetParameters_.oversampling = parameters.oversampling == FxOversampling::High
+        ? FxOversampling::High : FxOversampling::Standard;
 }
 
 float ElectryFx::transformerFluxCoefficient(float sampleRate) noexcept
@@ -2021,6 +2237,81 @@ float ElectryFx::transformerCore(OnePole& flux, float input,
     const float carried = held
         / std::sqrt(1.0f + held * held * inverseLimitSquared);
     return input - (held - carried);
+}
+
+void ElectryFx::prepareDiodeInverse(GainBank& bank)
+{
+    // Same trapezoidal RC equation as diodePairStep. The only nonlinear
+    // unknown depends on a scalar right-hand side, so invert it at prepare.
+    const double step = 1.0 / static_cast<double>(bank.oversampledRate_);
+    const double a = 1.0 + 0.5 * step / (diodeResistance * diodeCapacitance);
+    const double b = step * diodeSaturationCurrent / diodeCapacitance;
+    bank.diodeHalfStep_ = 0.5 * step;
+    bank.diodeInputCoefficient_ = bank.diodeHalfStep_
+        / (diodeResistance * diodeCapacitance);
+    bank.diodeDerivativeCoefficient_ = 2.0 / step;
+    // Margin beyond the bounded +/-12 V input; extreme/corrupt histories use
+    // the unchanged direct solver. Odd symmetry halves table storage.
+    bank.diodeInverseMaximum_ = 2.0 + 12.0 * step
+        / (diodeResistance * diodeCapacitance);
+    const double spacing = bank.diodeInverseMaximum_ / diodeInverseSegments;
+    bank.diodeInverseScale_ = 1.0 / spacing;
+    bank.diodeInverse_.resize(diodeInverseSegments + 1);
+    for (std::size_t i = 0; i <= diodeInverseSegments; ++i)
+    {
+        const double rhs = static_cast<double>(i) * spacing;
+        double v = std::min(rhs / a,
+            diodeThermalVoltage * std::asinh(rhs / b));
+        for (int iteration = 0; iteration < 16; ++iteration)
+        {
+            const double residual = a * v + b * std::sinh(
+                v / diodeThermalVoltage) - rhs;
+            const double slope = a + b / diodeThermalVoltage * std::cosh(
+                v / diodeThermalVoltage);
+            const double correction = residual / slope;
+            v -= correction;
+            if (std::abs(correction) < 1.0e-16)
+                break;
+        }
+        const double slope = a + b / diodeThermalVoltage * std::cosh(
+            v / diodeThermalVoltage);
+        bank.diodeInverse_[i] = { v, spacing / slope };
+    }
+}
+
+float ElectryFx::diodePairLookup(const GainBank& bank, double inputVolts, double& outputVolts,
+                                double& previousDerivative) const noexcept
+{
+    inputVolts = std::isfinite(inputVolts)
+        ? std::clamp(inputVolts, -12.0, 12.0) : 0.0;
+    if (! std::isfinite(outputVolts)
+        || ! std::isfinite(previousDerivative))
+    {
+        outputVolts = 0.0;
+        previousDerivative = 0.0;
+    }
+    const double rhs = outputVolts + bank.diodeHalfStep_ * previousDerivative
+        + bank.diodeInputCoefficient_ * inputVolts;
+    const double magnitude = std::abs(rhs);
+    if (magnitude >= bank.diodeInverseMaximum_)
+        return diodePairStep(inputVolts, bank.oversampledRate_, outputVolts,
+                             previousDerivative);
+    const double coordinate = magnitude * bank.diodeInverseScale_;
+    const auto lower = std::min(static_cast<std::size_t>(coordinate),
+                                diodeInverseSegments - 1);
+    const double t = coordinate - static_cast<double>(lower);
+    const auto& lo = bank.diodeInverse_[lower];
+    const auto& hi = bank.diodeInverse_[lower + 1];
+    const double delta = hi.voltage - lo.voltage;
+    const double v = std::copysign(lo.voltage + t * (lo.slope + t * (
+        3.0 * delta - 2.0 * lo.slope - hi.slope
+        + t * (lo.slope + hi.slope - 2.0 * delta))), rhs);
+    // The solved trapezoidal identity supplies the capacitor derivative;
+    // there is no memoryless approximation and no remaining transcendental.
+    previousDerivative = (v - outputVolts) * bank.diodeDerivativeCoefficient_
+        - previousDerivative;
+    outputVolts = v;
+    return static_cast<float>(v);
 }
 
 float ElectryFx::diodePairStep(double inputVolts, double sampleRate,
@@ -2248,6 +2539,14 @@ float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
     const float fraction = static_cast<float>(
         position - static_cast<double>(lower));
     return lerp(transfer[lower], transfer[lower + 1], fraction);
+}
+
+std::array<double, 4> ElectryFx::phaseInverterMathValues(
+    AmpModel model, double softplusInput, double powerInput) noexcept
+{
+    const auto soft = phaseSoftplus(softplusInput);
+    const auto power = phasePower(powerInput, model);
+    return { soft.value, soft.slope, power.value, power.slope };
 }
 
 double ElectryFx::phaseInverterPlateCurrent(
@@ -2792,18 +3091,19 @@ void ElectryFx::updateDriveConstants() noexcept
 // Gain stages
 // ---------------------------------------------------------------------------
 
-float ElectryFx::pedalStage(GainChannel& channel, float input) noexcept
+float ElectryFx::pedalStage(GainBank& bank, GainChannel& channel,
+                            float input) noexcept
 {
     float sample = channel.pedalHighpass.process(input);
     sample = channel.pedalVoice.process(sample);
-    sample = diodePairStep(sample * pedalDrive_, oversampledRate_,
+    sample = diodePairLookup(bank, sample * pedalDrive_,
                            channel.diodeVoltage,
                            channel.diodeDerivative);
     sample = channel.pedalTilt.process(sample);
     return sample * pedalMakeup_;
 }
 
-float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
+float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
                           float input) noexcept
 {
     const auto index = ampModelIndex(model);
@@ -2816,13 +3116,13 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
         float sample = channel.inputHighpass.process(input);
         sample = channel.inputVoice.process(sample);
 
-        channel.bias += biasCoefficient_ * (std::abs(sample) - channel.bias);
+        channel.bias += bank.biasCoefficient_ * (std::abs(sample) - channel.bias);
         const float bias = -0.22f - 1.10f * channel.bias;
         const float biasTriode = triodeStageLookup(bias);
 
         float stage = triodeStageLookup(
             sample * ampDriveFirst_[index] * ampGridVolts + bias) - biasTriode;
-        stage = channel.interstage.process(stage, interstageCoefficient_[index]);
+        stage = channel.interstage.process(stage, bank.interstageCoefficient_[index]);
 
         const float droop = 1.0f
             - 0.30f * channel.sag / (0.30f + channel.sag);
@@ -2832,11 +3132,11 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
                - biasTriode);
         const float rectified = stage < 0.0f ? -stage : stage;
         channel.sag += (rectified > channel.sag
-                            ? sagAttack_[index] : sagRelease_[index])
+                            ? bank.sagAttack_[index] : bank.sagRelease_[index])
                      * (rectified - channel.sag);
 
         stage = channel.transformerHighpass.process(stage);
-        stage = transformerCore(channel.flux, stage, fluxCoefficient_[index]);
+        stage = transformerCore(channel.flux, stage, bank.fluxCoefficient_[index]);
 
 #if ! ELECTRY_MEASURED_MODERN_CABINET
         for (auto& section : channel.cabinet)
@@ -2853,7 +3153,7 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     // dense table generated from the measured 12AX7 plate-load circuit solve;
     // subtracting the bias point keeps the stage centred instead of pumping DC
     // into the cabinet.
-    channel.bias += biasCoefficient_ * (std::abs(sample) - channel.bias);
+    channel.bias += bank.biasCoefficient_ * (std::abs(sample) - channel.bias);
     const float bias = (american ? -0.12f : -0.18f)
         - (american ? 0.40f : 0.78f) * channel.bias;
     const float biasTriode = triodeStageLookup(bias);
@@ -2863,7 +3163,7 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     // Miller capacitance between the stages: each one is progressively darker,
     // which is why a cascaded amplifier saturates smoothly instead of
     // accumulating fizz.
-    stage = channel.interstage.process(stage, interstageCoefficient_[index]);
+    stage = channel.interstage.process(stage, bank.interstageCoefficient_[index]);
 
     // The passive RC stack sits where it does in the physical signal path:
     // after the preamplifier and before the driven output pair. Its insertion
@@ -2881,7 +3181,7 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     const float phaseDrive = stage * ampDriveSecond_[index];
     const float coupledDrive = phaseDrive
         - channel.phaseInverterInput.process(
-            phaseDrive, phaseInverterInputCoefficient_[index]);
+            phaseDrive, bank.phaseInverterInputCoefficient_[index]);
 
     // Output-derived negative feedback is returned around the tube pair and
     // phase splitter. Its one-pole bandwidth represents the transformer/loop
@@ -2892,7 +3192,7 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     const float inverterInput = coupledDrive
         - feedbackAmount * channel.negativeFeedback.state;
     const auto phaseInverter = phaseInverterCoupledStep(
-        channel, model, inverterInput, oversampledRate_);
+        channel, model, inverterInput, bank.oversampledRate_);
     const double gridScale = std::abs(
         phaseInverterParameters(model).powerGridBias);
     const float powerCommon = static_cast<float>(
@@ -2922,7 +3222,7 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     stage = static_cast<float>(powerTube.output);
     const float supplyDemand = static_cast<float>(powerTube.supplyDemand);
     channel.sag += (supplyDemand > channel.sag
-                        ? sagAttack_[index] : sagRelease_[index])
+                        ? bank.sagAttack_[index] : bank.sagRelease_[index])
                  * (supplyDemand - channel.sag);
 
     // Different primary-inductance corners and drive levels make the two
@@ -2931,19 +3231,19 @@ float ElectryFx::ampStage(AmpChannel& channel, AmpModel model,
     const float transformerDrive = american ? 0.72f : 1.08f;
     stage = channel.transformerHighpass.process(stage);
     stage = transformerCore(channel.flux, stage * transformerDrive,
-                            fluxCoefficient_[index]) / transformerDrive;
+                            bank.fluxCoefficient_[index]) / transformerDrive;
     // The loop represents a transformer-secondary feedback tap before the
     // parametric speaker/cabinet voice. This filtered value becomes the next
     // oversampled frame's causal return around the output pair; it is not a
     // solved transformer/phase-inverter feedback network.
-    channel.negativeFeedback.process(stage, feedbackCoefficient_[index]);
+    channel.negativeFeedback.process(stage, bank.feedbackCoefficient_[index]);
 
     for (auto& section : channel.cabinet)
         stage = section.process(stage);
     return stage * ampMakeup_[index];
 }
 
-void ElectryFx::updateAmpModelSelection() noexcept
+void ElectryFx::updateAmpModelSelection(GainBank& bank) noexcept
 {
     // Model weights change only at the host sample clock. Select once for
     // both channels and every oversampled frame, retiring a faded-out circuit
@@ -2959,7 +3259,7 @@ void ElectryFx::updateAmpModelSelection() noexcept
         }
         else
         {
-            for (auto& channel : gain_)
+            for (auto& channel : bank.gain_)
             {
                 if (! channel.amplifiers[index].wasActive)
                     continue;
@@ -2974,7 +3274,8 @@ void ElectryFx::updateAmpModelSelection() noexcept
     soleAmpModel_ = activeCount == 1 ? soleModel : ampModelWeights_.size();
 }
 
-float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
+float ElectryFx::blendedAmpStage(GainBank& bank, GainChannel& channel,
+                                 float input) noexcept
 {
     // The steady-state fast path also preserves each model's arithmetic: no
     // selector multiply, sum or normalisation is put around its result.
@@ -2983,11 +3284,11 @@ float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
         auto& amplifier = channel.amplifiers[soleAmpModel_];
         amplifier.wasActive = true;
         float output = ampStage(
-            amplifier, static_cast<AmpModel>(soleAmpModel_), input);
+            bank, amplifier, static_cast<AmpModel>(soleAmpModel_), input);
 #if ELECTRY_MEASURED_MODERN_CABINET
         if (soleAmpModel_ == ampModelIndex(AmpModel::ModernHighGain))
             output = channel.modernCabinet->process(
-                output, *modernCabinetKernel_);
+                output, *bank.modernCabinetKernel_);
 #endif
         return output;
     }
@@ -3002,11 +3303,11 @@ float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
         auto& amplifier = channel.amplifiers[index];
         amplifier.wasActive = true;
         float modelOutput = ampStage(
-            amplifier, static_cast<AmpModel>(index), input);
+            bank, amplifier, static_cast<AmpModel>(index), input);
 #if ELECTRY_MEASURED_MODERN_CABINET
         if (index == ampModelIndex(AmpModel::ModernHighGain))
             modelOutput = channel.modernCabinet->process(
-                modelOutput, *modernCabinetKernel_);
+                modelOutput, *bank.modernCabinetKernel_);
 #endif
         output += weight * modelOutput;
         weightSum += weight;
@@ -3014,7 +3315,8 @@ float ElectryFx::blendedAmpStage(GainChannel& channel, float input) noexcept
     return weightSum > 0.0f ? output / weightSum : input;
 }
 
-float ElectryFx::renderGainFrame(GainChannel& channel, float input) noexcept
+float ElectryFx::renderGainFrame(GainBank& bank, GainChannel& channel,
+                                 float input) noexcept
 {
     // An exactly dry stage contributes no signal and its private state cannot
     // affect the other module. Reset once at the zero crossing so re-entry is
@@ -3024,24 +3326,25 @@ float ElectryFx::renderGainFrame(GainChannel& channel, float input) noexcept
     if (pedalWet_ > 0.0f)
     {
         channel.pedalWasActive = true;
-        result = lerp(result, pedalStage(channel, result), pedalWet_);
+        result = lerp(result, pedalStage(bank, channel, result), pedalWet_);
     }
     else if (channel.pedalWasActive)
         channel.resetPedal();
     if (ampWet_ > 0.0f)
     {
         channel.ampWasActive = true;
-        result = lerp(result, blendedAmpStage(channel, result), ampWet_);
+        result = lerp(result, blendedAmpStage(bank, channel, result), ampWet_);
     }
     else if (channel.ampWasActive)
         channel.resetAmp();
     return result;
 }
 
-float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
+float ElectryFx::renderGainStage(GainBank& bank, GainChannel& channel,
+                                 float input) noexcept
 {
-    if (oversamplingStages_ <= 0)
-        return renderGainFrame(channel, input);
+    if (bank.oversamplingStages_ <= 0)
+        return renderGainFrame(bank, channel, input);
 
     // Every stage is stateful, so each one has to see its frames strictly in
     // time order; two fixed eight-frame scratch buffers are ping-ponged rather
@@ -3052,7 +3355,7 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
     auto* scratch = secondBuffer.data();
     frames[0] = input;
     int frameCount = 1;
-    for (int stage = 0; stage < oversamplingStages_; ++stage)
+    for (int stage = 0; stage < bank.oversamplingStages_; ++stage)
     {
         auto& interpolator = channel.interpolators[static_cast<std::size_t>(stage)];
         for (int frame = 0; frame < frameCount; ++frame)
@@ -3065,11 +3368,11 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
 
     for (int frame = 0; frame < frameCount; ++frame)
         frames[static_cast<std::size_t>(frame)] = renderGainFrame(
-            channel, frames[static_cast<std::size_t>(frame)]);
+            bank, channel, frames[static_cast<std::size_t>(frame)]);
 
     // The decimators are applied innermost first: the stage that halved the
     // rate last is the one that has to halve it back first.
-    for (int stage = oversamplingStages_ - 1; stage >= 0; --stage)
+    for (int stage = bank.oversamplingStages_ - 1; stage >= 0; --stage)
     {
         auto& decimator = channel.decimators[static_cast<std::size_t>(stage)];
         frameCount /= 2;
@@ -3088,6 +3391,17 @@ float ElectryFx::renderGainStage(GainChannel& channel, float input) noexcept
 
 void ElectryFx::process(float* left, float* right, int numSamples) noexcept
 {
+    processInternal<true>(left, right, numSamples);
+}
+
+void ElectryFx::processIndependentStereo(float* left, float* right, int numSamples) noexcept
+{
+    processInternal<false>(left, right, numSamples);
+}
+
+template<bool ReuseIdenticalChannels>
+void ElectryFx::processInternal(float* left, float* right, int numSamples) noexcept
+{
     if (! prepared_ || left == nullptr || right == nullptr || numSamples <= 0)
         return;
 
@@ -3098,6 +3412,11 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
     const auto& target = targetParameters_;
     const bool wantGain = target.distortion > 0.0f || target.amp > 0.0f;
     const float engagementTarget = wantGain ? 1.0f : 0.0f;
+    const float qualityTarget = target.oversampling == FxOversampling::High
+        && gainBanks_[0].oversamplingStages_ != gainBanks_[1].oversamplingStages_
+        ? 1.0f : 0.0f;
+    if (gainEngagement_ == 0.0f)
+        oversamplingHighMix_ = qualityTarget;
 
     // Smoothing with an exact snap at both ends: a control left at zero has to
     // reach zero rather than approach it, because that is what makes the dry
@@ -3142,8 +3461,8 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
                 // Nothing downstream can hear the block any more, so drop its
                 // state: the next engagement starts from silence rather than
                 // from a stale tail.
-                for (auto& channel : gain_)
-                    channel.reset();
+                for (auto& bank : gainBanks_)
+                    resetGainBank(bank);
             }
             gainEngagement_ = 0.0f;
         }
@@ -3173,15 +3492,69 @@ void ElectryFx::process(float* left, float* right, int numSamples) noexcept
         if (gainEngagement_ > 0.0f)
         {
             updateDriveConstants();
-            if (ampWet_ > 0.0f)
-                updateAmpModelSelection();
-            for (int channel = 0; channel < 2; ++channel)
+            const float previousMix = oversamplingHighMix_;
+            if (previousMix != qualityTarget)
             {
-                const auto index = static_cast<std::size_t>(channel);
-                const float wet = renderGainStage(gain_[index], samples[index]);
-                samples[index] = lerp(samples[index], wet, gainEngagement_);
+                // A bank at zero weight has not been clocked while inactive.
+                // Clear only that inaudible gain history before bringing it
+                // back; repeated automation reverses the existing fade.
+                if (previousMix == 0.0f && qualityTarget > 0.0f)
+                    resetGainBank(gainBanks_[1]);
+                else if (previousMix == 1.0f && qualityTarget < 1.0f)
+                    resetGainBank(gainBanks_[0]);
+                oversamplingHighMix_ = qualityTarget > previousMix
+                    ? std::min(previousMix + oversamplingFadeStep_, 1.0f)
+                    : std::max(previousMix - oversamplingFadeStep_, 0.0f);
+            }
+            const auto renderBank = [&](GainBank& bank)
+            {
+                if (ampWet_ > 0.0f)
+                    updateAmpModelSelection(bank);
+                std::array<float, 2> result {};
+                if (ReuseIdenticalChannels && bank.gainChannelsEqual_
+                    && std::bit_cast<std::uint32_t>(samples[0])
+                        == std::bit_cast<std::uint32_t>(samples[1]))
+                {
+                    const float wet = renderGainStage(bank, bank.gain_[0], samples[0]);
+                    result[0] = lerp(samples[0], wet, gainEngagement_);
+                    result[1] = result[0];
+                    bank.rightGainStateStale_ = true;
+                }
+                else
+                {
+                    // Restore the complete right history before advancing
+                    // either channel on the first divergent sample. Equal
+                    // samples later cannot erase previously different histories.
+                    if (bank.rightGainStateStale_)
+                    {
+                        bank.gain_[1].copyStateFrom(bank.gain_[0]);
+                        bank.rightGainStateStale_ = false;
+                    }
+                    bank.gainChannelsEqual_ = false;
+                    for (std::size_t channel = 0; channel < result.size(); ++channel)
+                    {
+                        const float wet = renderGainStage(
+                            bank, bank.gain_[channel], samples[channel]);
+                        result[channel] = lerp(samples[channel], wet, gainEngagement_);
+                    }
+                }
+                return result;
+            };
+            if (oversamplingHighMix_ == 0.0f)
+                samples = renderBank(gainBanks_[0]);
+            else if (oversamplingHighMix_ == 1.0f)
+                samples = renderBank(gainBanks_[1]);
+            else
+            {
+                const auto standard = renderBank(gainBanks_[0]);
+                const auto high = renderBank(gainBanks_[1]);
+                for (std::size_t channel = 0; channel < samples.size(); ++channel)
+                    samples[channel] = lerp(standard[channel], high[channel],
+                                            oversamplingHighMix_);
             }
         }
+        else
+            oversamplingHighMix_ = qualityTarget;
 
         // Rhythm compressor: a soft knee easing into roughly 3.5:1 above
         // -20 dBFS. The knee is what lets a palm-muted part sit still instead

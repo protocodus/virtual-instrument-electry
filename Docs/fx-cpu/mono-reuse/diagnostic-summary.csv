@@ -1,0 +1,13 @@
+run,event,configurations,median_min_us,median_max_us,p95_min_us,p95_max_us,max_us,audio_allocations
+first-divergence,first-divergent-frame,12,0.875,10.7295,2.542,23.458,1384.375,0
+first-divergence,second-divergent-frame,12,0.833,10.4375,2.084,22.542,1186.125,0
+first-divergence,128-frame-block-diverging-at-13,12,92.0,1872.3335,302.125,4986.959,17781.459,0
+first-divergence-cabinet,first-divergent-frame,12,4.479,18.979,9.667,68.125,1258.125,0
+first-divergence-cabinet,second-divergent-frame,12,1.375,10.5625,3.75,25.208,978.25,0
+first-divergence-cabinet,128-frame-block-diverging-at-13,12,212.208,2248.6045,1313.667,13741.291,49870.292,0
+first-divergence-repeat,first-divergent-frame,12,0.8955,10.667,1.208,23.833,52052.833,0
+first-divergence-repeat,second-divergent-frame,12,0.833,10.4375,1.0,24.959,1403.333,0
+first-divergence-repeat,128-frame-block-diverging-at-13,12,92.083,1913.25,349.458,32903.208,89172.542,0
+first-divergence-cabinet-repeat,first-divergent-frame,12,4.709,19.1665,9.959,51.375,8268.625,0
+first-divergence-cabinet-repeat,second-divergent-frame,12,1.375,10.583,3.75,23.459,51141.166,0
+first-divergence-cabinet-repeat,128-frame-block-diverging-at-13,12,212.8335,1830.4375,4037.958,99142.666,207905.333,0

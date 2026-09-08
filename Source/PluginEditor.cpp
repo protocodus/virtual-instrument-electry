@@ -1701,6 +1701,45 @@ ElectryAudioProcessorEditor::ElectryAudioProcessorEditor (ElectryAudioProcessor&
     ampModelStrip.setComponentID (electry::parameters::ampModel);
     addAndMakeVisible (ampModelStrip);
 
+    fxOversamplingStrip.onChoice = [this] (int index)
+    {
+        auto* parameter = electryProcessor.parameters.getParameter (
+            electry::parameters::fxOversampling);
+        if (parameter == nullptr)
+            return;
+
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (
+            parameter->convertTo0to1 (static_cast<float> (index)));
+        parameter->endChangeGesture();
+    };
+    if (auto* parameter = electryProcessor.parameters.getParameter (
+            electry::parameters::fxOversampling))
+    {
+        fxOversamplingAttachment = std::make_unique<juce::ParameterAttachment> (
+            *parameter,
+            [this] (float newValue)
+            {
+                fxOversamplingStrip.setSelectedIndex (juce::roundToInt (newValue));
+            },
+            nullptr);
+        fxOversamplingAttachment->sendInitialUpdate();
+    }
+    fxOversamplingStrip.setTooltipText (
+        "STANDARD uses half the HIGH processing rate for the distortion pedal "
+        "and amp: 4x at 44.1/48 kHz. HIGH retains the previous 8x rate for "
+        "stronger suppression of aliasing. Both adapt at higher host sample rates.");
+    fxOversamplingStrip.setComponentID (electry::parameters::fxOversampling);
+    addAndMakeVisible (fxOversamplingStrip);
+
+    fxOversamplingLabel.setText ("OVERSAMPLING", juce::dontSendNotification);
+    fxOversamplingLabel.setFont (juce::FontOptions (11.0f, juce::Font::bold));
+    fxOversamplingLabel.setColour (juce::Label::textColourId,
+                                    colours::binding.withAlpha (0.92f));
+    fxOversamplingLabel.setJustificationType (juce::Justification::centredRight);
+    fxOversamplingLabel.setAccessible (false);
+    addAndMakeVisible (fxOversamplingLabel);
+
     using namespace electry::parameters;
     const auto setup = [this] (ElectryKnob& knob, const char* parameterId,
                                const char* tooltip)
@@ -2081,6 +2120,15 @@ void ElectryAudioProcessorEditor::resized()
 
     auto effectsInner = effectsArea.reduced (10, 8)
                                   .withTrimmedTop (sectionContentTrim);
+    // Keep the rate choice beside the FX section caption so the amp voice
+    // and the five amount knobs retain their full width and control height.
+    auto effectsHeader = effectsArea.withHeight (sectionTitleHeight).reduced (10, 4);
+    const int oversamplingWidth = juce::jmin (142,
+        juce::jmax (0, effectsHeader.getWidth() - 156));
+    fxOversamplingStrip.setBounds (effectsHeader.removeFromRight (oversamplingWidth));
+    effectsHeader.removeFromRight (juce::jmin (6, effectsHeader.getWidth()));
+    fxOversamplingLabel.setBounds (effectsHeader.removeFromRight (
+        juce::jmin (106, juce::jmax (0, effectsHeader.getWidth() - 44))));
     ampModelStrip.setBounds (effectsInner.removeFromTop (42));
     effectsInner.removeFromTop (2);
     layoutKnobRow (

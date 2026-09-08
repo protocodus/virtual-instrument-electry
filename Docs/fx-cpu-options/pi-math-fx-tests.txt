@@ -1,0 +1,93 @@
+Rapid Palm 30-80 ms upper-body fraction (>500-8k / 20-8k): 0.0756221425 (-11.2135102 dB), harmonicity: 0.897632048
+Halfband worst passband deviation through 0.15 fs: 0.00144995 dB
+Halfband stopband rejection from 0.35 fs: 75.5499 dB
+Maximum circuit-table transfer error: 7.15256e-07
+British coupled-PI 40 Hz/1 kHz at 384/705.6 kHz: -1.78349/-1.78349 dB
+American PI grid current/residual/common 1/20 ms/diff: 0.000786947/9.57509e-11/-14.838/-7.98277/1.87269
+British PI grid current/residual/common 1/20 ms/diff: 0.000801147/9.98872e-11/-18.9752/-1.1422/2.1272
+Power-tube table max output/demand error: 0.000204298284668419/0.000125414559643766, 6L6GC/EL34 half-drive 0.481573134952497/0.607340859201101
+Screen-grid anchors A idle/half/full: 398.678435789881/395.462170219656/390.829021651181, B idle/half/full: 394.697030874616/381.858290392086/341.452662312743, half demands 0.355604944502174/0.336708725602724, drooped demands 0.523929013622257/0.636417890213623, max residual 9.81685843726154e-11
+Alias floor at 44100 Hz, distortion at full drive: -70.1598351774553 dB
+Alias floor at 44100 Hz, Modern amp at full drive: -70.7592119097984 dB
+Alias floor at 44100 Hz, American amp at full drive: -72.6736836687582 dB
+Alias floor at 44100 Hz, British amp at full drive: -76.8877975376578 dB
+Alias floor at 44100 Hz, distortion stacked into the amp: -81.6240741772805 dB
+Alias floor at 44100 Hz, amp on a quiet signal: -82.9620693074015 dB
+Alias floor at 48000 Hz, distortion at full drive: -72.3613773259623 dB
+Alias floor at 48000 Hz, Modern amp at full drive: -72.6963753929901 dB
+Alias floor at 48000 Hz, American amp at full drive: -70.8183184272258 dB
+Alias floor at 48000 Hz, British amp at full drive: -74.3585396026103 dB
+Alias floor at 48000 Hz, distortion stacked into the amp: -82.1647035792945 dB
+Alias floor at 48000 Hz, amp on a quiet signal: -83.248843585305 dB
+Boundary alias floor at 95999 Hz, distortion at full drive: -90.6110585304608 dB
+Boundary alias floor at 95999 Hz, Modern amp at full drive: -84.8585831159242 dB
+Boundary alias floor at 95999 Hz, American amp at full drive: -84.8315452062739 dB
+Boundary alias floor at 95999 Hz, British amp at full drive: -88.6944120792984 dB
+Boundary alias floor at 95999 Hz, distortion stacked into the amp: -94.8024138834267 dB
+Boundary alias floor at 95999 Hz, amp on a quiet signal: -96.3795718802322 dB
+Boundary alias floor at 96000 Hz, distortion at full drive: -91.4837154018851 dB
+Boundary alias floor at 96000 Hz, Modern amp at full drive: -72.6845369896254 dB
+Boundary alias floor at 96000 Hz, American amp at full drive: -71.9835431531523 dB
+Boundary alias floor at 96000 Hz, British amp at full drive: -74.647502800476 dB
+Boundary alias floor at 96000 Hz, distortion stacked into the amp: -83.0432420852803 dB
+Boundary alias floor at 96000 Hz, amp on a quiet signal: -83.593242643029 dB
+Boundary alias floor at 191999 Hz, distortion at full drive: -114.152279583069 dB
+Boundary alias floor at 191999 Hz, Modern amp at full drive: -84.8611413235062 dB
+Boundary alias floor at 191999 Hz, American amp at full drive: -84.8568364650366 dB
+Boundary alias floor at 191999 Hz, British amp at full drive: -88.7252251860305 dB
+Boundary alias floor at 191999 Hz, distortion stacked into the amp: -94.8005893679927 dB
+Boundary alias floor at 191999 Hz, amp on a quiet signal: -96.3739269905049 dB
+Boundary alias floor at 192000 Hz, distortion at full drive: -113.144692512167 dB
+Boundary alias floor at 192000 Hz, Modern amp at full drive: -72.6857864482148 dB
+Boundary alias floor at 192000 Hz, American amp at full drive: -71.9770938627547 dB
+Boundary alias floor at 192000 Hz, British amp at full drive: -74.6391490237181 dB
+Boundary alias floor at 192000 Hz, distortion stacked into the amp: -83.036663860897 dB
+Boundary alias floor at 192000 Hz, amp on a quiet signal: -83.6002429466089 dB
+Boundary alias floor at 383999 Hz, distortion at full drive: -133.2990405333 dB
+Boundary alias floor at 383999 Hz, Modern amp at full drive: -84.8648355879016 dB
+Boundary alias floor at 383999 Hz, American amp at full drive: -84.9216341122535 dB
+Boundary alias floor at 383999 Hz, British amp at full drive: -88.7886628971435 dB
+Boundary alias floor at 383999 Hz, distortion stacked into the amp: -94.8726848642033 dB
+Boundary alias floor at 383999 Hz, amp on a quiet signal: -96.372848010529 dB
+Boundary alias floor at 384000 Hz, distortion at full drive: -114.553783901206 dB
+Boundary alias floor at 384000 Hz, Modern amp at full drive: -72.6978589889065 dB
+Boundary alias floor at 384000 Hz, American amp at full drive: -71.9738838684633 dB
+Boundary alias floor at 384000 Hz, British amp at full drive: -74.6313965106923 dB
+Boundary alias floor at 384000 Hz, distortion stacked into the amp: -83.0471854963443 dB
+Boundary alias floor at 384000 Hz, amp on a quiet signal: -83.6207088163665 dB
+Cabinet response relative to 1 kHz: 45 Hz -14.4410399622472, 110 Hz 1.10748666586166, 470 Hz -6.5252156571811, 3.1 kHz 3.22389919374746, 8 kHz -21.9260615069961, 12 kHz -38.9642752269456 dB
+Passive tone-stack insertion at 1 kHz: American -13.0063192428109 dB, British -5.84533059645976 dB
+American response relative to 1 kHz: 90 Hz -6.7589782440763 dB 120 Hz -4.38159227580224 dB 470 Hz -7.31733326115461 dB 700 Hz -3.99815732612173 dB 2800 Hz 9.18420470321925 dB 8000 Hz -13.9857031725999 dB
+British response relative to 1 kHz: 90 Hz 1.44272370393481 dB 120 Hz 3.40596426638703 dB 470 Hz -1.52775796044856 dB 700 Hz -0.70380538250688 dB 2800 Hz 2.90788635806454 dB 8000 Hz -21.1037426220964 dB
+Modern response relative to 1 kHz: 90 Hz 0.364481862105723 dB 120 Hz 0.602727684018388 dB 470 Hz -6.5252156571811 dB 700 Hz -2.21292063835447 dB 2800 Hz 3.16746659207605 dB 8000 Hz -21.9260615069961 dB
+Amp spectral RMS separations: A/B 6.61241945391476 dB, A/M 5.45667905190215 dB, B/M 2.48382579027517 dB
+American 2.8 kHz/1 kHz at 48/384 kHz: 9.21105658809308/9.25581070964982 dB
+British 2.8 kHz/1 kHz at 48/384 kHz: 2.92754860135192/2.90457135488609 dB
+Modern 2.8 kHz/1 kHz at 48/384 kHz: 3.16693874265616/3.17919950486107 dB
+British full-path 40 Hz/1 kHz at 48/88.2 kHz: -20.9380954165523/-20.9374642775186 dB
+American amp gain: quiet 0.746249109096129 dB, loud -12.9369369271177 dB, compression -13.6831860362139 dB
+British amp gain: quiet 4.13685499717836 dB, loud -12.1529566301297 dB, compression -16.289811627308 dB
+Modern amp gain: quiet 3.2758971694853 dB, loud -15.0513067204627 dB, compression -18.327203889948 dB
+Amp model switch largest step 0.0192210376262665, settled model step 0.0191981233656406
+Settled model weights: 0, 0, 1
+Enabled 0.1% paths relative to 1 kHz: amp 8 kHz -21.9270468388669 dB, pedal 40 Hz -18.1900912961571 dB, pedal 12 kHz -20.8018179321431 dB
+Supply sag: loud -1.06001685062918 dB, quiet 0.0197832947595298 dB
+Supply recovery after a rest: 0.99085967922221 dB
+6L6GC sag state loud/quiet/recovered: 0.715131878852844/0.00102500489447266/0.0222528129816055
+EL34 sag state loud/quiet/recovered: 0.732395589351654/0.00285259867087007/0.00120725075248629
+Transformer distortion at 0.9: 48 Hz -25.3315882286665 dB, 480 Hz -71.4898757687231 dB, 4.8 kHz -130.911102215472 dB
+Transformer distortion at 0.06: 48 Hz -66.4860638195529 dB
+Open riff through distortion: -0.00775888549589222 dB, peak 0.0324224568903446
+Open riff through amp: 5.25000649792085 dB, peak 0.0904588475823402
+Open riff through stacked: 6.09898849743893 dB, peak 0.127347990870476
+Open riff through amp + compressor: 8.64191060669425 dB, peak 0.133876770734787
+Muted riff through distortion: 0.936863325487731 dB, peak 0.0324167907238007
+Muted riff through amp: 7.13180083212707 dB, peak 0.0674233958125114
+Muted riff through stacked: 8.57270691741785 dB, peak 0.0978834331035614
+Muted riff through amp + compressor: 10.5078287916633 dB, peak 0.0997848883271217
+Selected amp 0 Drop-E gain at 90%: 2.37048604101396 dB
+Selected amp 1 Drop-E gain at 90%: 6.00404750435461 dB
+Selected amp 2 Drop-E gain at 90%: 5.89991623606947 dB
+Lead delay repeat at 0.36 s
+Largest sample step: dry 0.0197847587987781, settled wet 0.0310767292976379, disengaging 0.0315359570086002, engaging 0.0350219532847404
+All Electry FX checks passed.
