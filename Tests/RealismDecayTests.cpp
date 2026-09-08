@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <complex>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -31,7 +32,12 @@ struct ElectryEngineTestAccess
             const double a = loop.loopDampingCoefficient;
             const double omega = 6.2831853071795864769 * observedFrequency
                                / engine.sampleRate_;
-            const double magnitude = loop.loopGain * (1.0 - a)
+            const auto z = std::polar(1.0, -omega);
+            const auto& b = loop.materialLossDip;
+            const double material = loop.materialLossDepth > 0.0f
+                ? std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
+                         / (1.0 + b.a1 * z + b.a2 * z * z)) : 1.0;
+            const double magnitude = material * loop.loopGain * (1.0 - a)
                 / std::sqrt(1.0 + a * a - 2.0 * a * std::cos(omega));
             return -3.0 / (frequency * std::log10(magnitude));
         };

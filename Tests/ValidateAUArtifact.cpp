@@ -63,6 +63,94 @@ bool expectCurrentPreset(AudioUnit unit, SInt32 number, const char* name)
                   << " ('" << name << "')\n";
     return matches;
 }
+
+bool expectParameterValue(AudioUnit unit, AudioUnitParameterID id, float expected)
+{
+    AudioUnitParameterValue value = 0.0f;
+    if (!check(AudioUnitGetParameter(unit, id, kAudioUnitScope_Global, 0, &value),
+               "read AU FX enabled")
+        || std::abs(value - expected) > 1.0e-6f)
+    {
+        std::cerr << "error: AU FX enabled did not have expected value " << expected << '\n';
+        return false;
+    }
+    return true;
+}
+
+bool setFxEnabled(AudioUnit unit, AudioUnitParameterID id, float value)
+{
+    return check(AudioUnitSetParameter(unit, id, kAudioUnitScope_Global, 0, value, 0),
+                 "set AU FX enabled")
+        && expectParameterValue(unit, id, value);
+}
+
+bool verifyFxEnabledContract(AudioUnit unit,
+                             const std::vector<AudioUnitParameterID>& parameterIDs,
+                             AudioUnitParameterID& fxEnabledID)
+{
+    int matches = 0;
+    for (const auto id : parameterIDs)
+    {
+        AudioUnitParameterInfo info {};
+        UInt32 infoBytes = sizeof(info);
+        if (!check(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterInfo,
+                                        kAudioUnitScope_Global, id, &info, &infoBytes),
+                   "get AU parameter metadata"))
+            return false;
+        const auto name = (info.flags & kAudioUnitParameterFlag_HasCFNameString) != 0
+            ? stringFromCFString(info.cfNameString) : std::string(info.name);
+        if ((info.flags & kAudioUnitParameterFlag_HasCFNameString) != 0
+            && info.cfNameString != nullptr)
+            CFRelease(info.cfNameString);
+        if (name != "FX enabled")
+            continue;
+
+        ++matches;
+        fxEnabledID = id;
+        // AU orders the exported list by version hint before parameter hash.
+        // The new version-3 boolean must follow every older automation slot.
+        if (id != parameterIDs.back()
+            || info.unit != kAudioUnitParameterUnit_Boolean
+            || std::abs(info.minValue) > 1.0e-6f
+            || std::abs(info.maxValue - 1.0f) > 1.0e-6f
+            || std::abs(info.defaultValue) > 1.0e-6f
+            || (info.flags & kAudioUnitParameterFlag_IsReadable) == 0
+            || (info.flags & kAudioUnitParameterFlag_IsWritable) == 0
+            || (info.flags & kAudioUnitParameterFlag_NonRealTime) != 0)
+        {
+            std::cerr << "error: AU FX enabled must be appended, boolean, automatable, default Off\n";
+            return false;
+        }
+    }
+    if (matches != 1)
+    {
+        std::cerr << "error: AU must expose exactly one FX enabled parameter\n";
+        return false;
+    }
+    return expectParameterValue(unit, fxEnabledID, 0.0f);
+}
+
+bool roundTripFxEnabledOn(AudioUnit unit, AudioUnitParameterID id)
+{
+    if (!setFxEnabled(unit, id, 1.0f))
+        return false;
+    CFPropertyListRef state = nullptr;
+    UInt32 stateBytes = sizeof(state);
+    const bool saved = check(AudioUnitGetProperty(unit, kAudioUnitProperty_ClassInfo,
+                                                  kAudioUnitScope_Global, 0,
+                                                  &state, &stateBytes),
+                             "save AU FX enabled On state") && state != nullptr;
+    const bool restored = saved && setFxEnabled(unit, id, 0.0f)
+        && check(AudioUnitSetProperty(unit, kAudioUnitProperty_ClassInfo,
+                                       kAudioUnitScope_Global, 0, &state, sizeof(state)),
+                  "restore AU FX enabled On state")
+        && expectParameterValue(unit, id, 1.0f);
+    if (state != nullptr)
+        CFRelease(state);
+    // The complete serialized snapshot below covers the opposite direction:
+    // explicit Off must survive after the live toggle is changed to On.
+    return restored && setFxEnabled(unit, id, 0.0f);
+}
 } // namespace
 
 int main(int argc, char** argv)
@@ -184,9 +272,9 @@ int main(int argc, char** argv)
                                         &parameterBytes,
                                         &parameterListWritable),
                "get AU parameter-list size")
-        || parameterBytes != 29 * sizeof(AudioUnitParameterID))
+        || parameterBytes != 30 * sizeof(AudioUnitParameterID))
     {
-        std::cerr << "error: AU does not expose exactly 29 global parameters\n";
+        std::cerr << "error: AU does not expose exactly 30 global parameters\n";
         AudioUnitUninitialize(unit);
         AudioComponentInstanceDispose(unit);
         return 1;
@@ -200,6 +288,15 @@ int main(int argc, char** argv)
                                     parameterIDs.data(),
                                     &parameterBytes),
                "get AU parameter list"))
+    {
+        AudioUnitUninitialize(unit);
+        AudioComponentInstanceDispose(unit);
+        return 1;
+    }
+
+    AudioUnitParameterID fxEnabledID = 0;
+    if (!verifyFxEnabledContract(unit, parameterIDs, fxEnabledID)
+        || !roundTripFxEnabledOn(unit, fxEnabledID))
     {
         AudioUnitUninitialize(unit);
         AudioComponentInstanceDispose(unit);
@@ -256,7 +353,8 @@ int main(int argc, char** argv)
                                     &savedPreset,
                                     sizeof(savedPreset)),
                "select AU factory default before saving state")
-        || !expectCurrentPreset(unit, 0, expectedPresetNames[0]))
+        || !expectCurrentPreset(unit, 0, expectedPresetNames[0])
+        || !expectParameterValue(unit, fxEnabledID, 0.0f))
     {
         AudioUnitUninitialize(unit);
         AudioComponentInstanceDispose(unit);
@@ -342,7 +440,9 @@ int main(int argc, char** argv)
                                     &changedPreset,
                                     sizeof(changedPreset)),
                "select a different AU factory preset")
-        || !expectCurrentPreset(unit, 1, expectedPresetNames[1]))
+        || !expectCurrentPreset(unit, 1, expectedPresetNames[1])
+        || !expectParameterValue(unit, fxEnabledID, 0.0f)
+        || !setFxEnabled(unit, fxEnabledID, 1.0f))
     {
         CFRelease(restoredState);
         AudioUnitUninitialize(unit);
@@ -433,7 +533,7 @@ int main(int argc, char** argv)
                    "verify restored AU parameter")
             || std::abs(restoredValue - savedParameterValues[i]) > tolerance)
         {
-            std::cerr << "error: serialised AU state did not restore all 29 parameters\n";
+            std::cerr << "error: serialised AU state did not restore all 30 parameters\n";
             AudioUnitUninitialize(unit);
             AudioComponentInstanceDispose(unit);
             return 1;

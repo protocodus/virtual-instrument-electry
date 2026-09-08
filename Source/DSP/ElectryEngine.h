@@ -907,6 +907,12 @@ private:
         float dispersionLowCoefficient { 0.0f };
         float dispersionHighCoefficient { 0.0f };
         OnePole damping {};
+        // Conservative intrinsic-loss curvature for the two extended-range
+        // bass strings. A passive dip bends the existing two-anchor fit toward
+        // linear-in-frequency material loss; both anchors stay fixed.
+        DipBiquad materialLossDip {};
+        HandLossShape materialLossShape {};
+        float materialLossDepth { 0.0f };
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         // Default-off empirical correction for the lowest physical string. It
         // reuses the same passive, minimum-phase section as the bridge hand,
@@ -1159,6 +1165,14 @@ private:
         // existing short fret/pitch curve. Retain this trajectory through a
         // picking-hand repick, which can change playStyle while it travels.
         bool legatoUsesLengthTrajectory { false };
+        // The physical slide already has a smooth finger trajectory. Carry its
+        // control-tick period change across the following samples separately
+        // from the ordinary bend follower, so that follower does not add a
+        // second, six-ms finger lag. Horizontal delay follows the same motion.
+        float slideDelayPending { 0.0f };
+        float slideDelayStep { 0.0f };
+        int slideDelayRampRemaining { 0 };
+        float slideUnclampedFrequency { 100.0f };
         // A physical fretting contact can wait for a scheduled plectrum.
         // Repeated picks on its existing key owner do not land that finger
         // again, even after the audible string has retired.
@@ -1402,7 +1416,7 @@ private:
         // goes as
         // sin(n pi p), so the energy a light contact removes per round trip
         // goes as sin^2(n pi p) = (1 - cos(2 pi n p)) / 2. Condensed into the
-        // single delay loop as a one-tap FIR
+        // single delay loop, the zero-width limit is a one-tap FIR
         //
         //     H(z) = (1 - d/2) + (d/2) z^-M,   M = p * period,
         //
@@ -1413,8 +1427,10 @@ private:
         //
         // The tap uses the complete live fundamental period, including the
         // loop filters' phase rather than only the raw delay line. At an ideal
-        // string node p = 1/k, it therefore targets an untouched surviving
-        // harmonic series without retuning. Cubic fractional-delay
+        // string node p = 1/k, its point limit targets an untouched surviving
+        // harmonic series without retuning. The finite pad instead averages
+        // three nearby positions with positive unit-sum weights: higher modes
+        // also feel material beside the nominal node. Cubic fractional-delay
         // interpolation and the single temporal tap are still approximations;
         // representing every inharmonic spatial node of a dispersive stiff
         // string exactly would require a local bidirectional contact model.
@@ -1426,9 +1442,19 @@ private:
         // removed are gone and cannot be re-excited, so lifting it is free and
         // buys back the extra delay reads.
         float touchFraction { 0.0f };
+        // A finite pad samples material around a nominal node as well as at
+        // its centre. Geometry is cached with the physical pickup length;
+        // bending changes travel time without shrinking the pad on the neck.
+        float touchHalfWidthMetres { 0.0f };
+        float touchInverseSpeakingLength { 1.0f };
         float touchDepth { 0.0f };
         int touchHoldRemaining { 0 };
         float touchReleaseStep { 0.0f };
+        // The picking thumb follows the released plectrum. A pending contact
+        // leaves any preceding touch in place until that release actually
+        // occurs; a fretting-hand replacement cancels the reservation.
+        bool pinchTouchPending { false };
+        float pendingPinchTouchFraction { 0.0f };
 
         // Slide friction. While the finger travels it drags across the wound
         // string's winding, and the ridges pass under it at v / w, where v is
@@ -1536,6 +1562,9 @@ private:
     // fundamental, for the current string set and build. Shared for the same
     // reason: a coupled string is the same piece of steel as a played one.
     [[nodiscard]] float highFrequencyDecayRatio(int stringIndex) const noexcept;
+    void configureBassMaterialLoss(PolarisationLoop& loop, float f0, float fHigh,
+                                   float intrinsicT60, float intrinsicT60High,
+                                   float polarisationScale) noexcept;
     static void handLossResponse(float depth, const HandLossShape& shape,
                                  float omega, float& magnitude,
                                  float& phase) noexcept;
@@ -1559,6 +1588,34 @@ private:
                                    + voice.lastCompensatedPeriod
                                    - compensatedPeriod;
         return loop.currentDelay + voice.touchFraction * physicalPeriod;
+    }
+    [[nodiscard]] static float touchReadSpread(
+        const Voice& voice, const PolarisationLoop& loop,
+        float compensatedPeriod) noexcept
+    {
+        const float physicalPeriod = loop.currentDelay
+                                   + voice.lastCompensatedPeriod
+                                   - compensatedPeriod;
+        const float halfWidth = std::min(
+            voice.touchHalfWidthMetres * voice.touchInverseSpeakingLength,
+            std::min(voice.touchFraction, 1.0f - voice.touchFraction));
+        // Three-point Gauss-Legendre average over a uniform contact pad.
+        return 0.7745966692f * std::max(halfWidth, 0.0f) * physicalPeriod;
+    }
+    [[nodiscard]] static float readTouchedString(
+        const Voice& voice, const PolarisationLoop& loop,
+        float compensatedPeriod) noexcept
+    {
+        const float centre = touchReadDelay(voice, loop, compensatedPeriod);
+        const float spread = touchReadSpread(voice, loop, compensatedPeriod);
+        if (spread <= 0.0f)
+            return loop.readFractional(centre);
+        // Positive unit-sum weights preserve the point contact's static
+        // contraction. Shorter wavelengths feel the material around a node,
+        // rather than escaping contact merely because the centre is a node.
+        return (4.0f / 9.0f) * loop.readFractional(centre)
+             + (5.0f / 18.0f) * (loop.readFractional(centre - spread)
+                                + loop.readFractional(centre + spread));
     }
     // Per-string magnetic balance. It depends only on the string, so it is
     // solved once instead of inside the sample loop.

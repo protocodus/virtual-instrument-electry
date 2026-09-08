@@ -42,7 +42,7 @@ struct ParameterExpectation
 // struct, so reading it here too would make the check tautological. This table is
 // the independent statement of what the plug-in promises a new instance, and it is
 // what would have caught the two lists silently drifting apart.
-constexpr std::array<ParameterExpectation, 29> expectedParameters {{
+constexpr std::array<ParameterExpectation, 30> expectedParameters {{
     { electry::parameters::pickupSelector, 2.0f,  1.0e-5f },
     { electry::parameters::pickupType,     0.32f,  1.0e-5f },
     { electry::parameters::tone,           0.70f,  1.0e-5f },
@@ -72,6 +72,7 @@ constexpr std::array<ParameterExpectation, 29> expectedParameters {{
     { electry::parameters::tremoloRate,    12.0f, 1.0e-4f },
     { electry::parameters::ampModel,        2.0f, 1.0e-5f },
     { electry::parameters::fxOversampling,  0.0f, 1.0e-5f },
+    { electry::parameters::fxEnabled,       0.0f, 1.0e-5f },
 }};
 
 float parameterValue (const ElectryAudioProcessor& processor, const char* id)
@@ -250,7 +251,7 @@ void testParameterLayoutAndDefaults()
     ElectryAudioProcessor processor;
     expect (processor.getParameters().size()
                 == static_cast<int> (expectedParameters.size()),
-            "processor does not expose exactly 29 APVTS parameters");
+            "processor does not expose exactly 30 APVTS parameters");
 
     std::set<std::string> uniqueIds;
     for (std::size_t index = 0; index < expectedParameters.size(); ++index)
@@ -265,7 +266,7 @@ void testParameterLayoutAndDefaults()
                     + std::to_string (index));
         expect (indexed != nullptr
                     && indexed->getVersionHint()
-                           == (index == expectedParameters.size() - 1 ? 2 : 1),
+                           == (index == 29 ? 3 : index == 28 ? 2 : 1),
                 std::string ("AU parameter ordering changed for ") + expected.id);
         const auto value = parameterValue (processor, expected.id);
         expect (std::abs (value - expected.defaultValue) <= expected.tolerance,
@@ -286,6 +287,9 @@ void testParameterLayoutAndDefaults()
                 && std::abs (tremoloRate->range.end - 20.0f) < 1.0e-5f
                 && std::abs (tremoloRate->range.interval - 0.1f) < 1.0e-5f,
             "Tremolo Rate did not expose its exact 4..20 strokes/s host range");
+    expect (dynamic_cast<const juce::AudioParameterBool*> (
+                processor.parameters.getParameter (electry::parameters::fxEnabled)) != nullptr,
+            "FX enabled is not a host-visible boolean parameter");
 }
 
 void testFactoryPrograms()
@@ -398,6 +402,8 @@ void testFactoryPrograms()
         for (auto* parameter : processor.getParameters())
             parameter->setValueNotifyingHost (
                 parameter->getDefaultValue() < 0.5f ? 1.0f : 0.0f);
+        const float enabledBeforeRig = static_cast<float> (program & 1);
+        setParameterValue (processor, electry::parameters::fxEnabled, enabledBeforeRig);
 
         listener.parameterChanges = 0;
         listener.programChanges = 0;
@@ -411,7 +417,8 @@ void testFactoryPrograms()
 
         for (const auto& parameter : expectedParameters)
             expect (std::abs (parameterValue (processor, parameter.id)
-                                 - expectedValue (program, parameter))
+                                 - (std::strcmp (parameter.id, electry::parameters::fxEnabled) == 0
+                                    ? enabledBeforeRig : expectedValue (program, parameter)))
                         <= juce::jmax (parameter.tolerance, 1.0e-4f),
                     std::string ("wrong value for ") + parameter.id
                         + " in factory rig " + std::to_string (program));
@@ -495,6 +502,8 @@ void testParameterTextFormatting()
                          "Standard");
     expectParameterText (processor, electry::parameters::fxOversampling, 1.0f,
                          "High");
+    expectParameterText (processor, electry::parameters::fxEnabled, 0.0f, "Off");
+    expectParameterText (processor, electry::parameters::fxEnabled, 1.0f, "On");
     expectParameterText (processor, electry::parameters::bendTime, 0.28f, "280 ms");
     expectParameterText (processor, electry::parameters::pickupType, 0.0f, "Humbucker");
     expectParameterText (processor, electry::parameters::pickupType, 1.0f, "Single coil");
@@ -609,6 +618,7 @@ void testStateRoundTrip()
     ElectryAudioProcessor source;
     source.setCurrentProgram (3);
     source.setPlayStyleKeysHold (true);
+    setParameterValue (source, electry::parameters::fxEnabled, 1.0f);
     setParameterValue (source, electry::parameters::pickupType, 0.9f);
     setParameterValue (source, electry::parameters::guitarBuild, 0.15f);
     setParameterValue (source, electry::parameters::output, -12.0f);
@@ -636,6 +646,8 @@ void testStateRoundTrip()
 
     expect (restored.getCurrentProgram() == 3,
             "factory-rig index did not survive a state round trip");
+    expect (parameterValue (restored, electry::parameters::fxEnabled) > 0.5f,
+            "explicit FX enabled did not survive a state round trip");
 
     expect (std::abs (parameterValue (restored, electry::parameters::pickupType) - 0.9f)
                 < 1.0e-4f,
@@ -703,6 +715,10 @@ void testStateRoundTrip()
         expect (oversamplingState.isValid(),
                 "saved state omitted the oversampling parameter");
         legacyState.removeChild (oversamplingState, nullptr);
+        const auto enabledState = legacyState.getChildWithProperty (
+            "id", electry::parameters::fxEnabled);
+        expect (enabledState.isValid(), "saved state omitted the FX enabled parameter");
+        legacyState.removeChild (enabledState, nullptr);
 
         juce::MemoryBlock legacyData;
         if (const auto legacyXml = legacyState.createXml())
@@ -720,16 +736,21 @@ void testStateRoundTrip()
                             legacyRestored, electry::parameters::fxOversampling) - 1.0f)
                     < 1.0e-4f,
                 "legacy state did not preserve its full oversampling rate");
+        expect (parameterValue (legacyRestored, electry::parameters::fxEnabled) > 0.5f,
+                "legacy state missing FX enabled did not preserve its historic effects sound");
     }
 
     // An explicit Standard value is a new-format decision, even when loading
     // it over an instance that previously restored a legacy High session.
     setParameterValue (source, electry::parameters::fxOversampling, 0.0f);
+    setParameterValue (source, electry::parameters::fxEnabled, 0.0f);
     source.getStateInformation (state);
     restored.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
     expect (std::abs (parameterValue (restored, electry::parameters::fxOversampling))
                 < 1.0e-4f,
             "explicit Standard oversampling was mistaken for a legacy session");
+    expect (parameterValue (restored, electry::parameters::fxEnabled) < 0.5f,
+            "explicit FX bypass was mistaken for a legacy effects-on session");
 
 }
 
@@ -3093,6 +3114,7 @@ void testMpeOwnershipLifecycleBoundaries()
 void testResonanceWheelFeedback()
 {
     ElectryAudioProcessor processor;
+    setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
     processor.prepareToPlay (sampleRate, blockSize);
 
     juce::AudioBuffer<float> audio;
@@ -3152,6 +3174,7 @@ void testResonanceFeedbackIsBlockSizeInvariant()
     const auto render = [] (int hostBlockSize)
     {
         ElectryAudioProcessor processor;
+        setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
         processor.prepareToPlay (sampleRate, hostBlockSize);
         setParameterValue (processor, electry::parameters::amp, 0.9f);
         setParameterValue (processor, electry::parameters::distortion, 0.7f);
@@ -4062,6 +4085,7 @@ void testFxOversamplingInLiveFeedbackPath()
                             bool changeOutputMode = false)
     {
         ElectryAudioProcessor processor;
+        setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
         setParameterValue (processor, electry::parameters::fxOversampling, quality);
         setParameterValue (processor, electry::parameters::outputMode, 0.0f);
         setParameterValue (processor, electry::parameters::ampModel, 0.0f);
@@ -4192,6 +4216,172 @@ void testFxOversamplingInLiveFeedbackPath()
             "Mono/Stereo/Double transitions lost the distinct live output lanes");
     expect (outputStep < std::max (0.25, referenceStep + 0.10),
             "output-mode changes added an abrupt gain/feedback discontinuity");
+}
+
+// All captures use the public host parameter path. A fixed score splits at
+// automation boundaries, independently of the surrounding host callback size.
+void testFxEnabledAudioAndLifecycle()
+{
+    using Trace = std::array<std::vector<float>, 2>;
+    using Change = std::pair<int, bool>;
+    const auto capture = [] (double rate, int frames, bool initialEnabled,
+                             bool effectAmounts, bool timeEffects,
+                             std::span<const Change> changes, float mode,
+                             bool feedback, bool shortNote, double seconds,
+                             int preparedFrames = 0)
+    {
+        ElectryAudioProcessor processor;
+        setParameterValue (processor, electry::parameters::fxEnabled, initialEnabled ? 1.0f : 0.0f);
+        setParameterValue (processor, electry::parameters::outputMode, mode);
+        for (const auto* id : { electry::parameters::pickNoise, electry::parameters::fingerNoise,
+                               electry::parameters::releaseNoise, electry::parameters::artifacts,
+                               electry::parameters::sympathetic, electry::parameters::bodyResonance })
+            setParameterValue (processor, id, 0.0f);
+        setParameterValue (processor, electry::parameters::resonanceDepth, feedback ? 80.0f : 0.0f);
+        setParameterValue (processor, electry::parameters::distortion, effectAmounts ? .55f : 0.0f);
+        setParameterValue (processor, electry::parameters::amp, effectAmounts ? .90f : 0.0f);
+        setParameterValue (processor, electry::parameters::compressor, effectAmounts ? .40f : 0.0f);
+        setParameterValue (processor, electry::parameters::delay, effectAmounts && timeEffects ? .80f : 0.0f);
+        setParameterValue (processor, electry::parameters::room, effectAmounts && timeEffects ? .75f : 0.0f);
+        processor.prepareToPlay (rate, preparedFrames > 0 ? preparedFrames : frames);
+        const int total = static_cast<int> (std::lround (rate * seconds));
+        const int release = static_cast<int> (std::lround (rate * (shortNote ? .060 : .590)));
+        Trace result;
+        for (auto& channel : result) channel.reserve (static_cast<std::size_t> (total));
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        std::size_t changeIndex = 0;
+        bool finite = true;
+        for (int at = 0; at < total;)
+        {
+            while (changeIndex < changes.size() && changes[changeIndex].first == at)
+            {
+                setParameterValue (processor, electry::parameters::fxEnabled,
+                                   changes[changeIndex].second ? 1.0f : 0.0f);
+                ++changeIndex;
+            }
+            int count = std::min (frames, total - at);
+            if (changeIndex < changes.size()) count = std::min (count, changes[changeIndex].first - at);
+            if (at == 0 && feedback)
+                midi.addEvent (juce::MidiMessage::controllerEvent (1, 1, 110), 0);
+            for (int note : { 40, 47, 52 })
+            {
+                if (127 >= at && 127 < at + count)
+                    midi.addEvent (juce::MidiMessage::noteOn (1, note, static_cast<juce::uint8> (112)), 127 - at);
+                if (release >= at && release < at + count)
+                    midi.addEvent (juce::MidiMessage::noteOff (1, note), release - at);
+            }
+            renderBlock (processor, audio, midi, count);
+            for (int channel = 0; channel < 2; ++channel)
+            {
+                const auto* data = audio.getReadPointer (channel);
+                for (int sample = 0; sample < count; ++sample)
+                    finite = finite && std::isfinite (data[sample]) && std::abs (data[sample]) < 2.0f;
+                result[static_cast<std::size_t> (channel)].insert (
+                    result[static_cast<std::size_t> (channel)].end(), data, data + count);
+            }
+            at += count;
+        }
+        expect (finite, "FX bypass/toggle produced non-finite or unbounded audio");
+        processor.releaseResources();
+        return result;
+    };
+    const auto differenceRms = [] (const Trace& a, const Trace& b, int first, int last)
+    {
+        double sum = 0.0;
+        for (std::size_t channel = 0; channel < 2; ++channel)
+            for (int frame = first; frame < last; ++frame)
+            {
+                const double delta = static_cast<double> (a[channel][static_cast<std::size_t> (frame)])
+                                   - b[channel][static_cast<std::size_t> (frame)];
+                sum += delta * delta;
+            }
+        return std::sqrt (sum / static_cast<double> (2 * (last - first)));
+    };
+
+    for (double rate : { 44100.0, 96000.0, 192000.0 })
+    {
+        const auto frameAt = [rate] (double seconds) { return static_cast<int> (std::lround (rate * seconds)); };
+        // Every output field remains exact dry while bypassed, even with all
+        // effect amounts populated and a live resonance-wheel performance.
+        for (float mode : { 0.0f, 1.0f, 2.0f })
+        {
+            const auto dry = capture (rate, 128, false, false, false, {}, mode, true, false, .25);
+            const auto bypassed = capture (rate, 128, false, true, true, {}, mode, true, false, .25);
+            expect (dry == bypassed,
+                    "default-off FX amounts changed dry Mono/Stereo/Double audio or its acoustic return");
+        }
+        const int on = frameAt (.161), off = frameAt (.313);
+        const std::array<Change, 5> switches {{
+            { on, true }, { off, false }, { frameAt (.441), true },
+            { frameAt (.443), false }, { frameAt (.445), true }
+        }};
+        const std::array<Change, 1> heldOn {{ { on, true } }};
+        const auto dry = capture (rate, 128, false, true, false, {}, 0, false, false, .68);
+        const auto held = capture (rate, 128, false, true, false, heldOn, 0, false, false, .68);
+        const auto toggled = capture (rate, 128, false, true, false, switches, 0, false, false, .68);
+        expect (differenceRms (toggled, dry, 0, on) == 0.0,
+                "FX changed audio before it was enabled");
+        expect (differenceRms (toggled, dry, frameAt (.19), frameAt (.29)) > 1.0e-4,
+                "FX ON did not audibly engage the populated amplifier chain");
+        expect (differenceRms (toggled, held, on, off) == 0.0,
+                "future bypass automation changed the preceding enabled sound");
+        expect (differenceRms (toggled, dry, frameAt (.325), frameAt (.430)) == 0.0,
+                "FX OFF did not return to sample-exact dry output after its transition");
+        for (std::size_t channel = 0; channel < 2; ++channel)
+        {
+            const auto onIndex = static_cast<std::size_t> (on);
+            const auto offIndex = static_cast<std::size_t> (off);
+            const double firstOnStep = std::abs (static_cast<double> (toggled[channel][onIndex]) - dry[channel][onIndex]);
+            double localScale = 0.0;
+            for (int frame = on; frame < on + frameAt (.008); ++frame)
+                localScale = std::max (localScale, std::abs (static_cast<double> (held[channel][static_cast<std::size_t> (frame)]))
+                    + std::abs (static_cast<double> (dry[channel][static_cast<std::size_t> (frame)])));
+            expect (firstOnStep < localScale * .025 + 1.0e-6,
+                    "FX ON introduced an instantaneous dry/wet jump");
+            const double fullOffJump = std::abs (static_cast<double> (dry[channel][offIndex]) - held[channel][offIndex]);
+            const double firstOffStep = std::abs (static_cast<double> (toggled[channel][offIndex]) - held[channel][offIndex]);
+            expect (firstOffStep < fullOffJump * .025 + 1.0e-6,
+                    "FX OFF hard-switched the running effect instead of fading it");
+        }
+        for (int frames : { 17, 511 })
+        {
+            const auto partitioned = capture (rate, frames, false, true, false, switches, 0, false, false, .68);
+            expect (differenceRms (partitioned, toggled, 0, frameAt (.68)) < 1.0e-7,
+                    "FX toggles or mid-fade reversals depend on host callback size");
+        }
+        const auto oversized = capture (rate, 1024, false, true, false, switches,
+                                         0, false, false, .68, 32);
+        expect (differenceRms (oversized, toggled, 0, frameAt (.68)) < 1.0e-7,
+                "FX bypass scratch/ramp changed audio when host callbacks exceeded prepared size");
+        std::cout << "PROBE FX toggle " << rate << " Hz enabled difference "
+                  << differenceRms (toggled, dry, frameAt (.19), frameAt (.29))
+                  << "; settled bypass difference "
+                  << differenceRms (toggled, dry, frameAt (.325), frameAt (.430)) << '\n';
+    }
+
+    // Stop a short played note, bypass a populated delay/reverb, then re-enable
+    // in silence. Merely freezing their buffers would replay the earlier note.
+    const std::array<Change, 2> tailSwitches {{ { 4800, false }, { 21600, true } }};
+    const auto clearedTails = capture (48000, 128, true, true, true,
+                                       tailSwitches, 0, false, true, 1.25);
+    double resumedPeak = 0.0;
+    for (const auto& channel : clearedTails)
+        for (std::size_t frame = 21600; frame < channel.size(); ++frame)
+            resumedPeak = std::max (resumedPeak, std::abs (static_cast<double> (channel[frame])));
+    expect (resumedPeak < 1.0e-5,
+            "re-enabling FX replayed stale delay/reverb audio after bypass (peak "
+                + std::to_string (resumedPeak) + ")");
+
+    ElectryAudioProcessor rigs;
+    for (const bool enabled : { false, true })
+        for (int program = 0; program < rigs.getNumPrograms(); ++program)
+        {
+            setParameterValue (rigs, electry::parameters::fxEnabled, enabled ? 1.0f : 0.0f);
+            rigs.setCurrentProgram (program);
+            expect ((parameterValue (rigs, electry::parameters::fxEnabled) > .5f) == enabled,
+                    "factory rig changed the user's current FX enable decision");
+        }
 }
 
 void testOutputModeAudioField()
@@ -4483,9 +4673,111 @@ void testTextButtonKeyboardActivation()
     expectOnlyTabStop (second, "click");
 }
 
+void testFxEditorToggle()
+{
+    ElectryAudioProcessor processor;
+    processor.prepareToPlay (sampleRate, blockSize);
+    for (const auto* id : { electry::parameters::distortion, electry::parameters::amp,
+                           electry::parameters::compressor, electry::parameters::delay,
+                           electry::parameters::room })
+        setParameterValue (processor, id, .60f);
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+    expect (editor != nullptr, "FX toggle test could not create the editor");
+    if (editor == nullptr) return;
+    const auto findControl = [&] (const char* id) -> juce::Component*
+    {
+        for (auto* child : editor->getChildren())
+            if (child->getComponentID() == id) return child;
+        return nullptr;
+    };
+    auto* toggle = dynamic_cast<ElectryTextButton*> (findControl (electry::parameters::fxEnabled));
+    expect (toggle != nullptr, "FX enabled is missing its operable editor switch");
+    if (toggle == nullptr) return;
+    expect (parameterValue (processor, electry::parameters::fxEnabled) < .5f
+                && ! toggle->getToggleState() && toggle->getButtonText() == "FX OFF"
+                && toggle->isEnabled() && toggle->isToggleable()
+                && toggle->getWantsKeyboardFocus() && toggle->hasFocusOutline(),
+            "new editor did not open with a reachable, visibly off FX switch");
+    // This offscreen editor has no native window for JUCE's cached handler.
+    // Dispatch through Component's public factory to inspect the real handler.
+    auto accessibility = static_cast<juce::Component&> (*toggle).createAccessibilityHandler();
+    expect (accessibility != nullptr && accessibility->getTitle() == "FX enabled"
+                && toggle->getTooltip().containsIgnoreCase ("dry")
+                && toggle->getHelpText() == toggle->getTooltip(),
+            "FX switch lost its canonical accessibility name or dry-bypass explanation");
+    expect (toggle->getWidth() >= 72 && toggle->getHeight() >= 28,
+            "FX switch lost practical target size/padding");
+    auto* quality = findControl (electry::parameters::fxOversampling);
+    auto* model = findControl (electry::parameters::ampModel);
+    expect (quality != nullptr && model != nullptr
+                && ! toggle->getBounds().expanded (3).intersects (quality->getBounds())
+                && toggle->getBottom() < model->getY(),
+            "FX switch is crowded against quality or amplifier controls");
+    const auto expectFxState = [&] (bool enabled)
+    {
+        for (const auto* id : { electry::parameters::distortion, electry::parameters::amp,
+                               electry::parameters::compressor, electry::parameters::delay,
+                               electry::parameters::room, electry::parameters::ampModel,
+                               electry::parameters::fxOversampling })
+        {
+            auto* control = findControl (id);
+            expect (control != nullptr && control->isEnabled() == enabled,
+                    std::string ("FX state did not reach control ") + id);
+            if (control != nullptr)
+                for (auto* child : control->getChildren())
+                    expect (child->isEnabled() == enabled,
+                            std::string ("FX state left an interactive child out of sync in ") + id);
+        }
+        for (const auto* id : { electry::parameters::pickHardness, electry::parameters::tone,
+                               electry::parameters::output, electry::parameters::guitarBuild })
+        {
+            const auto* control = findControl (id);
+            expect (control != nullptr && control->isEnabled(),
+                    "FX bypass disabled an instrument or master control");
+        }
+        auto traversal = editor->createKeyboardFocusTraverser();
+        const auto stops = traversal->getAllComponents (editor.get());
+        expect (stops.size() == (enabled ? 62u : 50u)
+                    && std::find (stops.begin(), stops.end(), toggle) != stops.end(),
+                "FX bypass did not remove only its disabled controls from Tab navigation");
+    };
+    expectFxState (false);
+    const auto disabled = renderEditorSnapshot (*editor);
+    // JUCE's synchronous toggle notification invokes the actual button click
+    // callback, rather than assigning the host parameter on the test's behalf.
+    toggle->setToggleState (true, juce::sendNotificationSync);
+    expect (parameterValue (processor, electry::parameters::fxEnabled) > .5f
+                && toggle->getButtonText() == "FX ON" && toggle->getToggleState(),
+            "clicking FX ON did not update its host parameter and visible state");
+    expectFxState (true);
+    const auto enabled = renderEditorSnapshot (*editor);
+    int changedPixels = 0;
+    if (const auto* amp = findControl (electry::parameters::amp))
+        for (int y = amp->getY(); y < amp->getBottom(); y += 2)
+            for (int x = amp->getX(); x < amp->getRight(); x += 2)
+                changedPixels += disabled.getPixelAt (x, y) != enabled.getPixelAt (x, y) ? 1 : 0;
+    expect (changedPixels > 25, "bypassed FX controls are not visually distinguished from enabled controls");
+    setParameterValue (processor, electry::parameters::fxEnabled, 0.0f);
+    expect (! toggle->getToggleState() && toggle->getButtonText() == "FX OFF",
+            "host FX bypass automation did not synchronize its editor switch");
+    expectFxState (false);
+    setParameterValue (processor, electry::parameters::amp, .73f);
+    setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
+    expectFxState (true);
+    for (const auto* id : { electry::parameters::distortion, electry::parameters::amp,
+                           electry::parameters::compressor, electry::parameters::delay,
+                           electry::parameters::room })
+        expect (std::abs (parameterValue (processor, id)
+                    - (std::strcmp (id, electry::parameters::amp) == 0 ? .73f : .60f)) < 1.0e-5f,
+                "FX bypass/enable discarded retained effect settings or blocked host edits while off");
+    editor.reset();
+    processor.releaseResources();
+}
+
 void testEditorRendering()
 {
     ElectryAudioProcessor processor;
+    setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
     processor.prepareToPlay (sampleRate, blockSize);
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     expect (editor != nullptr, "processor did not create an editor");
@@ -4503,10 +4795,10 @@ void testEditorRendering()
                        juce::PopupMenu::textColourId)
                        == editorLookAndFeel.findColour (
                               juce::ComboBox::textColourId)
-                && popupHighlight == juce::Colour (0xffddb16b)
+                && popupHighlight == juce::Colour (0xffff703f)
                 && editorLookAndFeel.findColour (
                        juce::PopupMenu::highlightedTextColourId)
-                       == juce::Colour (0xff1d120e),
+                       == juce::Colour (0xff0b0d10),
             "factory-rig popup fell back to the stock JUCE palette");
     const auto relativeLuminance = [] (juce::Colour colour)
     {
@@ -4651,7 +4943,7 @@ void testEditorRendering()
             if (auto* label = dynamic_cast<juce::Label*> (child))
                 palmMuteCaption = label;
     expect (palmMuteCaption != nullptr
-                && palmMuteCaption->getText() == "MUTE PRESS",
+                && palmMuteCaption->getText() == "PALM PRESSURE",
             "continuous mute pressure is not distinguished from MUTE articulation");
     auto editorFocusTraverser = editor->createKeyboardFocusTraverser();
     const auto editorTabOrder = editorFocusTraverser->getAllComponents (editor.get());
@@ -4664,14 +4956,14 @@ void testEditorRendering()
                                       component->getParentComponent()) != nullptr;
                        }));
     // JUCE exposes each editable knob value as a second native stop. Counting
-    // each knob/value pair once leaves 36 logical controls across the editor.
-    expect (editorTabOrder.size() == 61u
+    // each knob/value pair once leaves 37 logical controls across the editor, including the FX switch.
+    expect (editorTabOrder.size() == 62u
                 && editableKnobValueStops == knobs.size()
-                && editorTabOrder.size() - editableKnobValueStops == 36u,
+                && editorTabOrder.size() - editableKnobValueStops == 37u,
             "editor exposed " + std::to_string (editorTabOrder.size())
                 + " native and "
                 + std::to_string (editorTabOrder.size() - editableKnobValueStops)
-                + " logical Tab stops instead of 61 and 36");
+                + " logical Tab stops instead of 62 and 37");
     const auto expectAccessibleChoiceStrip = [&] (const char* componentId)
     {
         auto* strip = findControl (componentId);
@@ -4749,16 +5041,10 @@ void testEditorRendering()
     auto* buildControl = dynamic_cast<ElectryKnob*> (
         findControl (electry::parameters::guitarBuild));
     expect (buildControl != nullptr
-#if ELECTRY_MEASURED_BODY_RESPONSE
-                && buildControl->slider.getTooltip().contains ("matched walnut/ash")
-                && buildControl->slider.getTooltip().contains ("pole")
-                && buildControl->slider.getTooltip().contains ("remain neutral")
-#else
-                && buildControl->slider.getTooltip().contains ("material damping")
-#endif
                 && buildControl->slider.getTooltip().contains ("scale length")
+                && buildControl->slider.getTooltip().contains ("string gauge")
                 && buildControl->slider.getTooltip().contains ("remain independent"),
-            "Guitar Build does not explain its coupled path and independent controls: "
+            "Guitar Build does not explain its instrument setup and independent controls: "
                 + (buildControl == nullptr
                        ? std::string ("<missing>")
                        : buildControl->slider.getTooltip().toStdString()));
@@ -4904,7 +5190,7 @@ void testEditorRendering()
                 monoButton = button;
             else if (button->getButtonText() == "STEREO")
                 stereoButton = button;
-            else if (button->getButtonText() == "2X")
+            else if (button->getButtonText() == "DOUBLE")
                 twoXButton = button;
         }
         expect (modeButtons == 3,
@@ -5388,18 +5674,14 @@ void testEditorRendering()
     const auto* styleStrip = findControl ("playStyleStrip");
     const auto* styleKeyMode = findControl ("playStyleKeyMode");
     auto* keyboard = findControl ("keyboard");
-    const auto* keyboardHint = findControl ("keyboardHint");
     expect (pickStrip != nullptr && styleStrip != nullptr
-                && styleKeyMode != nullptr && keyboard != nullptr
-                && keyboardHint != nullptr,
+                && styleKeyMode != nullptr && keyboard != nullptr,
             "editor hierarchy components are missing stable IDs");
     if (pickStrip != nullptr && styleStrip != nullptr
-        && styleKeyMode != nullptr && keyboard != nullptr
-        && keyboardHint != nullptr)
+        && styleKeyMode != nullptr && keyboard != nullptr)
     {
         auto* midiKeyboard =
             dynamic_cast<ElectryKeyboardComponent*> (keyboard);
-        const auto* hintLabel = dynamic_cast<const juce::Label*> (keyboardHint);
         expect (midiKeyboard != nullptr
                     && midiKeyboard->getRangeStart()
                         == electry::ElectryEngine::firstKeyswitchNote
@@ -5413,19 +5695,26 @@ void testEditorRendering()
                     && keyboard->hasFocusOutline(),
                 "keyboard is not visibly keyboard-focusable");
         auto keyboardAccessibility = keyboard->createAccessibilityHandler();
-        expect (hintLabel != nullptr && keyboardAccessibility != nullptr
-                    && keyboardAccessibility->getTitle()
-                        == "MIDI keyboard: " + hintLabel->getText(),
-                "keyboard accessibility omits its visible keyswitch instructions");
-        expect (hintLabel != nullptr
-                    && hintLabel->getText().contains ("E2..D7")
-                    && hintLabel->getText().contains ("A#0")
-                    && hintLabel->getText().containsIgnoreCase ("vibrato")
-                    && hintLabel->getText().contains ("B0")
-                    && hintLabel->getText().containsIgnoreCase ("tremolo")
-                    && ! hintLabel->getText().contains ("E6")
-                    && ! hintLabel->getText().contains ("B6"),
-                "keyboard hint presents out-of-range E6..B6 keys as pitched notes");
+        const auto containsKeyboardMappings = [] (const juce::String& text)
+        {
+            return text.contains ("C0..D0") && text.contains ("D#0..A0")
+                && text.containsIgnoreCase ("A#0 vibrato")
+                && text.containsIgnoreCase ("B0 tremolo")
+                && text.contains ("C1..G1")
+                && text.containsIgnoreCase ("G#1 clear")
+                && text.contains ("E2..D7");
+        };
+        expect (keyboardAccessibility != nullptr
+                    && keyboardAccessibility->getTitle().startsWith ("MIDI keyboard: ")
+                    && containsKeyboardMappings (keyboardAccessibility->getTitle())
+                    && containsKeyboardMappings (keyboardAccessibility->getHelp()),
+                "keyboard accessibility omits the legend's complete note mappings");
+        expect (keyboardAccessibility != nullptr
+                    && ! keyboardAccessibility->getTitle().contains ("E6")
+                    && ! keyboardAccessibility->getTitle().contains ("B6")
+                    && ! keyboardAccessibility->getHelp().contains ("E6")
+                    && ! keyboardAccessibility->getHelp().contains ("B6"),
+                "keyboard instructions present out-of-range E6..B6 keys as pitched notes");
         if (factoryProgramControl != nullptr)
             expect (factoryProgramControl->getBottom() <= pickStrip->getY(),
                     "factory-rig selector overlaps the performance section");
@@ -5445,8 +5734,8 @@ void testEditorRendering()
         expect (keyboard->getHeight() >= 100
                     && keyboard->getWidth() * 10 >= editor->getWidth() * 9,
                 "keyboard lost its practical playing area");
-        expect (keyboard->getBottom() <= keyboardHint->getY(),
-                "keyboard hint is not below the keyboard");
+        expect (editor->getLocalBounds().reduced (12).contains (keyboard->getBounds()),
+                "keyboard lost its surrounding padding");
 
         std::vector<juce::Rectangle<int>> buttonBounds;
         const auto countButtons = [&buttonBounds] (const juce::Component* strip)
@@ -5522,6 +5811,8 @@ void testEditorRendering()
                         "keyswitch buttons overlap");
     }
 
+    // Interaction checks above opt in; documentation still depicts the new-instance FX OFF state.
+    setParameterValue (processor, electry::parameters::fxEnabled, 0.0f);
     const auto snapshot = renderEditorSnapshot (*editor);
     int litPixels = 0;
     for (int y = 0; y < snapshot.getHeight(); y += 8)
@@ -5548,6 +5839,78 @@ void testEditorRendering()
             && png.writeImageToStream (snapshot, output);
         output.flush();
         expect (wroteSnapshot, "could not write requested editor snapshot");
+
+        // Keep UI review images on the real component path, including host
+        // display scaling and a sounding performance. These exports run only
+        // when a screenshot was requested; ordinary tests do no extra work.
+        const auto saveVariant = [&] (const juce::String& suffix, float scale)
+        {
+            juce::Image image (juce::Image::ARGB,
+                juce::roundToInt (static_cast<float> (editor->getWidth()) * scale),
+                juce::roundToInt (static_cast<float> (editor->getHeight()) * scale), true);
+            {
+                juce::Graphics graphics (image);
+                graphics.addTransform (juce::AffineTransform::scale (scale));
+                editor->paintEntireComponent (graphics, true);
+            }
+            const auto file = snapshotFile.getSiblingFile (
+                snapshotFile.getFileNameWithoutExtension() + suffix + ".png");
+            juce::FileOutputStream stream (file);
+            const bool prepared = stream.openedOk() && stream.setPosition (0)
+                && stream.truncate();
+            expect (prepared && png.writeImageToStream (image, stream),
+                    "could not write scaled/active editor snapshot");
+            stream.flush();
+        };
+        saveVariant ("-2x", 2.0f);
+        setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
+        saveVariant ("-fx-on", 1.0f);
+        setParameterValue (processor, electry::parameters::fxEnabled, 0.0f);
+
+        // Show independent function groups through the same public MIDI path
+        // as the on-screen keys, including both white and black solo keys.
+        const auto previousPick = processor.getCurrentPickStyleIndex();
+        const auto previousStyle = processor.getCurrentPlayStyleIndex();
+        const auto previousHold = processor.getPlayStyleKeysHold();
+        processor.setPlayStyleKeysHold (true);
+        processor.triggerArticulation (static_cast<int> (electry::PickStyle::Up));
+        processor.triggerArticulation (electry::ElectryEngine::pickStyleKeyswitchCount
+            + static_cast<int> (electry::PlayStyle::PalmMute));
+        constexpr std::array groupNotes {
+            electry::ElectryEngine::firstMidiSoloStringNote,
+            electry::ElectryEngine::firstMidiSoloStringNote + 1,
+            electry::ElectryEngine::vibratoGestureNote,
+            electry::ElectryEngine::tremoloGestureNote
+        };
+        for (const auto note : groupNotes)
+            processor.keyboardState.noteOn (1, note, 0.85f);
+        juce::AudioBuffer<float> groupAudio;
+        juce::MidiBuffer groupMidi;
+        renderBlock (processor, groupAudio, groupMidi);
+        juce::Thread::sleep (40);
+        juce::Timer::callPendingTimersSynchronously();
+        saveVariant ("-keyboard-groups", 1.0f);
+        for (const auto note : groupNotes)
+            processor.keyboardState.noteOff (1, note, 0.0f);
+        renderBlock (processor, groupAudio, groupMidi);
+        processor.setPlayStyleKeysHold (previousHold);
+        processor.triggerArticulation (previousPick);
+        processor.triggerArticulation (
+            electry::ElectryEngine::pickStyleKeyswitchCount + previousStyle);
+        renderBlock (processor, groupAudio, groupMidi);
+
+        processor.triggerArticulation (2); // Alternate pick, ordinary sustain.
+        processor.triggerArticulation (electry::ElectryEngine::pickStyleKeyswitchCount);
+        juce::AudioBuffer<float> activeAudio;
+        juce::MidiBuffer activeMidi;
+        for (const int note : { 42, 59, 76 })
+            activeMidi.addEvent (juce::MidiMessage::noteOn (
+                1, note, static_cast<juce::uint8> (115)), 0);
+        renderBlock (processor, activeAudio, activeMidi);
+        renderSeconds (processor, activeAudio, 0.10);
+        juce::Thread::sleep (40);
+        juce::Timer::callPendingTimersSynchronously();
+        saveVariant ("-active", 1.0f);
     }
 
     editor.reset();
@@ -5647,6 +6010,8 @@ void runRealtimeDeadlineBenchmarkIfRequested()
                                    scenario.pickupSelector);
                 setParameterValue (processor, electry::parameters::outputMode,
                                    scenario.outputMode);
+                setParameterValue (processor, electry::parameters::fxEnabled,
+                                   scenario.allEffectsMaximum || scenario.switchAmplifiers ? 1.0f : 0.0f);
                 if (scenario.allEffectsMaximum)
                 {
                     for (const auto* id : { electry::parameters::distortion,
@@ -5806,8 +6171,10 @@ int main()
     testOutputGainImpact();
     testPerformanceControls();
     testFxOversamplingInLiveFeedbackPath();
+    testFxEnabledAudioAndLifecycle();
     testOutputModeAudioField();
     testTextButtonKeyboardActivation();
+    testFxEditorToggle();
     testEditorRendering();
     testPrepareReleaseCycles();
     runRealtimeDeadlineBenchmarkIfRequested();

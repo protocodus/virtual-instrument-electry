@@ -29,6 +29,8 @@ public:
     juce::Font getComboBoxFont (juce::ComboBox&) override;
     juce::Label* createSliderTextBox (juce::Slider&) override;
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
+    std::unique_ptr<juce::FocusOutline> createFocusOutlineForComponent (
+        juce::Component&) override;
 };
 
 // JUCE's text button activates on Return but not Space, and its radio buttons
@@ -104,6 +106,7 @@ class ElectryKnob final : public juce::Component
 {
 public:
     explicit ElectryKnob (juce::String name);
+    void parentHierarchyChanged() override;
     void resized() override;
 
     juce::Slider slider;
@@ -203,16 +206,15 @@ private:
 
     void timerCallback() override;
     void attachSlider (juce::Slider&, const char* parameterId);
+    void updateFxEnabledState (bool enabled);
 
     ElectryAudioProcessor& electryProcessor;
     ElectryLookAndFeel lookAndFeel;
-    juce::Image backgroundImage;
     juce::TooltipWindow tooltipWindow { this, 600 };
 
     juce::Label logoLabel;
     juce::Label editionLabel;
     juce::Label factoryProgramLabel;
-    juce::Label keyboardHintLabel;
     juce::ComboBox factoryProgramSelector;
     ElectryStatusDisplay statusDisplay;
     ElectryTextButton panicButton { "PANIC" };
@@ -220,22 +222,22 @@ private:
     // The two independent keyswitch banks: how the pick moves and what the
     // hands do. Any combination of the two is reachable.
     ElectryChoiceStrip pickStyleStrip {
-        "PICK STROKE  (KEYSWITCHES C0..D0)",
+        "PICK STROKE",
         { "DOWN", "UP", "ALT" }
     };
     ElectryChoiceStrip playStyleStrip {
-        "PLAY STYLE  (KEYSWITCHES D#0..A0)",
+        "PLAY STYLE",
         { "SUSTAIN", "MUTE", "HAMMER", "HARMONIC", "PINCH", "SLIDE",
           "DEAD" }
     };
     ElectryChoiceStrip playStyleKeyModeStrip {
-        "PLAY-STYLE KEYS", { "LATCH", "HOLD" }
+        "KEY MODE", { "LATCH", "HOLD" }
     };
     ElectryChoiceStrip pickupStrip {
         "PICKUP", { "NECK", "BOTH", "BRIDGE" }, 1
     };
     ElectryChoiceStrip outputModeStrip {
-        {}, { "MONO", "STEREO", "2X" }, 8, "OUTPUT MODE"
+        {}, { "MONO", "STEREO", "DOUBLE" }, 8, "OUTPUT MODE"
     };
     ElectryChoiceStrip ampModelStrip {
         "AMP VOICE",
@@ -245,35 +247,36 @@ private:
         {}, { "STANDARD", "HIGH" }, 2, "FX OVERSAMPLING"
     };
     juce::Label fxOversamplingLabel;
+    ElectryTextButton fxEnableButton { "FX OFF" };
 
     ElectryKnob guitarBuildKnob { "BUILD" };
-    ElectryKnob bodyResonanceKnob { "BODY RES" };
+    ElectryKnob bodyResonanceKnob { "BODY RESONANCE" };
 
-    ElectryKnob pickupTypeKnob { "COIL TYPE" };
+    ElectryKnob pickupTypeKnob { "PICKUP TYPE" };
     ElectryKnob toneKnob { "TONE" };
 
-    ElectryKnob stringAgeKnob { "AGE" };
-    ElectryKnob pickPositionKnob { "PICK POS" };
-    ElectryKnob pickHardnessKnob { "HARDNESS" };
+    ElectryKnob stringAgeKnob { "STRING AGE" };
+    ElectryKnob pickPositionKnob { "PICK POSITION" };
+    ElectryKnob pickHardnessKnob { "PICK HARDNESS" };
     ElectryKnob bendTimeKnob { "BEND TIME" };
-    ElectryKnob muteDampingKnob { "TIGHTNESS" };
+    ElectryKnob muteDampingKnob { "MUTE TIGHTNESS" };
     ElectryKnob velocityKnob { "VELOCITY" };
 
-    ElectryKnob pickNoiseKnob { "PLECTRUM" };
-    ElectryKnob fingerNoiseKnob { "FINGER" };
-    ElectryKnob releaseNoiseKnob { "RELEASE" };
-    ElectryKnob artifactsKnob { "ARTIFACTS" };
+    ElectryKnob pickNoiseKnob { "PICK NOISE" };
+    ElectryKnob fingerNoiseKnob { "FINGER NOISE" };
+    ElectryKnob releaseNoiseKnob { "RELEASE NOISE" };
+    ElectryKnob artifactsKnob { "MECHANICS" };
 
-    ElectryKnob sympatheticKnob { "SYMPATHY" };
-    ElectryKnob palmMuteKnob { "MUTE PRESS" };
-    ElectryKnob strumSpreadKnob { "STRUM" };
-    ElectryKnob tremoloRateKnob { "TRM RATE" };
+    ElectryKnob sympatheticKnob { "STRING RING" };
+    ElectryKnob palmMuteKnob { "PALM PRESSURE" };
+    ElectryKnob strumSpreadKnob { "STRUM TIME" };
+    ElectryKnob tremoloRateKnob { "PICK RATE" };
     ElectryKnob resonanceKnob { "RESONANCE" };
 
     ElectryKnob outputKnob { "OUTPUT" };
-    ElectryKnob distortionKnob { "DISTORT" };
-    ElectryKnob ampKnob { "AMP" };
-    ElectryKnob compressorKnob { "COMP" };
+    ElectryKnob distortionKnob { "PEDAL DRIVE" };
+    ElectryKnob ampKnob { "AMP DRIVE" };
+    ElectryKnob compressorKnob { "COMPRESSOR" };
     ElectryKnob delayKnob { "DELAY" };
     ElectryKnob roomKnob { "ROOM" };
 
@@ -284,6 +287,7 @@ private:
     std::unique_ptr<juce::ParameterAttachment> outputModeAttachment;
     std::unique_ptr<juce::ParameterAttachment> ampModelAttachment;
     std::unique_ptr<juce::ParameterAttachment> fxOversamplingAttachment;
+    std::unique_ptr<juce::ParameterAttachment> fxEnabledAttachment;
     std::vector<std::unique_ptr<SliderAttachment>> sliderAttachments;
     std::array<juce::Rectangle<int>, sectionCount> sectionBounds {};
 

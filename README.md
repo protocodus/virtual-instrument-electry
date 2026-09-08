@@ -40,6 +40,7 @@ are not notarized. Audio Unit is available only on macOS.
 
 Start with **Factory Default** for dry DI, **Drop-E Metal** for heavy rhythm,
 or **Blues Rock Lead** for a lead with amp, delay and room.
+FX starts **off**; click **FX OFF** to enable the selected rig's effects.
 See [factory rigs and quick start](#factory-rigs-and-quick-start) for playing
 instructions and [demo notes](#audio-demos) for the full listening guide.
 
@@ -48,6 +49,24 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-08 — [Keyboard groups and Performance spacing](Docs/ui-keyboard-groups-2026-09-08.md):**
+  distinct pick, style, gesture and string-solo key colors with a matching legend,
+  inline gray key ranges, plus a wider Performance panel that keeps Palm
+  Pressure on one line.
+- **2026-09-08 — [FX bypass and control spacing](Docs/fx-toggle-2026-09-08.md):**
+  a global FX ON/OFF button, dry by default, with retained settings, smooth
+  switching and more space around the FX header controls and amp selector.
+- **2026-09-08 — [Black-metal interface](Docs/ui-metal-2026-09-08.md):**
+  satin graphite, machined controls, ember accents and a wider layout, with
+  clearer labels, drawn icons, ebony fretboard and matching keyboard focus.
+- **2026-09-08 — [Audible pick attack and ringing improvements](Docs/realism-pass4-2026-09-08.md):**
+  stronger hard-pick edges on wound strings, faster bass-partial cooling and
+  natural harmonics driven by a physical pluck, with 53 matched dry/metal
+  audition phrases and focused waveform tests.
+- **2026-09-08 — [Five more realism improvements](Docs/realism-pass3-2026-09-08.md):**
+  controlled bass-partial loss, accurate slide arrival, release-timed pinch
+  contact, finite finger/thumb pads and harmonic Pick Position, with 47
+  matched dry/metal audition phrases and reference-decay measurements.
 - **2026-09-08 — [Five further realism improvements](Docs/realism-pass2-2026-09-08.md):**
   speaking-length decay on wound strings, physical-distance slides, coherent
   winding texture, retained fretting-finger noise ownership and smooth
@@ -75,7 +94,7 @@ have been published yet.
 ## Technical details
 
 [Build from source](#build) · [MIDI and playing controls](#how-it-works)
-· [Host parameters](#29-host-parameters) · [Sound architecture](#sound-architecture)
+· [Host parameters](#30-host-parameters) · [Sound architecture](#sound-architecture)
 · [References](#references-and-claim-boundaries) · [Known gaps](#known-gaps)
 · [Licensing](#licensing)
 
@@ -107,10 +126,13 @@ only while its key is held, then return to the visible base choice. Any stroke
 can therefore drive any style without programming an Open switch around every
 muted phrase.
 
-The compact FX panel provides five amount controls, an **Amp Voice**
-selector and **Standard / High Oversampling**: a distortion pedal; American
+The FX panel provides a global **FX ON / FX OFF** toggle, five amount controls, an **Amp Voice**
+selector and **Standard / High Quality**: a distortion pedal; American
 Clean, British Crunch and Modern High-Gain amplifier/cabinet paths; compression;
 lead delay; and a stereo room.
+New instances start with FX off. Bypass preserves the dry guitar and all stored
+FX settings, dims the effect controls, and switches with a 5 ms crossfade.
+Older saved sessions without the toggle retain their enabled effects.
 Every amount defaults to a true 0 % dry setting. Once Distortion or Amp is moved
 above zero it is a drive control around a fully connected circuit, so no
 uncabbed DI leaks around an enabled loudspeaker. A prepared inverse table
@@ -255,9 +277,8 @@ capture- and listening-calibrated physical mapping.
 ## Factory rigs and quick start
 
 The editor's **RIG** selector provides four deterministic starting points and
-sets all 29 host parameters, so it cannot inherit a forgotten control from the
-previous patch. Rigs deliberately leave Pick Stroke, the base Play Style and
-the `LATCH | HOLD` choice alone.
+sets the 29 tone and performance parameters. Rigs preserve the global FX
+toggle, Pick Stroke, the base Play Style and the `LATCH | HOLD` choice.
 Compact knob captions remain short enough for the faceplate, while each knob's
 accessibility title uses its complete host parameter name (for example,
 **Mute pressure**, **Compressor** and **Output level**).
@@ -273,7 +294,7 @@ accessibility title uses its complete host parameter name (for example,
   moderate Modern amp drive, compression, delay and room. Its +3.2 dB output is
   the host control's nearest 0.1 dB step to the demo renderer's 1.45 gain.
 
-1. Load **Drop-E Metal**, leave the built-in amp on, and play E1..D6
+1. Load **Drop-E Metal**, click **FX OFF** so it reads **FX ON**, and play E1..D6
    (MIDI notes 28..86), the full range drawn on the on-screen piano.
    C0/C#0/D0 select Down, Up or Alternate picking.
 2. Keep a note or chord held and click its row in the live fretboard for one
@@ -294,7 +315,7 @@ accessibility title uses its complete host parameter name (for example,
    roughly 6.4 Hz / 40-cent rock arc before its bounded per-cycle variation.
    Open strings stay fixed because no finger is stopping them.
 6. Hold B0 **TRM** while a note is physically held for automatic picking.
-   **TRM Rate** defaults to 12 strokes/s; velocity remains pick force, and
+   **Pick Rate** defaults to 12 strokes/s; velocity remains pick force, and
    Alternate remains one down/up wrist. Releasing B0 stops new contacts and
    leaves the current string to decay. E6..B6 remain one-shot string triggers.
 7. Choose Mono for a conventional DI, Stereo for one guitar's divided-pickup
@@ -361,7 +382,7 @@ that was already ringing.
 | MIDI note | Key | Momentary gesture |
 | --- | --- | --- |
 | 22 | A#0 | Vibrato — hold while physically held stopped notes ring; Note On velocity sets the hand's width and Note Off eases it back to rest. Pre-held intent waits at zero for a stopped finger, while open strings and key-released tails stay fixed. Overlapping owners balance, All Sound Off and Reset All Controllers preserve a physically held key, while All Notes Off and Panic release it |
-| 23 | B0 | Tremolo picking — hold to repick every physically held string through the current Pick Stroke and Play Style; only a latched Hammer uses a neutral Sustain contact without changing the latch. Velocity is pick force and TRM Rate is speed. A newly played note is its own first contact. Overlapping owners balance; CC120/121 preserve the held wrist, while CC123, Panic, prepare and release stop it |
+| 23 | B0 | Tremolo picking — hold to repick every physically held string through the current Pick Stroke and Play Style; only a latched Hammer uses a neutral Sustain contact without changing the latch. Velocity is pick force and Pick Rate is speed. A newly played note is its own first contact. Overlapping owners balance; CC120/121 preserve the held wrist, while CC123, Panic, prepare and release stop it |
 
 Notes 33..39 (A1..D#2) are silent unmapped keys. Following standard written guitar notation convention, the playable area is written one octave above sounding pitch: notes 40..98 (E2..D7) are playable on a 22-fret, eight-string Drop-E instrument sounding as physical E1..D6 (tuned E1-B1-E2-A2-D3-G3-B3-E4). D#7 (99) is a silent separator. Notes 100..107 (E7..B7) are picking-hand triggers for physical strings 8..1, from the lowest E1 string to the highest E4 string. A trigger repicks the note physically held on that string with its own velocity and the current Pick Stroke and Play Style; only a latched Hammer becomes a neutral Sustain pick for this dedicated contact, without changing the latch or the next playable note. An unheld string stays silent. A trigger never adds fretting-key ownership, so its Note Off is inert and the original note's Note Off still releases normally. Held ownership survives the old sound's natural decay, allowing a silent Mute or Dead note to be struck again. Notes outside these ranges are ignored. The on-screen keyboard displays C0 through D7: Octave 0 houses picking/style keyswitches and gestures, Octave 1 houses solo-string keyswitches (with a visual brass nut divider at E2 = 40), and E2..D7 is the interactive playable area. E7..B7 remain available as MIDI-only performance triggers. Clicking a row in the live fretboard sends the same trigger at hard velocity; it is a visible picking-hand shortcut, while the MIDI lane retains continuous velocity and sequencer timing.
 The visible B0 **TRM** key drives those same one-shot contacts from one shared
@@ -1226,23 +1247,27 @@ current `testGuitarBuildRangeIsAudible` therefore measures the six complete anch
 while the lower-level material tests state the instrument they measure instead
 of inheriting the default.
 
-### 29 host parameters
+### 30 host parameters
 
 Electry is unreleased, so this development parameter layout makes no
 compatibility promise to earlier snapshots. It exposes one Guitar Build
 parameter in place of six construction axes, one three-choice Output Mode
 parameter in place of a binary field plus a separate Double switch, and one
-three-choice Amp Voice selector, plus Standard/High FX Oversampling. Tonal
+three-choice Amp Voice selector, Standard/High FX Oversampling and a global FX
+enable switch. Tonal
 continuous controls are smoothed inside the engine; Tremolo Rate, Strum Spread and Bend Time intentionally reach their
 schedulers directly, pickup and output-mode changes crossfade over roughly
 4 ms, and Amp Voice crossfades independent circuit state with a 15 ms
 exponential smoothing time constant.
-The `ampModel` field retains index 28; states without it migrate to Modern
-High-Gain. `fxOversampling` is appended at index 29, preserving all 28 earlier
-indices. New instances and factory rigs use Standard (choice 0); older saved
+The `ampModel` field retains zero-based index 27 (row 28 below); states without
+it migrate to Modern High-Gain. `fxOversampling` retains index 28 (row 29).
+New instances and factory rigs use Standard (choice 0); older saved
 states missing this field explicitly migrate to High (choice 1), preserving
 their previous rate policy. Live oversampling changes use the prepared-bank
 crossfade described above.
+`fxEnabled` is appended at index 29 (row 30), preserving every earlier index.
+It defaults to off, is host-automatable and saved with the patch. States missing
+this field migrate to on; factory rig selection preserves its current value.
 
 | # | ID | Name | Range and default |
 | --- | --- | --- | --- |
@@ -1275,6 +1300,7 @@ crossfade described above.
 | 27 | `tremoloRate` | Tremolo picking rate | 4..20 strokes/s for the momentary B0 TRM wrist, default 12 strokes/s; appended after the published controls so their host automation indices remain unchanged |
 | 28 | `ampModel` | Amp voice | American Clean / British Crunch / **Modern High-Gain**; switches the complete amp, output dynamics, transformer and six-section speaker/cabinet voice, with legacy development states defaulting to Modern |
 | 29 | `fxOversampling` | FX oversampling | **Standard (0)** / High (1); Standard uses one fewer nonlinear oversampling stage, while saved states missing the field migrate to High |
+| 30 | `fxEnabled` | FX enabled | **Off (0)** / On (1); bypasses the complete FX chain with a 5 ms crossfade and retains its settings; older states missing the field migrate to On |
 
 ### References and claim boundaries
 
@@ -1484,8 +1510,8 @@ run. The active worst case uses Stereo, maximum Body Resonance, and maximum
 Artifacts mode. Mono is checked sample-for-sample dual mono; Stereo tests pin
 physical low/high string orientation, coherent fold-down, bounded side level,
 energy balance, determinism, and opposite string endpoints. The plug-in suite
-additionally pins the 29-parameter layout, including Tremolo Rate's, Amp
-Voice's and FX Oversampling's appended indices, Guitar Build's named anchors,
+additionally pins the 30-parameter layout, including Tremolo Rate's, Amp
+Voice's, FX Oversampling's and FX enabled's appended indices, Guitar Build's named anchors,
 formatted values, current-state round trips, bus layout, sample-accurate
 note starts, MIDI controller behavior (bit-identical channel-agnostic pitch
 before zone activation; same-sample MPE setup; selective member and additive

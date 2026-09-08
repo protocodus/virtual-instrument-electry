@@ -228,13 +228,15 @@ void testArtifact (const std::filesystem::path& path)
              "CLAP does not advertise MIDI input");
 
     const auto* params = extension<clap_plugin_params_t> (plugin.get(), CLAP_EXT_PARAMS);
-    require (params->count (plugin.get()) == 29, "CLAP must expose 29 product parameters");
+    require (params->count (plugin.get()) == 30, "CLAP must expose 30 product parameters");
     std::vector<clap_param_info_t> parameterInfo;
     std::unordered_set<clap_id> parameterIDs;
     clap_param_info_t outputLevel {};
     clap_param_info_t oversampling {};
+    clap_param_info_t fxEnabled {};
     bool foundOutputLevel = false;
     bool foundOversampling = false;
+    bool foundFxEnabled = false;
     for (uint32_t index = 0; index < params->count (plugin.get()); ++index)
     {
         clap_param_info_t info {};
@@ -259,9 +261,26 @@ void testArtifact (const std::filesystem::path& path)
                          + ", default " + std::to_string (info.default_value)
                          + ", flags " + std::to_string (info.flags));
         }
+        if (std::strcmp (info.name, "FX enabled") == 0)
+        {
+            require (! foundFxEnabled && index == 29,
+                     "CLAP FX enabled must be unique and appended at parameter index 29");
+            foundFxEnabled = true;
+            fxEnabled = info;
+            require (info.min_value == 0.0 && info.max_value == 1.0
+                         && info.default_value == 0.0
+                         && (info.flags & CLAP_PARAM_IS_AUTOMATABLE) != 0
+                         && (info.flags & CLAP_PARAM_IS_STEPPED) != 0,
+                     "CLAP FX enabled must be a stepped, automatable 0/1 toggle, default Off");
+            double value = 1.0;
+            require (params->get_value (plugin.get(), info.id, &value)
+                         && std::abs (value) < 1.0e-6,
+                     "CLAP FX enabled did not initialize Off");
+        }
     }
     require (foundOutputLevel, "CLAP does not expose Output level");
     require (foundOversampling, "CLAP does not expose FX oversampling");
+    require (foundFxEnabled, "CLAP does not expose FX enabled");
     const auto setValue = [&] (const clap_param_info_t& info, double fraction)
     {
         clap_event_param_value_t change {};
@@ -292,8 +311,17 @@ void testArtifact (const std::filesystem::path& path)
                                     qualityText.data(), qualityText.size())
                  && std::strcmp (qualityText.data(), "High") == 0,
              "CLAP did not name the full oversampling choice High");
+    require (params->value_to_text (plugin.get(), fxEnabled.id, 0.0,
+                                    qualityText.data(), qualityText.size())
+                 && std::strcmp (qualityText.data(), "Off") == 0,
+             "CLAP did not name the disabled FX state Off");
+    require (params->value_to_text (plugin.get(), fxEnabled.id, 1.0,
+                                    qualityText.data(), qualityText.size())
+                 && std::strcmp (qualityText.data(), "On") == 0,
+             "CLAP did not name the enabled FX state On");
     setValue (outputLevel, 0.65);
     setValue (oversampling, 1.0);
+    setValue (fxEnabled, 1.0);
     std::vector<double> savedValues;
     for (const auto& info : parameterInfo)
     {
@@ -307,6 +335,7 @@ void testArtifact (const std::filesystem::path& path)
              "CLAP state save failed");
     setValue (outputLevel, 0.15);
     setValue (oversampling, 0.0);
+    setValue (fxEnabled, 0.0);
     require (stateExtension->load (plugin.get(), &state.input), "CLAP state restore failed");
     host.serviceCallbacks (plugin.get());
     for (std::size_t index = 0; index < parameterInfo.size(); ++index)
@@ -316,6 +345,19 @@ void testArtifact (const std::filesystem::path& path)
                  && std::abs (value - savedValues[index]) < 1.0e-5,
                  std::string ("CLAP state did not restore parameter: ") + parameterInfo[index].name);
     }
+
+    setValue (fxEnabled, 0.0);
+    State offState;
+    require (stateExtension->save (plugin.get(), &offState.output) && ! offState.bytes.empty(),
+             "CLAP explicit-Off state save failed");
+    setValue (fxEnabled, 1.0);
+    require (stateExtension->load (plugin.get(), &offState.input),
+             "CLAP explicit-Off state restore failed");
+    host.serviceCallbacks (plugin.get());
+    double restoredFxEnabled = 1.0;
+    require (params->get_value (plugin.get(), fxEnabled.id, &restoredFxEnabled)
+                 && std::abs (restoredFxEnabled) < 1.0e-6,
+             "CLAP state restore did not preserve explicit FX Off");
 
     require (plugin->activate (plugin.get(), 48000.0, 256, 256), "CLAP activation failed");
     ProcessingLifetime processing { plugin.get() };
@@ -365,7 +407,7 @@ int main (int argc, char** argv)
     {
         require (argc == 2, "usage: ElectryCLAPArtifactSmokeTests <CLAP binary>");
         testArtifact (std::filesystem::absolute (argv[1]));
-        std::cout << "Electry built CLAP artifact smoke test passed (29 parameters, state restore, MIDI audio)\n";
+        std::cout << "Electry built CLAP artifact smoke test passed (30 parameters, state restore, MIDI audio)\n";
         return 0;
     }
     catch (const std::exception& error)

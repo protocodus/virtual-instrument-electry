@@ -1,0 +1,463 @@
+{
+  "status": "isolated_voicing_probes_not_calibrated_realism",
+  "source_sha256": "7efd9f2257f6f9c8db48839aacd5c94585fd557e0a94638539805c853f28a0e0",
+  "probes": {
+    "palm_pick_position": {
+      "comparison_path": "build-realism-20260908-pass4/research-palm/comparison/comparison.json",
+      "comparison_sha256": "b4d2894eb8501cdbaffe28198de47e079e2f0146ca7fbcf76ed63bf9558993c7",
+      "selected_phrases": [
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.8272419362860219,
+          "attack_0_20_ms_rms_change_db": 0.38277803139184385,
+          "attack_centroid_before_hz": 173.13702318243884,
+          "attack_centroid_after_hz": 158.36824738727384,
+          "release_0_80_ms_rms_change_db": 1.605253152679282,
+          "waveform_sha256": {
+            "baseline": "b15e9de27fe5adee8d67e553fa55c905d19763d40d120ac61f4524fe2e258c6a",
+            "candidate": "115338c9bafbfb2f0384593f151927b57b7fd2eb285685036308657fd71813d5"
+          }
+        },
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "modern",
+          "whole_file_rms_change_db": 1.003230065889447,
+          "attack_0_20_ms_rms_change_db": 0.40966115560478755,
+          "attack_centroid_before_hz": 177.69368222448983,
+          "attack_centroid_after_hz": 180.64404734206096,
+          "release_0_80_ms_rms_change_db": 1.753349272625961,
+          "waveform_sha256": {
+            "baseline": "b637a55b4fceccfbfc27611ec0276df50ebaddc22f3793c0e116556899b7e541",
+            "candidate": "ddd177dd7a27eb63e9f714ced592611ec43f5d87fb562c6a47aa42daf8bc05a1"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 255.65916907563724,
+          "attack_centroid_after_hz": 255.65916907563724,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "6ab1393606439063b2fcf0fc060b463992ed974ba8214cf2d56dcfd62f574e41",
+            "candidate": "6ab1393606439063b2fcf0fc060b463992ed974ba8214cf2d56dcfd62f574e41"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 199.1340871265719,
+          "attack_centroid_after_hz": 199.1340871265719,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "2a3ed0bafca9735daeadab540b97ca7e2f5ed9714a37a788e369bcec962cbf3c",
+            "candidate": "2a3ed0bafca9735daeadab540b97ca7e2f5ed9714a37a788e369bcec962cbf3c"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 233.26694324483745,
+          "attack_centroid_after_hz": 233.26694324483745,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "008baaf5dbd3dc2a923a4ee7a24cc7f58f48efd1f0e05789d850f391e3c1e27c",
+            "candidate": "008baaf5dbd3dc2a923a4ee7a24cc7f58f48efd1f0e05789d850f391e3c1e27c"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 187.20019499799054,
+          "attack_centroid_after_hz": 187.20019499799054,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "c56b11ad194eec13c3e6621ea0315de81e5c83b919eb93d39cd7a64199208b7e",
+            "candidate": "c56b11ad194eec13c3e6621ea0315de81e5c83b919eb93d39cd7a64199208b7e"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 286.58782012708616,
+          "attack_centroid_after_hz": 286.58782012708616,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "593f20f2a1c79d011690d85cbab265a096ec19ef44c44934918041c08509f3d1",
+            "candidate": "593f20f2a1c79d011690d85cbab265a096ec19ef44c44934918041c08509f3d1"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.0,
+          "attack_0_20_ms_rms_change_db": 0.0,
+          "attack_centroid_before_hz": 433.9331814429784,
+          "attack_centroid_after_hz": 433.9331814429784,
+          "release_0_80_ms_rms_change_db": 0.0,
+          "waveform_sha256": {
+            "baseline": "42eb821235c774e0f265cc0ed8150b23d4ff46a3e6d372b60b2cdeed866eccf7",
+            "candidate": "42eb821235c774e0f265cc0ed8150b23d4ff46a3e6d372b60b2cdeed866eccf7"
+          }
+        }
+      ]
+    },
+    "edge_4x": {
+      "comparison_path": "build-realism-20260908-pass4/research-palm/edge4-comparison/comparison.json",
+      "comparison_sha256": "6cf61cf0ab3d3d28ae625b38a078795865588a25236a6b2c9294caa01018f902",
+      "selected_phrases": [
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.07960076350799028,
+          "attack_0_20_ms_rms_change_db": 0.6181675102602142,
+          "attack_centroid_before_hz": 173.13702318243884,
+          "attack_centroid_after_hz": 218.62368139062175,
+          "release_0_80_ms_rms_change_db": -0.05666411486186007,
+          "waveform_sha256": {
+            "baseline": "b15e9de27fe5adee8d67e553fa55c905d19763d40d120ac61f4524fe2e258c6a",
+            "candidate": "7b98baf4fc01aea562daddfdfc0eb119febc12c8497eda48e6ffa0127118937c"
+          }
+        },
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.26772161496716507,
+          "attack_0_20_ms_rms_change_db": 1.0735618042640098,
+          "attack_centroid_before_hz": 177.69368222448983,
+          "attack_centroid_after_hz": 283.17445201802207,
+          "release_0_80_ms_rms_change_db": -0.05482613296938865,
+          "waveform_sha256": {
+            "baseline": "b637a55b4fceccfbfc27611ec0276df50ebaddc22f3793c0e116556899b7e541",
+            "candidate": "e7e197c9fb70d8cc5defc48801423ee1b7dad419c86deacd96508b7893554b2c"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.08289143459795412,
+          "attack_0_20_ms_rms_change_db": 6.687320157080421,
+          "attack_centroid_before_hz": 255.65916907563724,
+          "attack_centroid_after_hz": 1733.8348956903308,
+          "release_0_80_ms_rms_change_db": -0.356514076162334,
+          "waveform_sha256": {
+            "baseline": "6ab1393606439063b2fcf0fc060b463992ed974ba8214cf2d56dcfd62f574e41",
+            "candidate": "85bfa7c75ac73b262c533b7cc0e7343fd2af2898caf4bc4c28d1e0d82e1a2471"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.1466710075348452,
+          "attack_0_20_ms_rms_change_db": 1.529599257351613,
+          "attack_centroid_before_hz": 199.1340871265719,
+          "attack_centroid_after_hz": 729.9467422268702,
+          "release_0_80_ms_rms_change_db": -0.2850142924939121,
+          "waveform_sha256": {
+            "baseline": "2a3ed0bafca9735daeadab540b97ca7e2f5ed9714a37a788e369bcec962cbf3c",
+            "candidate": "45436063a7ce15d0fbc7e77bac34c63d7cf6134ee01f5500eba8870772dad79b"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.045270261908925136,
+          "attack_0_20_ms_rms_change_db": 5.655662241450749,
+          "attack_centroid_before_hz": 233.26694324483745,
+          "attack_centroid_after_hz": 1514.8773324638944,
+          "release_0_80_ms_rms_change_db": -0.2775829760799482,
+          "waveform_sha256": {
+            "baseline": "008baaf5dbd3dc2a923a4ee7a24cc7f58f48efd1f0e05789d850f391e3c1e27c",
+            "candidate": "85d7e2f5588882a8fdc5cfa397b6bca1574a05eef21e9283e8cd6cb8315b1f40"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.11378344271575358,
+          "attack_0_20_ms_rms_change_db": 2.261604865254345,
+          "attack_centroid_before_hz": 187.20019499799054,
+          "attack_centroid_after_hz": 524.7189664558098,
+          "release_0_80_ms_rms_change_db": -0.25729641198812914,
+          "waveform_sha256": {
+            "baseline": "c56b11ad194eec13c3e6621ea0315de81e5c83b919eb93d39cd7a64199208b7e",
+            "candidate": "fbfeeb653834f88ad2cd23f3c9c5d5e04f0f0ae4cec27fbd67e39d7474dfdcd6"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.1251184549551283,
+          "attack_0_20_ms_rms_change_db": 0.5069934236854969,
+          "attack_centroid_before_hz": 286.58782012708616,
+          "attack_centroid_after_hz": 646.0859081282156,
+          "release_0_80_ms_rms_change_db": -0.10807689804632759,
+          "waveform_sha256": {
+            "baseline": "593f20f2a1c79d011690d85cbab265a096ec19ef44c44934918041c08509f3d1",
+            "candidate": "7fb4244603622fa1d96a0bcd56c57995c4867b99cdc396807a1183e6e157046a"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.03947159649817422,
+          "attack_0_20_ms_rms_change_db": 1.1950902105238512,
+          "attack_centroid_before_hz": 433.9331814429784,
+          "attack_centroid_after_hz": 808.0847987429579,
+          "release_0_80_ms_rms_change_db": -0.01728860817373601,
+          "waveform_sha256": {
+            "baseline": "42eb821235c774e0f265cc0ed8150b23d4ff46a3e6d372b60b2cdeed866eccf7",
+            "candidate": "907bb4eea7fffb68c4585847181bf712d6138e50d8c5cc9dc9c5bf222e765d78"
+          }
+        }
+      ]
+    },
+    "scrape_2x": {
+      "comparison_path": "build-realism-20260908-pass4/research-palm/scrape2-comparison/comparison.json",
+      "comparison_sha256": "e6621037dff847e066339fe0896517b05d3639ba55d82fccf5225888d54b8877",
+      "selected_phrases": [
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.06084565675709541,
+          "attack_0_20_ms_rms_change_db": 0.22041343288111648,
+          "attack_centroid_before_hz": 173.13702318243884,
+          "attack_centroid_after_hz": 174.94729786423235,
+          "release_0_80_ms_rms_change_db": -0.0004019618401045477,
+          "waveform_sha256": {
+            "baseline": "b15e9de27fe5adee8d67e553fa55c905d19763d40d120ac61f4524fe2e258c6a",
+            "candidate": "093ad07b6c6e8fba833e512f581c08ffe4d9263997c7e41b532d180f719366f0"
+          }
+        },
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.1228164929548754,
+          "attack_0_20_ms_rms_change_db": 0.46267958375392837,
+          "attack_centroid_before_hz": 177.69368222448983,
+          "attack_centroid_after_hz": 183.14626830098143,
+          "release_0_80_ms_rms_change_db": -0.0037687313089804775,
+          "waveform_sha256": {
+            "baseline": "b637a55b4fceccfbfc27611ec0276df50ebaddc22f3793c0e116556899b7e541",
+            "candidate": "8b81bfb0447cb5148995e4e50dbb57b74328886d09cf0fa2c77b1e9cd6e26304"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.005847516289676946,
+          "attack_0_20_ms_rms_change_db": 0.18789749428055558,
+          "attack_centroid_before_hz": 255.65916907563724,
+          "attack_centroid_after_hz": 258.3224802911384,
+          "release_0_80_ms_rms_change_db": 0.002844113376539781,
+          "waveform_sha256": {
+            "baseline": "6ab1393606439063b2fcf0fc060b463992ed974ba8214cf2d56dcfd62f574e41",
+            "candidate": "e8cb5f047c1d1ad97216c0748f3a81b9dbb5091ac6b30125e212a239dbc76745"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.012610235344993725,
+          "attack_0_20_ms_rms_change_db": 0.6109199259646019,
+          "attack_centroid_before_hz": 199.1340871265719,
+          "attack_centroid_after_hz": 204.62256185054926,
+          "release_0_80_ms_rms_change_db": 0.0033084201547666225,
+          "waveform_sha256": {
+            "baseline": "2a3ed0bafca9735daeadab540b97ca7e2f5ed9714a37a788e369bcec962cbf3c",
+            "candidate": "220c074925066edf423e7e83cb285d0111b9d2e8b3ce9bbb954a53a78127600e"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.0027351136932338704,
+          "attack_0_20_ms_rms_change_db": 0.14757233055514263,
+          "attack_centroid_before_hz": 233.26694324483745,
+          "attack_centroid_after_hz": 239.04034829614784,
+          "release_0_80_ms_rms_change_db": 0.0017519308147626589,
+          "waveform_sha256": {
+            "baseline": "008baaf5dbd3dc2a923a4ee7a24cc7f58f48efd1f0e05789d850f391e3c1e27c",
+            "candidate": "fb3aab1d270cd797ad7f3e20c11c99fcc75d271d25495e02d190dbd0632b3102"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.008064211210360384,
+          "attack_0_20_ms_rms_change_db": 0.46849501737777643,
+          "attack_centroid_before_hz": 187.20019499799054,
+          "attack_centroid_after_hz": 193.69349181182986,
+          "release_0_80_ms_rms_change_db": 0.0015124620095647856,
+          "waveform_sha256": {
+            "baseline": "c56b11ad194eec13c3e6621ea0315de81e5c83b919eb93d39cd7a64199208b7e",
+            "candidate": "2b1aeaf1906ffcc35b4ad3dde36da0410e3999561db4549d841cdd8994168a26"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "dry",
+          "whole_file_rms_change_db": 0.004972070533916906,
+          "attack_0_20_ms_rms_change_db": 0.020084621208088294,
+          "attack_centroid_before_hz": 286.58782012708616,
+          "attack_centroid_after_hz": 290.0806220040225,
+          "release_0_80_ms_rms_change_db": 0.0027735849427799053,
+          "waveform_sha256": {
+            "baseline": "593f20f2a1c79d011690d85cbab265a096ec19ef44c44934918041c08509f3d1",
+            "candidate": "ac5f9255ee8f1d02257e2fd3dea1f6e6372e3ebc7fc000011c5f08c9bee36b79"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.008938945316298685,
+          "attack_0_20_ms_rms_change_db": 0.19073008288559734,
+          "attack_centroid_before_hz": 433.9331814429784,
+          "attack_centroid_after_hz": 447.2463591788058,
+          "release_0_80_ms_rms_change_db": 0.0018649577102252124,
+          "waveform_sha256": {
+            "baseline": "42eb821235c774e0f265cc0ed8150b23d4ff46a3e6d372b60b2cdeed866eccf7",
+            "candidate": "c95ce97e9a1d731287d92129547584da79945c4db6bd69ca88f3db258917a31a"
+          }
+        }
+      ]
+    },
+    "edge_hardness_1_to_2p5": {
+      "comparison_path": "build-realism-20260908-pass4/research-palm/edge25-comparison/comparison.json",
+      "comparison_sha256": "8545a1180331ea4704ef5b76139df8fb0c40846a5762c1d59979c4cc95530643",
+      "selected_phrases": [
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.002373575940929129,
+          "attack_0_20_ms_rms_change_db": 0.15094563689178386,
+          "attack_centroid_before_hz": 173.13702318243884,
+          "attack_centroid_after_hz": 185.31695488977235,
+          "release_0_80_ms_rms_change_db": -0.024158963854823412,
+          "waveform_sha256": {
+            "baseline": "b15e9de27fe5adee8d67e553fa55c905d19763d40d120ac61f4524fe2e258c6a",
+            "candidate": "d0fa395c389f36920d9d3935561ec859b757259011c671f45f0b1e5637f6174c"
+          }
+        },
+        {
+          "id": "e1-palm-repick-12hz",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.09698388752386933,
+          "attack_0_20_ms_rms_change_db": 0.4349206920967248,
+          "attack_centroid_before_hz": 177.69368222448983,
+          "attack_centroid_after_hz": 213.34553227020362,
+          "release_0_80_ms_rms_change_db": -0.02349194316702352,
+          "waveform_sha256": {
+            "baseline": "b637a55b4fceccfbfc27611ec0276df50ebaddc22f3793c0e116556899b7e541",
+            "candidate": "3ca2df633775e1474a48eddb8e950345bacdc5e05ad77b63b0ec4394ac8e5b9a"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.07484875211648756,
+          "attack_0_20_ms_rms_change_db": 2.9720775475828916,
+          "attack_centroid_before_hz": 255.65916907563724,
+          "attack_centroid_after_hz": 846.9675098561153,
+          "release_0_80_ms_rms_change_db": -0.151414551922052,
+          "waveform_sha256": {
+            "baseline": "6ab1393606439063b2fcf0fc060b463992ed974ba8214cf2d56dcfd62f574e41",
+            "candidate": "a212bd36a72725215549adecc91fb88daaa434c803bce49ab411c610c63f52db"
+          }
+        },
+        {
+          "id": "e1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.022999068519396815,
+          "attack_0_20_ms_rms_change_db": 0.89238770625143,
+          "attack_centroid_before_hz": 199.1340871265719,
+          "attack_centroid_after_hz": 367.5595448111908,
+          "release_0_80_ms_rms_change_db": -0.12154193050951534,
+          "waveform_sha256": {
+            "baseline": "2a3ed0bafca9735daeadab540b97ca7e2f5ed9714a37a788e369bcec962cbf3c",
+            "candidate": "bea3a71fad8f3b9a6a8ae7967e49a517d4942fc4d8026712061b6fed10b85905"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.09282385899101797,
+          "attack_0_20_ms_rms_change_db": 2.326587253918369,
+          "attack_centroid_before_hz": 233.26694324483745,
+          "attack_centroid_after_hz": 714.4906570154827,
+          "release_0_80_ms_rms_change_db": -0.11770628730428001,
+          "waveform_sha256": {
+            "baseline": "008baaf5dbd3dc2a923a4ee7a24cc7f58f48efd1f0e05789d850f391e3c1e27c",
+            "candidate": "a56646e2377fae3a5bda2d663dd08c63fc668b113cc370b984e78d9c218dedd9"
+          }
+        },
+        {
+          "id": "fs1-sustain-hard",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.011039494667976157,
+          "attack_0_20_ms_rms_change_db": 1.021522952939435,
+          "attack_centroid_before_hz": 187.20019499799054,
+          "attack_centroid_after_hz": 293.82962775208966,
+          "release_0_80_ms_rms_change_db": -0.10888380891015714,
+          "waveform_sha256": {
+            "baseline": "c56b11ad194eec13c3e6621ea0315de81e5c83b919eb93d39cd7a64199208b7e",
+            "candidate": "ed94a7c813f38364aa3e0e423378409d302e7fb0d63694a36fd9b8de72c36662"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "dry",
+          "whole_file_rms_change_db": -0.06164564014765972,
+          "attack_0_20_ms_rms_change_db": 0.09150642045501556,
+          "attack_centroid_before_hz": 286.58782012708616,
+          "attack_centroid_after_hz": 385.41494184922675,
+          "release_0_80_ms_rms_change_db": -0.04597999019983945,
+          "waveform_sha256": {
+            "baseline": "593f20f2a1c79d011690d85cbab265a096ec19ef44c44934918041c08509f3d1",
+            "candidate": "6babba68ba51259483810afa4a02dab503a68b2066409f651fac607a23cb36f4"
+          }
+        },
+        {
+          "id": "reference-midi42-held-1500ms",
+          "tap": "modern",
+          "whole_file_rms_change_db": 0.006041778344453519,
+          "attack_0_20_ms_rms_change_db": 0.3807200033058926,
+          "attack_centroid_before_hz": 433.9331814429784,
+          "attack_centroid_after_hz": 481.80657347169887,
+          "release_0_80_ms_rms_change_db": -0.007373217383140229,
+          "waveform_sha256": {
+            "baseline": "42eb821235c774e0f265cc0ed8150b23d4ff46a3e6d372b60b2cdeed866eccf7",
+            "candidate": "6dd879afd470dc2950d4cebc8a7e1bba4448bc27d1e2b1836e0c3c1c34c41395"
+          }
+        }
+      ]
+    }
+  },
+  "decisions": {
+    "palm_pick_position": "rejected: failed unchanged muted-vs-open tail-contraction rail",
+    "edge_4x": "rejected: excessive brightness vs the only uncensored recording onset",
+    "scrape_2x": "not promoted: modest impact, extra noise not needed",
+    "edge_hardness_1_to_2p5": "promoted on actual wound-string Sustain/Palm/Harmonics/fresh-Slide pick contacts; soft-pick, plain, finger-only, Dead and Pinch paths unchanged"
+  },
+  "negative_control": {
+    "mutation": "Only multiply new voiced edge by 1 instead of lerp(1,2.5,hardness); all other current integrated source retained",
+    "source_sha256": "3bcc0199cee9574bf11f5d6f4688bcfb5c0a24544974fc12f3d6ec21e5e34a06",
+    "test_sha256": "8e40eb0b2ba293a594821737483e58ab3b68eaca6b2a42364688b797f266bd42",
+    "log_sha256": "d72dd4d42fa874127638783a10350af88192b174da1ee21c0ad4bad409902f6e",
+    "result": "Rejected by four unchanged >4dB high-edge output guards, one at each sample rate (44.1/48/96/192kHz), E2 at fret12 on string8; no other new-test failures",
+    "negative_control_high_edge_ablation_db_range": [
+      1.32625,
+      1.40374
+    ]
+  }
+}

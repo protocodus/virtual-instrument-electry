@@ -71,7 +71,7 @@ std::vector<juce::AudioProcessorParameter*> findProductParameters (
     }
 
     expect (result.size() == Size,
-            "VST3 does not expose the exact unique 29-parameter Electry surface");
+            "VST3 does not expose the exact unique 30-parameter Electry surface");
     return result;
 }
 } // namespace
@@ -125,17 +125,30 @@ int main (int argc, char** argv)
                 && plugin->getTotalNumOutputChannels() == 2,
             "instantiated VST3 is not a zero-input, stereo instrument");
 
-    const std::array<juce::String, 29> expectedParameterNames {
+    const std::array<juce::String, 30> expectedParameterNames {
         "Pickup selector", "Pickup type", "Tone", "Guitar build",
         "Body resonance", "String age", "Pick position", "Pick hardness",
         "Pick noise", "Finger noise", "Release noise", "Mute tightness",
         "Bend time", "Velocity response", "Output level", "Artifacts",
         "Output mode", "Distortion", "Amp simulation", "Compressor",
         "Delay", "Room", "Sympathetic ring", "Mute pressure",
-        "Strum spread", "Resonance depth", "Tremolo picking rate", "Amp voice", "FX oversampling"
+        "Strum spread", "Resonance depth", "Tremolo picking rate", "Amp voice",
+        "FX oversampling", "FX enabled"
     };
     const auto productParameters = findProductParameters (*plugin,
                                                           expectedParameterNames);
+    if (productParameters.size() != expectedParameterNames.size())
+        return 1;
+    auto* const fxEnabled = productParameters.back();
+    expect (fxEnabled->isDiscrete() && fxEnabled->getNumSteps() == 2
+                && fxEnabled->isAutomatable(),
+            "VST3 FX enabled must expose an automatable two-state parameter");
+    expect (std::abs (fxEnabled->getDefaultValue()) < 1.0e-6f
+                && std::abs (fxEnabled->getValue()) < 1.0e-6f,
+            "VST3 FX enabled must default to Off");
+    expect (fxEnabled->getText (0.0f, 128) == "Off"
+                && fxEnabled->getText (1.0f, 128) == "On",
+            "VST3 FX enabled must name both toggle states");
 
     expect (plugin->getNumPrograms() == 4,
             "VST3 does not expose four factory programs");
@@ -151,6 +164,8 @@ int main (int argc, char** argv)
 
     plugin->setCurrentProgram (3);
     flushParameters (*plugin);
+    expect (std::abs (fxEnabled->getValue()) < 1.0e-6f,
+            "VST3 factory program unexpectedly enabled FX");
 
     std::vector<float> programValues;
     programValues.reserve (productParameters.size());
@@ -168,6 +183,8 @@ int main (int argc, char** argv)
         parameter->setValueNotifyingHost (requested);
     }
     flushParameters (*plugin);
+    expect (std::abs (fxEnabled->getValue() - 1.0f) < 1.0e-6f,
+            "VST3 parameter poison did not enable FX before saving state");
     for (auto* parameter : productParameters)
         savedValues.push_back (parameter->getValue());
     expect (! std::equal (savedValues.begin(), savedValues.end(),
@@ -207,6 +224,30 @@ int main (int argc, char** argv)
                             + std::to_string (savedValues[index]) + ", got "
                             + std::to_string (actual) + ")");
             }
+
+        // Save explicit Off after the all-parameter On round-trip, poison it
+        // back to On, then restore. Missing-parameter legacy migration must
+        // never override an explicit bypass value saved by this version.
+        if (restoredProductParameters.size() == expectedParameterNames.size())
+        {
+            auto* const restoredFxEnabled = restoredProductParameters.back();
+            restoredFxEnabled->setValueNotifyingHost (0.0f);
+            flushParameters (*restored);
+            expect (std::abs (restoredFxEnabled->getValue()) < 1.0e-6f,
+                    "VST3 FX enabled could not be switched Off");
+            juce::MemoryBlock offState;
+            restored->getStateInformation (offState);
+            expect (offState.getSize() > 0, "VST3 returned empty explicit-Off state");
+            restoredFxEnabled->setValueNotifyingHost (1.0f);
+            flushParameters (*restored);
+            expect (std::abs (restoredFxEnabled->getValue() - 1.0f) < 1.0e-6f,
+                    "VST3 FX enabled could not be switched On before restoring Off");
+            restored->setStateInformation (offState.getData(),
+                                             static_cast<int> (offState.getSize()));
+            flushParameters (*restored);
+            expect (std::abs (restoredFxEnabled->getValue()) < 1.0e-6f,
+                    "VST3 state restore did not preserve explicit FX Off");
+        }
     }
 
     juce::AudioBuffer<float> audio (std::max (plugin->getTotalNumOutputChannels(), 2),
@@ -243,6 +284,6 @@ int main (int argc, char** argv)
 
     if (failures == 0)
         std::cout << "Electry built VST3 artifact smoke test passed "
-                     "(29 product parameters; JUCE wrapper parameters excluded)\n";
+                     "(30 product parameters; JUCE wrapper parameters excluded)\n";
     return failures == 0 ? 0 : 1;
 }

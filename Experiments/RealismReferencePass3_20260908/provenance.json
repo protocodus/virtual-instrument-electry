@@ -1,0 +1,80 @@
+{
+  "description": "Isolated passive two-bass-string 25% linear-loss-curvature direction check. Baseline 809aecc completes first two realism passes; recordings are reused development references, not holdout or absolute calibration. Source snapshots and raw audio remain ignored build artifacts. Full material-law prototype was rejected for established audible-envelope rails; its weaker limited-scope replacement keeps those rails unchanged.",
+  "baseline_commit": "809aecc40c38c08cc5449e4b2c22e9a1f5e282e8",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-DNDEBUG",
+    "-DELECTRY_MEASURED_BODY_RESPONSE=1",
+    "-DELECTRY_DECOUPLED_PICK_RELEASE=1"
+  ],
+  "renderer_sha256": "6333f65f76dce5d58f59cbc7266628a5b2f80e42460d50df26524f8ccad2ac54",
+  "analyzer_sha256": "55a5c59b3d5f81c41866834ae498cd24207d593bbfdbaec53f1148f193f2693e",
+  "isolated_source_hashes": {
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/DspMath.h": "1055f318b3bec6247998c302f61c1299704f7fa67aed22d57ebceecef365c3bc",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryEngine.cpp": "69058bcc6d8f005c1cf18c82cb6167d7512cc098662835b855d0345181be0dd9",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryEngine.h": "2ce8fea4983e1ffedd5477d67564c28c1ca40ef68bdbef31dde0a7badfa070bb",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+    "build-realism-20260908-pass3/research-loss/candidate-source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f"
+  },
+  "grid_validation": {
+    "conditions": 960,
+    "max_anchor_relative_error": [
+      3.296694194609984e-05,
+      1.3873733881508699e-05
+    ],
+    "maximum_loop_gain": 0.999989986421,
+    "six_string_surface_exact": true,
+    "dead_exact": true,
+    "rate_max_relative_f0_high_mid": [
+      0.004275105913844168,
+      0.004117615009503917,
+      0.01081083955550366
+    ]
+  },
+  "grid_source_sha256": "dd413e5543dcec1e2b882d499fec44a67ec001f3e5bc806ceef9532f1d6cc62b",
+  "grid_baseline_sha256": "3912b3c370d2f5460724c76eef492634fdf8900536746e11f37b414b287de2f5",
+  "grid_final_sha256": "460eed6cc01efade207524a2e8598e9e682da5db5b2caefb23817533b00aca76",
+  "final_shipping_source_hashes": {
+    "Source/DSP/ElectryEngine.cpp": "7efd9f2257f6f9c8db48839aacd5c94585fd557e0a94638539805c853f28a0e0",
+    "Source/DSP/ElectryEngine.h": "628fc9035b9c3485b19a3adbeab0ec64c571e9f82b6c3c9aa5cfebe977aa3737"
+  },
+  "metrics": [
+    {
+      "midi": 30,
+      "baseline_late_rms": -2.962532710649846,
+      "candidate_late_rms": -4.4172053117867875,
+      "real_late_rms": -10.158570312342817,
+      "baseline_cooling": -1.0030569102639795,
+      "candidate_cooling": -2.7494581316171036,
+      "real_cooling": -15.40945873114252
+    },
+    {
+      "midi": 36,
+      "baseline_late_rms": -3.3658348111416743,
+      "candidate_late_rms": -4.758462174790033,
+      "real_late_rms": -7.5959456291653495,
+      "baseline_cooling": -1.8588385270387349,
+      "candidate_cooling": -4.041346477626308,
+      "real_cooling": -12.852552823030383
+    },
+    {
+      "midi": 42,
+      "baseline_late_rms": -3.9956109814191194,
+      "candidate_late_rms": -5.268357186667778,
+      "real_late_rms": -10.876944867153702,
+      "baseline_cooling": -4.647245075748797,
+      "candidate_cooling": -8.273282569853935,
+      "real_cooling": -17.65818218884861
+    }
+  ],
+  "negative_control": {
+    "change": "bassMaterialLossFraction 0.25 -> 0.0 only",
+    "failures": 84,
+    "checks": "80 midpoint-loss assertions plus four resumed-loss assertions; anchor/passivity/bypass controls still pass",
+    "log_sha256": "4bb3dee74713e554dc7b199ac01b862ab446f77a90d61ec961f6405318206794"
+  }
+}

@@ -195,9 +195,6 @@ if(ELECTRY_BUILD_PLUGIN)
 
     juce_generate_juce_header(Electry)
 
-    juce_add_binary_data(ElectryAssets
-        SOURCES Assets/electry-mahogany-satin-v2.png)
-
     target_sources(Electry PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
@@ -207,7 +204,6 @@ if(ELECTRY_BUILD_PLUGIN)
     target_link_libraries(Electry
         PRIVATE
             ElectryDSP
-            ElectryAssets
             juce::juce_audio_utils
             juce::juce_dsp
         PUBLIC
@@ -265,6 +261,10 @@ if(ELECTRY_BUILD_TOOLS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(ElectryRealismTimingTests Tests/RealismTimingTests.cpp)
+    target_link_libraries(ElectryRealismTimingTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismTiming COMMAND ElectryRealismTimingTests)
+
     add_executable(ElectryRealismExcitationTests Tests/RealismExcitationTests.cpp)
     target_link_libraries(ElectryRealismExcitationTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismExcitation COMMAND ElectryRealismExcitationTests)
@@ -277,9 +277,25 @@ if(BUILD_TESTING)
     target_link_libraries(ElectryRealismTextureTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismTexture COMMAND ElectryRealismTextureTests)
 
+    add_executable(ElectryRealismHarmonicTests Tests/RealismHarmonicTests.cpp)
+    target_link_libraries(ElectryRealismHarmonicTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismHarmonic COMMAND ElectryRealismHarmonicTests)
+
+    add_executable(ElectryRealismHarmonicAttackTests Tests/RealismHarmonicAttackTests.cpp)
+    target_link_libraries(ElectryRealismHarmonicAttackTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismHarmonicAttack COMMAND ElectryRealismHarmonicAttackTests)
+
+    add_executable(ElectryRealismPickAttackTests Tests/RealismPickAttackTests.cpp)
+    target_link_libraries(ElectryRealismPickAttackTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismPickAttack COMMAND ElectryRealismPickAttackTests)
+
     add_executable(ElectryRealismGestureTests Tests/RealismGestureTests.cpp)
     target_link_libraries(ElectryRealismGestureTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismGesture COMMAND ElectryRealismGestureTests)
+
+    add_executable(ElectryRealismLossTests Tests/RealismLossTests.cpp)
+    target_link_libraries(ElectryRealismLossTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismLoss COMMAND ElectryRealismLossTests)
 
     add_executable(ElectryRealismDecayTests Tests/RealismDecayTests.cpp)
     target_link_libraries(ElectryRealismDecayTests PRIVATE ElectryDSP)

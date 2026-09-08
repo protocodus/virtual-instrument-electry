@@ -104,6 +104,19 @@ constexpr float handDipFullDepthDb = 10.0f;
 constexpr float handDipCentreRatio = 5.0f;
 constexpr float handDipQ = 0.70f;
 
+// A partial blend toward the wound-string constant-material-loss law.
+// A single loss pole gives approximately constant + f^2 decay; internal
+// material loss adds a term proportional to f (Fleischer 2005, section 6.1.1;
+// Christian 2011, Savart Journal). Those results do not identify this guitar's
+// composite loss split. Keep 35% of the calibrated curvature, and scope the
+// correction to its two extended-range bass strings. A full linear blend
+// overdamps the upper-fret reference's partial cooling; 65% gives the held
+// bass notes an audible spectral decay without shortening their fundamental.
+// These are
+// bounded model choices, not coefficients fitted to three public previews.
+constexpr float bassMaterialLossFraction = 0.65f;
+constexpr float bassMaterialLossQ = 0.50f;
+
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
 // Offline receipt: a 48 kHz RBJ dip response was fitted with SciPy soft-L1
 // (f_scale=1) on the even-fret rows. Each row residual was
@@ -509,6 +522,9 @@ void ElectryEngine::PolarisationLoop::clear() noexcept
     line.fill(0.0f);
     writeIndex = 0;
     damping.reset();
+    materialLossDip.reset();
+    materialLossShape = {};
+    materialLossDepth = 0.0f;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     fittedLossDip.reset();
     fittedLossShape = {};
@@ -533,6 +549,8 @@ void ElectryEngine::PolarisationLoop::scaleState(float amplitude) noexcept
     for (auto& sample : line)
         sample *= amplitude;
     damping.state *= amplitude;
+    materialLossDip.z1 *= amplitude;
+    materialLossDip.z2 *= amplitude;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     fittedLossDip.z1 *= amplitude;
     fittedLossDip.z2 *= amplitude;
@@ -3112,6 +3130,8 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
     voice.bodyConductance = 0.0f;
     voice.bodyLossFactor = 1.0f;
 #endif
+    const float intrinsicT60 = t60;
+    const float intrinsicT60High = t60High;
     if (handT60 > 0.0f)
     {
         // Losses in parallel: decay rates add, so the reciprocals of the decay
@@ -3374,6 +3394,12 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
         applyDipDepth(loop, depth);
         loop.loopDampingCoefficient = coefficient;
         loop.loopGain = clampf(gain, 0.0f, 0.99999f);
+        loop.materialLossDepth = 0.0f;
+        if (voice.stringIndex < 2 && spec.wound && dampingStyle != PlayStyle::Dead)
+            configureBassMaterialLoss(loop, f0, fHigh, intrinsicT60,
+                                      intrinsicT60High, t60Scale);
+        if (! (loop.materialLossDepth > 0.0f))
+            loop.materialLossDip.reset();
     };
 
     // The polarisation parallel to the body outlives the perpendicular one,
@@ -3384,6 +3410,88 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
     // The loop filters moved, so the analytic phase compensation is stale even
     // if the target pitch did not change.
     voice.compensationDirty = true;
+}
+
+void ElectryEngine::configureBassMaterialLoss(
+    PolarisationLoop& loop, float f0, float fHigh, float intrinsicT60,
+    float intrinsicT60High, float polarisationScale) noexcept
+{
+    if (! (fHigh > f0))
+        return;
+    const float middleFrequency = std::sqrt(f0 * fHigh);
+    const float omega0 = twoPi * f0 * inverseSampleRate_;
+    const float omegaMiddle = twoPi * middleFrequency * inverseSampleRate_;
+    const float omegaHigh = twoPi * fHigh * inverseSampleRate_;
+    const float position = (middleFrequency - f0) / (fHigh - f0);
+    // In a normalized frequency coordinate, x - x^2 is the difference
+    // between linear and quadratic interpolation. Add only the intrinsic
+    // share: a hand retains its own calibrated shape and independent loss.
+    const float extraRate = bassMaterialLossFraction
+        * std::max(0.0f, 60.0f / intrinsicT60High - 60.0f / intrinsicT60)
+        * position * (1.0f - position) / polarisationScale;
+    if (! (extraRate > 0.0f))
+        return;
+    HandLossShape materialShape {};
+    materialShape.dipOmega = omegaMiddle;
+    materialShape.dipQ = bassMaterialLossQ;
+    materialShape.dipFullDepthDb = 1.0f;
+    float hand0 = 1.0f, handMiddle = 1.0f, handHigh = 1.0f, unused = 0.0f;
+    handLossResponse(loop.handLossDepth, loop.handLossShape,
+                     omega0, hand0, unused);
+    handLossResponse(loop.handLossDepth, loop.handLossShape,
+                     omegaMiddle, handMiddle, unused);
+    handLossResponse(loop.handLossDepth, loop.handLossShape,
+                     omegaHigh, handHigh, unused);
+    const float fixed0 = loop.loopGain
+        * onePoleMagnitude(loop.loopDampingCoefficient, omega0) * hand0;
+    const float fixedHigh = loop.loopGain
+        * onePoleMagnitude(loop.loopDampingCoefficient, omegaHigh) * handHigh;
+    const float currentMiddle = loop.loopGain
+        * onePoleMagnitude(loop.loopDampingCoefficient, omegaMiddle) * handMiddle;
+    const float wantedMiddle = currentMiddle
+        * std::pow(10.0f, -extraRate / (20.0f * f0));
+    // Divide both passive sections out of the original anchors, then solve
+    // the remaining pole and scalar. The new dip may not borrow gain above
+    // unity. This naturally limits tightly muted strings to a tiny correction.
+    const auto fit = [&] (float depth, float& coefficient, float& gain,
+                         float& middleMagnitude)
+    {
+        float material0 = 1.0f, materialMiddle = 1.0f, materialHigh = 1.0f;
+        handLossResponse(depth, materialShape, omega0, material0, unused);
+        handLossResponse(depth, materialShape, omegaMiddle, materialMiddle, unused);
+        handLossResponse(depth, materialShape, omegaHigh, materialHigh, unused);
+        const float ratio = fixedHigh / fixed0
+                          * hand0 * material0 / (handHigh * materialHigh);
+        if (ratio > 1.0f)
+            return false;
+        coefficient = solveOnePoleDamping(ratio, omega0, omegaHigh);
+        gain = fixed0 / (onePoleMagnitude(coefficient, omega0) * hand0 * material0);
+        middleMagnitude = gain * onePoleMagnitude(coefficient, omegaMiddle)
+                        * handMiddle * materialMiddle;
+        return gain <= 0.99999f;
+    };
+    float lowDepth = 0.0f;
+    float highDepth = std::max(0.001f, 4.0f * extraRate / f0);
+    for (int iteration = 0; iteration < 14; ++iteration)
+    {
+        const float depth = 0.5f * (lowDepth + highDepth);
+        float coefficient = 0.0f, gain = 0.0f, middleMagnitude = 1.0f;
+        if (fit(depth, coefficient, gain, middleMagnitude)
+            && middleMagnitude >= wantedMiddle)
+        {
+            lowDepth = depth;
+            loop.loopDampingCoefficient = coefficient;
+            loop.loopGain = gain;
+        }
+        else
+            highDepth = depth;
+    }
+    loop.materialLossDepth = lowDepth;
+    loop.materialLossShape = materialShape;
+    handDipCoefficients(lowDepth, materialShape,
+                       loop.materialLossDip.b0, loop.materialLossDip.b1,
+                       loop.materialLossDip.b2, loop.materialLossDip.a1,
+                       loop.materialLossDip.a2);
 }
 
 void ElectryEngine::configureVoiceDispersion(
@@ -3567,9 +3675,11 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     const float semitones = legatoOffset
                           + bend
                           + vibrato;
+    const float unclampedF0 = voice.baseFrequency * std::exp2(semitones / 12.0f);
+    if (voice.legatoUsesLengthTrajectory)
+        voice.slideUnclampedFrequency = unclampedF0;
     const float configuredF0 = clampf(
-        voice.baseFrequency * std::exp2(semitones / 12.0f),
-        20.0f, 0.24f * static_cast<float>(sampleRate_));
+        unclampedF0, 20.0f, 0.24f * static_cast<float>(sampleRate_));
 #if ELECTRY_ENERGY_ATTACK_PITCH
     float attackPitchTensionRatio = voice.attackPitchTensionRatio;
     if (! std::isfinite(attackPitchTensionRatio))
@@ -3773,8 +3883,11 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
         float dipPhase = 0.0f;
         handLossResponse(loop.handLossDepth, loop.handLossShape, phaseOmega,
                          dipMagnitude, dipPhase);
+        float materialMagnitude = 1.0f, materialPhase = 0.0f;
+        handLossResponse(loop.materialLossDepth, loop.materialLossShape,
+                         phaseOmega, materialMagnitude, materialPhase);
         const float dipDelay = phaseOmega > 1.0e-9f
-            ? -dipPhase / phaseOmega : 0.0f;
+            ? -(dipPhase + materialPhase) / phaseOmega : 0.0f;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         float fittedMagnitude = 1.0f;
         float fittedPhase = 0.0f;
@@ -4054,6 +4167,7 @@ void ElectryEngine::configurePickupGeometry(Voice& voice,
                                              float period,
                                              float waveSpeed) noexcept
 {
+    voice.touchInverseSpeakingLength = 1.0f / std::max(soundingLength, 0.05f);
     const auto& parameters = smoothedParameters_;
     const float bridgeDistance = lerp(wideCoilBridgePickupMetres,
                                       narrowCoilBridgePickupMetres,
@@ -4201,6 +4315,16 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
                   coupledGainCeiling, coefficient, gain);
     loop.loopDampingCoefficient = coefficient;
     loop.loopGain = clampf(gain, 0.0f, coupledGainCeiling);
+
+    // Preserve the separately calibrated idle-string loss. A retired played
+    // voice can later be repicked; neither polarisation may wake stale state
+    // from the material section that the sympathetic renderer bypasses.
+    for (auto* playedLoop : { &voice.vertical, &voice.horizontal })
+    {
+        playedLoop->materialLossDip.reset();
+        playedLoop->materialLossShape = {};
+        playedLoop->materialLossDepth = 0.0f;
+    }
 
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     // The fit covers fretted F#1--F#2 takes. Every sympathetic string is open,
@@ -4580,6 +4704,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
                     activeVoice.touchHoldRemaining = 0;
                     activeVoice.touchReleaseStep = 0.0f;
                     activeVoice.touchFraction = 0.0f;
+                    activeVoice.touchHalfWidthMetres = 0.0f;
+                    activeVoice.pinchTouchPending = false;
                 }
             }
         }
@@ -4791,13 +4917,15 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             break;
         case PlayStyle::Harmonics:
             amplitude *= 0.62f;
-            pulseMs *= 0.50f;
-            pulseCutoff *= 1.65f;
-            pluckFraction = 0.31f;
+            // The fretting finger selects the midpoint node; the other hand
+            // still picks where the player put it. Retain Pick Position so
+            // its spatial comb can select among the surviving even modes.
+            // It is still an ordinary plectrum release: shortening and
+            // brightening a special pulse adds a keyboard-like click that
+            // the already-positioned finger does not physically produce.
             noiseLevel *= 0.55f;
             noiseMs *= 0.7f;
             noiseCutoff *= 1.35f;
-            modalBrightness *= 1.48f;
             break;
         case PlayStyle::Pinch:
             // An ordinary pick stroke with the thumb following it in. The pick
@@ -4914,8 +5042,11 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             transientGain = 0.0f;
             break;
         case PlayStyle::Harmonics:
-            displacementGain = 0.30f;
-            transientGain = 0.42f;
+            // The pre-positioned finger removes non-nodal string motion.
+            // Let that passive contact form the harmonic from the same
+            // triangular pluck as Sustain. The former large direct pulse
+            // overwhelmed that motion and produced an artificial bright
+            // attack and a high-partial ringing tail.
             break;
         case PlayStyle::Pinch:
             displacementGain = 1.35f;
@@ -4935,6 +5066,20 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             transientGain *= 1.45f;
             break;
     }
+
+    // A stiff plectrum releases a distinct short edge before the loaded string
+    // supplies its body. The former broad-path level hid that edge on wound
+    // strings even with Pick Hardness fully up. Voice this contact separately
+    // from the sustained modal shape: the soft-pick endpoint remains unchanged,
+    // and finger-only gestures have no edge to boost. Plain strings already
+    // have a bright modal attack; Dead and Pinch retain their established
+    // contact/contrast calibration. This is an audible
+    // plectrum voicing choice, not a measured force or material coefficient.
+    if (plectrumContact && spec.wound && (voice.playStyle == PlayStyle::Sustain
+        || voice.playStyle == PlayStyle::PalmMute
+        || voice.playStyle == PlayStyle::Harmonics
+        || voice.playStyle == PlayStyle::Slide))
+        transientGain *= lerp(1.0f, 2.5f, effectivePickHardness);
 
     // The plectrum's edge is the sharpest thing in the attack, so it is what the
     // heel of the hand absorbs most completely. Narrowing only its bandwidth
@@ -5111,25 +5256,26 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     switch (voice.playStyle)
     {
         case PlayStyle::Harmonics:
+            voice.pinchTouchPending = false;
             voice.touchFraction = 0.5f;
+            voice.touchHalfWidthMetres = 0.004f;
             voice.touchDepth = 0.92f;
             voice.touchHoldRemaining = static_cast<int>(0.045 * sampleRate_);
             voice.touchReleaseStep = 0.92f
                 / std::max(1.0f, 0.080f * sampleRate);
             break;
         case PlayStyle::Pinch:
-            voice.touchFraction = combFraction;
-            voice.touchDepth = 1.0f;
-            voice.touchHoldRemaining = static_cast<int>(0.090 * sampleRate_);
-            voice.touchReleaseStep = 1.0f
-                / std::max(1.0f, 0.130f * sampleRate);
+            voice.pinchTouchPending = true;
+            voice.pendingPinchTouchFraction = combFraction;
             break;
         case PlayStyle::PalmMute:
         case PlayStyle::Sustain:
         case PlayStyle::Hammer:
         case PlayStyle::Slide:
         case PlayStyle::Dead:
+            voice.pinchTouchPending = false;
             voice.touchFraction = 0.0f;
+            voice.touchHalfWidthMetres = 0.0f;
             voice.touchDepth = 0.0f;
             voice.touchHoldRemaining = 0;
             voice.touchReleaseStep = 0.0f;
@@ -5719,6 +5865,9 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         voice.legatoBlend = 1.0f;
         voice.legatoFromFrequency = 0.0f;
         voice.legatoUsesLengthTrajectory = false;
+        voice.slideDelayPending = 0.0f;
+        voice.slideDelayStep = 0.0f;
+        voice.slideDelayRampRemaining = 0;
     }
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
@@ -6041,6 +6190,8 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     if (! voice.active)
         return;
 
+    voice.pinchTouchPending = false;
+
     freezeExpressionPitchBend(voice);
     stopLegatoTravel(voice);
 
@@ -6239,10 +6390,16 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.articulationMakeupCurrent = 1.0f;
     voice.legatoBlend = 1.0f;
     voice.legatoUsesLengthTrajectory = false;
+    voice.slideDelayPending = 0.0f;
+    voice.slideDelayStep = 0.0f;
+    voice.slideDelayRampRemaining = 0;
     voice.frettingContactPending = false;
     voice.touchDepth = 0.0f;
     voice.touchHoldRemaining = 0;
     voice.touchFraction = 0.0f;
+    voice.touchHalfWidthMetres = 0.0f;
+    voice.pinchTouchPending = false;
+    voice.pendingPinchTouchFraction = 0.0f;
     voice.slideNoiseAmplitude = 0.0f;
     voice.slideNoiseLevel = 0.0f;
     voice.slideAverageBandCentreHz = 0.0f;
@@ -6570,6 +6727,10 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
         modulate(voice.horizontal);
     }
 
+    const bool physicalSlideAdvances = voice.legatoUsesLengthTrajectory
+        && voice.legatoBlend < 1.0f && voice.legatoIncrement > 0.0f;
+    const float slideOffsetBefore = physicalSlideAdvances
+        ? legatoPitchOffset(voice) : 0.0f;
     if (voice.legatoBlend < 1.0f)
     {
         voice.legatoBlend = clampf(voice.legatoBlend + voice.legatoIncrement,
@@ -6613,6 +6774,35 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
     }
 
     configureVoicePitch(voice, false);
+    if (physicalSlideAdvances)
+    {
+        // Only the finger's length change bypasses the general pitch follower.
+        // A wheel/vibrato change on the same tick still keeps its normal six-ms
+        // smoothing. The target period includes the current tension coordinate,
+        // so remove just the old/new slide-frequency ratio from that period.
+        const float slideSemitones = legatoPitchOffset(voice) - slideOffsetBefore;
+        const float maximumFrequency = 0.24f * static_cast<float>(sampleRate_);
+        float oldFingerFrequency = clampf(voice.slideUnclampedFrequency
+            * std::exp2(-slideSemitones / 12.0f), 20.0f, maximumFrequency);
+        float newFingerFrequency = clampf(
+            voice.slideUnclampedFrequency, 20.0f, maximumFrequency);
+#if ELECTRY_ENERGY_ATTACK_PITCH
+        oldFingerFrequency = clampf(
+            oldFingerFrequency * voice.attackPitchFrequencyFactor,
+            20.0f, maximumFrequency);
+        newFingerFrequency = clampf(
+            newFingerFrequency * voice.attackPitchFrequencyFactor,
+            20.0f, maximumFrequency);
+#endif
+        // MPE permits very wide bends. While pitch is pinned at either safety
+        // limit, finger movement must not create a fictitious period change.
+        const float periodChange = static_cast<float>(sampleRate_)
+            * (1.0f / newFingerFrequency - 1.0f / oldFingerFrequency);
+        voice.slideDelayPending += periodChange;
+        voice.slideDelayStep = voice.slideDelayPending
+            / static_cast<float>(controlPeriod);
+        voice.slideDelayRampRemaining = controlPeriod;
+    }
     snapStalledDelay(voice.vertical);
     snapStalledDelay(voice.horizontal);
 
@@ -6728,6 +6918,24 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     }
 #endif
 
+    // A pinch thumb follows the plectrum's release; counting its hold during
+    // the preceding pick Contact makes it arrive before the string is free.
+    // A natural-harmonic finger, in contrast, was already placed at contact.
+    if (voice.pinchTouchPending
+        && voice.excitationPhase == ExcitationPhase::Release)
+    {
+        voice.pinchTouchPending = false;
+        voice.touchFraction = voice.pendingPinchTouchFraction;
+        // A pinch catches the thumb's edge, a narrower patch than the pad
+        // resting on a natural-harmonic node. These widths are conservative
+        // geometric voicing estimates, not identified contact dimensions.
+        voice.touchHalfWidthMetres = 0.002f;
+        voice.touchDepth = 1.0f;
+        voice.touchHoldRemaining = static_cast<int>(0.090 * sampleRate_);
+        voice.touchReleaseStep = 1.0f
+            / std::max(1.0f, 0.130f * static_cast<float>(sampleRate_));
+    }
+
     // The touching finger, if there is one. It is held while the note forms
     // and then lifts: by then the partials it removed have gone and cannot be
     // re-excited, so releasing it is free and stops paying for the extra
@@ -6836,9 +7044,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             // move the apparent finger and shifted the ideal harmonic nodes.
             // Adding that phase back also preserves bend smoothing and the
             // horizontal polarisation's intentional detune. This remains one
-            // extra cubic read only while a finger/thumb is touching.
-            const float touched = loop.readFractional(
-                touchReadDelay(voice, loop, compensatedPeriod));
+            // spatial contact average only while a finger/thumb is touching.
+            const float touched = readTouchedString(voice, loop, compensatedPeriod);
             sample += touchWeight * (touched - sample);
         }
         sample = loop.dispersion1.process(sample, loop.dispersionLowCoefficient);
@@ -6850,6 +7057,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
         sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
         sample = loop.damping.process(sample, loop.loopDampingCoefficient);
+        if (loop.materialLossDepth > 0.0f)
+            sample = loop.materialLossDip.process(sample);
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         if (loop.fittedLossDipActive)
             sample = loop.fittedLossDip.process(sample);
@@ -7353,14 +7562,30 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     vertical.writeIndex = (vertical.writeIndex + 1) & (delayLineSize - 1);
     horizontal.writeIndex = (horizontal.writeIndex + 1) & (delayLineSize - 1);
 
+    // The finger's already-smoothed slide moves the period continuously over
+    // this control interval. Remove its unperformed remainder from the bend
+    // follower's target, otherwise the same movement would be counted twice.
+    float slideStep = 0.0f;
+    if (voice.slideDelayRampRemaining > 0)
+    {
+        slideStep = --voice.slideDelayRampRemaining == 0
+            ? voice.slideDelayPending : voice.slideDelayStep;
+        voice.slideDelayPending -= slideStep;
+        vertical.currentDelay += slideStep;
+        horizontal.currentDelay += slideStep * 1.00023f;
+    }
+    const float verticalFollowerTarget = vertical.targetDelay
+                                      - voice.slideDelayPending;
+    const float horizontalFollowerTarget = horizontal.targetDelay
+                                        - voice.slideDelayPending * 1.00023f;
     // Target-anchored form makes the stored coefficient the one-sample pole;
     // updateVoiceControl() snaps only the final float-rounding residue.
-    vertical.currentDelay = vertical.targetDelay
+    vertical.currentDelay = verticalFollowerTarget
         + vertical.delayRetention
-            * (vertical.currentDelay - vertical.targetDelay);
-    horizontal.currentDelay = horizontal.targetDelay
+            * (vertical.currentDelay - verticalFollowerTarget);
+    horizontal.currentDelay = horizontalFollowerTarget
         + horizontal.delayRetention
-            * (horizontal.currentDelay - horizontal.targetDelay);
+            * (horizontal.currentDelay - horizontalFollowerTarget);
 
     // A phase-coherent divided-pickup field. Mono leaves both weights at one;
     // Stereo spreads strings by their real lateral order, without delay,

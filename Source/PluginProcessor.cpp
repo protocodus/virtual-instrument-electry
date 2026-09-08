@@ -289,6 +289,7 @@ ElectryAudioProcessor::ElectryAudioProcessor()
     parameterPointers.resonanceDepth = parameters.getRawParameterValue (resonanceDepth);
     parameterPointers.ampModel       = parameters.getRawParameterValue (ampModel);
     parameterPointers.fxOversampling = parameters.getRawParameterValue (fxOversampling);
+    parameterPointers.fxEnabled      = parameters.getRawParameterValue (fxEnabled);
 
     jassert (parameterPointers.pickupSelector != nullptr
              && parameterPointers.pickupType != nullptr
@@ -304,7 +305,8 @@ ElectryAudioProcessor::ElectryAudioProcessor()
              && parameterPointers.tremoloRate != nullptr
              && parameterPointers.resonanceDepth != nullptr
              && parameterPointers.ampModel != nullptr
-             && parameterPointers.fxOversampling != nullptr);
+             && parameterPointers.fxOversampling != nullptr
+             && parameterPointers.fxEnabled != nullptr);
     keyboardState.addListener (this);
 }
 
@@ -338,6 +340,10 @@ void ElectryAudioProcessor::setCurrentProgram (int index)
         if (parameter == nullptr)
             continue;
 
+        // Audition another rig without changing the player's global bypass.
+        if (parameter->paramID == electry::parameters::fxEnabled)
+            continue;
+
         auto target = parameter->getDefaultValue();
         for (const auto& value : overrides)
             if (parameter->paramID == value.id)
@@ -369,7 +375,7 @@ ElectryAudioProcessor::createParameterLayout()
 {
     using namespace electry::parameters;
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> result;
-    result.reserve (29);
+    result.reserve (30);
 
     // Every default below is read from the engine's own struct rather than
     // written out again here. These two lists had drifted apart: the engine's
@@ -492,6 +498,9 @@ ElectryAudioProcessor::createParameterLayout()
         juce::StringArray { "Standard", "High" },
         static_cast<int> (electry::FxParameters {}.oversampling)));
 
+    result.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { fxEnabled, 3 }, "FX enabled", false));
+
     return { result.begin(), result.end() };
 }
 
@@ -531,6 +540,10 @@ void ElectryAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     doubleEngine->setPalmMutePressure (0.0f);
     midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
     effects.prepare (sampleRate);
+    fxWetMix.reset (juce::jlimit (8000.0, 384000.0,
+        std::isfinite (sampleRate) ? sampleRate : 44100.0), 0.005);
+    fxWetMix.setCurrentAndTargetValue (
+        valueOf (parameterPointers.fxEnabled) >= 0.5f ? 1.0f : 0.0f);
     updateEffectParameters();
     effects.reset();
     displaySampleRate.store (sampleRate, std::memory_order_relaxed);
@@ -616,6 +629,10 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             appliedBasePlayStyleIndex);
         clearMpeNoteOwnership();
         effects.reset();
+        // Panic/state restoration already retires every sounding string.
+        // Start the next note in the restored state, without an obsolete ramp.
+        fxWetMix.setCurrentAndTargetValue (
+            valueOf (parameterPointers.fxEnabled) >= 0.5f ? 1.0f : 0.0f);
     }
 
     // GUI notes and articulation clicks enter through a bounded lock-free
@@ -656,7 +673,7 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             auto* left = buffer.getWritePointer (0, startSample);
             auto* right = buffer.getWritePointer (1, startSample);
             renderEngines (left, right, chunk);
-            effects.process (left, right, chunk);
+            processEffects (left, right, chunk);
 
             if (doubleModeActive)
             {
@@ -1618,14 +1635,68 @@ void ElectryAudioProcessor::updateEffectParameters() noexcept
         0, 1, juce::roundToInt (valueOf (parameterPointers.fxOversampling))));
     effects.setParameters (next);
 
+    const bool enabled = valueOf (parameterPointers.fxEnabled) >= 0.5f;
+    if (enabled && fxWetMix.getCurrentValue() == 0.0f
+        && fxWetMix.getTargetValue() == 0.0f)
+        effects.reset(); // Cold enable uses any settings edited while bypassed.
+    fxWetMix.setTargetValue (enabled ? 1.0f : 0.0f);
+
     // How loud the rig actually is in the room. The chain manages its own
     // listening level, but acoustically a cranked amplifier is deafening
     // while a clean DI is not in the room at all - and that level is what
     // decides whether the resonance wheel can push the strings into feedback.
     engine.setAcousticReturnLevel (
-        juce::jmin (1.0f, next.amp + 0.6f * next.distortion));
+        enabled ? juce::jmin (1.0f, next.amp + 0.6f * next.distortion) : 0.0f);
     doubleEngine->setAcousticReturnLevel (
-        juce::jmin (1.0f, next.amp + 0.6f * next.distortion));
+        enabled ? juce::jmin (1.0f, next.amp + 0.6f * next.distortion) : 0.0f);
+}
+
+void ElectryAudioProcessor::processEffects (float* left, float* right,
+                                           int numSamples) noexcept
+{
+    if (! fxWetMix.isSmoothing())
+    {
+        if (fxWetMix.getCurrentValue() == 1.0f)
+            effects.process (left, right, numSamples);
+        return; // The off endpoint is untouched dry audio, with no FX work.
+    }
+
+    while (numSamples > 0)
+    {
+        const int count = std::min (numSamples,
+            static_cast<int> (fxDryScratch[0].size()));
+        std::copy_n (left, count, fxDryScratch[0].begin());
+        std::copy_n (right, count, fxDryScratch[1].begin());
+        effects.process (left, right, count);
+        for (int i = 0; i < count; ++i)
+        {
+            const float wet = fxWetMix.getNextValue();
+            const auto index = static_cast<std::size_t> (i);
+            if (wet == 0.0f)
+            {
+                left[i] = fxDryScratch[0][index];
+                right[i] = fxDryScratch[1][index];
+            }
+            else if (wet < 1.0f)
+            {
+                left[i] = fxDryScratch[0][index]
+                    + wet * (left[i] - fxDryScratch[0][index]);
+                right[i] = fxDryScratch[1][index]
+                    + wet * (right[i] - fxDryScratch[1][index]);
+            }
+        }
+        left += count;
+        right += count;
+        numSamples -= count;
+        if (! fxWetMix.isSmoothing())
+        {
+            if (fxWetMix.getCurrentValue() == 0.0f)
+                effects.reset(); // Discard time-effect tails once, while inaudible.
+            else if (numSamples > 0)
+                effects.process (left, right, numSamples);
+            return;
+        }
+    }
 }
 
 void ElectryAudioProcessor::publishStringVisualState() noexcept
@@ -1829,6 +1900,16 @@ void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInByt
     if (xml != nullptr && xml->hasTagName (parameters.state.getType()))
     {
         auto restoredState = juce::ValueTree::fromXml (*xml);
+        if (! restoredState.getChildWithProperty (
+                  "id", electry::parameters::fxEnabled).isValid())
+        {
+            // Older sessions always ran their configured effects. Only new
+            // instances default to bypass; explicit saved OFF remains OFF.
+            juce::ValueTree legacyFxEnabled { "PARAM" };
+            legacyFxEnabled.setProperty ("id", electry::parameters::fxEnabled, nullptr);
+            legacyFxEnabled.setProperty ("value", 1.0f, nullptr);
+            restoredState.appendChild (legacyFxEnabled, nullptr);
+        }
         if (! restoredState.getChildWithProperty (
                   "id", electry::parameters::fxOversampling).isValid())
         {

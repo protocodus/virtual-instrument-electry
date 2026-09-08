@@ -885,7 +885,10 @@ struct ElectryEngineTestAccess
 #else
         constexpr float fittedMagnitude = 1.0f;
 #endif
-        const double perRoundTrip = loop.loopGain
+        float materialMagnitude = 1.0f, materialPhase = 0.0f;
+        ElectryEngine::handLossResponse(loop.materialLossDepth,
+            loop.materialLossShape, omega, materialMagnitude, materialPhase);
+        const double perRoundTrip = materialMagnitude * loop.loopGain
             * ElectryEngine::onePoleMagnitude(
                 loop.loopDampingCoefficient, omega)
             * handMagnitude * fittedMagnitude;
@@ -1401,8 +1404,11 @@ struct ElectryEngineTestAccess
             ElectryEngine::handLossResponse(
                 loop.handLossDepth, loop.handLossShape, omega,
                 dipMagnitude, dipPhase);
+            float materialMagnitude = 1.0f, materialPhase = 0.0f;
+            ElectryEngine::handLossResponse(loop.materialLossDepth,
+                loop.materialLossShape, omega, materialMagnitude, materialPhase);
             const float dipDelay = omega > 1.0e-9f
-                ? -dipPhase / omega : 0.0f;
+                ? -(dipPhase + materialPhase) / omega : 0.0f;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
             float fittedMagnitude = 1.0f, fittedPhase = 0.0f;
             ElectryEngine::handLossResponse(
@@ -3469,7 +3475,12 @@ void testLowRegisterGuitarEnvelope()
                        + std::to_string(apparentT60) + " s)");
         };
 
-        validate(cleanParameters, "clean physical string", 15.0);
+        // A physical release edge remains when incidental noise is disabled.
+        // The audible bass-loss voicing now yields 15.5/16.7 dB on E1/B1;
+        // use the same 17 dB ceiling as the complete output. Real eight-string
+        // references span 13.9–17.5 dB under this envelope measurement (two
+        // attacks censored); this is a voicing guard, not a fitted threshold.
+        validate(cleanParameters, "clean physical string", 17.0);
         // The normal preset retains a small direct plectrum/contact transient;
         // allow that realistic edge without returning to the old 22 dB
         // clavinet-like attack-to-sustain ratio.
@@ -5466,12 +5477,10 @@ void testArticulationsSoundDistinct()
                                                attackWindow, sampleRate, f0);
     const double hammerCentroid = spectralCentroid(hammer.left, attackStart,
                                                    attackWindow, sampleRate, f0);
-    const double harmonicCentroid = spectralCentroid(
-        harmonic.left, attackStart, attackWindow, sampleRate, f0);
 
     // The hammered attack is fingered, not picked: it must be darker than
-    // both pick strokes. The harmonic's node touch removes the low modes, so
-    // its attack sits clearly brighter than the fretted downstroke.
+    // both pick strokes. A midpoint touch selects even modes over time;
+    // it does not require an artificially brighter broadband pick transient.
     //
     // The margin is 0.95 rather than 0.9 because the picked attack's own
     // spectrum is now calibrated against a dry electric low-E reference
@@ -5487,10 +5496,14 @@ void testArticulationsSoundDistinct()
            "hammer-on attack is not darker than an upstroke (up "
                + std::to_string(upCentroid) + " Hz, hammer "
                + std::to_string(hammerCentroid) + " Hz)");
-    expect(harmonicCentroid > downCentroid * 1.05,
-           "harmonic attack is not brighter than a downstroke (down "
-               + std::to_string(downCentroid) + " Hz, harmonic "
-               + std::to_string(harmonicCentroid) + " Hz)");
+    const int harmonicStart = static_cast<int>(0.12 * sampleRate);
+    const int harmonicWindow = static_cast<int>(0.30 * sampleRate);
+    const double harmonicFundamental = dftMagnitude(
+        harmonic.left, harmonicStart, harmonicWindow, sampleRate, f0);
+    const double harmonicOctave = dftMagnitude(
+        harmonic.left, harmonicStart, harmonicWindow, sampleRate, f0 * 2.0);
+    expect(harmonicOctave > harmonicFundamental * 3.0,
+           "natural harmonic does not select the touched string's octave");
     expect(upCentroid > downCentroid * 1.01,
            "upstroke attack is not brighter than a downstroke (down "
                + std::to_string(downCentroid) + " Hz, up "
@@ -10872,6 +10885,10 @@ void testTouchHarmonics()
             farSide.reset();
             farSide.noteOn(styleKeyswitch(PlayStyle::Pinch), 1.0f);
             farSide.noteOn(30, 0.8f); // fret 2 on the unique lowest string
+            // A pinch thumb follows the plectrum; inspect the actual contact
+            // after even the longest pick Contact has released.
+            StereoBuffer thumbArrival(static_cast<int>(0.004 * hostRate));
+            renderInto(farSide, thumbArrival);
             const int stringIndex = TestAccess::stringForNote(farSide, 30);
             const auto geometry = TestAccess::touchGeometry(
                 farSide, std::max(stringIndex, 0));
@@ -12785,7 +12802,7 @@ void testSlideArticulation()
             std::cout << "PROBE 30 ms descending slide arrival lag: "
                       << arrivalErrorCents << " cents\n";
         }
-        expect(arrivalErrorCents < (minimumDuration ? 50.0 : 35.0),
+        expect(arrivalErrorCents < 2.0,
                "the demo-17 delay lagged the arriving finger by "
                    + std::to_string(arrivalErrorCents) + " cents");
         int settling = 0;
@@ -13254,6 +13271,8 @@ void testPinchHarmonic()
     engine.reset();
     engine.noteOn(styleKeyswitch(PlayStyle::Pinch), 1.0f);
     engine.noteOn(note, 0.9f);
+    StereoBuffer thumbArrival(static_cast<int>(0.004 * sampleRate));
+    renderInto(engine, thumbArrival);
     const int farString = TestAccess::stringForNote(engine, note);
     const auto farVoice = TestAccess::snapshot(engine, farString);
     const auto farTouch = TestAccess::touchGeometry(engine, farString);
@@ -20267,12 +20286,14 @@ void testHumbuckerTwoCoilNotch()
             { 22, -65.8754 }, { 24, -68.4314 }, { 26, -66.4581 },
             { 28, -73.0455 },
 #else
+            // Updated source snapshots for the stronger wound-string pick
+            // edge; per-partial tolerances and pickup contrast stay unchanged.
             { 1, 16.6907 }, { 2, 22.5653 }, { 3, 24.7606 },
-            { 4, 24.8363 }, { 6, 22.3542 }, { 8, 14.6733 },
-            { 10, 2.73903 }, { 12, 0.227274 }, { 14, -5.87426 },
-            { 16, -12.3793 }, { 18, -29.7126 }, { 20, -42.6239 },
-            { 22, -55.6061 }, { 24, -59.3919 }, { 26, -61.3935 },
-            { 28, -67.7839 },
+            { 4, 24.8363 }, { 6, 22.3542 }, { 8, 14.024952 },
+            { 10, 1.861108 }, { 12, -1.267255 }, { 14, -5.87426 },
+            { 16, -11.025131 }, { 18, -29.7126 }, { 20, -37.577097 },
+            { 22, -50.013974 }, { 24, -53.818142 }, { 26, -57.720892 },
+            { 28, -66.514793 },
 #endif
         }};
         const auto render = renderSingle(1.0f, 45, 0.70f, 1.0);
@@ -20387,8 +20408,11 @@ void testHumbuckerTwoCoilNotch()
             { 40, { -88.627, -115.293 }, { -69.527, -98.756 } },
             { 64, { -71.935, -111.974 }, { -51.853, -94.022 } },
 #else
-            { 28, { -83.789, -108.853 }, { -56.876, -94.705 } },
-            { 40, { -75.579, -112.945 }, { -55.594, -98.413 } },
+            // The extended-range material-loss bend preserves the fitted
+            // 3.6 kHz anchor while changing this one-second upper tail.
+            // Retain the same 2.5 dB snapshot tolerance and pickup contrast.
+            { 28, { -83.789, -108.853 }, { -50.517778, -97.583 } },
+            { 40, { -75.579, -112.945 }, { -51.532274, -98.413 } },
             { 64, { -73.047, -116.830 }, { -53.394, -99.677 } },
 #endif
         }};

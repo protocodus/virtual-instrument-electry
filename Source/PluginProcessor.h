@@ -42,6 +42,7 @@ inline constexpr auto tremoloRate    = "tremoloRate";
 inline constexpr auto resonanceDepth = "resonanceDepth";
 inline constexpr auto ampModel       = "ampModel";
 inline constexpr auto fxOversampling = "fxOversampling";
+inline constexpr auto fxEnabled      = "fxEnabled";
 } // namespace electry::parameters
 
 class ElectryAudioProcessor final : public juce::AudioProcessor,
@@ -191,6 +192,7 @@ private:
         std::atomic<float>* resonanceDepth = nullptr;
         std::atomic<float>* ampModel = nullptr;
         std::atomic<float>* fxOversampling = nullptr;
+        std::atomic<float>* fxEnabled = nullptr;
     } parameterPointers;
 
     struct UiMidiEvent
@@ -278,6 +280,7 @@ private:
     void renderEngines (float* left, float* right, int numSamples) noexcept;
     void updateEngineParameters() noexcept;
     void updateEffectParameters() noexcept;
+    void processEffects (float* left, float* right, int numSamples) noexcept;
     void publishStringVisualState() noexcept;
 
     electry::ElectryEngine engine;
@@ -290,6 +293,10 @@ private:
     // library alongside the string model, so the complete signal path is
     // regression tested on every platform rather than only inside a host.
     electry::ElectryFx effects;
+    // One shared stereo ramp and fixed scratch keep bypass transitions bounded
+    // and allocation-free even when a host exceeds its prepared block size.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> fxWetMix { 0.0f };
+    std::array<std::array<float, 256>, 2> fxDryScratch {};
     std::array<electry::StringVisualState,
                electry::ElectryEngine::stringCount> visualScratch {};
     std::atomic<bool> panicRequested { false };
