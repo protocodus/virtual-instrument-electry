@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish a successful build's demos and screenshot without replaying stale source.
+"""Publish a successful build's media and binary link without replaying stale source.
 
 Run in a disposable, clean CI checkout. Downloaded media may be in an untracked
 directory in that checkout, or outside it. Every push is a normal fast-forward
@@ -18,6 +18,15 @@ PEAKS_BEGIN = (
     b" edits between the markers are overwritten -->"
 )
 PEAKS_END = b"<!-- peaks-table-end -->"
+DOWNLOAD_BEGIN = b"<!-- build-download-begin: updated by the Main build workflow -->"
+DOWNLOAD_END = b"<!-- build-download-end -->"
+ARTIFACT_URL = re.compile(
+    r"https://github\.com/[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/"
+    r"[A-Za-z0-9_-][A-Za-z0-9_.-]*/actions/runs/[1-9][0-9]*/artifacts/[1-9][0-9]*"
+)
+PUBLISHED_BUILD = re.compile(
+    rb"\*\*\[Download distributable binaries \xe2\x80\x94 build ([0-9]+)\]\("
+)
 SCREENSHOT = "Docs/screenshots/electry-standalone.png"
 WAV_NAME = re.compile(r"(0[1-9]|1[0-9]|2[0-3])-[a-z0-9]+(?:-[a-z0-9]+)*\.wav")
 
@@ -33,14 +42,40 @@ def git(repo, *args, check=True):
     return result
 
 
-def readme_parts(data):
-    if data.count(PEAKS_BEGIN) != 1 or data.count(PEAKS_END) != 1:
-        raise ValueError("README must contain exactly one pair of peaks-table markers")
-    start = data.index(PEAKS_BEGIN) + len(PEAKS_BEGIN)
-    end = data.index(PEAKS_END)
+def readme_parts(data, begin=PEAKS_BEGIN, end_marker=PEAKS_END, name="peaks-table"):
+    if data.count(begin) != 1 or data.count(end_marker) != 1:
+        raise ValueError(f"README must contain exactly one pair of {name} markers")
+    start = data.index(begin) + len(begin)
+    end = data.index(end_marker)
     if end < start:
-        raise ValueError("README peaks-table markers are out of order")
+        raise ValueError(f"README {name} markers are out of order")
     return data[:start], data[start:end], data[end:]
+
+
+def download_parts(data):
+    return readme_parts(data, DOWNLOAD_BEGIN, DOWNLOAD_END, "build-download")
+
+
+def readme_source(data):
+    prefix, _, suffix = readme_parts(data)
+    data = prefix + suffix
+    # Older callers and source revisions may predate the download block.
+    if DOWNLOAD_BEGIN in data or DOWNLOAD_END in data:
+        prefix, _, suffix = download_parts(data)
+        data = prefix + suffix
+    return data
+
+
+def validate_download(build_number, artifact_url):
+    if build_number is None and artifact_url is None:
+        return None
+    if build_number is None or artifact_url is None:
+        raise ValueError("--build-number and --artifact-url must be provided together")
+    if re.fullmatch(r"[0-9]+", str(build_number)) is None or int(build_number) <= 0:
+        raise ValueError("--build-number must be a positive ASCII integer")
+    if ARTIFACT_URL.fullmatch(artifact_url) is None:
+        raise ValueError("--artifact-url must be an HTTPS GitHub Actions artifact URL")
+    return int(build_number)
 
 
 def read_payload(media_dir):
@@ -89,14 +124,14 @@ def source_is_current(repo, source, tip):
             continue
         if path != "README.md":
             return False
-        before = readme_parts(git(repo, "show", f"{source}:README.md").stdout)
-        after = readme_parts(git(repo, "show", f"{tip}:README.md").stdout)
-        if before[0] != after[0] or before[2] != after[2]:
+        before = readme_source(git(repo, "show", f"{source}:README.md").stdout)
+        after = readme_source(git(repo, "show", f"{tip}:README.md").stdout)
+        if before != after:
             return False
     return True
 
 
-def apply_payload(repo, payload, table):
+def apply_payload(repo, payload, table, build_number=None, artifact_url=None):
     # Only the canonical directory's root WAVs belong to the renderer. Frozen
     # listening evidence in subdirectories is never replaced or staged.
     audio_dir = repo / "Docs/audio"
@@ -112,13 +147,21 @@ def apply_payload(repo, payload, table):
         path.write_bytes(data)
     readme_path = repo / "README.md"
     prefix, _, suffix = readme_parts(readme_path.read_bytes())
-    readme_path.write_bytes(prefix + table + suffix)
+    readme = prefix + table + suffix
+    if build_number is not None:
+        prefix, _, suffix = download_parts(readme)
+        download = (
+            f"\n**[Download distributable binaries — build {build_number}]({artifact_url})**\n"
+        ).encode("utf-8")
+        readme = prefix + download + suffix
+    readme_path.write_bytes(readme)
     git(
         repo, "add", "-A", "--", ":(glob)Docs/audio/*.wav", SCREENSHOT, "README.md"
     )
 
 
-def refresh(source_commit, media_dir, remote, branch):
+def refresh(source_commit, media_dir, remote, branch, build_number=None, artifact_url=None):
+    build_number = validate_download(build_number, artifact_url)
     repo = Path(git(None, "rev-parse", "--show-toplevel").stdout.decode().strip())
     media_dir = media_dir.resolve(strict=True)
     payload, table = read_payload(media_dir)
@@ -140,15 +183,23 @@ def refresh(source_commit, media_dir, remote, branch):
     source = git(
         repo, "rev-parse", "--verify", "--end-of-options", f"{source_commit}^{{commit}}"
     ).stdout.decode().strip()
+    if build_number is not None:
+        download_parts(git(repo, "show", f"{source}:README.md").stdout)
 
     for _ in range(3):
         git(repo, "fetch", "--no-tags", "--", remote, f"refs/heads/{branch}")
         tip = git(repo, "rev-parse", "FETCH_HEAD").stdout.decode().strip()
+        if build_number is not None:
+            _, download, _ = download_parts(git(repo, "show", f"{tip}:README.md").stdout)
+            published = PUBLISHED_BUILD.search(download)
+            if published is not None and int(published[1]) > build_number:
+                print("Skipped outdated build: README already links to a newer build.")
+                return
         if not source_is_current(repo, source, tip):
             print("Skipped outdated generated media: main source changed during the build.")
             return
         git(repo, "switch", "--detach", tip)
-        apply_payload(repo, payload, table)
+        apply_payload(repo, payload, table, build_number, artifact_url)
         if git(repo, "diff", "--cached", "--quiet", check=False).returncode == 0:
             print("Generated media is unchanged; no commit needed.")
             return
@@ -172,9 +223,12 @@ def main():
     parser.add_argument("--media-dir", type=Path, required=True)
     parser.add_argument("--remote", default="origin")
     parser.add_argument("--branch", default="main")
+    parser.add_argument("--build-number")
+    parser.add_argument("--artifact-url")
     args = parser.parse_args()
     try:
-        refresh(args.source_commit, args.media_dir, args.remote, args.branch)
+        refresh(args.source_commit, args.media_dir, args.remote, args.branch,
+                args.build_number, args.artifact_url)
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

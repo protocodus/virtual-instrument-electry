@@ -6,12 +6,20 @@ PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${PROJECT_DIR}/build-macos}"
 CONFIG="${CONFIG:-Release}"
 VERSION_OVERRIDE="${VERSION:-}"
+BUILD_NUMBER="${BUILD_NUMBER-${GITHUB_RUN_NUMBER-0}}"
 APP_SIGN_IDENTITY="${APP_SIGN_IDENTITY:--}"
 INSTALLER_SIGN_IDENTITY="${INSTALLER_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
 ARTIFACT_DIR="${BUILD_DIR}/Electry_artefacts/${CONFIG}"
 DIST_DIR="${BUILD_DIR}/dist"
 PACKAGE_ROOT="${BUILD_DIR}/package-root"
+
+case "${BUILD_NUMBER}" in
+    ""|*[!0123456789]*)
+        echo "error: BUILD_NUMBER must contain only ASCII digits" >&2
+        exit 1
+        ;;
+esac
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "error: this script requires macOS" >&2
@@ -164,9 +172,9 @@ sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/Components/Electry.component
 sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/CLAP/Electry.clap"
 sign_bundle "${PACKAGE_ROOT}/Applications/Electry.app"
 
-ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-macOS-${ARTIFACT_ARCH}.zip"
-PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-unsigned.pkg"
-PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-macOS-${ARTIFACT_ARCH}.pkg"
+ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
+PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-unsigned.pkg"
+PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"
 
 # Leave exactly one Electry release set in dist, avoiding stale version or
 # architecture names in wildcard-driven CI publication.

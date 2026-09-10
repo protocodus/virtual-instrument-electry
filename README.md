@@ -4,7 +4,7 @@ An original, physically modeled **eight-string electric guitar** for macOS,
 Windows and Linux. Play a dry DI or use the built-in amps and effects, with
 palm muting, hammer-ons, slides, harmonics and vibrato.
 
-**[Download the latest build](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
+**[Download the latest build](#downloads)**
 · [Audio demos](#listen-and-play)
 · [Release history](#release-history)
 · [Technical details](#technical-details)
@@ -13,9 +13,16 @@ palm muting, hammer-ons, slides, harmonics and vibrato.
 
 ## Downloads
 
-Open the newest run in **[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**,
-then download **electry-main-build** from its **Artifacts** section. GitHub
-requires sign-in to download workflow artifacts.
+<!-- build-download-begin: updated by the Main build workflow -->
+**[Download distributable binaries — build 11](https://github.com/protocodus/virtual-instrument-electry/actions/runs/34269431642/artifacts/10073988636)**
+<!-- build-download-end -->
+
+This link downloads the complete binary package set, including the plug-ins and
+standalone applications below. GitHub requires sign-in to download workflow
+artifacts. Successful builds refresh this link automatically. You can also find
+`electry-main-build-<build number>` in the **Artifacts** section of
+**[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
+(older runs use `electry-main-build`).
 
 | Platform | Formats | Package |
 | --- | --- | --- |
@@ -26,6 +33,10 @@ requires sign-in to download workflow artifacts.
 Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
 demos. Each download includes that complete set, source revision and SHA-256
 checksums, and remains available for 14 days. Builds also refresh daily.
+New package filenames include the workflow run number, for example
+`Electry-1.2.0-build-16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
+macOS ZIP use the same version and build number. `BUILD_NUMBER.txt` records it
+inside the combined download.
 
 macOS bundles are ad-hoc signed; the PKG installer is unsigned and the builds
 are not notarized. Audio Unit is available only on macOS.
@@ -5181,20 +5192,28 @@ the C++ runtime statically. macOS bundles are ad-hoc signed; the CI installer
 is unsigned and is not notarized.
 
 Each main build also renders the editor screenshot and all 23 canonical audio
-demos from the same source commit. After every platform build succeeds, one
-commit refreshes the screenshot, demos and generated README peak table together.
-Unchanged media produces no commit. An older run keeps its downloads but skips
-the repository update if relevant source changes have already landed on `main`.
+demos from the same source commit. After every platform build succeeds and the
+complete artifact is uploaded, one commit refreshes the screenshot, demos,
+generated README peak table and direct download link together. Unchanged media
+is preserved while the download link advances to the new build. An older run
+keeps its downloads but skips the repository update if relevant source changes
+or a newer build link have already landed on `main`.
 
-Download `electry-main-build` from the completed run's **Artifacts** section in
-GitHub Actions. It includes versioned packages, the screenshot and audio demos
-under `media/`, SHA-256 checksums and the source commit, retained for 14 days.
+Use the [direct binary download](#downloads), or download
+`electry-main-build-<build number>` from the completed run's **Artifacts** section
+in GitHub Actions. It includes packages named
+`Electry-<version>-build-<build number>-<platform>-<architecture>`, the screenshot
+and audio demos under `media/`, SHA-256 checksums, the build number and the source
+commit, retained for 14 days.
 Each merge gets its own run, including when other builds are still in progress.
 The same workflow also runs daily at 03:00 UTC and supports **Run workflow**
 manually. Manual branch builds keep their outputs as artifacts; only builds of
 `main` update the committed media.
 For a local Windows Release build, `./scripts/package-windows.ps1 -BuildDir
 build-win` packages the built products and dependency notices.
+Local macOS and Windows packaging uses `BUILD_NUMBER`, then `GITHUB_RUN_NUMBER`,
+and defaults to build `0` when neither is set. Set `BUILD_NUMBER=123` for macOS
+packaging or pass `-BuildNumber 123` to the Windows script to label a local build.
 
 ## Licensing
 

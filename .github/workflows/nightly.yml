@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  BUILD_NUMBER: ${{ github.run_number }}
+
 # Each push builds independently: a shared concurrency group would discard
 # pending builds when several merges arrive while another run is still active.
 
@@ -200,7 +203,7 @@ jobs:
             echo "error: invalid CMake project version: ${version:-missing}" >&2
             exit 1
           fi
-          archive="$dist/Electry-${version}-Linux-x64.tar.gz"
+          archive="$dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
           # Licence and notice files ship inside the binary archive (the MIT
           # licence requires the notice to accompany binaries).
           contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
@@ -263,6 +266,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      artifact-url: ${{ steps.upload-build.outputs.artifact-url }}
     steps:
       - name: Download every package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -285,20 +290,20 @@ jobs:
           fi
           filename="${mac_zips[0]##*/}"
           version="${filename#Electry-}"
-          version="${version%-macOS-universal.zip}"
+          version="${version%-build-${BUILD_NUMBER}-macOS-universal.zip}"
           if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
             echo "error: invalid version in $filename" >&2
             exit 1
           fi
           expected=(
-            "dist/Electry-${version}-macOS-universal.zip"
-            "dist/Electry-${version}-macOS-universal.pkg"
-            "dist/Electry-${version}-Linux-x64.tar.gz"
-            "dist/Electry-${version}-Windows-x64.zip"
+            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.zip"
+            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.pkg"
+            "dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
+            "dist/Electry-${version}-build-${BUILD_NUMBER}-Windows-x64.zip"
           )
           for asset in "${expected[@]}"; do
             if [[ ! -s "$asset" ]]; then
-              echo "error: missing, empty, or version-mismatched asset: $asset" >&2
+              echo "error: missing, empty, or version/build-mismatched asset: $asset" >&2
               exit 1
             fi
           done
@@ -327,31 +332,34 @@ jobs:
           name: main-build-screenshot
           path: dist/media/Docs/screenshots
 
-      - name: Record checksums and source commit for the complete build
+      - name: Record checksums, build number and source commit for the complete build
         working-directory: dist
         env:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           printf '%s\n' "$SOURCE_COMMIT" > SOURCE_COMMIT.txt
+          printf '%s\n' "$BUILD_NUMBER" > BUILD_NUMBER.txt
           find . -type f ! -name SHA256SUMS.txt -print0 \
             | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
       # Retained on the workflow run itself, downloadable by anyone with repo
       # access, as one complete cross-platform set.
       - name: Upload workflow artifact
+        id: upload-build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: electry-main-build
+          name: electry-main-build-${{ github.run_number }}
           path: dist
           if-no-files-found: error
           retention-days: 14
 
-  # A single writer updates both media sets only after every product was built.
+  # A single writer updates both media sets and the final download link only
+  # after every product was built and the complete artifact was uploaded.
   # All generation happens in read-only jobs; only this publication job can push.
   refresh-generated-media:
     if: github.ref == 'refs/heads/main'
-    name: Refresh screenshot, audio demos and README together
+    name: Refresh screenshot, audio demos and README download link together
     needs: collect-packages
     runs-on: ubuntu-24.04
     permissions:
@@ -365,7 +373,7 @@ jobs:
       - name: Download the complete build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: electry-main-build
+          name: electry-main-build-${{ github.run_number }}
           path: completed-build
 
       - name: Verify the downloaded build
@@ -375,15 +383,19 @@ jobs:
         run: |
           set -euo pipefail
           test "$(cat SOURCE_COMMIT.txt)" = "$SOURCE_COMMIT"
+          test "$(cat BUILD_NUMBER.txt)" = "$BUILD_NUMBER"
           sha256sum --check SHA256SUMS.txt
 
-      - name: Commit changed media from this source version
+      - name: Commit media and final artifact link from this source version
         env:
           GH_TOKEN: ${{ github.token }}
+          ARTIFACT_URL: ${{ needs.collect-packages.outputs.artifact-url }}
         run: |
           set -euo pipefail
           python3 scripts/refresh-generated-media.py \
             --source-commit "$GITHUB_SHA" \
             --media-dir "$GITHUB_WORKSPACE/completed-build/media" \
+            --build-number "$BUILD_NUMBER" \
+            --artifact-url "$ARTIFACT_URL" \
             --remote "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             --branch main

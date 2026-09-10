@@ -1,11 +1,20 @@
 [CmdletBinding()]
 param(
     [string] $BuildDir = "build-win",
-    [string] $Config = "Release"
+    [string] $Config = "Release",
+    [string] $BuildNumber = $(
+        if ($null -ne $env:BUILD_NUMBER) { $env:BUILD_NUMBER }
+        elseif ($null -ne $env:GITHUB_RUN_NUMBER) { $env:GITHUB_RUN_NUMBER }
+        else { "0" }
+    )
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($BuildNumber -notmatch '\A[0-9]+\z') {
+    throw "BuildNumber must contain only ASCII digits"
+}
 
 $projectDir = Split-Path -Parent $PSScriptRoot
 if (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
@@ -59,7 +68,7 @@ foreach ($relativePath in $noticePaths) {
 
 $distDir = Join-Path $BuildDir "dist"
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
-$zipPath = Join-Path $distDir "Electry-$version-Windows-x64.zip"
+$zipPath = Join-Path $distDir "Electry-$version-build-$BuildNumber-Windows-x64.zip"
 $stagingDir = Join-Path $BuildDir ("package-windows-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $stagingDir | Out-Null
 

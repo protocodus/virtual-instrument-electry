@@ -88,7 +88,12 @@ jobs:
           test -x "$artefacts/Standalone/Electry"
           dist="build-dsp/dist"
           mkdir -p "$dist"
-          archive="$dist/Electry-Linux-x64.tar.gz"
+          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-dsp/CMakeCache.txt)"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "error: invalid CMake project version: ${version:-missing}" >&2
+            exit 1
+          fi
+          archive="$dist/Electry-${version}-build-${GITHUB_RUN_NUMBER}-Linux-x64.tar.gz"
           # Licence and notice files ship inside the binary archive (the MIT
           # licence requires the notice to accompany binaries).
           contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
@@ -105,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-linux
-          path: build-dsp/dist/Electry-Linux-x64.tar.gz
+          path: build-dsp/dist/Electry-*-build-*-Linux-x64.tar.gz
           if-no-files-found: error
           retention-days: 7
 
