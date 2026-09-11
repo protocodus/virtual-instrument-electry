@@ -1,0 +1,154 @@
+{
+  "cells": [
+    {
+      "pickup": "couple",
+      "reference_file": "build-realism-20260911/reference/HB-couple_ordinario_07-02_6s_DI.wav",
+      "metrics": {
+        "aggregate_attack_cents": {
+          "reference": 7.830920860146251,
+          "baseline": 0.010147622897746124,
+          "candidate": 1.9518083833122883,
+          "baseline_absolute_error": 7.820773237248505,
+          "candidate_absolute_error": 5.879112476833963,
+          "error_reduction_percent": 24.826966612033562
+        },
+        "aggregate_slope_cents_per_second": {
+          "reference": -10.492765137366632,
+          "baseline": -0.029962282759631042,
+          "candidate": -5.83179583790069,
+          "baseline_absolute_error": 10.462802854607002,
+          "candidate_absolute_error": 4.660969299465942,
+          "error_reduction_percent": 55.45200111064297
+        },
+        "fundamental_attack_cents": {
+          "reference": 8.264826868842295,
+          "baseline": -0.010945954513596107,
+          "candidate": 1.8587416482246553,
+          "baseline_absolute_error": 8.275772823355892,
+          "candidate_absolute_error": 6.40608522061764,
+          "error_reduction_percent": 22.592302164960575
+        },
+        "fundamental_slope_cents_per_second": {
+          "reference": -10.806378980739675,
+          "baseline": 0.10622502011256227,
+          "candidate": -5.732186794567498,
+          "baseline_absolute_error": 10.912604000852237,
+          "candidate_absolute_error": 5.074192186172177,
+          "error_reduction_percent": 53.50154568262626
+        }
+      }
+    },
+    {
+      "pickup": "neck",
+      "reference_file": "build-realism-20260911/reference/HB-neck_ordinario_01-02_6s_DI.wav",
+      "metrics": {
+        "aggregate_attack_cents": {
+          "reference": 2.22025489568342,
+          "baseline": 0.008568580830929196,
+          "candidate": 1.9538882156662756,
+          "baseline_absolute_error": 2.211686314852491,
+          "candidate_absolute_error": 0.2663666800171445,
+          "error_reduction_percent": 87.95639877914108
+        },
+        "aggregate_slope_cents_per_second": {
+          "reference": -6.475890062314555,
+          "baseline": -0.02326904706315523,
+          "candidate": -5.838446365190361,
+          "baseline_absolute_error": 6.4526210152514,
+          "candidate_absolute_error": 0.6374436971241941,
+          "error_reduction_percent": 90.12116633508253
+        },
+        "fundamental_attack_cents": {
+          "reference": 2.641944108941848,
+          "baseline": -0.012241530351182427,
+          "candidate": 1.8788049448074422,
+          "baseline_absolute_error": 2.6541856392930305,
+          "candidate_absolute_error": 0.7631391641344059,
+          "error_reduction_percent": 71.24770954839181
+        },
+        "fundamental_slope_cents_per_second": {
+          "reference": -6.860708028008005,
+          "baseline": 0.09021567582834215,
+          "candidate": -5.7463939074429335,
+          "baseline_absolute_error": 6.950923703836347,
+          "candidate_absolute_error": 1.114314120565071,
+          "error_reduction_percent": 83.96883395583727
+        }
+      }
+    },
+    {
+      "pickup": "bridge",
+      "reference_file": "build-realism-20260911/reference/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "metrics": {
+        "aggregate_attack_cents": {
+          "reference": 4.694575154758865,
+          "baseline": 0.014389334079517018,
+          "candidate": 1.9413713686097958,
+          "baseline_absolute_error": 4.680185820679347,
+          "candidate_absolute_error": 2.753203786149069,
+          "error_reduction_percent": 41.17319500469255
+        },
+        "aggregate_slope_cents_per_second": {
+          "reference": -10.57970392295596,
+          "baseline": -0.036515520786384856,
+          "candidate": -5.753515336989537,
+          "baseline_absolute_error": 10.543188402169577,
+          "candidate_absolute_error": 4.826188585966424,
+          "error_reduction_percent": 54.22458176908522
+        },
+        "fundamental_attack_cents": {
+          "reference": 4.708559215112071,
+          "baseline": 0.005338218871811609,
+          "candidate": 1.842528921336736,
+          "baseline_absolute_error": 4.70322099624026,
+          "candidate_absolute_error": 2.8660302937753355,
+          "error_reduction_percent": 39.062393707069454
+        },
+        "fundamental_slope_cents_per_second": {
+          "reference": -11.65688419058029,
+          "baseline": 0.09522473169311696,
+          "candidate": -5.744539922995537,
+          "baseline_absolute_error": 11.752108922273406,
+          "candidate_absolute_error": 5.912344267584752,
+          "error_reduction_percent": 49.691206006614955
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "aggregate_attack_cents": {
+      "median_baseline_absolute_error": 4.680185820679347,
+      "median_candidate_absolute_error": 2.753203786149069,
+      "maximum_baseline_absolute_error": 7.820773237248505,
+      "maximum_candidate_absolute_error": 5.879112476833963,
+      "every_cell_improves": true
+    },
+    "aggregate_slope_cents_per_second": {
+      "median_baseline_absolute_error": 10.462802854607002,
+      "median_candidate_absolute_error": 4.660969299465942,
+      "maximum_baseline_absolute_error": 10.543188402169577,
+      "maximum_candidate_absolute_error": 4.826188585966424,
+      "every_cell_improves": true
+    },
+    "fundamental_attack_cents": {
+      "median_baseline_absolute_error": 4.70322099624026,
+      "median_candidate_absolute_error": 2.8660302937753355,
+      "maximum_baseline_absolute_error": 8.275772823355892,
+      "maximum_candidate_absolute_error": 6.40608522061764,
+      "every_cell_improves": true
+    },
+    "fundamental_slope_cents_per_second": {
+      "median_baseline_absolute_error": 10.912604000852237,
+      "median_candidate_absolute_error": 5.074192186172177,
+      "maximum_baseline_absolute_error": 11.752108922273406,
+      "maximum_candidate_absolute_error": 5.912344267584752,
+      "every_cell_improves": true
+    }
+  },
+  "scope": "Descriptive unmatched ordinary E2 DI; no coefficient fit or holdout promotion claim",
+  "input_sha256": {
+    "Experiments/RealismReference20260911/reference-pitch.json": "6020e999cb93397731d2835677e7e0f2c6641478be78df52093b8601f826f281",
+    "Experiments/RealismReference20260911/model-pitch.json": "a92b9a5c93d3882caca3084508c85fa6f5d082d7272f5ee6949af03c0831bb4c"
+  },
+  "script_sha256": "2fc2028497fab85a94eed7da8d4b091cb03e207e0fff0c87414dcf5ecf638cf8"
+}

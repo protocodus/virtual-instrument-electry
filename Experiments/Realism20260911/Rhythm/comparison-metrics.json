@@ -1,0 +1,380 @@
+[
+  {
+    "rate": 44100,
+    "scenario": "open_palm",
+    "path": "dry",
+    "null_db": -243.37291854941665,
+    "level_db": 0.0,
+    "peak": 0.022958306595683098,
+    "exact": true
+  },
+  {
+    "rate": 44100,
+    "scenario": "open_palm",
+    "path": "modern",
+    "null_db": -252.0517975031129,
+    "level_db": 0.0,
+    "peak": 0.04395977407693863,
+    "exact": true
+  },
+  {
+    "rate": 44100,
+    "scenario": "fret5_palm",
+    "path": "dry",
+    "null_db": -9.025357240944265,
+    "level_db": -2.020001568604841,
+    "peak": 0.0279355701059103,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "fret5_palm",
+    "path": "modern",
+    "null_db": -8.459832321458748,
+    "level_db": -2.466177672067849,
+    "peak": 0.053569234907627106,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "down_strum",
+    "path": "dry",
+    "null_db": -3.341639894828148,
+    "level_db": 0.08159172207497406,
+    "peak": 0.0863315537571907,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "down_strum",
+    "path": "modern",
+    "null_db": -1.0164759360802873,
+    "level_db": -0.06237448689491096,
+    "peak": 0.23198604583740234,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "up_strum",
+    "path": "dry",
+    "null_db": -10.275890490799966,
+    "level_db": -0.10973254284178903,
+    "peak": 0.11689594388008118,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "up_strum",
+    "path": "modern",
+    "null_db": -8.316552273466447,
+    "level_db": -0.09942315170177124,
+    "peak": 0.24548852443695068,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "fret12_pressure",
+    "path": "dry",
+    "null_db": -3.263811741589814,
+    "level_db": -6.173115499841658,
+    "peak": 0.034612976014614105,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "fret12_pressure",
+    "path": "modern",
+    "null_db": -2.9318947920517475,
+    "level_db": -6.997232109514968,
+    "peak": 0.06333611905574799,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "zero_spread_chord",
+    "path": "dry",
+    "null_db": -266.75665424141766,
+    "level_db": 0.0,
+    "peak": 0.18118752539157867,
+    "exact": true
+  },
+  {
+    "rate": 44100,
+    "scenario": "zero_spread_chord",
+    "path": "modern",
+    "null_db": -272.63441797824044,
+    "level_db": 0.0,
+    "peak": 0.20790190994739532,
+    "exact": true
+  },
+  {
+    "rate": 44100,
+    "scenario": "palm_riff",
+    "path": "dry",
+    "null_db": -12.372901651988617,
+    "level_db": -0.9087248013571774,
+    "peak": 0.029997369274497032,
+    "exact": false
+  },
+  {
+    "rate": 44100,
+    "scenario": "palm_riff",
+    "path": "modern",
+    "null_db": -13.28634705313905,
+    "level_db": -0.8776283900252174,
+    "peak": 0.07379887998104095,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "open_palm",
+    "path": "dry",
+    "null_db": -243.43722045891369,
+    "level_db": 0.0,
+    "peak": 0.02292296476662159,
+    "exact": true
+  },
+  {
+    "rate": 48000,
+    "scenario": "open_palm",
+    "path": "modern",
+    "null_db": -252.1102271229192,
+    "level_db": 0.0,
+    "peak": 0.04437468573451042,
+    "exact": true
+  },
+  {
+    "rate": 48000,
+    "scenario": "fret5_palm",
+    "path": "dry",
+    "null_db": -9.021001619704208,
+    "level_db": -2.0203217756422824,
+    "peak": 0.02826002985239029,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "fret5_palm",
+    "path": "modern",
+    "null_db": -8.452160247526942,
+    "level_db": -2.467981992308213,
+    "peak": 0.0539029985666275,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "down_strum",
+    "path": "dry",
+    "null_db": -3.4400521622392874,
+    "level_db": 0.07271033134520724,
+    "peak": 0.08837650716304779,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "down_strum",
+    "path": "modern",
+    "null_db": -1.058447765319073,
+    "level_db": -0.05609865407216559,
+    "peak": 0.2346823811531067,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "up_strum",
+    "path": "dry",
+    "null_db": -10.47601830276446,
+    "level_db": -0.09314044399538104,
+    "peak": 0.11436058580875397,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "up_strum",
+    "path": "modern",
+    "null_db": -8.539647653527615,
+    "level_db": -0.09543547088124911,
+    "peak": 0.24355542659759521,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "fret12_pressure",
+    "path": "dry",
+    "null_db": -3.2632669882450056,
+    "level_db": -6.172502525577159,
+    "peak": 0.03481975197792053,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "fret12_pressure",
+    "path": "modern",
+    "null_db": -2.9279671940577874,
+    "level_db": -7.0038945704597335,
+    "peak": 0.06348762661218643,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "zero_spread_chord",
+    "path": "dry",
+    "null_db": -266.79220759216105,
+    "level_db": 0.0,
+    "peak": 0.18427500128746033,
+    "exact": true
+  },
+  {
+    "rate": 48000,
+    "scenario": "zero_spread_chord",
+    "path": "modern",
+    "null_db": -272.64325587319644,
+    "level_db": 0.0,
+    "peak": 0.20957377552986145,
+    "exact": true
+  },
+  {
+    "rate": 48000,
+    "scenario": "palm_riff",
+    "path": "dry",
+    "null_db": -12.361043585668893,
+    "level_db": -0.9082061739967261,
+    "peak": 0.029912512749433517,
+    "exact": false
+  },
+  {
+    "rate": 48000,
+    "scenario": "palm_riff",
+    "path": "modern",
+    "null_db": -13.279005918158461,
+    "level_db": -0.8769360745302218,
+    "peak": 0.0739751085639,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "open_palm",
+    "path": "dry",
+    "null_db": -243.42687722302742,
+    "level_db": 0.0,
+    "peak": 0.0229312963783741,
+    "exact": true
+  },
+  {
+    "rate": 96000,
+    "scenario": "open_palm",
+    "path": "modern",
+    "null_db": -252.08418108483528,
+    "level_db": 0.0,
+    "peak": 0.04378058388829231,
+    "exact": true
+  },
+  {
+    "rate": 96000,
+    "scenario": "fret5_palm",
+    "path": "dry",
+    "null_db": -9.001875919657703,
+    "level_db": -2.024575512880699,
+    "peak": 0.028290007263422012,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "fret5_palm",
+    "path": "modern",
+    "null_db": -8.407885137456537,
+    "level_db": -2.4885723347253506,
+    "peak": 0.052964888513088226,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "down_strum",
+    "path": "dry",
+    "null_db": -3.333707119571116,
+    "level_db": 0.0833920075782932,
+    "peak": 0.0878000557422638,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "down_strum",
+    "path": "modern",
+    "null_db": -0.971370520324222,
+    "level_db": -0.05585861166991356,
+    "peak": 0.23479393124580383,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "up_strum",
+    "path": "dry",
+    "null_db": -7.388806819160819,
+    "level_db": -0.21844101565317128,
+    "peak": 0.11401184648275375,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "up_strum",
+    "path": "modern",
+    "null_db": -6.27585749445644,
+    "level_db": -0.053597724323398196,
+    "peak": 0.2481154501438141,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "fret12_pressure",
+    "path": "dry",
+    "null_db": -3.2640932006896053,
+    "level_db": -6.168506580799509,
+    "peak": 0.034680526703596115,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "fret12_pressure",
+    "path": "modern",
+    "null_db": -2.9044532639749177,
+    "level_db": -7.060486012376765,
+    "peak": 0.0611862950026989,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "zero_spread_chord",
+    "path": "dry",
+    "null_db": -266.87203676669435,
+    "level_db": 0.0,
+    "peak": 0.18559099733829498,
+    "exact": true
+  },
+  {
+    "rate": 96000,
+    "scenario": "zero_spread_chord",
+    "path": "modern",
+    "null_db": -272.66244274414026,
+    "level_db": 0.0,
+    "peak": 0.21789409220218658,
+    "exact": true
+  },
+  {
+    "rate": 96000,
+    "scenario": "palm_riff",
+    "path": "dry",
+    "null_db": -12.399612874999182,
+    "level_db": -0.9170108362578662,
+    "peak": 0.030135078355669975,
+    "exact": false
+  },
+  {
+    "rate": 96000,
+    "scenario": "palm_riff",
+    "path": "modern",
+    "null_db": -13.271781436969192,
+    "level_db": -0.8868100333104809,
+    "peak": 0.07460414618253708,
+    "exact": false
+  }
+]

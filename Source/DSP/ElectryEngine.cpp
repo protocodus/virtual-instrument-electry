@@ -363,20 +363,20 @@ float boundPickupDisplacement(float displacement) noexcept
 #endif
 
 #if ELECTRY_ENERGY_ATTACK_PITCH
-// Default-off tension experiment. Bank's quasistatic store gives
+// Bounded ordinary-pick tension relaxation. Bank's quasistatic store gives
 //
 //     dT / T = E A_core y^2 / (4 T L^2 p (1-p)),
 //     f / f0 = sqrt(1 + dT / T).
 //
 // The 4.8 N anchor is the existing documented full-force contact reference in
 // makeVelocityProfile(), not a value fitted to the EG-IPT result. Bank's square
-// root and the independent seven-cent bound prevent it from reviving the
-// former approximately 30-cent E1 extrapolation. The experiment must remain
-// chord-safe before listening and none of these values is a shipping fit.
+// root and the independent six-cent bound prevent it from reviving the
+// former approximately 30-cent E1 extrapolation. This bounded voicing is
+// checked against ordinary DI pitch motion, not fitted to one eight-string.
 constexpr float attackPitchFullForceNewtons = 4.8f;
-constexpr float maximumAttackPitchTensionRatio = 0.00811950292f; // +7 cents
+constexpr float maximumAttackPitchTensionRatio = 0.00695555006f; // +6 cents
 // Lee measured this normalised-frequency time constant on one hard-plucked
-// open high-E string. Reusing it across this candidate is an explicit bounded
+// open high-E string. Reusing it across all strings is an explicit bounded
 // extrapolation, not an eight-string material constant.
 constexpr float attackPitchRelaxationSeconds = 0.3049f;
 #endif
@@ -820,8 +820,8 @@ ElectryEngine::stringSpecs() noexcept
     static constexpr std::array<StringSpec, stringCount> specs {{
         // Flexural and axial cores are separate coordinates: the winding can
         // slip differently under bending and longitudinal loading. The axial
-        // values are candidate construction estimates used only by the
-        // default-off energy-pitch experiment.
+        // values are construction estimates used by the bounded
+        // ordinary-pick tension relaxation.
         { 28, true, 2.0320f, 0.22f, 0.22f, 20.0f }, // E1, wound (.080)
         { 35, true, 1.5240f, 0.25f, 0.25f, 19.0f }, // B1, wound (.060)
         { 40, true, 1.0668f, 0.28f, 0.28f, 18.0f }, // E2, wound
@@ -1499,6 +1499,7 @@ void ElectryEngine::reset()
     chordPerformanceDelaySamples_ = 0;
     strumPreRollSamples_ = 0;
     chordTravelSamples_.fill(0);
+    chordTravelSpeedScales_.fill(1.0f);
     frettingHandPosition_ = 0.0f;
     palmMuteBlend_ = clampf(smoothedParameters_.palmMute + palmMutePressure_,
                             0.0f, 1.0f);
@@ -3225,8 +3226,25 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
         // matters because Palm Mute and CC2 are swept live. Gating full depth on
         // any positive rate put a step in the middle of an expression pedal.
         handShareForSlope = handRate / std::max(1.0f / t60 + handRate, 1.0e-9f);
-        t60 = 1.0f / (1.0f / t60 + handRate / handFundamentalRelief);
-        t60High = 1.0f / (1.0f / t60High + handRate * handHighFrequencyTilt);
+        // A fixed near-bridge heel intersects a larger fundamental motion as
+        // the fretting finger shortens the string. For a localized viscous
+        // contact the modal decay rate scales as sin^2(pi*x/L) / L. Normalize
+        // at the existing open-string fit so open chugs keep their reference.
+        // The 6.5% open-length centre is a conservative voiced heel position
+        // (about 45 mm on the baritone scale), not a measured player fit.
+        constexpr float heelOpenFraction = 0.065f;
+        constexpr float heelOpenParticipation = 0.0411226872f;
+        const float handLength = std::exp2(-liveFret / 12.0f);
+        const float heelParticipation = std::sin(pi * heelOpenFraction / handLength);
+        const float handFundamentalScale = liveFret > 0.0f
+            ? heelParticipation * heelParticipation
+                / (heelOpenParticipation * handLength) : 1.0f;
+        t60 = 1.0f / (1.0f / t60
+                     + handRate * handFundamentalScale / handFundamentalRelief);
+        // The upper-band contact has already averaged over many modes; its
+        // participation stays bounded while the modal mass still falls with L.
+        t60High = 1.0f / (1.0f / t60High
+                         + handRate * handHighFrequencyTilt / handLength);
     }
     if (chokeT60 > 0.0f)
     {
@@ -3524,7 +3542,7 @@ void ElectryEngine::configureVoiceDispersion(
     // L * f constant and therefore leaves this tension ratio at one.
     // Equations 3--5:
     // https://link.springer.com/article/10.1007/s42452-020-2391-2
-    // The default-off energy-attack experiment remains outside this
+    // The transient energy-derived pitch correction remains outside this
     // static construction fit; configuredF0 deliberately excludes it.
     const float tensionPitchRatio = configuredF0
         / std::max(liveUnbentFrequency, 20.0f);
@@ -3698,6 +3716,15 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
                                       + legatoOffset,
                                   0.0f, static_cast<float>(fretCount));
 
+    // The geometric coordinate is shared by damping and dispersion. A small
+    // energy-derived pitch offset can otherwise move their quantisation grids
+    // out of step while a finger slides. Keep every geometric refit together;
+    // tension-only movement still updates loss/phase without the stiffness fit.
+    const bool fitMoved = forceDelayJump
+        || std::abs(semitones - voice.lastConfiguredSemitones) > 0.06f
+        || std::abs(liveFret - voice.lastConfiguredLiveFret) > 0.06f
+        || std::abs(configuredF0 - voice.lastConfiguredFrequency)
+               > 3.5e-3f * std::max(configuredF0, 20.0f);
     // Loop loss is applied once per round trip, so its coefficients must be
     // solved at the pitch and fret the string is performing now. Reusing the
     // written destination made a +2-semitone bend decay about fourteen per cent
@@ -3709,8 +3736,8 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // Reuse the dispersion fitter's six-cent/fractional-fret quantum. This is
     // control-rate work on the ticks that already pay for a stiffness refit,
     // never sample-loop work.
-    const bool dampingCoordinateMoved =
-        std::abs(f0 - voice.lastDampedFrequency)
+    const bool dampingCoordinateMoved = fitMoved
+        || std::abs(f0 - voice.lastDampedFrequency)
             > 3.5e-3f * std::max(f0, 20.0f)
         || std::abs(liveFret - voice.lastDampedLiveFret) > 0.06f;
     if (dampingCoordinateMoved)
@@ -3797,16 +3824,13 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // well under one percent, far inside the fit's own tolerance. The
     // analytic phase compensation below still tracks every sub-cent move, so
     // tuning stays exact; only the stiffness fit is quantised.
-    const bool fitMoved = forceDelayJump
-        || std::abs(semitones - voice.lastConfiguredSemitones) > 0.06f
-        || std::abs(liveFret - voice.lastConfiguredLiveFret) > 0.06f
-        || std::abs(configuredF0 - voice.lastConfiguredFrequency)
-               > 3.5e-3f * std::max(configuredF0, 20.0f);
+    // Coarse attack-pitch steps modulate the loop and pickup reads, lifting
+    // the high-frequency floor. Track every representable tension factor;
+    // this analytic solve never invokes the expensive stiffness grid fit.
     const bool pitchMoved =
         std::abs(semitones - voice.lastCompensatedSemitones) > 8.0e-4f
 #if ELECTRY_ENERGY_ATTACK_PITCH
-        || std::abs(voice.attackPitchFrequencyFactor
-                    - voice.lastAttackPitchFrequencyFactor) > 4.6e-5f
+        || voice.attackPitchFrequencyFactor != voice.lastAttackPitchFrequencyFactor
 #endif
         ;
 
@@ -3815,8 +3839,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
         || std::abs(pickupTensionSemitones
                     - voice.pickupTensionSemitones) > 8.0e-4f
 #if ELECTRY_ENERGY_ATTACK_PITCH
-        || std::abs(voice.attackPitchFrequencyFactor
-                    - voice.pickupAttackPitchFrequencyFactor) > 4.6e-5f
+        || voice.attackPitchFrequencyFactor != voice.pickupAttackPitchFrequencyFactor
 #endif
         ;
     if (pickupTensionMoved || fitMoved)
@@ -4458,6 +4481,7 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
     chordContactOccurred_ = false;
     chordFirstNoteOnClock_ = engineClock_;
     chordTravelSamples_.fill(0);
+    chordTravelSpeedScales_.fill(1.0f);
 
     chordPerformanceDelaySamples_ = 0;
     if (variationSeed_ != 0)
@@ -4507,6 +4531,28 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
         total += gaps[static_cast<std::size_t>(k)];
     }
 
+    // Equal spacing makes crossing speed the inverse travel interval. Keep
+    // the unrounded trajectory so very small Spread values cannot make a
+    // one-sample scheduling difference change the contact's timbre.
+    // Below the soft pick's roughly 3 ms contact time, the gesture tends to
+    // a simultaneous chord. Fade the speed deviation with zero slope at both
+    // ends so an arbitrarily small positive Spread cannot switch on a full
+    // attack change while all its scheduled travel still rounds to zero.
+    constexpr float resolvedContactSeconds = 0.003f;
+    const float travelExpression = smoothStep(clampf(
+        spreadSeconds / resolvedContactSeconds, 0.0f, 1.0f));
+    for (int k = 1; k < stringCount; ++k)
+    {
+        const float entering = gaps[static_cast<std::size_t>(k - 1)];
+        const float leaving = gaps[static_cast<std::size_t>(
+            std::min(k, stringCount - 2))];
+        const float resolvedSpeed = clampf(
+            2.0f * gaps.front() / std::max(1.0e-6f, entering + leaving),
+            0.75f, 1.6f);
+        chordTravelSpeedScales_[static_cast<std::size_t>(k)] =
+            1.0f + travelExpression * (resolvedSpeed - 1.0f);
+    }
+
     // Strum Spread states the time the pick takes per string, so the ramp is
     // normalised to it: whatever shape the draws gave it, seven crossings
     // still take seven times the knob. The acceleration redistributes the
@@ -4545,6 +4591,7 @@ void ElectryEngine::reAnchorChordStroke(int stringIndex) noexcept
         // Rescheduled against the chord's own clock rather than by adding a
         // difference, so the countdown's control-tick quantisation does not
         // accumulate across re-anchors.
+        voice.strokeTravelSpeedScale = strumTravelSpeedScale(moved);
         const std::int64_t onset = chordFirstNoteOnClock_
                                  + static_cast<std::int64_t>(strumPreRollSamples_)
                                  + static_cast<std::int64_t>(strumTravelSamples(moved))
@@ -4568,6 +4615,12 @@ int ElectryEngine::strumTravelSamples(int crossings) const noexcept
     // is the stated limit of the mechanism rather than an undefined case.
     const int index = std::clamp(crossings, 0, stringCount - 1);
     return chordTravelSamples_[static_cast<std::size_t>(index)];
+}
+
+float ElectryEngine::strumTravelSpeedScale(int crossings) const noexcept
+{
+    return chordTravelSpeedScales_[static_cast<std::size_t>(
+        std::clamp(crossings, 0, stringCount - 1))];
 }
 
 bool ElectryEngine::hasHeldFrettedFinger(const Voice* excluded) const noexcept
@@ -4842,7 +4895,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     float pluckFraction = lerp(0.025f, 0.48f, parameters.pickPosition);
     const float pickControl = std::pow(parameters.pickNoise, 0.75f);
     const float fingerControl = std::pow(parameters.fingerNoise, 0.75f);
-    float noiseLevel = pickControl * (0.12f + 0.63f * profile.noise);
+    const float pickNoiseLevel = pickControl * (0.12f + 0.63f * profile.noise);
+    float noiseLevel = pickNoiseLevel;
     // The plectrum scrapes on each stroke, but a finger already holding its
     // fret does not land again when B0/E6 or a repeated Note On repicks it.
     // Its own Hammer/Slide contact is voiced separately below.
@@ -4871,6 +4925,10 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             + 0.130f * spec.plainDiameterMm * gaugeScale;
         noiseCutoff *= clampf(referenceWindingMm / windingMm, 0.55f, 1.65f);
     }
+    voice.pickRidgeCyclesPerSample = 0.0f;
+    voice.pickRidgeMix = 0.0f;
+    voice.pickRoughnessMix = 1.0f;
+    voice.pickRidgePhase = 0.0;
     float modalBrightness = 1.0f;
     voice.excitationPolarity = 1.0f;
 
@@ -4969,6 +5027,17 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // note has no plectrum, so the latched stroke cannot colour it.
     if (voice.strokeIsUp && voice.playStyle != PlayStyle::Hammer)
         applyUpstrokeVoicing();
+
+    // A travelling wrist does not merely schedule identical attacks. Its
+    // faster crossings shorten contact/release and raise the winding scrape's
+    // ridge-crossing rate. Keep velocity's released displacement unchanged;
+    // the pulse-area normalization below preserves the modal displacement.
+    const float nominalPulseMs = pulseMs;
+    const float travelSpeed = plectrumContact
+        ? voice.strokeTravelSpeedScale : 1.0f;
+    pulseMs /= travelSpeed;
+    noiseMs /= travelSpeed;
+    noiseCutoff *= travelSpeed;
 
     // The heel of the hand is already resting on the string when the pick
     // reaches it, so it absorbs the attack's high end as the pluck forms rather
@@ -5145,7 +5214,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         + (1.0f - nominalSlipPoint) * impedanceSlipScale;
     const float slipPoint = nominalSlipPoint / releaseDurationScale;
     const int nominalExcitationLength = std::max(
-        8, static_cast<int>(pulseMs * 0.001f * sampleRate));
+        8, static_cast<int>(nominalPulseMs * 0.001f * sampleRate));
     voice.excitationLength = std::max(
         8, static_cast<int>(pulseMs * releaseDurationScale * 0.001f * sampleRate));
     // The pulse is a force/area source for the modal projection. Broader slip
@@ -5183,7 +5252,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         static_cast<float>(std::max(1, voice.excitationLength));
     const int contactSamples = plectrumContact
         ? std::max(4, static_cast<int>(lerp(3.0f, 0.55f, effectivePickHardness)
-                                       * 0.001f * sampleRate))
+                                       * 0.001f * sampleRate / travelSpeed))
         : 0;
 
     // Contact loss is a total attenuation over the complete pick/string
@@ -5447,6 +5516,29 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     voice.excitationModalShaper2.reset();
     voice.excitationReleaseShaper.reset();
     voice.excitationImageShaper.reset();
+    if (plectrumContact && voice.playStyle == PlayStyle::Sustain && spec.wound
+        && parameters.pickNoise > 0.0f)
+    {
+        // The broadband scrape already follows the winding spacing and pick
+        // speed. A small coherent component supplies the successive ridge
+        // crossings missing from that noise-only approximation. This short
+        // drag is a voiced contact texture, not a second ringing oscillator.
+        // A simultaneous finger landing shares the roughness envelope but
+        // has no plectrum ridge component. Preserve that distinction and make
+        // the ridge amount continuous all the way to Pick Noise == 0.
+        voice.pickRidgeMix = 0.35f * clampf(
+            pickNoiseLevel / std::max(noiseLevel, 1.0e-12f), 0.0f, 1.0f);
+        voice.pickRoughnessMix = std::sqrt(
+            1.0f - voice.pickRidgeMix * voice.pickRidgeMix);
+        voice.pickRidgeCyclesPerSample = std::min(
+            0.35f, 0.65f * noiseCutoff * inverseSampleRate_)
+            * (voice.strokeIsUp ? -1.0f : 1.0f);
+        const float gaugeScale = lerp(1.0f, 11.0f / 9.0f, parameters.stringGauge);
+        const double windingMetres = 0.001 * (0.100
+            + 0.130 * spec.plainDiameterMm * gaugeScale);
+        voice.pickRidgePhase = (combFraction * soundingMetres) / windingMetres;
+        voice.pickRidgePhase -= std::floor(voice.pickRidgePhase);
+    }
     voice.noiseBandCoefficient = std::exp(
         -twoPi * clampf(noiseCutoff, 250.0f, 0.45f * sampleRate) * inverseSampleRate_);
     voice.noiseShaper.state = 0.0f;
@@ -5724,6 +5816,15 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     const int repeatedKeyDownCount = wasRinging && voice.midiNote == midiNote
         && voice.expressionId == expressionId
         ? voice.keyDownCount : 0;
+    if (! keyStateAlreadyApplied)
+    {
+        const int crossings = chordStrokeIsUp_
+            ? chordAnchorString_ - voice.stringIndex
+            : voice.stringIndex - chordAnchorString_;
+        voice.strokeTravelSpeedScale = voice.strumChordId == chordSequence_
+            && plectrumContacts(playStyle, false)
+            ? strumTravelSpeedScale(crossings) : 1.0f;
+    }
     const bool delayedSameNoteRepick = reservedStartOrder == 0
                                      && wasRinging
                                      && voice.midiNote == midiNote
@@ -5871,6 +5972,8 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     }
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
+    voice.releaseSpectralDepth = 0.0f;
+    voice.releaseSpectralTarget = 0.0f;
     voice.releaseGainCoefficient = 0.0f;
     if (! wasRinging)
         voice.outputEnergy = 0.0f;
@@ -6024,6 +6127,8 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
         0.32f, 1.25f);
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
+    voice.releaseSpectralDepth = 0.0f;
+    voice.releaseSpectralTarget = 0.0f;
     voice.artifactCollisionRemaining = 0;
     if (! travellingContact)
     {
@@ -6289,6 +6394,14 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     const float handStop = broadHandStop ? 1.0f
         : 1.0f - (1.0f - palmDepth) * (1.0f - palmMuteBlend_);
     const float closureSeconds = lerp(0.010f, 0.022f, handStop);
+    // An ordinary note stop damps upper modes before its low body disappears.
+    // Dead/Palm already carry their calibrated frequency-dependent contact.
+    // 0.75 is a conservative voicing depth; the positive-weight spatial
+    // average is contractive at every frequency and introduces no phase lag.
+    voice.releaseSpectralDepth = 0.0f;
+    voice.releaseSpectralTarget = voice.dampingStyle == PlayStyle::Sustain
+        ? 0.75f * (1.0f - palmMuteBlend_) : 0.0f;
+    voice.pickRidgeCyclesPerSample = 0.0f;
     voice.releaseGainCoefficient =
         1.0f - std::exp(-1.0f / (closureSeconds * sampleRate));
 
@@ -6371,6 +6484,10 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.passiveRepickState = 0.0f;
 #endif
     voice.noiseRemaining = 0;
+    voice.pickRidgeCyclesPerSample = 0.0f;
+    voice.pickRidgeMix = 0.0f;
+    voice.pickRoughnessMix = 1.0f;
+    voice.pickRidgePhase = 0.0;
     voice.artifactCollisionRemaining = 0;
     voice.artifactCollisionLength = 0;
     voice.outputEnergy = 0.0f;
@@ -6385,6 +6502,8 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.palmImpactState = 0.0f;
     voice.releaseGain = 1.0f;
     voice.releaseGainTarget = 1.0f;
+    voice.releaseSpectralDepth = 0.0f;
+    voice.releaseSpectralTarget = 0.0f;
     voice.releaseGainCoefficient = 0.0f;
     voice.releaseMotionPeak = 0.0f;
     voice.articulationMakeupCurrent = 1.0f;
@@ -6678,9 +6797,9 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
 
 #if ELECTRY_ENERGY_ATTACK_PITCH
     // Lee's measured common pitch component relaxes exponentially. The
-    // additional control-rate work is one multiply plus the bounded pitch
-    // solve below; compensation runs only after the accumulated change
-    // exceeds its existing sub-cent quantum.
+    // additional control-rate work is one multiply plus the analytic pitch
+    // solve below. Every representable factor change is compensated to avoid
+    // staircase modulation; the expensive stiffness fit stays geometric.
     voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_;
     if (! std::isfinite(voice.attackPitchTensionRatio)
         || voice.attackPitchTensionRatio < 1.0e-12f)
@@ -6892,7 +7011,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         if (voice.pendingAttackPitchClearOnRelease)
         {
             // The real muted cells were inconclusive, so an unsupported
-            // plectrum articulation leaves the experiment exactly here. It
+            // plectrum articulation ends the extra tension here. It
             // clears only at physical release, never during delayed pre-roll.
             voice.attackPitchTensionRatio = 0.0f;
         }
@@ -7036,6 +7155,22 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                   float extraFeedback)
     {
         float sample = loop.readFractional(loop.currentDelay);
+        if (voice.releasing && voice.releaseSpectralDepth > 0.0f)
+        {
+            // A 125 us spatial averaging span is a voicing approximation to
+            // the stopping hand's upper-mode loss, not a measured finger-pad
+            // dimension. Integer spacing preserves identical interpolation
+            // weights on both sides, hence no extra phase delay. Clamp the
+            // span symmetrically before either guarded cubic read.
+            const float width = std::min(
+                std::round(0.000125f * static_cast<float>(sampleRate_)),
+                std::floor(std::max(0.0f, std::min(loop.currentDelay - 4.0f,
+                    static_cast<float>(delayLineSize - 8) - loop.currentDelay))));
+            const float spread = 0.5f * sample + 0.25f * (
+                loop.readFractional(loop.currentDelay - width)
+                + loop.readFractional(loop.currentDelay + width));
+            sample += voice.releaseSpectralDepth * (spread - sample);
+        }
         if (touchWeight > 0.0f)
         {
             // The two reads must be separated by p times the complete live
@@ -7271,7 +7406,17 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         voice.noiseRemaining--;
         const float window = static_cast<float>(voice.noiseRemaining)
                            / voice.noiseLengthDenominator;
-        const float raw = bipolarNoise(voice.noiseState);
+        float raw = bipolarNoise(voice.noiseState);
+        if (voice.pickRidgeCyclesPerSample != 0.0f)
+        {
+            voice.pickRidgePhase += voice.pickRidgeCyclesPerSample;
+            voice.pickRidgePhase -= std::floor(voice.pickRidgePhase);
+            const float ridge = 0.816496581f * static_cast<float>(
+                std::sin(2.0 * 3.14159265358979323846 * voice.pickRidgePhase));
+            // Equal-variance mixing avoids turning the idea into a scrape
+            // gain boost. 0.35 is the explicit coherent-component voicing.
+            raw = voice.pickRoughnessMix * raw + voice.pickRidgeMix * ridge;
+        }
         const float lowpassed = voice.noiseShaper.process(raw, voice.noiseBandCoefficient);
         // Band-shaped scrape: low-passed noise minus its own slower average.
         voice.noiseBandState += contactNoiseBandCoefficient_
@@ -7643,8 +7788,12 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     voice.releaseMotionPeak = std::max(voice.releaseMotionPeak, voice.outputEnergy);
 
     if (voice.releasing)
+    {
         voice.releaseGain += voice.releaseGainCoefficient
                            * (voice.releaseGainTarget - voice.releaseGain);
+        voice.releaseSpectralDepth += voice.releaseGainCoefficient
+            * (voice.releaseSpectralTarget - voice.releaseSpectralDepth);
+    }
 
     voice.ageSamples++;
 }

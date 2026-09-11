@@ -41,7 +41,7 @@ option(ELECTRY_MEASURED_MODERN_CABINET
 option(ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     "Build the default-off fitted order-2 lowest-string loss correction" OFF)
 option(ELECTRY_ENERGY_ATTACK_PITCH
-    "Build the default-off energy-derived common attack-pitch experiment" OFF)
+    "Use the bounded energy-derived common attack-pitch relaxation" ON)
 option(ELECTRY_POSITIONED_FRET_COLLISION
     "Build the default-off unilateral following-fret scatter experiment" OFF)
 option(ELECTRY_MEASURED_PICKUP_FLUX
@@ -272,6 +272,14 @@ if(BUILD_TESTING)
     add_executable(ElectryRealismContactTests Tests/RealismContactTests.cpp)
     target_link_libraries(ElectryRealismContactTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismContact COMMAND ElectryRealismContactTests)
+
+    add_executable(ElectryRealismEverydayContactTests Tests/RealismEverydayContactTests.cpp)
+    target_link_libraries(ElectryRealismEverydayContactTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismEverydayContact COMMAND ElectryRealismEverydayContactTests)
+
+    add_executable(ElectryRealismRhythmTests Tests/RealismRhythmTests.cpp)
+    target_link_libraries(ElectryRealismRhythmTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismRhythm COMMAND ElectryRealismRhythmTests)
 
     add_executable(ElectryRealismTextureTests Tests/RealismTextureTests.cpp)
     target_link_libraries(ElectryRealismTextureTests PRIVATE ElectryDSP)

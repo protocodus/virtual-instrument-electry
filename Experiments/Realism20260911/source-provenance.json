@@ -1,0 +1,44 @@
+{
+  "baseline_commit": "3baafa69adf1c6b80455ed6e58dcde009873c359",
+  "candidate": "working tree, September 11 realism pass five",
+  "sha256": {
+    "Source/DSP/ElectryEngine.cpp": "139394376bf7f132f1546fa387d48c6700e77423d6841f3cb0ba9de40bbc96f1",
+    "Source/DSP/ElectryEngine.h": "9bdbd0bdcc7837233dedb8fa661c8c085c93619751609b83dfd9d549e64bee02",
+    "Source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "Source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "CMakeLists.txt": "6cb09fe85267f7eaf8d6bf5a85432642f6132f635d43710ec855e6d8ad1bb58b",
+    "Experiments/Realism20260911/RenderRealism.cpp": "11b5b8c80018256cb7af1af73fdf32957a861074b188c1866a8fa26064212bd1"
+  },
+  "compile_definitions": {
+    "baseline": {
+      "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
+      "ELECTRY_MEASURED_BODY_RESPONSE": 1,
+      "ELECTRY_ENERGY_ATTACK_PITCH": 0
+    },
+    "candidate": {
+      "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
+      "ELECTRY_MEASURED_BODY_RESPONSE": 1,
+      "ELECTRY_ENERGY_ATTACK_PITCH": 1
+    }
+  },
+  "host": "macOS arm64",
+  "sample_rate": 44100,
+  "takes": 19,
+  "audio_taps": [
+    "dry",
+    "ModernHighGain"
+  ],
+  "audio_directory": "build-realism-20260911/comparison",
+  "validation": {
+    "core_checks_passed": 22,
+    "native_checks_passed": 4,
+    "asan_ubsan_checks_passed": 3,
+    "core_logs": [
+      "build-realism-20260911/core-ctest.log",
+      "build-realism-20260911/core-engine-final.log"
+    ],
+    "native_log": "build-realism-20260911/native-ctest.log",
+    "sanitizer_log": "build-realism-20260911/sanitize-ctest.log"
+  }
+}

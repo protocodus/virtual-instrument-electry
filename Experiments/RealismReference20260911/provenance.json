@@ -1,0 +1,215 @@
+{
+  "url": "https://zenodo.org/api/records/15205644/files/EG-IPT.zip/content",
+  "archive_bytes": 23757983313,
+  "license": "CC-BY-4.0",
+  "source": "https://zenodo.org/records/15205644",
+  "selection": "literal ordinario, DI, sixth-string, identifier02 filenames; no frequency or fret inference",
+  "files": [
+    {
+      "member": "EG-IPT/HB-couple/DI/ordinario/HB-couple_ordinario_07-02_6s_DI.wav",
+      "path": "build-realism-20260911/reference/HB-couple_ordinario_07-02_6s_DI.wav",
+      "bytes": 5904678,
+      "sha256": "745b68063c7b51d38c0417c8aee0a869ef5826186a585d3691779b8b33426b06",
+      "zip_crc32": "8a57e72d"
+    },
+    {
+      "member": "EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "path": "build-realism-20260911/reference/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "bytes": 5151606,
+      "sha256": "f497d68f72d711ac0121fecbfebfd8244b3aa98d7d8c0210c07492f3721def6f",
+      "zip_crc32": "55d3affb"
+    },
+    {
+      "member": "EG-IPT/HB-neck/DI/ordinario/HB-neck_ordinario_01-02_6s_DI.wav",
+      "path": "build-realism-20260911/reference/HB-neck_ordinario_01-02_6s_DI.wav",
+      "bytes": 4791168,
+      "sha256": "4b9d51835d70a49f5ae747b7a175c603b5f5b788d66f67d0df6829cfcdc1c6c6",
+      "zip_crc32": "4e86b175"
+    }
+  ],
+  "range_requests": [
+    {
+      "start": 23757983291,
+      "end": 23757983312,
+      "bytes": 22,
+      "sha256": "d8c791106c64750447a771aa0ffb051661f53f963e68d0b0e8626a8b9b27092e"
+    },
+    {
+      "start": 23757983271,
+      "end": 23757983290,
+      "bytes": 20,
+      "sha256": "e9975a2cf8d9149de2f4a9f645e545d4495e05404cee1786df9a1d7a2ead18c6"
+    },
+    {
+      "start": 23757983215,
+      "end": 23757983270,
+      "bytes": 56,
+      "sha256": "0186d6e8879bfb33b46431f4a7d9ecd0794c6b9733f6c3d897701782a0470740"
+    },
+    {
+      "start": 23741203027,
+      "end": 23757983214,
+      "bytes": 16780188,
+      "sha256": "b211ad669584ed0ee9341746b07c1831a9f62d5c2e2d9b03e18a4f45ffa6be5e"
+    },
+    {
+      "start": 1378624285,
+      "end": 1378624314,
+      "bytes": 30,
+      "sha256": "162dc173464b47065f77bcb7a607bdd6d6d8ba5e358010d9aacf9b1624cb7a60"
+    },
+    {
+      "start": 1378624315,
+      "end": 1378624379,
+      "bytes": 65,
+      "sha256": "8bf10e2085bdd249c8ffd08039fc2f1796e19ec6b34a6c9b5ecfc578f63c1260"
+    },
+    {
+      "start": 1378624380,
+      "end": 1378624411,
+      "bytes": 32,
+      "sha256": "6c92fd683309b2fe365e93f7add05bfb6d1df2cc9b52e76682226d515f9a1e42"
+    },
+    {
+      "start": 1378624412,
+      "end": 1383397703,
+      "bytes": 4773292,
+      "sha256": "a7c5bf15acfbeebb15e48908c48fb9caac66111564fa325fcbbc72d9115401d5"
+    },
+    {
+      "start": 9425076515,
+      "end": 9425076544,
+      "bytes": 30,
+      "sha256": "3de935a8e0644af9b9bf6c54d6105f34858264ecd7da90734125dc313233faec"
+    },
+    {
+      "start": 9425076545,
+      "end": 9425076609,
+      "bytes": 65,
+      "sha256": "e6328580820d3e56b235148df96b58dbe9583c6620ebd8f84d921b67a4a38885"
+    },
+    {
+      "start": 9425076610,
+      "end": 9425076641,
+      "bytes": 32,
+      "sha256": "dd4313249e068d1f724cc1219e546a0cbaa26c4fb66738149cebf2565fc8b24e"
+    },
+    {
+      "start": 9425076642,
+      "end": 9429345059,
+      "bytes": 4268418,
+      "sha256": "fc1eb2ec7d52977eb391c07df3a20ea2e6029af15b274b24878fc5a7cf7e716e"
+    },
+    {
+      "start": 17031509842,
+      "end": 17031509871,
+      "bytes": 30,
+      "sha256": "e9f8b1fd29d73204cb0e55dbd093fb811cc86d5a237b4b2ea7edfb5eec221342"
+    },
+    {
+      "start": 17031509872,
+      "end": 17031509932,
+      "bytes": 61,
+      "sha256": "38977589dec8613a40100a25de28b68a15b8de87015f00be6d02788ba7a31bfe"
+    },
+    {
+      "start": 17031509933,
+      "end": 17031509964,
+      "bytes": 32,
+      "sha256": "4926fbf1bdaf6406edf071b1424dd8562240a8e2e0db3c14315a168d9326c1ba"
+    },
+    {
+      "start": 17031509965,
+      "end": 17035451135,
+      "bytes": 3941171,
+      "sha256": "7a2d8fac0eff522e458702442c1de778a11025a00d36e6851c4d1a592922bd85"
+    }
+  ],
+  "bytes_downloaded": 29763544,
+  "script_sha256": "ba4411d472c7499d2cbc2c19753c6b3ad64844d76867460db9a13c37b59ae25c",
+  "checked_date": "2026-09-11",
+  "egipt_metadata_sha256": "bd0954df333ad1b7d66957a431dd49566d3cc98743cce097e90162e3020eb4c1",
+  "8ridgelite": {
+    "source": "https://github.com/JamesStubbsEng/8ridgelite",
+    "license": "GPL-3.0 repository",
+    "tree_sha256": "586ee60c2bfd7713daa4293a0e7f464b1af28321aff8a56ddc12d24b8cdac865",
+    "files": [
+      {
+        "path": "build-realism-20260911/reference/8ridgelite-e1.wav",
+        "source": "https://raw.githubusercontent.com/JamesStubbsEng/8ridgelite/main/8ridgelite_20sec_wav/Natural/0_e1.wav",
+        "sha256": "1a9e05a3a2eeae067bdddd4fc102d50deb0c749bddfb0632c5e1f4a2ac866c5a"
+      },
+      {
+        "path": "build-realism-20260911/reference/8ridgelite-e2.wav",
+        "source": "https://raw.githubusercontent.com/JamesStubbsEng/8ridgelite/main/8ridgelite_20sec_wav/Natural/13_e2.wav",
+        "sha256": "c95c1989892142246b291354bb808e98991a529fb52818920554581165f09018"
+      }
+    ]
+  },
+  "analyzer_sha256": "f4b918248c96317437e0fa20fe2f01662a1a8938580cc59adefa86cf2c436928",
+  "isolated_pitch_ablation": {
+    "candidate_cap_cents": 6,
+    "relaxation_seconds": 0.3049,
+    "pitch_factor_update": "every representable float change at existing control cadence",
+    "files": [
+      {
+        "path": "build-realism-20260911/RenderPitchReference.cpp",
+        "sha256": "f55246b65937bcdd865a383d7819a86065890ac209b8c03d9515e66289767c2c"
+      },
+      {
+        "path": "build-realism-20260911/render-pitch-off",
+        "sha256": "9aefd8f7df052ecb7283aba32ea1be469e4232f79362c3c6f074bbc49bd4f092"
+      },
+      {
+        "path": "build-realism-20260911/render-pitch-final",
+        "sha256": "858f2c69e32d5f12eb6c011b62a67dbca1f8bba5e24167da454066bf8c8e5991"
+      },
+      {
+        "path": "build-realism-20260911/pitch-src/Source/DSP/ElectryEngine.cpp",
+        "sha256": "7eb7b9026776a4b181a924c5906435f37278df892211dee6d2b33798c7614ae8"
+      },
+      {
+        "path": "build-realism-20260911/pitch-src/Source/DSP/ElectryEngine.h",
+        "sha256": "628fc9035b9c3485b19a3adbeab0ec64c571e9f82b6c3c9aa5cfebe977aa3737"
+      },
+      {
+        "path": "build-realism-20260911/pitch-src/Source/DSP/ElectryVisuals.cpp",
+        "sha256": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb"
+      },
+      {
+        "path": "build-realism-20260911/pitch-before-reference-fixes/Source/DSP/ElectryEngine.cpp",
+        "sha256": "ac26daac82c930cebb6aef7fe42392f3aa89c2d9ca52f030c267ab2a7bc59328"
+      },
+      {
+        "path": "build-realism-20260911/reference/pitch-fixes.patch",
+        "sha256": "8de5fdbe22fd61c806db819e9d5afd0dec92b04d0d0bb095f9283643c81428ac"
+      },
+      {
+        "path": "build-realism-20260911/reference/pitch-final-tests.log",
+        "sha256": "807b09e8beb7a6258e567b745f916a737ecacde1d1483eca9a56653880c7d7dc"
+      }
+    ]
+  },
+  "reproduction_sources": [
+    {
+      "path": "Experiments/RealismReference20260911/RenderPitch.cpp",
+      "sha256": "f55246b65937bcdd865a383d7819a86065890ac209b8c03d9515e66289767c2c"
+    },
+    {
+      "path": "Experiments/RealismReference20260911/BenchmarkPitch.cpp",
+      "sha256": "f6208ea259ba181743c93acb64c56c0ba67e68b9c8657ec24b300b402a5f35d3"
+    },
+    {
+      "path": "Experiments/RealismReference20260911/benchmark_pitch.py",
+      "sha256": "6e8601e85cf63706a5871e5b610e417cfa4524349fc7f5e5cd0ccc18fcb68adf"
+    },
+    {
+      "path": "Experiments/RealismReference20260911/plot_pitch.py",
+      "sha256": "b1beb61dd6b74cf195405bf22fdb04df74c4f025460c71f9e588bfb7f608bbc1"
+    },
+    {
+      "path": "Experiments/RealismReference20260911/compare_pitch.py",
+      "sha256": "2fc2028497fab85a94eed7da8d4b091cb03e207e0fff0c87414dcf5ecf638cf8"
+    }
+  ]
+}

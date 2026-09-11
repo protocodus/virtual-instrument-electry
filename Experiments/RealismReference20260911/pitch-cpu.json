@@ -1,0 +1,755 @@
+{
+  "scope": "isolated energy pitch flag, same final source, eight strings Both/Stereo at96kHz;4secondshold or4Hzrepicks; noFX",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "optimization": "-O3 -DNDEBUG -std=c++20",
+  "probe_sha256": "f6208ea259ba181743c93acb64c56c0ba67e68b9c8657ec24b300b402a5f35d3",
+  "executable_sha256": {
+    "off": "ed16e3a357313ab5c8f02754fa5369f29439be40faa27f58e073d3b45b145fb3",
+    "on": "5efe36c1d31abcef440d63ead6b6b7714310bc949d7e49fc60c66fc582958c0a"
+  },
+  "rounds": [
+    {
+      "order": [
+        "off",
+        "on",
+        "on",
+        "off"
+      ],
+      "runs": [
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.570537,
+              "cpu_ratio": 0.142634,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.578911,
+              "cpu_ratio": 0.144728,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.570955,
+              "cpu_ratio": 0.142739,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.592968,
+              "cpu_ratio": 0.148242,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.57377,
+              "cpu_ratio": 0.143443,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.607685,
+              "cpu_ratio": 0.151921,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.516512,
+              "cpu_ratio": 0.129128,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.52651,
+              "cpu_ratio": 0.131628,
+              "checksum": 7.3124
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.5435245,
+          "on_seconds": 0.5723625,
+          "overhead_percent": 5.305740587590813
+        },
+        "repicked": {
+          "off_seconds": 0.5527105,
+          "on_seconds": 0.6003265,
+          "overhead_percent": 8.614998267628348
+        }
+      }
+    },
+    {
+      "order": [
+        "on",
+        "off",
+        "off",
+        "on"
+      ],
+      "runs": [
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.520675,
+              "cpu_ratio": 0.130169,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.56479,
+              "cpu_ratio": 0.141198,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.535842,
+              "cpu_ratio": 0.133961,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.498636,
+              "cpu_ratio": 0.124659,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.489199,
+              "cpu_ratio": 0.1223,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.502264,
+              "cpu_ratio": 0.125566,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.492536,
+              "cpu_ratio": 0.123134,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.515634,
+              "cpu_ratio": 0.128909,
+              "checksum": -2.79448
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.5125205,
+          "on_seconds": 0.5066055,
+          "overhead_percent": -1.1541001774563187
+        },
+        "repicked": {
+          "off_seconds": 0.5004500000000001,
+          "on_seconds": 0.540212,
+          "overhead_percent": 7.9452492756519
+        }
+      }
+    },
+    {
+      "order": [
+        "off",
+        "on",
+        "on",
+        "off"
+      ],
+      "runs": [
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.487327,
+              "cpu_ratio": 0.121832,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.488933,
+              "cpu_ratio": 0.122233,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.493904,
+              "cpu_ratio": 0.123476,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.516984,
+              "cpu_ratio": 0.129246,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.492576,
+              "cpu_ratio": 0.123144,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.520182,
+              "cpu_ratio": 0.130046,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.489544,
+              "cpu_ratio": 0.122386,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.496469,
+              "cpu_ratio": 0.124117,
+              "checksum": 7.3124
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.4884355,
+          "on_seconds": 0.49324,
+          "overhead_percent": 0.9836508607584893
+        },
+        "repicked": {
+          "off_seconds": 0.492701,
+          "on_seconds": 0.518583,
+          "overhead_percent": 5.253084527938845
+        }
+      }
+    },
+    {
+      "order": [
+        "on",
+        "off",
+        "off",
+        "on"
+      ],
+      "runs": [
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.508401,
+              "cpu_ratio": 0.1271,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.539797,
+              "cpu_ratio": 0.134949,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.490657,
+              "cpu_ratio": 0.122664,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.51811,
+              "cpu_ratio": 0.129527,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.490167,
+              "cpu_ratio": 0.122542,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.500708,
+              "cpu_ratio": 0.125177,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.518298,
+              "cpu_ratio": 0.129575,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.631854,
+              "cpu_ratio": 0.157964,
+              "checksum": -2.79448
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.490412,
+          "on_seconds": 0.5133495,
+          "overhead_percent": 4.677189791440672
+        },
+        "repicked": {
+          "off_seconds": 0.509409,
+          "on_seconds": 0.5858255,
+          "overhead_percent": 15.001010975463714
+        }
+      }
+    },
+    {
+      "order": [
+        "off",
+        "on",
+        "on",
+        "off"
+      ],
+      "runs": [
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.706628,
+              "cpu_ratio": 0.176657,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.514303,
+              "cpu_ratio": 0.128576,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.496939,
+              "cpu_ratio": 0.124235,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.524561,
+              "cpu_ratio": 0.13114,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.569151,
+              "cpu_ratio": 0.142288,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.522412,
+              "cpu_ratio": 0.130603,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.491738,
+              "cpu_ratio": 0.122934,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.489129,
+              "cpu_ratio": 0.122282,
+              "checksum": 7.3124
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.599183,
+          "on_seconds": 0.533045,
+          "overhead_percent": -11.038030117676911
+        },
+        "repicked": {
+          "off_seconds": 0.5017159999999999,
+          "on_seconds": 0.5234865,
+          "overhead_percent": 4.33920783869759
+        }
+      }
+    },
+    {
+      "order": [
+        "on",
+        "off",
+        "off",
+        "on"
+      ],
+      "runs": [
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.494655,
+              "cpu_ratio": 0.123664,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.51778,
+              "cpu_ratio": 0.129445,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.490483,
+              "cpu_ratio": 0.122621,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.490197,
+              "cpu_ratio": 0.122549,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.485128,
+              "cpu_ratio": 0.121282,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.507812,
+              "cpu_ratio": 0.126953,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.491075,
+              "cpu_ratio": 0.122769,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.519581,
+              "cpu_ratio": 0.129895,
+              "checksum": -2.79448
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.4878055,
+          "on_seconds": 0.492865,
+          "overhead_percent": 1.0371961775748728
+        },
+        "repicked": {
+          "off_seconds": 0.4990045,
+          "on_seconds": 0.5186805,
+          "overhead_percent": 3.9430506137720034
+        }
+      }
+    },
+    {
+      "order": [
+        "off",
+        "on",
+        "on",
+        "off"
+      ],
+      "runs": [
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.485341,
+              "cpu_ratio": 0.121335,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.487378,
+              "cpu_ratio": 0.121844,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.51872,
+              "cpu_ratio": 0.12968,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.518232,
+              "cpu_ratio": 0.129558,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.491228,
+              "cpu_ratio": 0.122807,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.516236,
+              "cpu_ratio": 0.129059,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.482743,
+              "cpu_ratio": 0.120686,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.486496,
+              "cpu_ratio": 0.121624,
+              "checksum": 7.3124
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.484042,
+          "on_seconds": 0.504974,
+          "overhead_percent": 4.324418129005347
+        },
+        "repicked": {
+          "off_seconds": 0.48693699999999995,
+          "on_seconds": 0.517234,
+          "overhead_percent": 6.22195479086618
+        }
+      }
+    },
+    {
+      "order": [
+        "on",
+        "off",
+        "off",
+        "on"
+      ],
+      "runs": [
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.491667,
+              "cpu_ratio": 0.122917,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.515272,
+              "cpu_ratio": 0.128818,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.484274,
+              "cpu_ratio": 0.121069,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.503032,
+              "cpu_ratio": 0.125758,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.679887,
+              "cpu_ratio": 0.169972,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.506627,
+              "cpu_ratio": 0.126657,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.508817,
+              "cpu_ratio": 0.127204,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.516275,
+              "cpu_ratio": 0.129069,
+              "checksum": -2.79448
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.5820805,
+          "on_seconds": 0.500242,
+          "overhead_percent": -14.059653261018024
+        },
+        "repicked": {
+          "off_seconds": 0.5048295,
+          "on_seconds": 0.5157735,
+          "overhead_percent": 2.167860634134877
+        }
+      }
+    },
+    {
+      "order": [
+        "off",
+        "on",
+        "on",
+        "off"
+      ],
+      "runs": [
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.490026,
+              "cpu_ratio": 0.122506,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.49298,
+              "cpu_ratio": 0.123245,
+              "checksum": 7.3124
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.494535,
+              "cpu_ratio": 0.123634,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.520483,
+              "cpu_ratio": 0.130121,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "on",
+          "measurements": {
+            "held": {
+              "seconds": 0.50239,
+              "cpu_ratio": 0.125598,
+              "checksum": -0.729453
+            },
+            "repicked": {
+              "seconds": 0.543945,
+              "cpu_ratio": 0.135986,
+              "checksum": -2.79448
+            }
+          }
+        },
+        {
+          "state": "off",
+          "measurements": {
+            "held": {
+              "seconds": 0.485134,
+              "cpu_ratio": 0.121283,
+              "checksum": 0.261719
+            },
+            "repicked": {
+              "seconds": 0.487252,
+              "cpu_ratio": 0.121813,
+              "checksum": 7.3124
+            }
+          }
+        }
+      ],
+      "comparison": {
+        "held": {
+          "off_seconds": 0.48758,
+          "on_seconds": 0.49846250000000003,
+          "overhead_percent": 2.2319414249969194
+        },
+        "repicked": {
+          "off_seconds": 0.490116,
+          "on_seconds": 0.532214,
+          "overhead_percent": 8.589395163593917
+        }
+      }
+    }
+  ],
+  "median_paired_overhead_percent": {
+    "held": 1.0371961775748728,
+    "repicked": 6.22195479086618
+  },
+  "host_limitations": "Other compilation on the shared host can add noise; warmed balanced ABBA/BAAB order reduces drift. These are descriptive local timings, not worst-case scheduling guarantees."
+}

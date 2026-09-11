@@ -25,7 +25,7 @@
 //     Fleischer, "Investigating Dead Spots of Electric Guitars",
 //     https://www.researchgate.net/publication/233653803_Investigating_Dead_Spots_of_Electric_Guitars
 //
-//   Energy-derived tension modulation (default-off experiment)
+//   Energy-derived tension modulation (bounded ordinary-pick relaxation)
 //     Bank, "Physics-Based Sound Synthesis of the Piano",
 //     https://dafx.de/paper-archive/2009/papers/paper_76.pdf
 //     Lee et al., "Analysis of the Nonlinear Tension Modulation in Guitar
@@ -1281,6 +1281,12 @@ private:
         float passiveRepickPole { 0.0f };
         float passiveRepickState { 0.0f };
 #endif
+        // Coherent winding-ridge drag belongs only to an ordinary picked
+        // Sustain contact. The same noise envelope/control owns its lifetime.
+        float pickRidgeCyclesPerSample { 0.0f };
+        float pickRidgeMix { 0.0f };
+        float pickRoughnessMix { 1.0f };
+        double pickRidgePhase { 0.0 };
         float noiseAmplitude { 0.0f };
         float noiseBandCoefficient { 0.5f };
         int noiseRemaining { 0 };
@@ -1332,6 +1338,10 @@ private:
         float releaseGain { 1.0f };
         float releaseGainTarget { 1.0f };
         float releaseGainCoefficient { 0.0f };
+        // Passive upper-mode loss as the stopping hand closes on the string.
+        // Symmetric history reads have no additional group delay.
+        float releaseSpectralDepth { 0.0f };
+        float releaseSpectralTarget { 0.0f };
         bool releaseNoiseDone { true };
         // Peak of the existing displacement-energy follower since the last
         // picked attack. A note ending follows the string still under the hand,
@@ -1352,6 +1362,9 @@ private:
         // Which pick stroke this pending excitation belongs to. A note-on that
         // re-anchors the stroke may only push the strings of its own chord.
         std::uint64_t strumChordId { 0 };
+        // Latched with the physical stroke so a delayed contact cannot read
+        // the travel ramp of a newer chord. Unity for a leading/solo contact.
+        float strokeTravelSpeedScale { 1.0f };
 
         // Pickup taps and per-string pickup colouring.
         DelayTap pickupTapNeck {};
@@ -1683,6 +1696,7 @@ private:
                           float spreadSeconds, bool completeChord) noexcept;
     void reAnchorChordStroke(int stringIndex) noexcept;
     int strumTravelSamples(int crossings) const noexcept;
+    float strumTravelSpeedScale(int crossings) const noexcept;
     void drawVibratoCycle(Voice& voice) noexcept;
     void startVoice(Voice& voice, int midiNote, float velocity,
                     PlayStyle playStyle, bool strokeIsUp,
@@ -1856,6 +1870,7 @@ private:
     int strumPreRollSamples_ { 0 };
     int strumReAnchorSamples_ { 0 };
     std::array<int, stringCount> chordTravelSamples_ {};
+    std::array<float, stringCount> chordTravelSpeedScales_ {};
 
     // Where the fretting hand is. The index finger sits at this fret and the
     // little finger reaches `frettingHandReach` frets above it; open strings

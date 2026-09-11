@@ -6283,8 +6283,9 @@ void testReleaseDampingUsesPerformedPitch()
                    + " semitones");
 
         // A released MPE member is frozen, but its zone master and the legacy
-        // wheel intentionally remain live. Member traffic must leave both the
-        // pitch and loss alone; either live control must move them together.
+        // wheel intentionally remain live. Member traffic must leave the
+        // performed bend alone. Independent attack tension keeps relaxing,
+        // so the release loss still follows the current sounding period.
         if (expression)
         {
             engine.setExpressionPitchBend(expressionId, -4.0f);
@@ -6295,7 +6296,8 @@ void testReleaseDampingUsesPerformedPitch()
             expect(std::abs(frozen.lastCompensatedSemitones
                             - before.lastCompensatedSemitones) < 1.0e-6f
                        && std::abs(TestAccess::releaseGainTarget(
-                                       engine, stringIndex) - armedTarget)
+                                       engine, stringIndex)
+                                   - targetFor(engine, frozen))
                               < 2.0e-7f,
                    "released MPE member traffic changed its frozen pitch or "
                    "damping");
@@ -7497,7 +7499,7 @@ void testEnergyAttackPitchExperiment()
 {
     using AttackState = TestAccess::AttackPitchState;
     constexpr double sampleRate = 48000.0;
-    constexpr float maximumCents = 7.0f;
+    constexpr float maximumCents = 6.0f;
     constexpr std::array<float, 4> velocities { 0.25f, 0.50f, 0.75f, 1.0f };
 
     EngineParameters parameters;
@@ -7632,7 +7634,7 @@ void testEnergyAttackPitchExperiment()
                            - std::sqrt(1.0f + q)) < 2.0e-6f
                && pitchCents(e2.state) > 0.0
                && pitchCents(e2.state) <= maximumCents + 1.0e-3,
-           "Bank energy-to-frequency law escaped its finite seven-cent bound");
+           "Bank energy-to-frequency law escaped its finite six-cent bound");
 
     // The dynamic sounding-period correction is common to both
     // polarisations. Their established fixed split remains, but neither axis
@@ -11231,9 +11233,11 @@ void testDeadNote()
     // through -7.264/-13.776/-21.769 to the values below. No Dead damping
     // coefficient was retuned: finger-contact ownership and continuous pickup
     // makeup alter the onset of this stateful Open/Palm/Dead/Dead phrase.
+    // September 11 refreshes the energy-enabled branch for the final source;
+    // its per-hit reference ranges and contextual contrast limits stay intact.
     constexpr std::array<double, 3> documentedMedian {
 #if ELECTRY_ENERGY_ATTACK_PITCH
-        -7.474, -14.286, -22.573
+        -6.91289, -13.4627, -21.7299
 #else
         -6.886, -13.261, -21.334
 #endif
@@ -12405,8 +12409,13 @@ void testSlideArticulation()
 
         const auto expectLiveReleaseRate = [&]
         {
+            // The finger freezes here, while residual attack tension can
+            // continue relaxing. The independently checked 60 ms loss law
+            // therefore follows the compensated sounding period at this tick.
+            const auto live = TestAccess::snapshot(engine, stringIndex);
             const float expected = std::pow(
-                10.0f, -3.0f / (0.060f * releasedFrequency));
+                10.0f, -3.0f * live.lastCompensatedPeriod
+                    / (0.060f * TestAccess::internalSampleRate(engine)));
             expect(std::abs(TestAccess::releaseGainTarget(engine, stringIndex)
                             - expected) < 2.0e-7f,
                    "a mid-slide release used the abandoned destination pitch");
@@ -20275,16 +20284,16 @@ void testHumbuckerTwoCoilNotch()
         struct Partial { int index; double decibels; };
         const std::array<Partial, 16> reference {{
 #if ELECTRY_ENERGY_ATTACK_PITCH
-            // Whole-path candidate snapshot. A fixed bin is no longer a
-            // stationary pickup response, but freezing the deterministic
-            // traversing source still catches spectral regressions instead of
-            // reducing this rendered check to mere finiteness.
-            { 1, 16.6982 }, { 2, 22.5579 }, { 3, 24.7175 },
-            { 4, 24.7792 }, { 6, 22.0725 }, { 8, 14.0735 },
-            { 10, 1.46969 }, { 12, -2.11286 }, { 14, -10.3226 },
-            { 16, -20.0485 }, { 18, -41.4025 }, { 20, -52.9458 },
-            { 22, -65.8754 }, { 24, -68.4314 }, { 26, -66.4581 },
-            { 28, -73.0455 },
+            // September 11 whole-source snapshot with continuous six-cent
+            // attack relaxation and wound-pick texture. A fixed FFT bin is
+            // not a stationary pickup response when the string pitch moves;
+            // topology, notch depth and pickup contrast are checked separately.
+            { 1, 16.6964 }, { 2, 22.5331 }, { 3, 24.6485 },
+            { 4, 24.6580 }, { 6, 21.7631 }, { 8, 13.4499 },
+            { 10, 0.821492 }, { 12, -4.00395 }, { 14, -9.09672 },
+            { 16, -19.9548 }, { 18, -37.2547 }, { 20, -46.0267 },
+            { 22, -81.4120 }, { 24, -59.2493 }, { 26, -61.5400 },
+            { 28, -73.2640 },
 #else
             // Updated source snapshots for the stronger wound-string pick
             // edge; per-partial tolerances and pickup contrast stay unchanged.
@@ -20392,9 +20401,16 @@ void testHumbuckerTwoCoilNotch()
             - bandEnergyDb(chord.left, start, window, sampleRate, 60.0, 500.0);
         std::cout << "PROBE humbucker chord 2-16k/sub-500 ratio: " << ratio
                   << " dB\n";
-        expect(std::abs(ratio - (-71.949)) < 3.0,
+        constexpr double expectedChordRatio =
+#if ELECTRY_ENERGY_ATTACK_PITCH
+            -68.1871;
+#else
+            -71.949;
+#endif
+        expect(std::abs(ratio - expectedChordRatio) < 3.0,
                "the humbucker's broadband balance on a chord moved from "
-                   "-71.949 dB to " + std::to_string(ratio) + " dB");
+                   + std::to_string(expectedChordRatio) + " dB to "
+                   + std::to_string(ratio) + " dB");
 
         struct Band { double lowHz; double highHz; };
         const std::array<Band, 2> bands {{ { 4000.0, 8000.0 },
@@ -20404,9 +20420,9 @@ void testHumbuckerTwoCoilNotch()
         struct Reference { int midiNote; double humbucker[2]; double single[2]; };
         const std::array<Reference, 3> shipping {{
 #if ELECTRY_ENERGY_ATTACK_PITCH
-            { 28, { -77.388, -108.256 }, { -50.493, -89.667 } },
-            { 40, { -88.627, -115.293 }, { -69.527, -98.756 } },
-            { 64, { -71.935, -111.974 }, { -51.853, -94.022 } },
+            { 28, { -76.4927, -110.879 }, { -50.3817, -96.4860 } },
+            { 40, { -85.2438, -115.187 }, { -66.1048, -98.3536 } },
+            { 64, { -72.8765, -118.131 }, { -52.7207, -103.039 } },
 #else
             // The extended-range material-loss bend preserves the fitted
             // 3.6 kHz anchor while changing this one-second upper tail.

@@ -5215,6 +5215,23 @@ Local macOS and Windows packaging uses `BUILD_NUMBER`, then `GITHUB_RUN_NUMBER`,
 and defaults to build `0` when neither is set. Set `BUILD_NUMBER=123` for macOS
 packaging or pass `-BuildNumber 123` to the Windows script to label a local build.
 
+## September 11: ordinary-playing realism
+
+The fifth realism pass adds winding contact texture to normal picks, upper-mode
+loss during note stops, speaking-length-aware palm damping, and contact-speed
+variation across strums. The energy-derived pitch candidate is promoted in a
+bounded six-cent form with continuous pitch/pickup updates; it no longer uses
+the coarse update steps that raised the high-frequency floor. This supersedes
+the earlier default-off status described in the historical experiment notes.
+`ELECTRY_ENERGY_ATTACK_PITCH=OFF` remains available for controlled comparisons.
+
+Nineteen identical-score phrases compare the previous source and the complete
+new model, dry and through Modern. Listening copies are volume matched with a
+constant gain per complete file. The real-recording comparison uses ordinary
+DI notes and explicitly does not claim a completed listening study or market
+ranking. See [the implementation and validation record](Docs/realism-pass5-2026-09-11.md)
+and [the recording audit](Docs/realism-reference-pass5-2026-09-11.md).
+
 ## Licensing
 
 Original code under the MIT license (`LICENSE`). JUCE is used under its own

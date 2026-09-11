@@ -20,6 +20,15 @@ struct ElectryEngineTestAccess
         int phase, contactFrames, thumbHold, ramp;
         bool pending;
     };
+    static float attackFrequencyFactor(const ElectryEngine& e)
+    {
+#if ELECTRY_ENERGY_ATTACK_PITCH
+        return e.voices_[0].attackPitchFrequencyFactor;
+#else
+        (void) e;
+        return 1.0f;
+#endif
+    }
     static State state(const ElectryEngine& e)
     {
         const auto& v = e.voices_[0];
@@ -125,9 +134,10 @@ void slideArrival(double rate)
     {
         auto e = makeEngine(rate);
         e->noteOn(notes[0], 0.8f); render(*e, static_cast<int>(rate * 0.18));
+        const float beforeRetarget = Access::state(*e).frequency;
         style(*e, Style::Slide); e->noteOn(notes[1], 0.8f);
         const auto beginning = Access::state(*e);
-        expect(std::abs(cents(beginning.frequency, hz(notes[0]))) < 1.0f,
+        expect(std::abs(cents(beginning.frequency, beforeRetarget)) < 1.0f,
                "slide begins continuously at the source pitch");
         const int travel = static_cast<int>(std::ceil(rate * beginning.slideSeconds));
         float previous = beginning.frequency;
@@ -140,7 +150,9 @@ void slideArrival(double rate)
             previous = current;
         }
         const auto arrival = Access::state(*e);
-        const float arrivalError = std::abs(cents(arrival.frequency, hz(notes[1])));
+        const float arrivalTarget = hz(notes[1])
+                                  * Access::attackFrequencyFactor(*e);
+        const float arrivalError = std::abs(cents(arrival.frequency, arrivalTarget));
         worstArrival = std::max(worstArrival, arrivalError);
         expect(arrivalError < 2.0f,
                "physical slide arrives within two cents at the finger's arrival");

@@ -3319,3 +3319,19 @@ Players and phrases held out from fitting feed the final level-matched blind
 listening test. Until then, changes must improve a named physical mechanism,
 preserve the compact performance model, and beat the existing
 regression/evaluation evidence rather than merely sound different.
+
+
+## September 11 ordinary-playing source update
+
+The fifth realism pass changes normal pick contact, note-stop cooling, fretted
+bridge-hand loss, strum contact speed and bounded attack-pitch relaxation.
+The exact current two-pass Open/Palm/Dead/Dead E1 medians are
+**-6.913/-13.463/-21.730 dB**, with first-to-repick contextual RMSE **4.437 dB**.
+These replace the September 8 shipping-source snapshot above. No Dead damping
+coefficient was retuned: the preceding picked and palm contacts change the
+ringing state at the Dead event. The real per-hit ranges and contextual contrast
+limits are retained. A waveform snapshot refresh is not a new recording fit.
+
+The [pass-five report](realism-pass5-2026-09-11.md) records the complete validation
+and audition protocol; the [reference audit](realism-reference-pass5-2026-09-11.md)
+separates fresh ordinary-DI pitch evidence from the model's voicing choices.

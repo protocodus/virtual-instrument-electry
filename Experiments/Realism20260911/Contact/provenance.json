@@ -1,0 +1,23 @@
+{
+  "baselineCommit": "3baafa69adf1c6b80455ed6e58dcde009873c359",
+  "definitions": {
+    "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
+    "ELECTRY_MEASURED_BODY_RESPONSE": 1
+  },
+  "compiler": "Apple clang++ -std=c++20 -O2 -DNDEBUG",
+  "baselineMethod": "Test-only ablation of one contact mechanism, all other source/settings/events identical.",
+  "candidateSourceSha256": {
+    "Source/DSP/ElectryEngine.cpp": "3d575f70bebc186e372416bdff9e5e51a1c960e243c39778e6e43c36576d487f",
+    "Source/DSP/ElectryEngine.h": "5abd7d1b6d59fa478a46ad55e8e7f5b6d2cb1eab1d41e164ba04d05f983dcb07",
+    "Source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "Source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "Source/DSP/DspMath.h": "1055f318b3bec6247998c302f61c1299704f7fa67aed22d57ebceecef365c3bc",
+    "Tests/RealismEverydayContactTests.cpp": "08f2ba5ca5db022bf11ded6857979a04d0d92ca8b21517f494ee3e66d3a8bbd7"
+  },
+  "artifacts": {
+    "source.patch": "7e50b32133619fd2744ef05a6699ec25573a07340843670517d1655899261024",
+    "measurements.json": "37e0f81ecfdd441f3b562b27f085fe5e172900454a56f4eef5d27dcf9422182d",
+    "AnalyzeContact.py": "c240f8a5d9aa8e704c755ab54923d07db4031a755e64ef9f175e1df19835b540"
+  }
+}
