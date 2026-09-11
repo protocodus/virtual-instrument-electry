@@ -1,0 +1,36 @@
+{
+  "baseline_commit": "aa1f7e0963ae488a4d0c3c7eeb3c6cb81fb749f8",
+  "compiler": [
+    "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "Target: arm64-apple-darwin25.5.0",
+    "Thread model: posix"
+  ],
+  "sha256": {
+    "baseline": {
+      "Source/DSP/ElectryEngine.cpp": "139394376bf7f132f1546fa387d48c6700e77423d6841f3cb0ba9de40bbc96f1",
+      "Source/DSP/ElectryEngine.h": "9bdbd0bdcc7837233dedb8fa661c8c085c93619751609b83dfd9d549e64bee02",
+      "Source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+      "Source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+      "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+      "Tests/ElectryEngineTests.cpp": "0084357fc9704629805b11d7a58c51b4e56888f5d12d727ff6b0a328771df836"
+    },
+    "candidate": {
+      "Source/DSP/ElectryEngine.cpp": "bec94e2892aaed472296c5b472ada6a658b652f66705fbb768d0dbf2004577e5",
+      "Source/DSP/ElectryEngine.h": "6ecd3b130f293f1594f4bee97b297e02aee68fb7855096289783d10510f8abc9",
+      "Source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+      "Source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+      "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+      "Tests/ElectryEngineTests.cpp": "b838eac1a43ba78387787b440faa1f28e0753b2a995d05b46d26d3fb23fec7fc"
+    },
+    "experiment": {
+      "TensionProbe.cpp": "56e85a2e7f488a9d5f678b7bfce7ec9425ed234856c68865823976b583848406",
+      "TensionAudioProbe.cpp": "e1ba9a918063dc59ed623cdba7dc051d99676eb5e06e0c977709a6a88ae1959c",
+      "AnalyzeTension.py": "7f99ee8aa56e8276cdb66100326cea48952d7a90df0ff9ada57823a80324bfac",
+      "run.sh": "0127ab13831092da124274a4296b2962d891ad146c963f0e84ce4ceac1420700",
+      "isolated-tension.patch": "10b29bd3fdf1236b0a541b8a1fc95c1ccbad8a14ff0814e503a3c84224ef4ba4",
+      "before.csv": "19318c1b3449a741564e5e89a9d6fee39016f7bd50ecf64fafe0e914bb3d3d29",
+      "after.csv": "f252b2251d46dcc09dd92e087bce782ffc39ab9e320573c577893a966edca224",
+      "results.json": "99c3239b456869f4e8417ab0e17abe3aad00923971a1972aa3b2f772b84999b4"
+    }
+  }
+}

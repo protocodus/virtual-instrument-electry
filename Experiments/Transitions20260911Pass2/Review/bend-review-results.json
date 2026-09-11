@@ -1,0 +1,19 @@
+{
+  "cases": 72,
+  "maximum_relative_added_t60_error": 0.013726200343155082,
+  "median_relative_added_t60_error": 0.001002543737468109,
+  "worst_case": {
+    "host_rate": "96000",
+    "string": "3",
+    "bend_semitones": "-2",
+    "hand_t60": "0.119999997",
+    "early_rms": "0.000180450289",
+    "late_rms": "2.63771332e-08",
+    "late_db_relative_open": "-107.045241",
+    "measured_added_t60": "0.121647141"
+  },
+  "source_sha256": {
+    "Source/DSP/ElectryEngine.cpp": "0c7a7801736e1bc481969cc5a2594c956b9305fab1a5e3b4fcb4ec50018b1e21",
+    "Source/DSP/ElectryEngine.h": "aaffa8490b57b8d7d3912daff47672401f28811d95d39d7f8c9cdaa2d8e2b5a8"
+  }
+}

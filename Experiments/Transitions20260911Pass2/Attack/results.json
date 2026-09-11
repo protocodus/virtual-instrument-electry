@@ -1,0 +1,124 @@
+{
+  "method": "48 kHz mono DI; 400 ms Palm ring then same held-string Sustain repick; static controls are unpicked sibling lift, open repick, Palm repick. Trace sampled per host frame through first 3 ms.",
+  "source_sha256": {
+    "before": {
+      "Source/DSP/ElectryEngine.cpp": "764cdc5c34e2029cc3a68cb3a1a037083d27893a893dc99b1e44259888928958",
+      "Source/DSP/ElectryEngine.h": "2c95343b7e2ea81efba4d4453186df6c137810f6f630180cc72e09d2a40efd37"
+    },
+    "after": {
+      "Source/DSP/ElectryEngine.cpp": "5e3832ba599abc38a9359f7bd1fc0aecbddde62f098276eb96ffbe828fcc75da",
+      "Source/DSP/ElectryEngine.h": "2c95343b7e2ea81efba4d4453186df6c137810f6f630180cc72e09d2a40efd37"
+    }
+  },
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-DNDEBUG",
+    "-DELECTRY_DECOUPLED_PICK_RELEASE=1",
+    "-DELECTRY_MEASURED_BODY_RESPONSE=1",
+    "-DELECTRY_ENERGY_ATTACK_PITCH=1"
+  ],
+  "probe_sha256": "57cbe0df9cb09cd6a8646c533e83630ab806cd8490d81cb79aa4fce59459a45a",
+  "results": [
+    {
+      "midi_note": 28,
+      "controls_sample_identical": [
+        true,
+        true,
+        true
+      ],
+      "null_relative_to_whole_probe_rms_db": -31.08454465866089,
+      "body_rms_change_12_35ms_db": 0.01664587063714862,
+      "before": {
+        "pre_repicking_depth": 0.138391,
+        "maximum_depth_in_first_ms": 0.164209,
+        "depth_increase_ratio": 1.186558374460767
+      },
+      "after": {
+        "pre_repicking_depth": 0.138391,
+        "maximum_depth_in_first_ms": 0.13162,
+        "depth_increase_ratio": 0.9510734079528294
+      }
+    },
+    {
+      "midi_note": 40,
+      "controls_sample_identical": [
+        true,
+        true,
+        true
+      ],
+      "null_relative_to_whole_probe_rms_db": -42.22376823425293,
+      "body_rms_change_12_35ms_db": 0.02952743787318468,
+      "before": {
+        "pre_repicking_depth": 0.0658683,
+        "maximum_depth_in_first_ms": 0.0830322,
+        "depth_increase_ratio": 1.260579064587973
+      },
+      "after": {
+        "pre_repicking_depth": 0.0658683,
+        "maximum_depth_in_first_ms": 0.0656262,
+        "depth_increase_ratio": 0.9963244838564225
+      }
+    },
+    {
+      "midi_note": 55,
+      "controls_sample_identical": [
+        true,
+        true,
+        true
+      ],
+      "null_relative_to_whole_probe_rms_db": -42.68712043762207,
+      "body_rms_change_12_35ms_db": 0.041748969815671444,
+      "before": {
+        "pre_repicking_depth": 0.0299793,
+        "maximum_depth_in_first_ms": 0.0357178,
+        "depth_increase_ratio": 1.19141540996621
+      },
+      "after": {
+        "pre_repicking_depth": 0.0299793,
+        "maximum_depth_in_first_ms": 0.0300446,
+        "depth_increase_ratio": 1.0021781696036933
+      }
+    },
+    {
+      "midi_note": 62,
+      "controls_sample_identical": [
+        true,
+        true,
+        true
+      ],
+      "null_relative_to_whole_probe_rms_db": -42.21700191497803,
+      "body_rms_change_12_35ms_db": 0.04598389379680157,
+      "before": {
+        "pre_repicking_depth": 0.0221153,
+        "maximum_depth_in_first_ms": 0.0299194,
+        "depth_increase_ratio": 1.3528823936369843
+      },
+      "after": {
+        "pre_repicking_depth": 0.0221153,
+        "maximum_depth_in_first_ms": 0.0237922,
+        "depth_increase_ratio": 1.0758253335925807
+      }
+    },
+    {
+      "midi_note": 67,
+      "controls_sample_identical": [
+        true,
+        true,
+        true
+      ],
+      "null_relative_to_whole_probe_rms_db": -38.98873567581177,
+      "body_rms_change_12_35ms_db": 0.07553160190582275,
+      "before": {
+        "pre_repicking_depth": 0.0114811,
+        "maximum_depth_in_first_ms": 0.0151672,
+        "depth_increase_ratio": 1.3210580867686896
+      },
+      "after": {
+        "pre_repicking_depth": 0.0114811,
+        "maximum_depth_in_first_ms": 0.0117175,
+        "depth_increase_ratio": 1.0205903615507226
+      }
+    }
+  ]
+}

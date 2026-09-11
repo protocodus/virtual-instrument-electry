@@ -281,6 +281,10 @@ if(BUILD_TESTING)
     target_link_libraries(ElectryRealismRhythmTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismRhythm COMMAND ElectryRealismRhythmTests)
 
+    add_executable(ElectryRealismTransitionControlsTests Tests/RealismTransitionControlsTests.cpp)
+    target_link_libraries(ElectryRealismTransitionControlsTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismTransitionControls COMMAND ElectryRealismTransitionControlsTests)
+
     add_executable(ElectryRealismTextureTests Tests/RealismTextureTests.cpp)
     target_link_libraries(ElectryRealismTextureTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismTexture COMMAND ElectryRealismTextureTests)

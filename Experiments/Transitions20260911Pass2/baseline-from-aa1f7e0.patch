@@ -1,0 +1,967 @@
+--- a/Source/DSP/ElectryEngine.cpp
++++ b/Source/DSP/ElectryEngine.cpp
+@@ -1364,6 +1364,12 @@
+     // literal it would give the hand a different physical response time at
+     // every host rate.
+     handEnvelopeCoefficient_ = rateAdjustedCoefficient(0.0015f, internalRate);
++    palmLandingCoefficient_ = 1.0f - std::exp(
++        -static_cast<float>(controlPeriod) / (0.004f * internalRate));
++    palmLiftCoefficient_ = 1.0f - std::exp(
++        -static_cast<float>(controlPeriod) / (0.008f * internalRate));
++    palmDampingPeriod_ = std::max(1, static_cast<int>(std::lround(
++        0.001f * internalRate / static_cast<float>(controlPeriod))));
+     // Two-ms pole: 95% of a contact change is traversed in the existing
+     // six-ms string-delay settling interval, independently of the host rate.
+     articulationMakeupRetention_ = std::exp(-1.0f / (0.002f * internalRate));
+@@ -1695,6 +1701,7 @@
+ 
+ void ElectryEngine::setPalmMutePressure(float normalised) noexcept
+ {
++    const float previousBlend = palmMuteBlend_;
+     palmMutePressure_ = std::isfinite(normalised)
+         ? clampf(normalised, 0.0f, 1.0f) : 0.0f;
+     // CC2 and a note-on commonly share one MIDI sample. Note setup reads this
+@@ -1703,6 +1710,12 @@
+     // configured as open even though its loop becomes muted one sample later.
+     palmMuteBlend_ = clampf(smoothedParameters_.palmMute + palmMutePressure_,
+                             0.0f, 1.0f);
++    // A fresh note can capture even a pressure below the voicing refresh
++    // quantum. Reaching an exact endpoint must invalidate that cached solve,
++    // including when the global cache still says zero from before the note.
++    if ((palmMuteBlend_ == 0.0f || palmMuteBlend_ == 1.0f)
++        && palmMuteBlend_ != previousBlend)
++        appliedPalmMute_ = -1.0f;
+ }
+ 
+ void ElectryEngine::setSustainPedal(bool down) noexcept
+@@ -2953,7 +2966,33 @@
+                                           float liveFrequency,
+                                           float liveFret) noexcept
+ {
++    // On a ringing string a bridge-hand style event changes the requested
++    // position first. Leave the current filter memories/depth exactly in place
++    // until the contact moves on the next control tick. A changed fret/pitch
++    // still refits through configureVoicePitch at its new coordinate.
++    if (voice.palmContactInitialized
++        && (dampingStyle == PlayStyle::PalmMute)
++            != (voice.dampingStyle == PlayStyle::PalmMute)
++        && dampingStyle != PlayStyle::Dead && voice.dampingStyle != PlayStyle::Dead)
++    {
++        voice.dampingStyle = dampingStyle;
++        // A second request can reverse before the heel moves. The new stroke
++        // can still change force, so retain the required fit independently of
++        // whether its contact coordinate subsequently moves.
++        voice.palmDampingPending = true;
++        return;
++    }
++    // Dead is the separate broadband fretting-hand choke. Preserve that
++    // calibrated gesture; this transition belongs to the bridge heel.
++    if (dampingStyle == PlayStyle::Dead || voice.dampingStyle == PlayStyle::Dead)
++        voice.livePalmContact = dampingStyle == PlayStyle::PalmMute ? 1.0f : 0.0f;
+     voice.dampingStyle = dampingStyle;
++    if (! voice.palmContactInitialized)
++    {
++        voice.livePalmContact = dampingStyle == PlayStyle::PalmMute ? 1.0f : 0.0f;
++        voice.livePalmPressure = palmMuteBlend_;
++        voice.palmContactInitialized = true;
++    }
+     liveFrequency = clampf(
+         finitef(liveFrequency) ? liveFrequency : voice.baseFrequency,
+         20.0f, 0.24f * static_cast<float>(sampleRate_));
+@@ -3037,12 +3076,12 @@
+     // palm-mute pressure gets both.
+     float handT60 = 0.0f;
+     float chokeT60 = 0.0f;
+-    if (dampingStyle == PlayStyle::PalmMute)
++    if (voice.livePalmContact > 0.0f)
+     {
+         handT60 = std::exp(lerp(std::log(2.60f), std::log(0.32f),
+-                                parameters.muteDamping));
+-    }
+-    else if (dampingStyle == PlayStyle::Dead)
++                                parameters.muteDamping)) / voice.livePalmContact;
++    }
++    if (dampingStyle == PlayStyle::Dead)
+     {
+         // The fretting hand laid across the strings without pressing them to
+         // the fret. It is the whole hand rather than the heel, and it is
+@@ -3080,7 +3119,7 @@
+     // rather than overriding them, and a pressure of exactly zero remains a
+     // mathematical no-op. The heel of the hand is a soft, lossy contact, so it
+     // also darkens the string as it covers more of it.
+-    if (palmMuteBlend_ > 0.0f)
++    if (voice.livePalmPressure > 0.0f)
+     {
+         // The mapped time is what a hand at this pressure would impose once it is
+         // on the string; the rate is that scaled by the pressure itself, so it
+@@ -3091,14 +3130,14 @@
+         // decay, and became audible once it also gated the loss shelf's depth.
+         // At full pressure the rate is unchanged, so the calibrated endpoint
+         // stands.
+-        const float pressureRate = palmMuteBlend_
+-            / std::exp(lerp(std::log(4.0f), std::log(0.080f), palmMuteBlend_));
++        const float pressureRate = voice.livePalmPressure
++            / std::exp(lerp(std::log(4.0f), std::log(0.080f), voice.livePalmPressure));
+         const float pressureT60 = pressureRate > 0.0f ? 1.0f / pressureRate
+                                                       : 0.0f;
+         handT60 = handT60 > 0.0f
+             ? 1.0f / (1.0f / handT60 + 1.0f / pressureT60)
+             : pressureT60;
+-        highRatio *= lerp(1.0f, 0.62f, palmMuteBlend_);
++        highRatio *= lerp(1.0f, 0.62f, voice.livePalmPressure);
+     }
+     highRatio = clampf(highRatio, 0.0015f, 0.9f);
+ 
+@@ -3257,6 +3296,27 @@
+     t60 = clampf(t60, 0.02f, 26.0f);
+     t60High = clampf(t60High, 0.008f, t60);
+ 
++#if ELECTRY_ENERGY_ATTACK_PITCH
++    // q is proportional to transverse energy. The existing empirical free
++    // relaxation includes the ordinary string's losses; only the additional
++    // loss from the hand joins it here. Convert the fitted fundamental T60
++    // rate from amplitude to energy, keeping this a conservative lower-mode
++    // estimate instead of guessing the instantaneous higher-mode mixture.
++    // The same physical hand reaches every ringing sibling, so this follows
++    // damping contact rather than the next articulation's keyswitch label.
++    const float extraHandRate = std::max(0.0f,
++        1.0f / t60 - 1.0f / clampf(intrinsicT60, 0.02f, 26.0f));
++    // The horizontal fundamental is the longest-lived loop (T60 x 1.7).
++    // Use its rate as a lower bound on hand energy loss; a new stroke's output
++    // projection weights do not identify the old ring's modal energy split.
++    constexpr float longestLivedPolarisationScale = 1.7f;
++    voice.attackPitchHandRetention = extraHandRate > 0.0f
++        ? std::exp(-6.0f * std::log(10.0f) * extraHandRate
++                   * static_cast<float>(controlPeriod) * inverseSampleRate_
++                   / longestLivedPolarisationScale)
++        : 1.0f;
++#endif
++
+     const float sampleRate = static_cast<float>(sampleRate_);
+     const float f0 = liveFrequency;
+     // A distributed fretting hand shapes the low-order modes that make up a
+@@ -3425,6 +3485,9 @@
+     configureLoop(voice.vertical, 1.0f);
+     configureLoop(voice.horizontal, 1.7f);
+ 
++    // A direct pitch/fret/parameter refit may satisfy a queued hand movement
++    // before its next scheduled fit. Do not solve the same coordinate twice.
++    voice.palmDampingPending = false;
+     // The loop filters moved, so the analytic phase compensation is stale even
+     // if the target pitch did not change.
+     voice.compensationDirty = true;
+@@ -4132,7 +4195,9 @@
+                            || moved(s.construction, a.construction)
+ #endif
+                            || moved(s.muteDamping, a.muteDamping)
+-                           || moved(palmMuteBlend_, appliedPalmMute_);
++                           || moved(palmMuteBlend_, appliedPalmMute_)
++                           || ((palmMuteBlend_ == 0.0f || palmMuteBlend_ == 1.0f)
++                               && palmMuteBlend_ != appliedPalmMute_);
+     const bool geometryDirty = moved(s.stringGauge, a.stringGauge)
+                             || moved(s.scaleLength, a.scaleLength);
+     // Exact anchors are structural states: at one, the second coil is bypassed.
+@@ -5614,9 +5679,6 @@
+ #endif
+ 
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+-    if (plectrumContact)
+-        voice.pendingAttackPitchClearOnRelease =
+-            voice.playStyle != PlayStyle::Sustain;
+     // The frozen real comparison supports only ordinary ringing plucks.
+     // EG-IPT's muted and snap-pizzicato cells decayed before the registered
+     // estimator had enough windows, so extending this seed to Palm, Dead,
+@@ -5860,12 +5922,12 @@
+     if (! wasRinging)
+     {
+         voice.attackPitchTensionRatio = 0.0f;
++        voice.attackPitchHandRetention = 1.0f;
+         voice.attackPitchFrequencyFactor = 1.0f;
+         voice.lastAttackPitchFrequencyFactor = 1.0f;
+     }
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+ #endif
+ #if ELECTRY_ANALYTIC_RELEASE_IC
+     voice.analyticReleaseAmplitude = 0.0f;
+@@ -5990,6 +6052,8 @@
+     // A delayed fret retarget still contains the preceding stroke. Keep that
+     // ring under the hand that is physically present; the scheduled style is
+     // restored by startExcitation() when its contact actually arrives.
++    if (! wasRinging)
++        voice.palmContactInitialized = false;
+     const PlayStyle dampingStyle = wasRinging && startDelaySamples > 0
+         && lastHandContactClock_ >= 0
+             ? lastHandContactPlayStyle_ : voice.playStyle;
+@@ -6054,7 +6118,6 @@
+     // retained and continues to decay through the legato gesture.
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+ #endif
+     if (expressionId > maximumExpressionId)
+         expressionId = legacyExpressionId;
+@@ -6447,6 +6510,11 @@
+ void ElectryEngine::silenceVoice(Voice& voice) noexcept
+ {
+     voice.active = false;
++    voice.palmContactInitialized = false;
++    voice.palmDampingPending = false;
++    voice.palmDampingCountdown = 1 + voice.stringIndex % palmDampingPeriod_;
++    voice.livePalmContact = 0.0f;
++    voice.livePalmPressure = 0.0f;
+     voice.keyDown = false;
+     voice.keyDownCount = 0;
+     voice.sustained = false;
+@@ -6467,9 +6535,9 @@
+ #endif
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     voice.attackPitchTensionRatio = 0.0f;
++    voice.attackPitchHandRetention = 1.0f;
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+     voice.attackPitchFrequencyFactor = 1.0f;
+     voice.lastAttackPitchFrequencyFactor = 1.0f;
+ #endif
+@@ -6795,12 +6863,48 @@
+         return;
+     }
+ 
++    // The hand changes the existing loop's positive loss rates, not an output
++    // crossfade or a new string. Landing is faster than lifting a soft heel;
++    // both times are host-rate independent and preserve the steady mute fit.
++    // Move contact/pressure before the passive coefficient solve so every
++    // intermediate filter has the same stability bounds as a held position.
++    const auto movePalm = [this] (float& position, float target)
++    {
++        if (position == target)
++            return false;
++        const float coefficient = target > position
++            ? palmLandingCoefficient_ : palmLiftCoefficient_;
++        position += coefficient * (target - position);
++        if (std::abs(position - target) < 1.0e-4f)
++            position = target;
++        return true;
++    };
++    const float palmContactTarget =
++        voice.dampingStyle == PlayStyle::PalmMute ? 1.0f : 0.0f;
++    const bool palmContactMoved = movePalm(voice.livePalmContact, palmContactTarget);
++    const bool palmPressureMoved = movePalm(voice.livePalmPressure, palmMuteBlend_);
++    voice.palmDampingPending |= palmContactMoved || palmPressureMoved;
++    const bool palmEndpointReached =
++        (palmContactMoved && voice.livePalmContact == palmContactTarget)
++        || (palmPressureMoved && voice.livePalmPressure == palmMuteBlend_);
++    const bool palmFitDue = --voice.palmDampingCountdown <= 0;
++    if (palmFitDue)
++        voice.palmDampingCountdown = palmDampingPeriod_;
++    // Motion is cheap at control rate. The nested passive loss fit needs only
++    // a one-ms update: solving it every 16 internal samples made an eight-
++    // string hand movement exceed realtime despite cheap settled notes.
++    // Keep per-string phases staggered, refit exact endpoints immediately,
++    // and retain the existing analytic delay translation for every new fit.
++    if (voice.palmDampingPending && (palmFitDue || palmEndpointReached))
++        configureVoiceDamping(voice, voice.dampingStyle);
++
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     // Lee's measured common pitch component relaxes exponentially. The
+     // additional control-rate work is one multiply plus the analytic pitch
+     // solve below. Every representable factor change is compensated to avoid
+     // staircase modulation; the expensive stiffness fit stays geometric.
+-    voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_;
++    voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_
++                                  * voice.attackPitchHandRetention;
+     if (! std::isfinite(voice.attackPitchTensionRatio)
+         || voice.attackPitchTensionRatio < 1.0e-12f)
+         voice.attackPitchTensionRatio = 0.0f;
+@@ -7001,38 +7105,27 @@
+ 
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     if (voice.excitationPhase == ExcitationPhase::Release
+-        && (voice.pendingAttackPitchClearOnRelease
+-            || voice.pendingAttackPitchElasticScalePerJoule > 0.0f))
+-    {
+-        // Contact can last several milliseconds and can be cancelled before
+-        // release. Commit energy and its scale atomically only on the first
+-        // released sample. A repick conservatively retains whichever bounded
+-        // tension ratio is larger instead of summing phase-unknown work.
+-        if (voice.pendingAttackPitchClearOnRelease)
+-        {
+-            // The real muted cells were inconclusive, so an unsupported
+-            // plectrum articulation ends the extra tension here. It
+-            // clears only at physical release, never during delayed pre-roll.
+-            voice.attackPitchTensionRatio = 0.0f;
+-        }
+-        else
+-        {
+-            float liveTensionRatio = voice.attackPitchTensionRatio;
+-            const float pendingTensionRatio =
+-                voice.pendingAttackPitchElasticScalePerJoule
+-                    * voice.pendingAttackPitchEnergyJoules;
+-            if (! std::isfinite(liveTensionRatio))
+-                liveTensionRatio = 0.0f;
+-            if (std::isfinite(pendingTensionRatio)
+-                && pendingTensionRatio > std::max(liveTensionRatio, 0.0f))
+-            {
+-                voice.attackPitchTensionRatio = std::min(
+-                    pendingTensionRatio, maximumAttackPitchTensionRatio);
+-            }
++        && voice.pendingAttackPitchElasticScalePerJoule > 0.0f)
++    {
++        // Only an ordinary ringing pluck creates a new seed. A muted repick
++        // cannot delete energy already travelling along the string: retain
++        // that old coordinate and let the actual hand loss dissipate it.
++        // Commit atomically at physical release, so delayed or cancelled
++        // contact cannot add work to the preceding stroke.
++        float liveTensionRatio = voice.attackPitchTensionRatio;
++        const float pendingTensionRatio =
++            voice.pendingAttackPitchElasticScalePerJoule
++                * voice.pendingAttackPitchEnergyJoules;
++        if (! std::isfinite(liveTensionRatio))
++            liveTensionRatio = 0.0f;
++        if (std::isfinite(pendingTensionRatio)
++            && pendingTensionRatio > std::max(liveTensionRatio, 0.0f))
++        {
++            voice.attackPitchTensionRatio = std::min(
++                pendingTensionRatio, maximumAttackPitchTensionRatio);
+         }
+         voice.pendingAttackPitchEnergyJoules = 0.0f;
+         voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-        voice.pendingAttackPitchClearOnRelease = false;
+         configureVoicePitch(voice, false);
+     }
+ #endif
+--- a/Source/DSP/ElectryEngine.h
++++ b/Source/DSP/ElectryEngine.h
+@@ -1090,6 +1090,14 @@
+         // apart from playStyle so a newer contact can move the damping without
+         // rewriting how this note was attacked.
+         PlayStyle dampingStyle { PlayStyle::Sustain };
++        // A style/CC2 event requests a bridge-hand position. An already-ringing
++        // string meets a finite soft contact before its loss reaches that target.
++        // Fresh plucks retain the calibrated endpoint from their first sample.
++        float livePalmContact { 0.0f };
++        float livePalmPressure { 0.0f };
++        bool palmContactInitialized { false };
++        bool palmDampingPending { false };
++        int palmDampingCountdown { 1 };
+         // The concrete stroke this note was picked with, resolved from the
+         // latched PickStyle (Alternate resolves per wrist stroke).
+         bool strokeIsUp { false };
+@@ -1218,7 +1226,7 @@
+         // release time and frozen into the optional repick contact.
+         float stringWaveImpedance { 1.0f };
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+-        // Candidate-only normalised tension increment q = dT/T. Physical
++        // Normalised tension increment q = dT/T. Physical
+         // transverse-string energy and the Bank elastic scale derive its seed
+         // at pick release; after that q is the bounded empirical coordinate
+         // that relaxes with Lee's measured common pitch component. Preserving
+@@ -1227,7 +1235,8 @@
+         float attackPitchTensionRatio { 0.0f };
+         float pendingAttackPitchEnergyJoules { 0.0f };
+         float pendingAttackPitchElasticScalePerJoule { 0.0f };
+-        bool pendingAttackPitchClearOnRelease { false };
++        // Per-control energy retention from additional physical hand loss.
++        float attackPitchHandRetention { 1.0f };
+         float attackPitchFrequencyFactor { 1.0f };
+         float lastAttackPitchFrequencyFactor { 1.0f };
+ #endif
+@@ -2019,6 +2028,9 @@
+     // every rendered sample of every string. They depend only on the internal
+     // clock, so prepare() is their only correct home.
+     float handEnvelopeCoefficient_ { 0.0015f };
++    float palmLandingCoefficient_ { 0.04f };
++    float palmLiftCoefficient_ { 0.02f };
++    int palmDampingPeriod_ { 6 };
+     float articulationMakeupRetention_ { 0.99f };
+     float slideFrictionEnergyCoefficient_ { 0.001f };
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+--- a/Tests/ElectryEngineTests.cpp
++++ b/Tests/ElectryEngineTests.cpp
+@@ -143,7 +143,6 @@
+         float pendingElasticScalePerJoule { 0.0f };
+         float frequencyFactor { 1.0f };
+         float tensionNewtons { 0.0f };
+-        bool clearOnRelease { false };
+     };
+ 
+     static AttackPitchState attackPitchState(
+@@ -158,8 +157,7 @@
+             voice.pendingAttackPitchEnergyJoules,
+             voice.pendingAttackPitchElasticScalePerJoule,
+             voice.attackPitchFrequencyFactor,
+-            voice.stringTensionNewtons,
+-            voice.pendingAttackPitchClearOnRelease
++            voice.stringTensionNewtons
+         };
+     }
+ 
+@@ -197,6 +195,8 @@
+         int fret { -1 };
+         PlayStyle playStyle { PlayStyle::Sustain };
+         PlayStyle dampingStyle { PlayStyle::Sustain };
++        float livePalmContact { 0.0f };
++        float livePalmPressure { 0.0f };
+         bool strokeIsUp { false };
+         bool pendingRepickActive { false };
+         PlayStyle pendingPlayStyle { PlayStyle::Sustain };
+@@ -293,6 +293,8 @@
+         result.fret = voice.fret;
+         result.playStyle = voice.playStyle;
+         result.dampingStyle = voice.dampingStyle;
++        result.livePalmContact = voice.livePalmContact;
++        result.livePalmPressure = voice.livePalmPressure;
+         result.strokeIsUp = voice.strokeIsUp;
+         result.pendingRepickActive = voice.pendingRepick.active;
+         result.pendingPlayStyle = voice.pendingRepick.playStyle;
+@@ -7746,7 +7748,6 @@
+         auto state = TestAccess::attackPitchState(engine, stringIndex);
+         expect(state.tensionRatio == 0.0f
+                    && state.pendingEnergyJoules == 0.0f
+-                   && state.clearOnRelease
+                    && state.frequencyFactor == 1.0f,
+                "unsupported articulation "
+                    + std::to_string(static_cast<int>(style))
+@@ -7761,9 +7762,8 @@
+         TestAccess::renderOneInternalSample(engine);
+         state = TestAccess::attackPitchState(engine, stringIndex);
+         expect(state.tensionRatio == 0.0f
+-                   && ! state.clearOnRelease
+                    && state.frequencyFactor == 1.0f,
+-               "unsupported articulation did not clear at physical release");
++               "unsupported articulation created tension at physical release");
+     }
+ 
+     ElectryEngine legato;
+@@ -7806,8 +7806,7 @@
+             interrupted, interruptedString);
+         expect(cancelled.tensionRatio == 0.0f
+                    && cancelled.pendingEnergyJoules == 0.0f
+-                   && cancelled.pendingElasticScalePerJoule == 0.0f
+-                   && ! cancelled.clearOnRelease,
++                   && cancelled.pendingElasticScalePerJoule == 0.0f,
+                "legato contact retained an interrupted plectrum seed");
+         TestAccess::renderOneInternalSample(interrupted);
+         cancelled = TestAccess::attackPitchState(
+@@ -7871,9 +7870,99 @@
+     expect(cleared.tensionRatio == 0.0f
+                && cleared.pendingEnergyJoules == 0.0f
+                && cleared.pendingElasticScalePerJoule == 0.0f
+-               && ! cleared.clearOnRelease
+                && cleared.frequencyFactor == 1.0f,
+            "reset retained candidate energy-pitch state");
++}
++
++void testEnergyPitchMuteContinuity()
++{
++    EngineParameters parameters;
++    parameters.sympatheticAmount = 0.0f;
++    parameters.artifactAmount = 0.0f;
++    parameters.pickNoise = 0.0f;
++    parameters.fingerNoise = 0.0f;
++    parameters.releaseNoise = 0.0f;
++    parameters.strumSpreadSeconds = 0.0f;
++
++    // True held repicks keep the existing travelling waves. Changing the
++    // contact into a mute must not teleport their pitch to its relaxed value.
++    // Include different control phases and both common damping contacts.
++    for (const double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
++    for (const int note : { 28, 40, 55 })
++    for (const auto style : { PlayStyle::PalmMute, PlayStyle::Dead })
++    for (const int phase : { 0, 7 })
++    for (const bool dedicatedRepick : { false, true })
++    {
++        ElectryEngine engine;
++        engine.prepare(rate, 512);
++        engine.setParameters(parameters);
++        engine.reset();
++        engine.noteOn(note, 1.0f);
++        StereoBuffer establish(static_cast<int>(0.050 * rate));
++        renderInto(engine, establish);
++        const int stringIndex = TestAccess::stringForNote(engine, note);
++        for (int i = 0; i < phase; ++i)
++            TestAccess::renderOneInternalSample(engine);
++        engine.noteOn(styleKeyswitch(style), 1.0f);
++        engine.noteOn(dedicatedRepick
++            ? ElectryEngine::firstRepickNote + stringIndex : note, 0.75f);
++        int guard = 0;
++        while (TestAccess::snapshot(engine, stringIndex).excitationInContact
++               && guard++ < static_cast<int>(0.020
++                       * TestAccess::internalSampleRate(engine)))
++            TestAccess::renderOneInternalSample(engine);
++        const auto before = TestAccess::attackPitchState(engine, stringIndex);
++        const float targetBefore = TestAccess::effectiveLoopFrequency(
++            engine, stringIndex, false, true);
++        TestAccess::renderOneInternalSample(engine);
++        const auto after = TestAccess::attackPitchState(engine, stringIndex);
++        const float targetAfter = TestAccess::effectiveLoopFrequency(
++            engine, stringIndex, false, true);
++        expect(before.tensionRatio > 0.0f
++                   && after.tensionRatio > 0.99f * before.tensionRatio
++                   && after.tensionRatio <= before.tensionRatio
++                   && after.pendingEnergyJoules == 0.0f
++                   && after.pendingElasticScalePerJoule == 0.0f
++                   && std::abs(centsBetween(targetAfter, targetBefore)) < 0.03,
++               "a muted held repick erased or reseeded the preceding tension");
++    }
++
++    // The hand also damps an already-ringing sibling that was not repicked.
++    // Compare its energy coordinate with the same old chord kept open: actual
++    // contact must accelerate loss without needing another note on that string.
++    for (const double rate : { 44100.0, 48000.0, 96000.0 })
++    {
++        ElectryEngine open;
++        ElectryEngine muted;
++        for (auto* engine : { &open, &muted })
++        {
++            engine->prepare(rate, 512);
++            engine->setParameters(parameters);
++            engine->reset();
++            constexpr std::array<ElectryEngine::NoteOnEvent, 2> chord {{
++                { 28, 1.0f }, { 35, 1.0f }
++            }};
++            engine->noteOnChord(chord);
++            StereoBuffer establish(static_cast<int>(0.050 * rate));
++            renderInto(*engine, establish);
++        }
++        const int sibling = TestAccess::stringForNote(muted, 35);
++        const auto preceding = TestAccess::attackPitchState(muted, sibling);
++        muted.noteOn(styleKeyswitch(PlayStyle::PalmMute), 1.0f);
++        muted.noteOn(28, 0.75f);
++        open.noteOn(28, 0.75f);
++        StereoBuffer openTail(static_cast<int>(0.120 * rate));
++        StereoBuffer mutedTail(static_cast<int>(0.120 * rate));
++        renderInto(open, openTail);
++        renderInto(muted, mutedTail);
++        const auto openState = TestAccess::attackPitchState(open, sibling);
++        const auto mutedState = TestAccess::attackPitchState(muted, sibling);
++        expect(mutedState.tensionRatio > 0.0f
++                   && mutedState.tensionRatio < 0.98f * openState.tensionRatio
++                   && mutedState.tensionRatio < preceding.tensionRatio
++                   && mutedState.pendingEnergyJoules == 0.0f,
++               "physical palm contact did not dissipate the sibling's tension");
++    }
+ }
+ #endif
+ 
+@@ -14564,8 +14653,6 @@
+     const int palmReferenceString = TestAccess::stringForNote(*palmReference, 28);
+     const auto palmTarget = TestAccess::snapshot(*palmReference,
+                                                  palmReferenceString);
+-    const float palmDepth = TestAccess::handLossDepth(*palmReference,
+-                                                      palmReferenceString);
+     const float palmSolvedDepth = TestAccess::solvedHandLossDepth(
+         *palmReference, palmReferenceString);
+     palmReference.reset();
+@@ -14583,7 +14670,14 @@
+     const int oldPalmString = TestAccess::stringForNote(*palmToOpen, 28);
+     palmToOpen->noteOn(styleKeyswitch(PlayStyle::Sustain), 1.0f);
+     palmToOpen->noteOn(40, 0.95f);
++    const auto openingPalm = TestAccess::snapshot(*palmToOpen, oldPalmString);
++    expect(openingPalm.livePalmContact == 1.0f,
++           "an open contact instantly removed the already-planted Palm hand");
++    StereoBuffer palmLift(static_cast<int>(0.080 * sampleRate));
++    renderInto(*palmToOpen, palmLift);
+     const auto openedPalm = TestAccess::snapshot(*palmToOpen, oldPalmString);
++    expect(openedPalm.livePalmContact == 0.0f,
++           "the bridge hand did not finish lifting within 80 ms");
+     expect(openedPalm.playStyle == PlayStyle::PalmMute,
+            "an open contact rewrote the older Palm attack style");
+     expect(openedPalm.loopGain == openTarget.loopGain
+@@ -14609,7 +14703,14 @@
+     const int oldOpenString = TestAccess::stringForNote(*openToPalm, 28);
+     openToPalm->noteOn(styleKeyswitch(PlayStyle::PalmMute), 1.0f);
+     openToPalm->noteOn(40, 0.95f);
++    const auto landingPalm = TestAccess::snapshot(*openToPalm, oldOpenString);
++    expect(landingPalm.livePalmContact == 0.0f,
++           "a Palm contact instantly clamped the already-ringing open string");
++    StereoBuffer palmLanding(static_cast<int>(0.080 * sampleRate));
++    renderInto(*openToPalm, palmLanding);
+     const auto mutedOpen = TestAccess::snapshot(*openToPalm, oldOpenString);
++    expect(mutedOpen.livePalmContact == 1.0f,
++           "the bridge hand did not finish landing within 80 ms");
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     // The optional measured attack-tension glide makes this older ringing E1
+     // slightly sharp. Its exact Palm target therefore belongs to its live f0,
+@@ -14619,13 +14720,10 @@
+         *livePalmReference, oldOpenString, PlayStyle::PalmMute);
+     const auto expectedPalmTarget = TestAccess::snapshot(
+         *livePalmReference, oldOpenString);
+-    const float expectedPalmDepth = TestAccess::handLossDepth(
+-        *livePalmReference, oldOpenString);
+     const float expectedPalmSolvedDepth = TestAccess::solvedHandLossDepth(
+         *livePalmReference, oldOpenString);
+ #else
+     const auto& expectedPalmTarget = palmTarget;
+-    const float expectedPalmDepth = palmDepth;
+     const float expectedPalmSolvedDepth = palmSolvedDepth;
+ #endif
+     expect(mutedOpen.playStyle == PlayStyle::Sustain,
+@@ -14633,8 +14731,6 @@
+     expect(mutedOpen.loopGain == expectedPalmTarget.loopGain
+                && mutedOpen.loopDampingCoefficient
+                       == expectedPalmTarget.loopDampingCoefficient
+-               && TestAccess::handLossDepth(*openToPalm, oldOpenString)
+-                      == expectedPalmDepth
+                && TestAccess::solvedHandLossDepth(*openToPalm, oldOpenString)
+                       == expectedPalmSolvedDepth,
+            "a Palm contact did not move the older open loop to the exact "
+@@ -15014,32 +15110,15 @@
+                                                        scheduledOldString);
+     const auto futureAfterContact = TestAccess::snapshot(*scheduled,
+                                                           futureString);
+-#if ELECTRY_ENERGY_ATTACK_PITCH
+-    auto delayedPalmReference = std::make_unique<ElectryEngine>(*scheduled);
+-    TestAccess::refitVoiceDampingAtCachedCoordinate(
+-        *delayedPalmReference, scheduledOldString, PlayStyle::PalmMute);
+-    const auto expectedDelayedPalm = TestAccess::snapshot(
+-        *delayedPalmReference, scheduledOldString);
+-    const float expectedDelayedPalmSolvedDepth =
+-        TestAccess::solvedHandLossDepth(*delayedPalmReference,
+-                                        scheduledOldString);
+-#else
+-    const auto& expectedDelayedPalm = palmTarget;
+-    const float expectedDelayedPalmSolvedDepth = palmSolvedDepth;
+-#endif
+     expect(futureAfterContact.startDelaySamples == 0
+                && futureAfterContact.dampingStyle == PlayStyle::PalmMute,
+            "the delayed Palm voice did not restore its own damping at contact");
+     expect(oldAfterContact.playStyle == PlayStyle::Sustain
+                && oldAfterContact.dampingStyle == PlayStyle::PalmMute
+-               && oldAfterContact.loopGain == expectedDelayedPalm.loopGain
+-               && oldAfterContact.loopDampingCoefficient
+-                      == expectedDelayedPalm.loopDampingCoefficient
+-               && TestAccess::solvedHandLossDepth(*scheduled,
+-                                                   scheduledOldString)
+-                      == expectedDelayedPalmSolvedDepth,
+-           "the delayed Palm contact did not retune the old open loop at its "
+-           "physical contact");
++               && oldAfterContact.livePalmContact < 0.05f
++               && oldAfterContact.loopGain == beforeFuture.loopGain,
++           "the delayed Palm contact did not begin the old string's finite "
++           "hand landing at its physical contact");
+ 
+     // A delayed fret retarget is the harder lookahead case: the future style
+     // descriptor and the preceding ring occupy the same physical string. Its
+@@ -15104,6 +15183,94 @@
+                && TestAccess::snapshot(*openRetarget, openRetargetString)
+                       .dampingStyle == PlayStyle::Sustain,
+            "a delayed fret retarget did not install its own damping at contact");
++}
++
++void testFinitePalmContactTransitions()
++{
++    // One held physical string repeatedly meets/lifts the heel; neither a
++    // keyswitch nor CC2 may discard its ring or instantaneously swap its loss.
++    // The 95% times specify responsive hand motion rather than a gain fade.
++    for (const double rate : { 44100.0, 48000.0, 96000.0 })
++    {
++        for (int mode = 0; mode < 3; ++mode) // sibling, repick, continuous CC2
++        {
++            auto engine = std::make_unique<ElectryEngine>();
++            EngineParameters parameters;
++            parameters.sympatheticAmount = 0.0f;
++            parameters.artifactAmount = 0.0f;
++            parameters.pickNoise = 0.0f;
++            parameters.fingerNoise = 0.0f;
++            parameters.releaseNoise = 0.0f;
++            engine->prepare(rate, 256);
++            engine->setParameters(parameters);
++            engine->reset();
++            engine->noteOn(28, 0.9f);
++            StereoBuffer establish(static_cast<int>(0.100 * rate));
++            renderInto(*engine, establish);
++            const int string = TestAccess::stringForNote(*engine, 28);
++            const int tickFrames = TestAccess::hostFramesPerControlPeriod(*engine);
++            StereoBuffer tick(tickFrames);
++            double worstPitchStep = 0.0;
++            double landing95 = 0.0, lift95 = 0.0;
++            for (const float target : { 1.0f, 0.0f, 1.0f, 0.0f })
++            {
++                const auto initial = TestAccess::snapshot(*engine, string);
++                if (mode == 2)
++                    engine->setPalmMutePressure(target);
++                else
++                {
++                    engine->noteOn(styleKeyswitch(target > 0.0f
++                        ? PlayStyle::PalmMute : PlayStyle::Sustain), 1.0f);
++                    engine->noteOn(mode == 1 ? 28 : 40, 0.9f);
++                    if (mode == 0)
++                        TestAccess::silenceVoice(*engine,
++                            TestAccess::stringForNote(*engine, 40));
++                }
++                const auto justRequested = TestAccess::snapshot(*engine, string);
++                float previousContact = mode == 2
++                    ? initial.livePalmPressure : initial.livePalmContact;
++                expect((mode == 2 ? justRequested.livePalmPressure
++                                  : justRequested.livePalmContact) == previousContact,
++                       "a hand request teleported a ringing string's live contact");
++                double previousPitch = TestAccess::effectiveLoopFrequency(*engine, string);
++                double reached95 = -1.0;
++                const int ticks = static_cast<int>(std::ceil(0.085 * rate / tickFrames));
++                for (int i = 0; i < ticks; ++i)
++                {
++                    renderInto(*engine, tick, tickFrames);
++                    const auto state = TestAccess::snapshot(*engine, string);
++                    const float contact = mode == 2
++                        ? state.livePalmPressure : state.livePalmContact;
++                    expect(contact >= 0.0f && contact <= 1.0f
++                               && (target > 0.0f ? contact >= previousContact
++                                                 : contact <= previousContact),
++                           "a finite bridge-hand transition reversed or overshot");
++                    expect(state.active && state.midiNote == 28
++                               && state.loopGain <= 0.99999f
++                               && allFinite(tick) && peakAbs(tick.left) < 1.0f,
++                           "a hand transition lost its string, expanded its loop or invalidated audio");
++                    const double pitch = TestAccess::effectiveLoopFrequency(*engine, string);
++                    worstPitchStep = std::max(worstPitchStep,
++                        std::abs(centsBetween(pitch, previousPitch)));
++                    previousPitch = pitch;
++                    previousContact = contact;
++                    if (reached95 < 0.0 && std::abs(contact - target) < 0.05f)
++                        reached95 = 1000.0 * (i + 1) * tickFrames / rate;
++                }
++                expect(previousContact == target,
++                       "a held bridge-hand transition did not reach exact bypass/engagement");
++                expect(reached95 >= (target > 0.0f ? 9.0 : 18.0)
++                           && reached95 <= (target > 0.0f ? 18.0 : 32.0),
++                       "bridge-hand motion did not settle within its responsive physical interval");
++                (target > 0.0f ? landing95 : lift95) = reached95;
++            }
++            expect(worstPitchStep < 0.5,
++                   "a finite hand transition made a half-cent control-tick pitch step");
++            std::cout << "PROBE finite palm " << rate << " Hz mode " << mode
++                      << ": 95% landing/lift " << landing95 << "/" << lift95
++                      << " ms; worst tick pitch " << worstPitchStep << " cents\n";
++        }
++    }
+ }
+ 
+ void testSympatheticBridgeCoupling()
+@@ -21571,6 +21738,7 @@
+     testHardPickingStaysInTune();
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     testEnergyAttackPitchExperiment();
++    testEnergyPitchMuteContinuity();
+ #endif
+     testAttackStateTransitions();
+ #if ELECTRY_MEASURED_PICKUP_FLUX
+@@ -21616,6 +21784,7 @@
+     testLegatoSlideDoesNotConsumeAPickStroke();
+     testLiveDampingRefitsPreservePitch();
+     testSharedHandRetunesActiveStringDamping();
++    testFinitePalmContactTransitions();
+     testSympatheticBridgeCoupling();
+     testPalmMuteContinuum();
+     testPalmMuteHandContactDynamics();
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -280,6 +280,10 @@
+     add_executable(ElectryRealismRhythmTests Tests/RealismRhythmTests.cpp)
+     target_link_libraries(ElectryRealismRhythmTests PRIVATE ElectryDSP)
+     add_test(NAME Electry.RealismRhythm COMMAND ElectryRealismRhythmTests)
++
++    add_executable(ElectryRealismTransitionControlsTests Tests/RealismTransitionControlsTests.cpp)
++    target_link_libraries(ElectryRealismTransitionControlsTests PRIVATE ElectryDSP)
++    add_test(NAME Electry.RealismTransitionControls COMMAND ElectryRealismTransitionControlsTests)
+ 
+     add_executable(ElectryRealismTextureTests Tests/RealismTextureTests.cpp)
+     target_link_libraries(ElectryRealismTextureTests PRIVATE ElectryDSP)
+--- /dev/null
++++ b/Tests/RealismTransitionControlsTests.cpp
+@@ -0,0 +1,193 @@
++#include "DSP/ElectryEngine.h"
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <iostream>
++#include <memory>
++#include <string>
++
++namespace electry
++{
++struct ElectryEngineTestAccess
++{
++    static bool handIsOpen(const ElectryEngine& engine)
++    {
++        const auto& voice = engine.voices_[2];
++        return engine.palmMuteBlend_ == 0.0f
++            && engine.appliedPalmMute_ == 0.0f
++            && voice.vertical.handLossSolvedDepth == 0.0f
++            && voice.horizontal.handLossSolvedDepth == 0.0f
++            && ! voice.vertical.handDipActive && ! voice.horizontal.handDipActive;
++    }
++
++    static bool handIsEngaged(const ElectryEngine& engine)
++    {
++        return engine.voices_[2].vertical.handLossSolvedDepth > 0.0f;
++    }
++
++    static float lowStringContactScale(const ElectryEngine& engine)
++    {
++        return engine.voices_[0].handContactScale;
++    }
++
++    static bool lowStringKeepsItsOwner(const ElectryEngine& engine)
++    {
++        return engine.voices_[0].active && engine.voices_[0].midiNote == 28
++            && engine.heldNoteCounts_[0] == 1;
++    }
++
++    static bool lowStringLossMatchesCurrentContact(ElectryEngine& engine)
++    {
++        auto& voice = engine.voices_[0];
++        const auto solvedLoss = [&voice]
++        {
++            return std::array<float, 6> {
++                voice.vertical.loopGain,
++                voice.vertical.loopDampingCoefficient,
++                voice.vertical.handLossSolvedDepth,
++                voice.horizontal.loopGain,
++                voice.horizontal.loopDampingCoefficient,
++                voice.horizontal.handLossSolvedDepth
++            };
++        };
++        const auto before = solvedLoss();
++        // Hold the exact fitted pitch/fret fixed: this oracle checks whether
++        // the cached coefficients describe the current hand force/position,
++        // independently of the separate sub-cent pitch refresh quantum.
++        engine.configureVoiceDamping(voice, voice.dampingStyle,
++                                     voice.lastDampedFrequency,
++                                     voice.lastDampedLiveFret);
++        const auto after = solvedLoss();
++        for (std::size_t i = 0; i < before.size(); ++i)
++            if (std::abs(before[i] - after[i]) > 1.0e-5f)
++                return false;
++        return true;
++    }
++};
++}
++
++namespace
++{
++int failures = 0;
++
++void expect(bool condition, const std::string& message)
++{
++    if (! condition)
++    {
++        ++failures;
++        std::cerr << "FAIL: " << message << '\n';
++    }
++}
++
++void render(electry::ElectryEngine& engine, double rate, double seconds)
++{
++    int remaining = static_cast<int>(std::lround(rate * seconds));
++    std::array<float, 127> left {}, right {};
++    while (remaining > 0)
++    {
++        const int count = std::min(remaining, static_cast<int>(left.size()));
++        engine.process(left.data(), right.data(), count);
++        expect(std::all_of(left.begin(), left.begin() + count, [] (float sample)
++        {
++            return std::isfinite(sample) && std::abs(sample) < 2.0f;
++        }), "pressure transition stays finite and bounded");
++        remaining -= count;
++    }
++}
++
++void testStyleChangesUnderHeldPressure()
++{
++    using Engine = electry::ElectryEngine;
++    using Access = electry::ElectryEngineTestAccess;
++    using Style = electry::PlayStyle;
++    for (double rate : { 44100.0, 48000.0, 96000.0 })
++    {
++        for (bool sameSampleReversal : { false, true })
++        {
++            auto engine = std::make_unique<Engine>();
++            electry::EngineParameters parameters;
++            parameters.sympatheticAmount = parameters.artifactAmount = 0.0f;
++            parameters.pickNoise = parameters.fingerNoise = parameters.releaseNoise = 0.0f;
++            engine->setParameters(parameters);
++            engine->prepare(rate, 127);
++            engine->setSoloStringMask(1);
++            engine->setPalmMutePressure(0.8f);
++            const std::array<Engine::NoteOnEvent, 1> first {{{ 28, 0.95f }}};
++            engine->noteOnChord(first);
++            render(*engine, rate, 0.10);
++            const float loudContact = Access::lowStringContactScale(*engine);
++            const auto selectAndRepick = [&] (Style style, float force)
++            {
++                engine->noteOn(Engine::firstPlayStyleKeyswitchNote
++                                   + static_cast<int>(style), 1.0f);
++                engine->noteOn(Engine::firstRepickNote, force);
++            };
++            if (sameSampleReversal)
++            {
++                // Both physical contacts arrive before a hand update. The
++                // heel ends where it began, but the final stroke's force is
++                // different and still requires a pressure-loss refresh.
++                selectAndRepick(Style::PalmMute, 0.95f);
++                selectAndRepick(Style::Sustain, 0.20f);
++            }
++            else
++            {
++                // Neither style asks for a bridge-heel position change. The
++                // new softer contact must still refit the existing CC2 loss.
++                selectAndRepick(Style::Harmonics, 0.20f);
++            }
++            render(*engine, rate, 0.10);
++            const std::string context = std::to_string(static_cast<int>(rate))
++                + (sameSampleReversal ? " Hz same-sample palm reversal"
++                                      : " Hz non-palm style change");
++            expect(Access::lowStringKeepsItsOwner(*engine),
++                   context + " retains one physical fretting owner");
++            expect(loudContact - Access::lowStringContactScale(*engine) > 0.20f,
++                   context + " actually changes the stroke's hand force");
++            expect(Access::lowStringLossMatchesCurrentContact(*engine),
++                   context + " refreshes loss for its changed force under held CC2");
++            engine->noteOff(28);
++            render(*engine, rate, 0.10);
++        }
++    }
++}
++}
++
++int main()
++{
++    testStyleChangesUnderHeldPressure();
++    for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
++    {
++        for (bool pressureBeforeNote : { false, true })
++        {
++            auto engine = std::make_unique<electry::ElectryEngine>();
++            electry::EngineParameters parameters;
++            parameters.palmMute = 0.0f;
++            parameters.sympatheticAmount = parameters.artifactAmount = 0.0f;
++            engine->setParameters(parameters);
++            engine->prepare(rate, 127);
++            engine->setSoloStringMask(1u << 2);
++            if (pressureBeforeNote)
++                engine->setPalmMutePressure(0.001f);
++            engine->noteOn(40, 0.7f);
++            render(*engine, rate, 0.10);
++            if (! pressureBeforeNote)
++            {
++                engine->setPalmMutePressure(0.7f);
++                render(*engine, rate, 0.10);
++                engine->setPalmMutePressure(0.001f);
++                render(*engine, rate, 0.10);
++            }
++            expect(electry::ElectryEngineTestAccess::handIsEngaged(*engine),
++                   "tiny-pressure fixture must contain actual bridge-hand loss");
++            engine->setPalmMutePressure(0.0f);
++            render(*engine, rate, 0.15);
++            expect(electry::ElectryEngineTestAccess::handIsOpen(*engine),
++                   "CC2 zero clears the hand after a sub-quantum pressure change");
++        }
++    }
++    if (failures == 0)
++        std::cout << "All transition control checks passed.\n";
++    return failures == 0 ? 0 : 1;
++}

@@ -1,0 +1,14 @@
+PROBE finite palm 44100 Hz mode 0: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.00319808 cents
+PROBE finite palm 44100 Hz mode 1: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.0831902 cents
+PROBE finite palm 44100 Hz mode 2: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.00559728 cents
+PROBE finite palm 48000 Hz mode 0: 95% landing/lift 12/24 ms; worst tick pitch 0.00287872 cents
+PROBE finite palm 48000 Hz mode 1: 95% landing/lift 12/24 ms; worst tick pitch 0.0759905 cents
+PROBE finite palm 48000 Hz mode 2: 95% landing/lift 12/24 ms; worst tick pitch 0.00527717 cents
+PROBE finite palm 96000 Hz mode 0: 95% landing/lift 12/24 ms; worst tick pitch 0.0019191 cents
+PROBE finite palm 96000 Hz mode 1: 95% landing/lift 12/24 ms; worst tick pitch 0.0517619 cents
+PROBE finite palm 96000 Hz mode 2: 95% landing/lift 12/24 ms; worst tick pitch 0.00287914 cents
+PROBE old-E1 shared-hand transition: Palm->Open >500 Hz 5.23269 dB, share 0.0198483 points; Open->Palm >500 Hz -6.90449 dB, share -0.351093 points; contact/control max steps 0.000447109/0.000388749 and 0.000856938/0.000992567
+PROBE real-backed E1 dead envelope: 30-100 -7.13987 dB, 100-250 -13.9732 dB, 250-380 -22.6954 dB; tail 99.9287% below 250 Hz, -13.2021 dB versus Sustain
+PROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.91362/-13.4691/-21.7443 dB; first-to-repick contextual RMSE 4.44169 dB
+PROBE Dead + Palm Pressure 20-100 ms: -8.3311 dB at full pressure; 10% neighbour deltas 0.000480121/0.00048025
+PROBE dead attack -0.22982 dB

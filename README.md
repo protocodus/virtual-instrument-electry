@@ -5232,6 +5232,23 @@ DI notes and explicitly does not claim a completed listening study or market
 ranking. See [the implementation and validation record](Docs/realism-pass5-2026-09-11.md)
 and [the recording audit](Docs/realism-reference-pass5-2026-09-11.md).
 
+## September 11: continuous open / muted / open playing
+
+An original eight-bar rolling chord riff now benchmarks repeated palm
+landing and lift while the fingers keep their notes held. It includes a
+continuous pressure version, a Drop-E companion, and isolated unpicked
+lift/repick controls, with dry, crunch and high-gain comparisons.
+
+The model adds finite hand motion on ringing strings, retains residual
+attack tension through muted repicks, and clears cached hand loss at the
+exact open pressure endpoint. See the [transition validation record](Docs/transition-benchmark-2026-09-11.md)
+and [reproduction commands](Experiments/Transitions20260911/README.md).
+
+The [second transition refinement](Docs/transition-refinement-2026-09-11.md)
+corrects the time scale of palm damping on unplayed strings and preserves
+heel relaxation during an open repick. The matched follow-up retains the
+original riff and adds two low-string rhythms with gaps for comparison.
+
 ## Licensing
 
 Original code under the MIT license (`LICENSE`). JUCE is used under its own

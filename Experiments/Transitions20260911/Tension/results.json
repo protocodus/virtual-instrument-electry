@@ -1,0 +1,37 @@
+{
+  "open_sustain": {
+    "same_pcm": true,
+    "callback_same_pcm": true,
+    "delta_db_relative_to_before": -300.0,
+    "candidate_peak": 0.03705473616719246,
+    "candidate_rms": 0.0060061252238613385
+  },
+  "stationary_palm": {
+    "same_pcm": true,
+    "callback_same_pcm": true,
+    "delta_db_relative_to_before": -300.0,
+    "candidate_peak": 0.02428095042705536,
+    "candidate_rms": 0.002135585555913625
+  },
+  "held_repicks": {
+    "same_pcm": false,
+    "callback_same_pcm": true,
+    "delta_db_relative_to_before": -15.75893960302723,
+    "candidate_peak": 0.03779976814985275,
+    "candidate_rms": 0.007433019676777568
+  },
+  "sibling_chord": {
+    "same_pcm": false,
+    "callback_same_pcm": true,
+    "delta_db_relative_to_before": -18.901077701164212,
+    "candidate_peak": 0.11347121745347977,
+    "candidate_rms": 0.010647881773469606
+  },
+  "release_boundary": {
+    "cases": 48,
+    "before_target_max_cents": 5.095563889,
+    "before_current_max_cents": 0.009699848481,
+    "after_target_max_cents": 0.0,
+    "after_current_max_cents": 0.0
+  }
+}

@@ -1,0 +1,5 @@
+PROBE old-E1 shared-hand transition: Palm->Open >500 Hz 12.1052 dB, share 0.12893 points; Open->Palm >500 Hz -7.12141 dB, share -0.358574 points; contact/control max steps 0.00161323/0.000388749 and 0.000851393/0.000992567
+PROBE real-backed E1 dead envelope: 30-100 -7.13987 dB, 100-250 -13.9732 dB, 250-380 -22.6954 dB; tail 99.9287% below 250 Hz, -13.2021 dB versus Sustain
+PROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.91289/-13.4627/-21.7299 dB; first-to-repick contextual RMSE 4.43711 dB
+PROBE Dead + Palm Pressure 20-100 ms: -8.3311 dB at full pressure; 10% neighbour deltas 0.000480121/0.00048025
+PROBE dead attack -0.22982 dB

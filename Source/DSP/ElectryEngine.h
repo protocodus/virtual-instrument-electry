@@ -1090,6 +1090,14 @@ private:
         // apart from playStyle so a newer contact can move the damping without
         // rewriting how this note was attacked.
         PlayStyle dampingStyle { PlayStyle::Sustain };
+        // A style/CC2 event requests a bridge-hand position. An already-ringing
+        // string meets a finite soft contact before its loss reaches that target.
+        // Fresh plucks retain the calibrated endpoint from their first sample.
+        float livePalmContact { 0.0f };
+        float livePalmPressure { 0.0f };
+        bool palmContactInitialized { false };
+        bool palmDampingPending { false };
+        int palmDampingCountdown { 1 };
         // The concrete stroke this note was picked with, resolved from the
         // latched PickStyle (Alternate resolves per wrist stroke).
         bool strokeIsUp { false };
@@ -1218,7 +1226,7 @@ private:
         // release time and frozen into the optional repick contact.
         float stringWaveImpedance { 1.0f };
 #if ELECTRY_ENERGY_ATTACK_PITCH
-        // Candidate-only normalised tension increment q = dT/T. Physical
+        // Normalised tension increment q = dT/T. Physical
         // transverse-string energy and the Bank elastic scale derive its seed
         // at pick release; after that q is the bounded empirical coordinate
         // that relaxes with Lee's measured common pitch component. Preserving
@@ -1227,7 +1235,8 @@ private:
         float attackPitchTensionRatio { 0.0f };
         float pendingAttackPitchEnergyJoules { 0.0f };
         float pendingAttackPitchElasticScalePerJoule { 0.0f };
-        bool pendingAttackPitchClearOnRelease { false };
+        // Per-control energy retention from additional physical hand loss.
+        float attackPitchHandRetention { 1.0f };
         float attackPitchFrequencyFactor { 1.0f };
         float lastAttackPitchFrequencyFactor { 1.0f };
 #endif
@@ -1416,6 +1425,8 @@ private:
         // voices with `active` set drive the bridge bus, and only inactive
         // voices read it.
         bool sympatheticReady { false };
+        float sympatheticHandLoopGain { 1.0f };
+        float sympatheticHandLossRate { -1.0f };
         // What this voice added to the bridge bus on the previous sample. A
         // played voice reads the bus *minus* this, so it never drives itself:
         // its own bridge termination is already carried by `bodyConductance`
@@ -1656,6 +1667,7 @@ private:
                                  float period, float waveSpeed) noexcept;
     void configureVoicePickups(Voice& voice) noexcept;
     void configureSympatheticString(Voice& voice) noexcept;
+    void configureSympatheticHandLoss(Voice& voice) noexcept;
     static void resetVoicePickupState(Voice& voice) noexcept;
     void updateStyleWeights(Voice& voice, bool legato = false) noexcept;
     void refreshVoicingIfNeeded() noexcept;
@@ -1917,6 +1929,8 @@ private:
     float sympatheticHandGain_ { 1.0f };
     float sympatheticHandGainTarget_ { 1.0f };
     float sympatheticHandMute_ { -1.0f };
+    float sympatheticHandLossRate_ { 0.0f };
+    float sympatheticHandLossRateTarget_ { 0.0f };
     bool sympatheticActive_ { false };
 
     // The same bus read by the strings that *are* being played, which closes
@@ -2019,6 +2033,9 @@ private:
     // every rendered sample of every string. They depend only on the internal
     // clock, so prepare() is their only correct home.
     float handEnvelopeCoefficient_ { 0.0015f };
+    float palmLandingCoefficient_ { 0.04f };
+    float palmLiftCoefficient_ { 0.02f };
+    int palmDampingPeriod_ { 6 };
     float articulationMakeupRetention_ { 0.99f };
     float slideFrictionEnergyCoefficient_ { 0.001f };
 #if ELECTRY_ENERGY_ATTACK_PITCH

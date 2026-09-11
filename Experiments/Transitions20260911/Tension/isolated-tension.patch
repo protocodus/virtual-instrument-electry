@@ -1,0 +1,316 @@
+--- a/Source/DSP/ElectryEngine.cpp
++++ b/Source/DSP/ElectryEngine.cpp
+@@ -3257,6 +3257,27 @@
+     t60 = clampf(t60, 0.02f, 26.0f);
+     t60High = clampf(t60High, 0.008f, t60);
+ 
++#if ELECTRY_ENERGY_ATTACK_PITCH
++    // q is proportional to transverse energy. The existing empirical free
++    // relaxation includes the ordinary string's losses; only the additional
++    // loss from the hand joins it here. Convert the fitted fundamental T60
++    // rate from amplitude to energy, keeping this a conservative lower-mode
++    // estimate instead of guessing the instantaneous higher-mode mixture.
++    // The same physical hand reaches every ringing sibling, so this follows
++    // damping contact rather than the next articulation's keyswitch label.
++    const float extraHandRate = std::max(0.0f,
++        1.0f / t60 - 1.0f / clampf(intrinsicT60, 0.02f, 26.0f));
++    // The horizontal fundamental is the longest-lived loop (T60 x 1.7).
++    // Use its rate as a lower bound on hand energy loss; a new stroke's output
++    // projection weights do not identify the old ring's modal energy split.
++    constexpr float longestLivedPolarisationScale = 1.7f;
++    voice.attackPitchHandRetention = extraHandRate > 0.0f
++        ? std::exp(-6.0f * std::log(10.0f) * extraHandRate
++                   * static_cast<float>(controlPeriod) * inverseSampleRate_
++                   / longestLivedPolarisationScale)
++        : 1.0f;
++#endif
++
+     const float sampleRate = static_cast<float>(sampleRate_);
+     const float f0 = liveFrequency;
+     // A distributed fretting hand shapes the low-order modes that make up a
+@@ -5614,9 +5635,6 @@
+ #endif
+ 
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+-    if (plectrumContact)
+-        voice.pendingAttackPitchClearOnRelease =
+-            voice.playStyle != PlayStyle::Sustain;
+     // The frozen real comparison supports only ordinary ringing plucks.
+     // EG-IPT's muted and snap-pizzicato cells decayed before the registered
+     // estimator had enough windows, so extending this seed to Palm, Dead,
+@@ -5860,12 +5878,12 @@
+     if (! wasRinging)
+     {
+         voice.attackPitchTensionRatio = 0.0f;
++        voice.attackPitchHandRetention = 1.0f;
+         voice.attackPitchFrequencyFactor = 1.0f;
+         voice.lastAttackPitchFrequencyFactor = 1.0f;
+     }
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+ #endif
+ #if ELECTRY_ANALYTIC_RELEASE_IC
+     voice.analyticReleaseAmplitude = 0.0f;
+@@ -6054,7 +6072,6 @@
+     // retained and continues to decay through the legato gesture.
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+ #endif
+     if (expressionId > maximumExpressionId)
+         expressionId = legacyExpressionId;
+@@ -6467,9 +6484,9 @@
+ #endif
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     voice.attackPitchTensionRatio = 0.0f;
++    voice.attackPitchHandRetention = 1.0f;
+     voice.pendingAttackPitchEnergyJoules = 0.0f;
+     voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-    voice.pendingAttackPitchClearOnRelease = false;
+     voice.attackPitchFrequencyFactor = 1.0f;
+     voice.lastAttackPitchFrequencyFactor = 1.0f;
+ #endif
+@@ -6800,7 +6817,8 @@
+     // additional control-rate work is one multiply plus the analytic pitch
+     // solve below. Every representable factor change is compensated to avoid
+     // staircase modulation; the expensive stiffness fit stays geometric.
+-    voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_;
++    voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_
++                                  * voice.attackPitchHandRetention;
+     if (! std::isfinite(voice.attackPitchTensionRatio)
+         || voice.attackPitchTensionRatio < 1.0e-12f)
+         voice.attackPitchTensionRatio = 0.0f;
+@@ -7001,38 +7019,27 @@
+ 
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     if (voice.excitationPhase == ExcitationPhase::Release
+-        && (voice.pendingAttackPitchClearOnRelease
+-            || voice.pendingAttackPitchElasticScalePerJoule > 0.0f))
+-    {
+-        // Contact can last several milliseconds and can be cancelled before
+-        // release. Commit energy and its scale atomically only on the first
+-        // released sample. A repick conservatively retains whichever bounded
+-        // tension ratio is larger instead of summing phase-unknown work.
+-        if (voice.pendingAttackPitchClearOnRelease)
+-        {
+-            // The real muted cells were inconclusive, so an unsupported
+-            // plectrum articulation ends the extra tension here. It
+-            // clears only at physical release, never during delayed pre-roll.
+-            voice.attackPitchTensionRatio = 0.0f;
+-        }
+-        else
+-        {
+-            float liveTensionRatio = voice.attackPitchTensionRatio;
+-            const float pendingTensionRatio =
+-                voice.pendingAttackPitchElasticScalePerJoule
+-                    * voice.pendingAttackPitchEnergyJoules;
+-            if (! std::isfinite(liveTensionRatio))
+-                liveTensionRatio = 0.0f;
+-            if (std::isfinite(pendingTensionRatio)
+-                && pendingTensionRatio > std::max(liveTensionRatio, 0.0f))
+-            {
+-                voice.attackPitchTensionRatio = std::min(
+-                    pendingTensionRatio, maximumAttackPitchTensionRatio);
+-            }
++        && voice.pendingAttackPitchElasticScalePerJoule > 0.0f)
++    {
++        // Only an ordinary ringing pluck creates a new seed. A muted repick
++        // cannot delete energy already travelling along the string: retain
++        // that old coordinate and let the actual hand loss dissipate it.
++        // Commit atomically at physical release, so delayed or cancelled
++        // contact cannot add work to the preceding stroke.
++        float liveTensionRatio = voice.attackPitchTensionRatio;
++        const float pendingTensionRatio =
++            voice.pendingAttackPitchElasticScalePerJoule
++                * voice.pendingAttackPitchEnergyJoules;
++        if (! std::isfinite(liveTensionRatio))
++            liveTensionRatio = 0.0f;
++        if (std::isfinite(pendingTensionRatio)
++            && pendingTensionRatio > std::max(liveTensionRatio, 0.0f))
++        {
++            voice.attackPitchTensionRatio = std::min(
++                pendingTensionRatio, maximumAttackPitchTensionRatio);
+         }
+         voice.pendingAttackPitchEnergyJoules = 0.0f;
+         voice.pendingAttackPitchElasticScalePerJoule = 0.0f;
+-        voice.pendingAttackPitchClearOnRelease = false;
+         configureVoicePitch(voice, false);
+     }
+ #endif
+--- a/Source/DSP/ElectryEngine.h
++++ b/Source/DSP/ElectryEngine.h
+@@ -1218,7 +1218,7 @@
+         // release time and frozen into the optional repick contact.
+         float stringWaveImpedance { 1.0f };
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+-        // Candidate-only normalised tension increment q = dT/T. Physical
++        // Normalised tension increment q = dT/T. Physical
+         // transverse-string energy and the Bank elastic scale derive its seed
+         // at pick release; after that q is the bounded empirical coordinate
+         // that relaxes with Lee's measured common pitch component. Preserving
+@@ -1227,7 +1227,8 @@
+         float attackPitchTensionRatio { 0.0f };
+         float pendingAttackPitchEnergyJoules { 0.0f };
+         float pendingAttackPitchElasticScalePerJoule { 0.0f };
+-        bool pendingAttackPitchClearOnRelease { false };
++        // Per-control energy retention from additional physical hand loss.
++        float attackPitchHandRetention { 1.0f };
+         float attackPitchFrequencyFactor { 1.0f };
+         float lastAttackPitchFrequencyFactor { 1.0f };
+ #endif
+--- a/Tests/ElectryEngineTests.cpp
++++ b/Tests/ElectryEngineTests.cpp
+@@ -143,7 +143,6 @@
+         float pendingElasticScalePerJoule { 0.0f };
+         float frequencyFactor { 1.0f };
+         float tensionNewtons { 0.0f };
+-        bool clearOnRelease { false };
+     };
+ 
+     static AttackPitchState attackPitchState(
+@@ -158,8 +157,7 @@
+             voice.pendingAttackPitchEnergyJoules,
+             voice.pendingAttackPitchElasticScalePerJoule,
+             voice.attackPitchFrequencyFactor,
+-            voice.stringTensionNewtons,
+-            voice.pendingAttackPitchClearOnRelease
++            voice.stringTensionNewtons
+         };
+     }
+ 
+@@ -7746,7 +7744,6 @@
+         auto state = TestAccess::attackPitchState(engine, stringIndex);
+         expect(state.tensionRatio == 0.0f
+                    && state.pendingEnergyJoules == 0.0f
+-                   && state.clearOnRelease
+                    && state.frequencyFactor == 1.0f,
+                "unsupported articulation "
+                    + std::to_string(static_cast<int>(style))
+@@ -7761,9 +7758,8 @@
+         TestAccess::renderOneInternalSample(engine);
+         state = TestAccess::attackPitchState(engine, stringIndex);
+         expect(state.tensionRatio == 0.0f
+-                   && ! state.clearOnRelease
+                    && state.frequencyFactor == 1.0f,
+-               "unsupported articulation did not clear at physical release");
++               "unsupported articulation created tension at physical release");
+     }
+ 
+     ElectryEngine legato;
+@@ -7807,7 +7803,7 @@
+         expect(cancelled.tensionRatio == 0.0f
+                    && cancelled.pendingEnergyJoules == 0.0f
+                    && cancelled.pendingElasticScalePerJoule == 0.0f
+-                   && ! cancelled.clearOnRelease,
++,
+                "legato contact retained an interrupted plectrum seed");
+         TestAccess::renderOneInternalSample(interrupted);
+         cancelled = TestAccess::attackPitchState(
+@@ -7871,9 +7867,97 @@
+     expect(cleared.tensionRatio == 0.0f
+                && cleared.pendingEnergyJoules == 0.0f
+                && cleared.pendingElasticScalePerJoule == 0.0f
+-               && ! cleared.clearOnRelease
+                && cleared.frequencyFactor == 1.0f,
+            "reset retained candidate energy-pitch state");
++}
++
++void testEnergyPitchMuteContinuity()
++{
++    EngineParameters parameters;
++    parameters.sympatheticAmount = 0.0f;
++    parameters.artifactAmount = 0.0f;
++    parameters.pickNoise = 0.0f;
++    parameters.fingerNoise = 0.0f;
++    parameters.releaseNoise = 0.0f;
++    parameters.strumSpreadSeconds = 0.0f;
++
++    // True held repicks keep the existing travelling waves. Changing the
++    // contact into a mute must not teleport their pitch to its relaxed value.
++    // Include different control phases and both common damping contacts.
++    for (const double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
++    for (const int note : { 28, 40, 55 })
++    for (const auto style : { PlayStyle::PalmMute, PlayStyle::Dead })
++    for (const int phase : { 0, 7 })
++    {
++        ElectryEngine engine;
++        engine.prepare(rate, 512);
++        engine.setParameters(parameters);
++        engine.reset();
++        engine.noteOn(note, 1.0f);
++        StereoBuffer establish(static_cast<int>(0.050 * rate));
++        renderInto(engine, establish);
++        const int stringIndex = TestAccess::stringForNote(engine, note);
++        for (int i = 0; i < phase; ++i)
++            TestAccess::renderOneInternalSample(engine);
++        engine.noteOn(styleKeyswitch(style), 1.0f);
++        engine.noteOn(note, 0.75f);
++        int guard = 0;
++        while (TestAccess::snapshot(engine, stringIndex).excitationInContact
++               && guard++ < static_cast<int>(0.020
++                       * TestAccess::internalSampleRate(engine)))
++            TestAccess::renderOneInternalSample(engine);
++        const auto before = TestAccess::attackPitchState(engine, stringIndex);
++        const float targetBefore = TestAccess::effectiveLoopFrequency(
++            engine, stringIndex, false, true);
++        TestAccess::renderOneInternalSample(engine);
++        const auto after = TestAccess::attackPitchState(engine, stringIndex);
++        const float targetAfter = TestAccess::effectiveLoopFrequency(
++            engine, stringIndex, false, true);
++        expect(before.tensionRatio > 0.0f
++                   && after.tensionRatio > 0.99f * before.tensionRatio
++                   && after.tensionRatio <= before.tensionRatio
++                   && after.pendingEnergyJoules == 0.0f
++                   && after.pendingElasticScalePerJoule == 0.0f
++                   && std::abs(centsBetween(targetAfter, targetBefore)) < 0.03,
++               "a muted held repick erased or reseeded the preceding tension");
++    }
++
++    // The hand also damps an already-ringing sibling that was not repicked.
++    // Compare its energy coordinate with the same old chord kept open: actual
++    // contact must accelerate loss without needing another note on that string.
++    for (const double rate : { 44100.0, 48000.0, 96000.0 })
++    {
++        ElectryEngine open;
++        ElectryEngine muted;
++        for (auto* engine : { &open, &muted })
++        {
++            engine->prepare(rate, 512);
++            engine->setParameters(parameters);
++            engine->reset();
++            constexpr std::array<ElectryEngine::NoteOnEvent, 2> chord {{
++                { 28, 1.0f }, { 35, 1.0f }
++            }};
++            engine->noteOnChord(chord);
++            StereoBuffer establish(static_cast<int>(0.050 * rate));
++            renderInto(*engine, establish);
++        }
++        const int sibling = TestAccess::stringForNote(muted, 35);
++        const auto preceding = TestAccess::attackPitchState(muted, sibling);
++        muted.noteOn(styleKeyswitch(PlayStyle::PalmMute), 1.0f);
++        muted.noteOn(28, 0.75f);
++        open.noteOn(28, 0.75f);
++        StereoBuffer openTail(static_cast<int>(0.120 * rate));
++        StereoBuffer mutedTail(static_cast<int>(0.120 * rate));
++        renderInto(open, openTail);
++        renderInto(muted, mutedTail);
++        const auto openState = TestAccess::attackPitchState(open, sibling);
++        const auto mutedState = TestAccess::attackPitchState(muted, sibling);
++        expect(mutedState.tensionRatio > 0.0f
++                   && mutedState.tensionRatio < 0.98f * openState.tensionRatio
++                   && mutedState.tensionRatio < preceding.tensionRatio
++                   && mutedState.pendingEnergyJoules == 0.0f,
++               "physical palm contact did not dissipate the sibling's tension");
++    }
+ }
+ #endif
+ 
+@@ -21571,6 +21655,7 @@
+     testHardPickingStaysInTune();
+ #if ELECTRY_ENERGY_ATTACK_PITCH
+     testEnergyAttackPitchExperiment();
++    testEnergyPitchMuteContinuity();
+ #endif
+     testAttackStateTransitions();
+ #if ELECTRY_MEASURED_PICKUP_FLUX

@@ -1,0 +1,221 @@
+{
+  "matching_first_nine_take_manifests": true,
+  "rows": [
+    {
+      "take": "rolling_chords_styles",
+      "tap": "dry",
+      "byte_identical": false,
+      "rms_change_db": -0.003242878118440104,
+      "null_db_relative_baseline": -42.95220919475126,
+      "candidate_peak": 0.3536909520626068
+    },
+    {
+      "take": "rolling_chords_styles",
+      "tap": "crunch",
+      "byte_identical": false,
+      "rms_change_db": -0.003388989053116781,
+      "null_db_relative_baseline": -43.134946080466996,
+      "candidate_peak": 0.32475408911705017
+    },
+    {
+      "take": "rolling_chords_styles",
+      "tap": "modern",
+      "byte_identical": false,
+      "rms_change_db": -0.0016983232653299905,
+      "null_db_relative_baseline": -35.482913792477206,
+      "candidate_peak": 0.19225327670574188
+    },
+    {
+      "take": "rolling_chords_pressure",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.3445766568183899
+    },
+    {
+      "take": "rolling_chords_pressure",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.32195109128952026
+    },
+    {
+      "take": "rolling_chords_pressure",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.1928725689649582
+    },
+    {
+      "take": "drop_e_styles",
+      "tap": "dry",
+      "byte_identical": false,
+      "rms_change_db": -0.0019198960215286622,
+      "null_db_relative_baseline": -41.53807274016016,
+      "candidate_peak": 0.1979387253522873
+    },
+    {
+      "take": "drop_e_styles",
+      "tap": "crunch",
+      "byte_identical": false,
+      "rms_change_db": -0.003959709779882951,
+      "null_db_relative_baseline": -41.99904912689665,
+      "candidate_peak": 0.336690217256546
+    },
+    {
+      "take": "drop_e_styles",
+      "tap": "modern",
+      "byte_identical": false,
+      "rms_change_db": -0.006219091204616385,
+      "null_db_relative_baseline": -35.236007891589466,
+      "candidate_peak": 0.21783262491226196
+    },
+    {
+      "take": "held_pressure_28",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.09112633764743805
+    },
+    {
+      "take": "held_pressure_28",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.2450195997953415
+    },
+    {
+      "take": "held_pressure_28",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.20028464496135712
+    },
+    {
+      "take": "held_pressure_28_control",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.09112633764743805
+    },
+    {
+      "take": "held_pressure_28_control",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.2450195997953415
+    },
+    {
+      "take": "held_pressure_28_control",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.20028464496135712
+    },
+    {
+      "take": "held_pressure_40",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.10196369886398315
+    },
+    {
+      "take": "held_pressure_40",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.24377427995204926
+    },
+    {
+      "take": "held_pressure_40",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.19363927841186523
+    },
+    {
+      "take": "held_pressure_40_control",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.10196369886398315
+    },
+    {
+      "take": "held_pressure_40_control",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.24377427995204926
+    },
+    {
+      "take": "held_pressure_40_control",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.19363927841186523
+    },
+    {
+      "take": "pressure_lift_then_repick",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.09112633764743805
+    },
+    {
+      "take": "pressure_lift_then_repick",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.2450195997953415
+    },
+    {
+      "take": "pressure_lift_then_repick",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.20028464496135712
+    },
+    {
+      "take": "held_style_alternation",
+      "tap": "dry",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.10070260614156723
+    },
+    {
+      "take": "held_style_alternation",
+      "tap": "crunch",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.25261735916137695
+    },
+    {
+      "take": "held_style_alternation",
+      "tap": "modern",
+      "byte_identical": true,
+      "rms_change_db": 0.0,
+      "null_db_relative_baseline": null,
+      "candidate_peak": 0.20028464496135712
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema": "electry-transition-validation/20260911-v1",
+  "baseline_commit": "aa1f7e0963ae488a4d0c3c7eeb3c6cb81fb749f8",
+  "matched_manifests": true,
+  "manifest_sha256": "4d0b7c7d50c5c730700839b2db273254a2b437c49528dc79835f4c5b7b695487",
+  "phrases": 9,
+  "paired_taps": 27,
+  "validated_raw_float_wavs": 54,
+  "all_raw_audio_finite": true,
+  "largest_raw_peak_before_or_after": 0.3542402386665344,
+  "balanced_fretting_owner_traces": 9,
+  "continuous_hand_boundaries_per_musical_riff": 32,
+  "untouched_decay_controls_bit_identical_across_all_taps": true,
+  "listening_artifacts": {
+    "resolved_local_links": 3,
+    "validated_pcm_audio_files": 54,
+    "audio_format": "mono PCM16, 44100 Hz; original frame counts",
+    "all_audio_finite_nonzero": true,
+    "largest_audition_peak": 0.35364848780785546,
+    "largest_quantised_pair_rms_error_db": 2.6784048088757118e-05,
+    "javascript_syntax": "passed: node --check",
+    "visual_browser_review": "not performed"
+  },
+  "style_pressure_cache_regressions": {
+    "rates_hz": [
+      44100,
+      48000,
+      96000
+    ],
+    "cases": [
+      "Sustain to Harmonics soft repick under held CC2 pressure",
+      "same-sample Open to Palm to Open soft repick under held CC2 pressure"
+    ],
+    "before": "All six cases fail on initial hand candidate",
+    "after": "All six pass on final candidate; all existing endpoint cases also pass",
+    "test": "Tests/RealismTransitionControlsTests.cpp",
+    "before_log": "build-transitions-20260911/control-before-review-fix.log",
+    "after_log": "build-transitions-20260911/control-after-review-fix.log"
+  },
+  "dry_signal_changes": [
+    {
+      "id": "rolling_chords_styles",
+      "rms_change_db": -0.17753579232666894,
+      "difference_rms_dbfs": -48.15492622760621,
+      "sample_identical": false
+    },
+    {
+      "id": "rolling_chords_pressure",
+      "rms_change_db": 0.04539082416054541,
+      "difference_rms_dbfs": -56.60808635789635,
+      "sample_identical": false
+    },
+    {
+      "id": "drop_e_styles",
+      "rms_change_db": -0.13452293831975481,
+      "difference_rms_dbfs": -51.24657597960344,
+      "sample_identical": false
+    },
+    {
+      "id": "held_pressure_28",
+      "rms_change_db": -0.016286061798538753,
+      "difference_rms_dbfs": -66.08601052979037,
+      "sample_identical": false
+    },
+    {
+      "id": "held_pressure_28_control",
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "sample_identical": true
+    },
+    {
+      "id": "held_pressure_40",
+      "rms_change_db": -0.04174751696587009,
+      "difference_rms_dbfs": -66.51484118939587,
+      "sample_identical": false
+    },
+    {
+      "id": "held_pressure_40_control",
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "sample_identical": true
+    },
+    {
+      "id": "pressure_lift_then_repick",
+      "rms_change_db": 0.005286835877029716,
+      "difference_rms_dbfs": -61.41502657076388,
+      "sample_identical": false
+    },
+    {
+      "id": "held_style_alternation",
+      "rms_change_db": -0.47066016553922907,
+      "difference_rms_dbfs": -51.106030458102076,
+      "sample_identical": false
+    }
+  ],
+  "interpretation": "Signal descriptors and artifact validation only. No perceptual realism score or visual browser review.",
+  "detailed_data": "build-transitions-20260911/comparison/comparison.json",
+  "listening_page": "build-transitions-20260911/comparison/listening.html"
+}

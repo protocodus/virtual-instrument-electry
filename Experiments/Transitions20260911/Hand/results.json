@@ -1,0 +1,32 @@
+{
+  "baseline": {
+    "sources_sha256": {
+      "Source/DSP/ElectryEngine.cpp": "139394376bf7f132f1546fa387d48c6700e77423d6841f3cb0ba9de40bbc96f1",
+      "Source/DSP/ElectryEngine.h": "9bdbd0bdcc7837233dedb8fa661c8c085c93619751609b83dfd9d549e64bee02",
+      "Tests/ElectryEngineTests.cpp": "0084357fc9704629805b11d7a58c51b4e56888f5d12d727ff6b0a328771df836"
+    },
+    "probe": {
+      "exit_code": 0,
+      "output": "PROBE old-E1 shared-hand transition: Palm->Open >500 Hz 12.1052 dB, share 0.12893 points; Open->Palm >500 Hz -7.12141 dB, share -0.358574 points; contact/control max steps 0.00161323/0.000388749 and 0.000851393/0.000992567\nPROBE real-backed E1 dead envelope: 30-100 -7.13987 dB, 100-250 -13.9732 dB, 250-380 -22.6954 dB; tail 99.9287% below 250 Hz, -13.2021 dB versus Sustain\nPROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.91289/-13.4627/-21.7299 dB; first-to-repick contextual RMSE 4.43711 dB\nPROBE Dead + Palm Pressure 20-100 ms: -8.3311 dB at full pressure; 10% neighbour deltas 0.000480121/0.00048025\nPROBE dead attack -0.22982 dB\n"
+    },
+    "energy": {
+      "exit_code": 0,
+      "output": "44100 Hz: maximum circulating-line energy / never-muted twin 1.00174; silent hand motion peak 0\n48000 Hz: maximum circulating-line energy / never-muted twin 1.00189; silent hand motion peak 0\n96000 Hz: maximum circulating-line energy / never-muted twin 1.00393; silent hand motion peak 0\n"
+    }
+  },
+  "candidate": {
+    "sources_sha256": {
+      "Source/DSP/ElectryEngine.cpp": "764cdc5c34e2029cc3a68cb3a1a037083d27893a893dc99b1e44259888928958",
+      "Source/DSP/ElectryEngine.h": "2c95343b7e2ea81efba4d4453186df6c137810f6f630180cc72e09d2a40efd37",
+      "Tests/ElectryEngineTests.cpp": "22cefc337cf3a4151e5cc9f7ec05ba47815b6d1b09f92c0fb0a2d59cd3364975"
+    },
+    "probe": {
+      "exit_code": 0,
+      "output": "PROBE finite palm 44100 Hz mode 0: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.00319808 cents\nPROBE finite palm 44100 Hz mode 1: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.0831902 cents\nPROBE finite palm 44100 Hz mode 2: 95% landing/lift 12.1542/24.127 ms; worst tick pitch 0.00559728 cents\nPROBE finite palm 48000 Hz mode 0: 95% landing/lift 12/24 ms; worst tick pitch 0.00287872 cents\nPROBE finite palm 48000 Hz mode 1: 95% landing/lift 12/24 ms; worst tick pitch 0.0759905 cents\nPROBE finite palm 48000 Hz mode 2: 95% landing/lift 12/24 ms; worst tick pitch 0.00527717 cents\nPROBE finite palm 96000 Hz mode 0: 95% landing/lift 12/24 ms; worst tick pitch 0.0019191 cents\nPROBE finite palm 96000 Hz mode 1: 95% landing/lift 12/24 ms; worst tick pitch 0.0517619 cents\nPROBE finite palm 96000 Hz mode 2: 95% landing/lift 12/24 ms; worst tick pitch 0.00287914 cents\nPROBE old-E1 shared-hand transition: Palm->Open >500 Hz 5.23269 dB, share 0.0198483 points; Open->Palm >500 Hz -6.90449 dB, share -0.351093 points; contact/control max steps 0.000447109/0.000388749 and 0.000856938/0.000992567\nPROBE real-backed E1 dead envelope: 30-100 -7.13987 dB, 100-250 -13.9732 dB, 250-380 -22.6954 dB; tail 99.9287% below 250 Hz, -13.2021 dB versus Sustain\nPROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.91362/-13.4691/-21.7443 dB; first-to-repick contextual RMSE 4.44169 dB\nPROBE Dead + Palm Pressure 20-100 ms: -8.3311 dB at full pressure; 10% neighbour deltas 0.000480121/0.00048025\nPROBE dead attack -0.22982 dB\n"
+    },
+    "energy": {
+      "exit_code": 0,
+      "output": "44100 Hz: maximum circulating-line energy / never-muted twin 1.00033; silent hand motion peak 0\n48000 Hz: maximum circulating-line energy / never-muted twin 1.00018; silent hand motion peak 0\n96000 Hz: maximum circulating-line energy / never-muted twin 1.00069; silent hand motion peak 0\n"
+    }
+  }
+}

@@ -1,0 +1,676 @@
+{
+  "schema": "electry-transition-followup/20260911-v1",
+  "baseline": "Previous transition pass, reconstructed from aa1f7e0 plus baseline-from-aa1f7e0.patch; 27 original baseline WAVs match previous after/ byte for byte",
+  "baseline_source_sha256": {
+    "Source/DSP/ElectryEngine.cpp": "764cdc5c34e2029cc3a68cb3a1a037083d27893a893dc99b1e44259888928958",
+    "Source/DSP/ElectryEngine.h": "2c95343b7e2ea81efba4d4453186df6c137810f6f630180cc72e09d2a40efd37",
+    "Tests/ElectryEngineTests.cpp": "22cefc337cf3a4151e5cc9f7ec05ba47815b6d1b09f92c0fb0a2d59cd3364975",
+    "Tests/RealismTransitionControlsTests.cpp": "3cb278d146a4cc1a500bd20a3a9facd8b94712d9e24f222302af9c18c02901df",
+    "CMakeLists.txt": "72f7998cbc952952f4173fd0819926fe60a34e2d263dd177346c7b5342f3b999"
+  },
+  "candidate": "Uncommitted combined source; hashes below identify tested code",
+  "candidate_source_sha256": {
+    "Source/DSP/DspMath.h": "1055f318b3bec6247998c302f61c1299704f7fa67aed22d57ebceecef365c3bc",
+    "Source/DSP/ElectryEngine.cpp": "ded11ce08a45dacddde454f216ecb4914ad68da1060dc91edf853940b71bf30b",
+    "Source/DSP/ElectryEngine.h": "aaffa8490b57b8d7d3912daff47672401f28811d95d39d7f8c9cdaa2d8e2b5a8",
+    "Source/DSP/ElectryFx.cpp": "352233f996e65d0a4d4f8dddf93e8d60ac9e27255aae0930cf2b825e0415f02d",
+    "Source/DSP/ElectryFx.h": "b8a059a3fbc670cdb3f562822b6e639836b522c969c7e3687ec357f4a9e5f734",
+    "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "Source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+    "Source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f",
+    "Source/PluginEditor.cpp": "cbd82587a5c8162e2da0b09ab58d1da61498d781b64c889ecd3b2f4edfce12e0",
+    "Source/PluginEditor.h": "3dae27318a243eecccd851dcc2a2dd90f87e76ad9c41f925cef548c19e715ecf",
+    "Source/PluginProcessor.cpp": "e3fa13bafd3031217e35351633c514d585f296b7bc93ae4654e221526679c7dd",
+    "Source/PluginProcessor.h": "e341c4055834af62a9d3c4eb08319ef0fa22011dea7a81aed8da1fa7c25529d6",
+    "CMakeLists.txt": "72f7998cbc952952f4173fd0819926fe60a34e2d263dd177346c7b5342f3b999",
+    "Tests/ElectryEngineTests.cpp": "fcf0dceaa417f0e57bdf88bd38956eacc8cc7e6b8e1165a5550ed327107adc32",
+    "Tests/RealismTransitionControlsTests.cpp": "3cb278d146a4cc1a500bd20a3a9facd8b94712d9e24f222302af9c18c02901df",
+    "Experiments/Transitions20260911/RenderTransitions.cpp": "bb61a032a3a586fe79878e5a4410528c3c06b3a1e7ecc24e439bdca00ca73c84",
+    "Experiments/Transitions20260911Pass2/RenderFollowup.cpp": "52d4132188dc13c5ccb0dbafb0ceec7be3e075c73b3bcd863e144a93159ac3d3",
+    "Experiments/Transitions20260911Pass2/SanitizeFollowup.cpp": "37904492356952c818a6af882783c7b64b58ad7dfa70a8a2d4196b647250aa44",
+    "Experiments/Transitions20260911Pass2/AnalyzeFollowup.py": "89b785f9f7497be4457801b9c0aff521a278da215ca9833875063137e98c6b4e",
+    "Experiments/Transitions20260911/AnalyzeTransitions.py": "bff143c83844f01e6235548c6e1ca51de563e1173e5005e6c14432dd8f769e7e",
+    "Experiments/Transitions20260911Pass2/baseline-from-aa1f7e0.patch": "9960fd712fea493eb67f78fd0ae1b040b6f3fd9404366c5af43f737394ae1dc8"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "platform": "macOS arm64",
+  "render_flags": [
+    "-std=c++20",
+    "-O2",
+    "-DNDEBUG",
+    "ELECTRY_DECOUPLED_PICK_RELEASE=1",
+    "ELECTRY_MEASURED_BODY_RESPONSE=1",
+    "ELECTRY_ENERGY_ATTACK_PITCH=1"
+  ],
+  "renderer_sha256": {
+    "render-before": "9668d8d41e264d274a1390786bef6be5098d88c24aa1f2f2e29a85f2896c4605",
+    "render-after": "155c22815f88e715bec5641d7cd7b58f4552a72b52977f1affce631a1f2507ce"
+  },
+  "matched_manifest_sha256": "a45a2711e53d58c0df15a9a057c5c8c082c1361b8cadef2112b34356c6585884",
+  "phrases": 11,
+  "paired_taps": 33,
+  "raw_wavs": 66,
+  "playback_validation": {
+    "resolved_local_links": 3,
+    "validated_pcm_audio_files": 66,
+    "audio_format": "mono PCM16, 44100 Hz; original frame counts",
+    "all_audio_finite_nonzero": true,
+    "largest_audition_peak": 0.35364848780785546,
+    "largest_quantised_pair_rms_error_db": 1.7944925335910966e-05,
+    "javascript_syntax": "passed: node --check",
+    "visual_browser_review": "not performed"
+  },
+  "takes": [
+    {
+      "id": "rolling_chords_styles",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.023218312497402138,
+      "difference_rms_dbfs": -63.59739139853232,
+      "wave_sha256": {
+        "baseline": "c43233077166c3f5343fc664d56763c3e22e713f1c0f1decd7b689a27d413655",
+        "candidate": "e699fa413ab3773115c01fa2b9d7e02fc5341d51651c065dd4ca323247af61f0"
+      }
+    },
+    {
+      "id": "rolling_chords_styles",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.022385644085144207,
+      "difference_rms_dbfs": -58.33852440348614,
+      "wave_sha256": {
+        "baseline": "48dd0a22cf6097e60e265e3638aff8b4f673efb297a289ca2ad9c01753637130",
+        "candidate": "a69ff3a7626d5e29952726d1583fe9f96d3b2fb0455957ff40dbc2a8d339d736"
+      }
+    },
+    {
+      "id": "rolling_chords_styles",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.005480431506537542,
+      "difference_rms_dbfs": -52.566601253763075,
+      "wave_sha256": {
+        "baseline": "085bc1eabfd5b1749d9098f488f61accb7f79cac71b93ab91a9cc659baf6fb6c",
+        "candidate": "0688b08b643dd553112c7959d4f67c0068d530a01f056e1ac3e93e64b61f23bd"
+      }
+    },
+    {
+      "id": "rolling_chords_pressure",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "f79187bbc2f8a852c2c84f936cc0ddafd22cbb4f927c7697db4857c1fbfc3647",
+        "candidate": "f79187bbc2f8a852c2c84f936cc0ddafd22cbb4f927c7697db4857c1fbfc3647"
+      }
+    },
+    {
+      "id": "rolling_chords_pressure",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "21fb8d807d01acb548a8aa897f9399fe0d20809dd3050a7345f9cf65795f992b",
+        "candidate": "21fb8d807d01acb548a8aa897f9399fe0d20809dd3050a7345f9cf65795f992b"
+      }
+    },
+    {
+      "id": "rolling_chords_pressure",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 22,
+        "note_off": 22,
+        "repick": 74,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "598c871b401d73f58b65e2b63ac82c9628fb68bf3f358cf5cad342777ffafc70",
+        "candidate": "598c871b401d73f58b65e2b63ac82c9628fb68bf3f358cf5cad342777ffafc70"
+      }
+    },
+    {
+      "id": "drop_e_styles",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 21,
+        "note_off": 21,
+        "repick": 59,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.019691510916118204,
+      "difference_rms_dbfs": -65.16364143170703,
+      "wave_sha256": {
+        "baseline": "6a95dde25c00b61fc2ae5b9b6ff3a5edb007e16d9381e912767ecace0aa16d05",
+        "candidate": "276974f664f46cb3e84309fafd44861dee1cc8b9d7cb62598b5a0d5f541d8798"
+      }
+    },
+    {
+      "id": "drop_e_styles",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 21,
+        "note_off": 21,
+        "repick": 59,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.01638376662105756,
+      "difference_rms_dbfs": -59.50010287538482,
+      "wave_sha256": {
+        "baseline": "d0716ee57612a174e35b9baaeff3281e6a5b8c975bad2b940351efb8c0d775ff",
+        "candidate": "f491f169cb68fad5c5244fe69aad5e28713275fe61e67b2a6a8f98617b945231"
+      }
+    },
+    {
+      "id": "drop_e_styles",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 21,
+        "note_off": 21,
+        "repick": 59,
+        "articulation_changes": 48,
+        "continuous_hand_boundaries": 32
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.0009778950462759894,
+      "difference_rms_dbfs": -53.76451043460036,
+      "wave_sha256": {
+        "baseline": "5e1df02f9e237e305e790076e4e9eb1eda4e5998fd5e437ac496f879e631b0f8",
+        "candidate": "97f7bf670b58e32baaf3f8e5210af3eedcdf2cc3471e733bd230444b1ab4b6e8"
+      }
+    },
+    {
+      "id": "held_pressure_28",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "b5023941865f4a2605680409bb6ad7fa9986c34f041715a229a0c9b03fc7a9c2",
+        "candidate": "b5023941865f4a2605680409bb6ad7fa9986c34f041715a229a0c9b03fc7a9c2"
+      }
+    },
+    {
+      "id": "held_pressure_28",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "eb4a9238e9c11dea5c2132276ec54d08fcd6710703f3e911ed9e965ba731e11e",
+        "candidate": "eb4a9238e9c11dea5c2132276ec54d08fcd6710703f3e911ed9e965ba731e11e"
+      }
+    },
+    {
+      "id": "held_pressure_28",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "b16f75bc78b63276490b238f9c619778d96a735212f1513e21d2cbfa4d04c8f7",
+        "candidate": "b16f75bc78b63276490b238f9c619778d96a735212f1513e21d2cbfa4d04c8f7"
+      }
+    },
+    {
+      "id": "held_pressure_28_control",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "c154ebe342af74d270161f1f7c24b392b7dbcb78426dbe5aaf81c24e3974158d",
+        "candidate": "c154ebe342af74d270161f1f7c24b392b7dbcb78426dbe5aaf81c24e3974158d"
+      }
+    },
+    {
+      "id": "held_pressure_28_control",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "2c14ebd3db9afdbfdeba8b0c2e30da1e0d4283e272712ead181c3c50e60b422f",
+        "candidate": "2c14ebd3db9afdbfdeba8b0c2e30da1e0d4283e272712ead181c3c50e60b422f"
+      }
+    },
+    {
+      "id": "held_pressure_28_control",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "4ba92b3efc76f2df955cf9fa24c238d6298a454024d176d8be19d44fe942610e",
+        "candidate": "4ba92b3efc76f2df955cf9fa24c238d6298a454024d176d8be19d44fe942610e"
+      }
+    },
+    {
+      "id": "held_pressure_40",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "02ff5f2c725e65d11988d7e895a1ed02c91899fb8ad0b8cdab49f62e7c24a6ce",
+        "candidate": "02ff5f2c725e65d11988d7e895a1ed02c91899fb8ad0b8cdab49f62e7c24a6ce"
+      }
+    },
+    {
+      "id": "held_pressure_40",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "a8e75b3a1fd03b7d0c0b1aa73d3afd5a1f0f848a577e627f62da9326583b4059",
+        "candidate": "a8e75b3a1fd03b7d0c0b1aa73d3afd5a1f0f848a577e627f62da9326583b4059"
+      }
+    },
+    {
+      "id": "held_pressure_40",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "0d2210825991a31d24696665440c2d3d09a97bea9cccadf27288a2cd3beaa572",
+        "candidate": "0d2210825991a31d24696665440c2d3d09a97bea9cccadf27288a2cd3beaa572"
+      }
+    },
+    {
+      "id": "held_pressure_40_control",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "9108a491e267d9d5458660cc74c5e36e40b2e4db63fe60050f5fe10b4fe9a4d9",
+        "candidate": "9108a491e267d9d5458660cc74c5e36e40b2e4db63fe60050f5fe10b4fe9a4d9"
+      }
+    },
+    {
+      "id": "held_pressure_40_control",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "cc2f15f48ba320142d42aa399b5915a3e170210b3f3932433ae2034d831cf676",
+        "candidate": "cc2f15f48ba320142d42aa399b5915a3e170210b3f3932433ae2034d831cf676"
+      }
+    },
+    {
+      "id": "held_pressure_40_control",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 0,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "570e7862cc091f70e40a4eca9d7ad562ce857e1bb3ffcaa0edb7ae0c2346057c",
+        "candidate": "570e7862cc091f70e40a4eca9d7ad562ce857e1bb3ffcaa0edb7ae0c2346057c"
+      }
+    },
+    {
+      "id": "pressure_lift_then_repick",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 4,
+        "articulation_changes": 4,
+        "continuous_hand_boundaries": 2
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "7a313f33d154f2f3355c408c8c9e1a7693a44d39f78978e509b5769833ef072f",
+        "candidate": "7a313f33d154f2f3355c408c8c9e1a7693a44d39f78978e509b5769833ef072f"
+      }
+    },
+    {
+      "id": "pressure_lift_then_repick",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 4,
+        "articulation_changes": 4,
+        "continuous_hand_boundaries": 2
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "67567b844e023ee4ecc4581de76b63ec7f0f4c1f5b437ccabf2f9e14b54405eb",
+        "candidate": "67567b844e023ee4ecc4581de76b63ec7f0f4c1f5b437ccabf2f9e14b54405eb"
+      }
+    },
+    {
+      "id": "pressure_lift_then_repick",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 4,
+        "articulation_changes": 4,
+        "continuous_hand_boundaries": 2
+      },
+      "sample_identical": true,
+      "rms_change_db": 0.0,
+      "difference_rms_dbfs": -240.0,
+      "wave_sha256": {
+        "baseline": "d482d8fe04cf76d9d525d2808b03eee1dad548a83173877e321a2ef3c60dc356",
+        "candidate": "d482d8fe04cf76d9d525d2808b03eee1dad548a83173877e321a2ef3c60dc356"
+      }
+    },
+    {
+      "id": "held_style_alternation",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 12,
+        "articulation_changes": 12,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.03653872554708215,
+      "difference_rms_dbfs": -68.66120475239217,
+      "wave_sha256": {
+        "baseline": "30155b5870b0e86f687f4a9d5ac4f75fb8b88eeab8bca1048fc1ee0913aa2cd3",
+        "candidate": "5fb34c3929444b9cdbd97dfdb0d35ff96adfae74c564b4bb2722c21a13b4608d"
+      }
+    },
+    {
+      "id": "held_style_alternation",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 12,
+        "articulation_changes": 12,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.034821568177036966,
+      "difference_rms_dbfs": -61.848848276394044,
+      "wave_sha256": {
+        "baseline": "4632514c5ecefdd004488c34783c737f578f31adf9301fc6ba7debb21d96ed92",
+        "candidate": "82d218063d2710e4ecd8d2afece00e07b687313e1b275b0d3d358ca43520e481"
+      }
+    },
+    {
+      "id": "held_style_alternation",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 12,
+        "articulation_changes": 12,
+        "continuous_hand_boundaries": 0
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.008623176603745009,
+      "difference_rms_dbfs": -55.119841527443356,
+      "wave_sha256": {
+        "baseline": "7a865587e2431ef3e09e43a36451fb202afd31b7858202d9b2915ac037686452",
+        "candidate": "2f65856af6b8e7844f19a4e52c16bd83c4dc1df3caba733478a50cab1efae6de"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.06390783488188845,
+      "difference_rms_dbfs": -65.23840049777615,
+      "wave_sha256": {
+        "baseline": "d49ab6760ff6eaa40485c76f07ff223756701a036bdedb769adc47aa2c5aa46d",
+        "candidate": "1ded7f1744b8bb95307eea9d88425b7ab9d4466bf9f167083ccdce3deb78aebd"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.05883640341246732,
+      "difference_rms_dbfs": -58.75694892098159,
+      "wave_sha256": {
+        "baseline": "face3d4a0c7dbe08987599e14f489349272652f04ab27d6783f8f19113f2ca02",
+        "candidate": "ea3b50b3774441ad137ac69502a978146391608c7055604e9465edc974d34fc3"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.015149285905504684,
+      "difference_rms_dbfs": -53.877722756133906,
+      "wave_sha256": {
+        "baseline": "3c8b9db72e77f8021de804d933e486f66eca28bad25a5b9f87a368a760eb18a2",
+        "candidate": "2d17833c9de914f1e5052bcd38adcf760c5b1c04142733f298be9ccc881f0df4"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps_no_coupling",
+      "tap": "dry",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.06461764793980507,
+      "difference_rms_dbfs": -65.33075020176152,
+      "wave_sha256": {
+        "baseline": "5c1a56ea5e94db395ab06ff82d354ac7349f6c499a51ceb9c98926e56fb62473",
+        "candidate": "5c623211c601553ca9c098452d46440a55518706e8f6413f3b5c6c5092288726"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps_no_coupling",
+      "tap": "crunch",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.05985808671935544,
+      "difference_rms_dbfs": -58.86047040404449,
+      "wave_sha256": {
+        "baseline": "30c2071e018f2b27ac60141fc95ecbec5df2d856b87f1878a4fbb08f06875641",
+        "candidate": "1702c5590a2d15408ed61b2c05de76f2c2c3b7bd6348843e081bbb4f9e0a1019"
+      }
+    },
+    {
+      "id": "low_rhythm_gaps_no_coupling",
+      "tap": "modern",
+      "ownership": {
+        "note_on": 1,
+        "note_off": 1,
+        "repick": 20,
+        "articulation_changes": 6,
+        "continuous_hand_boundaries": 6
+      },
+      "sample_identical": false,
+      "rms_change_db": 0.017250259907640952,
+      "difference_rms_dbfs": -53.96866858886085,
+      "wave_sha256": {
+        "baseline": "dbd880e673a4ddc4996d40bc97ca55fda9b9a1467db3cacbd30dbcbb96d482e3",
+        "candidate": "dd16ce5269689b509b5160ae872a3ddef4f4674d72a2655dab9cb96ec53297f7"
+      }
+    }
+  ],
+  "native_artifact_sha256": {
+    "build-ui-20260908/native/Electry_artefacts/Release/VST3/Electry.vst3/Contents/MacOS/Electry": "e615715ce424f430d9b6e5f25f5857875890ffddd882ece66c4a64372b42700a",
+    "build-ui-20260908/native/Electry_artefacts/Release/Standalone/Electry.app/Contents/MacOS/Electry": "d3cc187f793f46e855045b0966794dabd82fda21b8a0467cb5cd672745e02e1c",
+    "build-ui-20260908/native/Electry_artefacts/Release/CLAP/Electry.clap/Contents/MacOS/Electry": "db37f9f0fcf3b51d6f7153f51c7fdd4a24768355e5cfe53f77cc2b139a8ed209",
+    "build-ui-20260908/native/Electry_artefacts/Release/AU/Electry.component/Contents/MacOS/Electry": "66716e104c8c27e81d0673edb97fb8de08ef762d8b160476876270852e8cfd48"
+  },
+  "validation": {
+    "core": "23/23 passed",
+    "native": "4/4 passed",
+    "sanitizers": "Focused combined transition suite passed ASan/UBSan",
+    "log_sha256": {
+      "core-tests.log": "dfb3cb23bebc0a0a4162c80e6c4472b8195d8282c0a4a425032589bc016d2a13",
+      "native-tests.log": "0586ab6214fd5788d59376d862d2e82aca9b2747d7169266c68ef77da22c613a",
+      "sanitize.log": "6d682397bda3440d2042967fc4f6142613520e4973a4801e7b9ae460d2057b6b"
+    }
+  },
+  "interpretation": "Signal measurements and tests, not a perceptual realism score. No browser interaction or external recorded-performer comparison in this follow-up."
+}

@@ -1,0 +1,11 @@
+{
+  "cases": 108,
+  "baseline_candidate_fingerprint_csv_identical": true,
+  "all_samples_finite": true,
+  "maximum_raw_loop_peak": 0.00997859892,
+  "asan_ubsan_bend_matrix_exit_code": 0,
+  "source_sha256": {
+    "Source/DSP/ElectryEngine.cpp": "0c7a7801736e1bc481969cc5a2594c956b9305fab1a5e3b4fcb4ec50018b1e21",
+    "Source/DSP/ElectryEngine.h": "aaffa8490b57b8d7d3912daff47672401f28811d95d39d7f8c9cdaa2d8e2b5a8"
+  }
+}

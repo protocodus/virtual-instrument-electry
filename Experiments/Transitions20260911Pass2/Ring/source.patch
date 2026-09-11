@@ -1,0 +1,275 @@
+--- a/Source/DSP/ElectryEngine.h
++++ b/Source/DSP/ElectryEngine.h
+@@ -1425,6 +1425,8 @@
+         // voices with `active` set drive the bridge bus, and only inactive
+         // voices read it.
+         bool sympatheticReady { false };
++        float sympatheticHandLoopGain { 1.0f };
++        float sympatheticHandLossRate { -1.0f };
+         // What this voice added to the bridge bus on the previous sample. A
+         // played voice reads the bus *minus* this, so it never drives itself:
+         // its own bridge termination is already carried by `bodyConductance`
+@@ -1665,6 +1667,7 @@
+                                  float period, float waveSpeed) noexcept;
+     void configureVoicePickups(Voice& voice) noexcept;
+     void configureSympatheticString(Voice& voice) noexcept;
++    void configureSympatheticHandLoss(Voice& voice) noexcept;
+     static void resetVoicePickupState(Voice& voice) noexcept;
+     void updateStyleWeights(Voice& voice, bool legato = false) noexcept;
+     void refreshVoicingIfNeeded() noexcept;
+@@ -1926,6 +1929,8 @@
+     float sympatheticHandGain_ { 1.0f };
+     float sympatheticHandGainTarget_ { 1.0f };
+     float sympatheticHandMute_ { -1.0f };
++    float sympatheticHandLossRate_ { 0.0f };
++    float sympatheticHandLossRateTarget_ { 0.0f };
+     bool sympatheticActive_ { false };
+ 
+     // The same bus read by the strings that *are* being played, which closes
+--- a/Source/DSP/ElectryEngine.cpp
++++ b/Source/DSP/ElectryEngine.cpp
+@@ -1526,6 +1526,8 @@
+     sympatheticHandGain_ = 1.0f;
+     sympatheticHandGainTarget_ = 1.0f;
+     sympatheticHandMute_ = -1.0f;
++    sympatheticHandLossRate_ = 0.0f;
++    sympatheticHandLossRateTarget_ = 0.0f;
+     sympatheticActive_ = effectiveSympathetic > 0.0f;
+ 
+     for (auto& filter : neckCoils_)
+@@ -4314,6 +4316,20 @@
+     configurePickupGeometry(voice, soundingLength, period, waveSpeed);
+ }
+ 
++void ElectryEngine::configureSympatheticHandLoss(Voice& voice) noexcept
++{
++    // A returned travelling wave encounters this hand once per round trip.
++    // Express contact as a positive inverse T60, then integrate its loss over
++    // this string's full period. A per-sample gain used here instead lengthens
++    // the hand's decay by an entire delay-line period, leaving muted idle
++    // strings ringing for seconds. This scalar adds no phase or excitation.
++    voice.sympatheticHandLossRate = sympatheticHandLossRate_;
++    voice.sympatheticHandLoopGain = sympatheticHandLossRate_ > 0.0f
++        ? std::exp(-3.0f * std::log(10.0f) * sympatheticHandLossRate_
++                   * voice.lastCompensatedPeriod * inverseSampleRate_)
++        : 1.0f;
++}
++
+ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
+ {
+     // An unfingered string vibrates over its full open length. One
+@@ -4437,6 +4453,7 @@
+     voice.compensatedPeriodVertical = compensatedPeriod;
+     voice.lastCompensatedSemitones = pitchBendSemitones_;
+     voice.lastCompensatedPeriod = period;
++    configureSympatheticHandLoss(voice);
+     voice.compensationDirty = false;
+     // Same fixed time constant configureVoicePitch() uses, shared via
+     // voiceDelayRetention_ so the two call sites cannot drift apart.
+@@ -6855,6 +6872,8 @@
+         // cannot wake it at stale pitch.
+         if (voice.sympatheticReady)
+         {
++            if (voice.sympatheticHandLossRate != sympatheticHandLossRate_)
++                configureSympatheticHandLoss(voice);
+             if (voice.sympatheticEnergy <= 1.0e-11f)
+                 voice.vertical.currentDelay = voice.vertical.targetDelay;
+             else
+@@ -7921,7 +7940,7 @@
+     sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
+     sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
+     sample = loop.damping.process(sample, loop.loopDampingCoefficient);
+-    sample *= loop.loopGain * sympatheticHandGain_;
++    sample *= loop.loopGain * voice.sympatheticHandLoopGain;
+ 
+     // A bounded rational saturation. The loop is already contractive, so this
+     // never engages in normal use; it exists so that a pathological drive
+@@ -8196,19 +8215,35 @@
+             if (styleHandMute != sympatheticHandMute_)
+             {
+                 sympatheticHandMute_ = styleHandMute;
+-                // A per-sample contact loss, which is how a hand resting on a
+-                // string actually damps it: distributed, not once per period.
++                // Keep physical contact in inverse seconds. Each idle string
++                // integrates the same loss over its own round-trip period.
+                 const float handT60 = std::exp(lerp(
+                     std::log(sympatheticOpenHandT60),
+                     std::log(sympatheticStoppedHandT60), styleHandMute));
+-                sympatheticHandGainTarget_ = styleHandMute > 0.0f
+-                    ? std::pow(10.0f,
+-                               -3.0f / (handT60
+-                                        * static_cast<float>(sampleRate_)))
+-                    : 1.0f;
++                sympatheticHandLossRateTarget_ = styleHandMute > 0.0f
++                    ? 1.0f / handT60 : 0.0f;
++                sympatheticHandGainTarget_ = std::exp(
++                    -3.0f * std::log(10.0f) * sympatheticHandLossRateTarget_
++                    * inverseSampleRate_);
+             }
+-            sympatheticHandGain_ += parameterSmoothingCoefficient_
+-                * (sympatheticHandGainTarget_ - sympatheticHandGain_);
++            // Move loss, whose range is well conditioned, rather than a float
++            // gain within a few millionths of one. The latter stalls halfway
++            // through a light landing and never releases to exact bypass.
++            if (sympatheticHandLossRate_ != sympatheticHandLossRateTarget_)
++            {
++                const float coefficient = sympatheticHandLossRateTarget_
++                                              > sympatheticHandLossRate_
++                    ? palmLandingCoefficient_ : palmLiftCoefficient_;
++                sympatheticHandLossRate_ += coefficient
++                    * (sympatheticHandLossRateTarget_ - sympatheticHandLossRate_);
++                if (std::abs(sympatheticHandLossRate_
++                             - sympatheticHandLossRateTarget_)
++                    < 1.0e-4f * std::max(1.0f, sympatheticHandLossRateTarget_))
++                    sympatheticHandLossRate_ = sympatheticHandLossRateTarget_;
++                sympatheticHandGain_ = std::exp(
++                    -3.0f * std::log(10.0f) * sympatheticHandLossRate_
++                    * inverseSampleRate_);
++            }
+             const float handMute = std::max(palmMuteBlend_, styleHandMute);
+             // How much of the coupling survives the mute, shared by the three
+             // laws below instead of being reclamped from handMute three times:
+--- a/Tests/ElectryEngineTests.cpp
++++ b/Tests/ElectryEngineTests.cpp
+@@ -555,6 +555,47 @@
+         return engine.sympatheticHandGain_;
+     }
+ 
++    static float sympatheticHandLoopGain(
++        const ElectryEngine& engine, int stringIndex) noexcept
++    {
++        return engine.voices_[static_cast<std::size_t>(stringIndex)]
++            .sympatheticHandLoopGain;
++    }
++
++    // Excite the actual idle delay loop at its open fundamental, then remove
++    // all drive. A measured decay of these rendered samples catches a loss
++    // coefficient applied with the wrong time units; reading an intended
++    // formula or watching a continually driven string cannot do that.
++    static std::vector<float> unforcedSympatheticDecay(
++        ElectryEngine& engine, int stringIndex)
++    {
++        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
++        voice.active = false;
++        voice.sympatheticReady = false;
++        voice.vertical.clear();
++        engine.configureSympatheticString(voice);
++        voice.sympatheticReady = true;
++        const double omega = 6.2831853071795864769
++            * voice.lastConfiguredFrequency / engine.sampleRate_;
++        for (int index = 0; index < ElectryEngine::delayLineSize; ++index)
++            voice.vertical.line[static_cast<std::size_t>(index)] = 0.01f
++                * static_cast<float>(std::sin(
++                    omega * (index - ElectryEngine::delayLineSize)));
++        engine.sympatheticInjection_ = 0.0f;
++        engine.feedbackDrive_ = 0.0f;
++        std::vector<float> result(
++            static_cast<std::size_t>(0.30 * engine.sampleRate_));
++        for (auto& sample : result)
++        {
++            ElectryEngine::RenderSums sums;
++            engine.renderSympatheticString(voice, sums, 0.0f);
++            sample = voice.vertical.line[static_cast<std::size_t>(
++                (voice.vertical.writeIndex - 1)
++                & (ElectryEngine::delayLineSize - 1))];
++        }
++        return result;
++    }
++
+     static void setSympatheticEnergy(ElectryEngine& engine, int stringIndex,
+                                      float energy) noexcept
+     {
+@@ -20946,9 +20987,71 @@
+ // which costs only the top of the tilt.
+ //
+ // The loop's realised decay is read back from what actually runs - the solved
+-// gain, one-pole coefficient and live per-sample hand gain - rather than from
++// gain, one-pole coefficient and live per-round-trip hand gain - rather than from
+ // the solver's own arithmetic. Leaving the last term out hid Palm Pressure
+ // being applied once in the loop target and a second time by the global hand.
++void testCoupledStringHandLossHasPhysicalTimeUnits()
++{
++    for (double hostRate : { 44100.0, 48000.0, 96000.0, 192000.0 })
++    {
++        for (int stringIndex : { 0, ElectryEngine::stringCount - 1 })
++        {
++            const auto trace = [&] (PlayStyle style)
++            {
++                auto engine = std::make_unique<ElectryEngine>();
++                engine->prepare(hostRate, 256);
++                EngineParameters parameters;
++                parameters.sympatheticAmount = 0.20f;
++                engine->setParameters(parameters);
++                engine->reset();
++                engine->noteOn(styleKeyswitch(style), 1.0f);
++                engine->noteOn(45, 0.90f);
++                StereoBuffer settle(static_cast<int>(hostRate * 0.12));
++                renderInto(*engine, settle);
++                return TestAccess::unforcedSympatheticDecay(*engine, stringIndex);
++            };
++            const auto open = trace(PlayStyle::Sustain);
++            const double rate = hostRate <= 96000.0 ? 2.0 * hostRate : hostRate;
++            for (PlayStyle style : { PlayStyle::PalmMute, PlayStyle::Dead })
++            {
++                const auto muted = trace(style);
++                double sumT = 0.0, sumDb = 0.0, sumTT = 0.0, sumTDb = 0.0;
++                int count = 0;
++                for (double time = 0.05; time < 0.25; time += 0.01)
++                {
++                    const int first = static_cast<int>(time * rate);
++                    const int last = static_cast<int>((time + 0.04) * rate);
++                    const double db = 20.0 * std::log10(
++                        rmsInRange(muted, first, last)
++                        / rmsInRange(open, first, last));
++                    sumT += time;
++                    sumDb += db;
++                    sumTT += time * time;
++                    sumTDb += time * db;
++                    ++count;
++                }
++                const double slope = (count * sumTDb - sumT * sumDb)
++                    / (count * sumTT - sumT * sumT);
++                const double measuredT60 = -60.0 / slope;
++                // Independently specified physical targets, observed through
++                // samples: default Palm Tightness .55 and the measured Dead
++                // contact. The previous runtime missed them by 250–4600x.
++                const double expectedT60 = style == PlayStyle::Dead ? 1.6
++                    : std::exp(std::log(4.0)
++                        + (0.55 + 0.45 * 0.55)
++                            * (std::log(0.045) - std::log(4.0)));
++                expect(std::isfinite(measuredT60)
++                           && std::abs(measuredT60 / expectedT60 - 1.0) < 0.03,
++                       "idle string " + std::to_string(stringIndex)
++                           + " hand loss has wrong time units at "
++                           + std::to_string(hostRate) + " Hz: measured "
++                           + std::to_string(measuredT60) + " s, expected "
++                           + std::to_string(expectedT60) + " s");
++            }
++        }
++    }
++}
++
+ void testCoupledStringKeepsItsFundamentalDecayTarget()
+ {
+     // Realised round-trip T60 of a coupled loop at its own fundamental.
+@@ -20963,9 +21066,9 @@
+             / std::sqrt(std::max(1.0 + a * a - 2.0 * a * std::cos(omega),
+                                  1.0e-30));
+         const double period = rate / f0;
+-        const double handGain = TestAccess::sympatheticHandGain(engine);
+-        const double perRoundTrip = snapshot.loopGain * magnitude
+-                                  * std::pow(handGain, period);
++        const double handGain = TestAccess::sympatheticHandLoopGain(
++            engine, stringIndex);
++        const double perRoundTrip = snapshot.loopGain * magnitude * handGain;
+         if (perRoundTrip <= 0.0 || perRoundTrip >= 1.0)
+             return 1.0e9;
+         return -3.0 * period / (rate * std::log10(perRoundTrip));
+@@ -21821,6 +21924,7 @@
+     testPolarisationCouplingIsRateInvariant();
+     testCoupledStringLosesItsTopEndLikeAPlayedString();
+     testCoupledStringKeepsItsFundamentalDecayTarget();
++    testCoupledStringHandLossHasPhysicalTimeUnits();
+     testFingeredStringsShareTheBridge();
+     testParameterSanitisation();
+     testParameterSanitisationFallsBackToDefaults();

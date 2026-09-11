@@ -1,0 +1,107 @@
+--- a/Source/DSP/ElectryEngine.cpp
++++ b/Source/DSP/ElectryEngine.cpp
+@@ -5985,10 +5985,22 @@
+     // following a loud one on the same string is divided by the loud one's
+     // peak and sits near the floor for its whole length, which makes two
+     // identical notes sound different depending on what preceded them.
+-    voice.vertical.handEnvelope = 0.0f;
+-    voice.vertical.handEnvelopePeak = 0.0f;
+-    voice.horizontal.handEnvelope = 0.0f;
+-    voice.horizontal.handEnvelopePeak = 0.0f;
++    // An opening wrist does not tighten the heel again just because its pick
++    // meets a still-ringing string. Keep the existing heel relaxation through
++    // that finite lift; resetting the follower here forces the previous Palm
++    // dip back to full depth during the fresh open attack. A newly planted
++    // or steady Palm retains its established per-stroke force calibration.
++    const bool releasingExistingPalm = wasRinging
++        && playStyle == PlayStyle::Sustain
++        && (voice.livePalmContact > 0.0f
++            || palmMuteBlend_ < voice.livePalmPressure);
++    if (! releasingExistingPalm)
++    {
++        voice.vertical.handEnvelope = 0.0f;
++        voice.vertical.handEnvelopePeak = 0.0f;
++        voice.horizontal.handEnvelope = 0.0f;
++        voice.horizontal.handEnvelopePeak = 0.0f;
++    }
+     voice.noiseState = hash32(static_cast<std::uint32_t>(voice.stringIndex * 7349)
+                               ^ static_cast<std::uint32_t>(midiNote * 131)
+                               ^ static_cast<std::uint32_t>(
+--- a/Tests/ElectryEngineTests.cpp
++++ b/Tests/ElectryEngineTests.cpp
+@@ -178,6 +178,14 @@
+         return engine.smoothedParameters_.stringGauge;
+     }
+ #endif
++
++    static std::array<float, 4> handFollowers(const ElectryEngine& engine,
++                                              int stringIndex)
++    {
++        const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
++        return { voice.vertical.handEnvelope, voice.vertical.handEnvelopePeak,
++                 voice.horizontal.handEnvelope, voice.horizontal.handEnvelopePeak };
++    }
+ 
+     struct VoiceSnapshot
+     {
+@@ -15185,6 +15193,52 @@
+            "a delayed fret retarget did not install its own damping at contact");
+ }
+ 
++void testReopenedPickRetainsHandRelaxation()
++{
++    for (const double rate : { 44100.0, 48000.0, 96000.0 })
++        for (const int note : { 40, 62 })
++            for (const bool continuousPressure : { false, true })
++                for (const float velocity : { 0.25f, 0.85f })
++                {
++                    ElectryEngine engine;
++                    engine.prepare(rate, 256);
++                    EngineParameters parameters;
++                    parameters.sympatheticAmount = 0.0f;
++                    parameters.strumSpreadSeconds = 0.0f;
++                    parameters.muteDamping = 0.72f;
++                    engine.setParameters(parameters);
++                    engine.reset();
++                    engine.noteOn(styleKeyswitch(continuousPressure
++                        ? PlayStyle::Sustain : PlayStyle::PalmMute), 1.0f);
++                    engine.setPalmMutePressure(continuousPressure ? 0.65f : 0.0f);
++                    engine.noteOn(note, 0.85f);
++                    StereoBuffer ring(static_cast<int>(rate * 0.4));
++                    renderInto(engine, ring);
++                    const int stringIndex = TestAccess::stringForNote(engine, note);
++                    const auto before = TestAccess::handFollowers(engine, stringIndex);
++                    expect(before[0] > 0.0f && before[1] > before[0],
++                           "reopen regression requires a relaxed ringing heel");
++                    if (continuousPressure)
++                        engine.setPalmMutePressure(0.0f);
++                    else
++                        engine.noteOn(styleKeyswitch(PlayStyle::Sustain), 1.0f);
++                    engine.noteOn(ElectryEngine::firstRepickNote + stringIndex,
++                                  velocity);
++                    const auto after = TestAccess::handFollowers(engine, stringIndex);
++                    expect(after == before,
++                           "an opening repick must not reset and tighten the relaxed heel");
++                    const auto state = TestAccess::snapshot(engine, stringIndex);
++                    expect(state.active && state.keyDown && state.midiNote == note,
++                           "opening repick lost the existing fretting owner");
++                    StereoBuffer opened(static_cast<int>(rate * 0.12));
++                    renderInto(engine, opened);
++                    const auto settled = TestAccess::snapshot(engine, stringIndex);
++                    expect(allFinite(opened) && settled.livePalmContact == 0.0f
++                               && settled.livePalmPressure == 0.0f,
++                           "preserved heel relaxation did not reach a finite open endpoint");
++                }
++}
++
+ void testFinitePalmContactTransitions()
+ {
+     // One held physical string repeatedly meets/lifts the heel; neither a
+@@ -21784,6 +21838,7 @@
+     testLegatoSlideDoesNotConsumeAPickStroke();
+     testLiveDampingRefitsPreservePitch();
+     testSharedHandRetunesActiveStringDamping();
++    testReopenedPickRetainsHandRelaxation();
+     testFinitePalmContactTransitions();
+     testSympatheticBridgeCoupling();
+     testPalmMuteContinuum();

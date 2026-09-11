@@ -1,0 +1,47 @@
+{
+  "drop_e_styles-dry": {
+    "sample_identical": false,
+    "rms_change_db": 0.021580234169960022,
+    "null_db": -34.5064902305603
+  },
+  "held_pressure_28-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "held_pressure_28_control-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "held_pressure_40-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "held_pressure_40_control-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "held_style_alternation-dry": {
+    "sample_identical": false,
+    "rms_change_db": 0.03653870429843664,
+    "null_db": -29.56160545349121
+  },
+  "pressure_lift_then_repick-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "rolling_chords_pressure-dry": {
+    "sample_identical": true,
+    "rms_change_db": 0.0,
+    "null_db": null
+  },
+  "rolling_chords_styles-dry": {
+    "sample_identical": false,
+    "rms_change_db": 0.026434899773448706,
+    "null_db": -34.87091779708862
+  }
+}
