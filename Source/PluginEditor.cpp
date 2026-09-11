@@ -8,21 +8,21 @@ namespace
 {
 namespace colours
 {
-const juce::Colour background { 0xff0b0d10 };
-const juce::Colour panel { 0xff13171c };
-const juce::Colour panelTop { 0xff232a31 };
-const juce::Colour panelOutline { 0xff4c535a };
-const juce::Colour binding { 0xffc9c1b2 };
-const juce::Colour text { 0xfff0ede6 };
-const juce::Colour dimText { 0xffa7adb4 };
-const juce::Colour accent { 0xffd44832 };
-const juce::Colour accentBright { 0xffff703f };
-const juce::Colour accentDark { 0xff50231f };
-const juce::Colour oxblood { 0xff42201e };
+const juce::Colour background { 0xff0a0c0f };
+const juce::Colour panel { 0xff15181c };
+const juce::Colour panelTop { 0xff21262c };
+const juce::Colour panelOutline { 0xff3a4147 };
+const juce::Colour binding { 0xffd2c8b6 };
+const juce::Colour text { 0xfff1eee8 };
+const juce::Colour dimText { 0xffabb0b5 };
+const juce::Colour accent { 0xffbe492f };
+const juce::Colour accentBright { 0xfff17a4b };
+const juce::Colour accentDark { 0xff38231f };
+const juce::Colour oxblood { 0xff2b1c1b };
 const juce::Colour knobFace { 0xff171b20 };
 const juce::Colour bakeliteEdge { 0xff080a0c };
 const juce::Colour nickel { 0xffaeb7bd };
-const juce::Colour warmBone { 0xffccd0cf };
+const juce::Colour warmBone { 0xffbec4c1 };
 const juce::Colour ebony { 0xff101317 };
 const juce::Colour keyswitchBlack { 0xff242b31 };
 const juce::Colour rosewood { 0xff252b30 };
@@ -342,117 +342,78 @@ void ElectryLookAndFeel::drawRotarySlider (juce::Graphics& graphics, int x, int 
     const auto centre = bounds.getCentre();
     const auto angle = rotaryStartAngle
         + juce::jlimit (0.0f, 1.0f, sliderPos) * (rotaryEndAngle - rotaryStartAngle);
-    const auto opacity = enabled ? 1.0f : 0.35f;
+    const auto opacity = enabled ? 1.0f : 0.54f;
 
-    // Engraved scale: compact controls keep three landmarks, heroes eleven.
-    const int tickStep = visualWeight < compactKnobWeight ? 5 : 1;
-    for (int tick = 0; tick <= 10; tick += tickStep)
+    // Sparse engraved landmarks leave the face and pointer visually dominant.
+    const int divisions = visualWeight < compactKnobWeight ? 2 : 4;
+    for (int tick = 0; tick <= divisions; ++tick)
     {
-        const auto tickAngle = juce::jmap (static_cast<float> (tick), 0.0f, 10.0f,
-                                           rotaryStartAngle, rotaryEndAngle);
-        const bool major = tick % 5 == 0;
+        const auto tickAngle = juce::jmap (static_cast<float> (tick),
+            0.0f, static_cast<float> (divisions), rotaryStartAngle, rotaryEndAngle);
+        const bool major = tick == 0 || tick == divisions || tick * 2 == divisions;
         const auto outer = centre.getPointOnCircumference (radius, tickAngle);
         const auto inner = centre.getPointOnCircumference (
-            radius - (major ? 3.8f : 2.0f), tickAngle);
-        graphics.setColour ((major ? colours::binding : colours::nickel)
-            .withAlpha ((major ? 0.68f : 0.32f) * opacity));
-        graphics.drawLine ({ inner, outer }, major ? 1.0f : 0.65f);
+            radius - (major ? 2.7f : 1.7f), tickAngle);
+        graphics.setColour (colours::binding.withAlpha ((major ? 0.45f : 0.23f) * opacity));
+        graphics.drawLine ({ inner, outer }, major ? 0.9f : 0.65f);
     }
 
-    const auto trackRadius = juce::jmax (1.0f, radius - 5.5f);
+    const auto trackRadius = juce::jmax (1.0f, radius - 5.0f);
     juce::Path track, value;
     track.addCentredArc (centre.x, centre.y, trackRadius, trackRadius, 0.0f,
                          rotaryStartAngle, rotaryEndAngle, true);
     value.addCentredArc (centre.x, centre.y, trackRadius, trackRadius, 0.0f,
                          rotaryStartAngle, angle, true);
-    graphics.setColour (juce::Colours::black.withAlpha (0.75f * opacity));
-    graphics.strokePath (track, juce::PathStrokeType (2.6f));
-    graphics.setColour (colours::nickel.withAlpha (0.13f * opacity));
-    graphics.strokePath (track, juce::PathStrokeType (0.8f));
+    const juce::PathStrokeType arcStroke (1.0f + 0.35f * visualWeight,
+        juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    graphics.setColour (colours::nickel.withAlpha (0.14f * opacity));
+    graphics.strokePath (track, arcStroke);
     if (engaged)
     {
-        graphics.setColour (colours::accent.withAlpha (0.12f));
-        graphics.strokePath (value, juce::PathStrokeType (4.0f));
+        graphics.setColour (colours::accent.withAlpha (0.10f));
+        graphics.strokePath (value, juce::PathStrokeType (3.2f));
     }
-    graphics.setColour (colours::accentBright.withAlpha (
-        (engaged ? 0.96f : 0.66f) * opacity));
-    graphics.strokePath (value, juce::PathStrokeType (1.0f + 0.25f * visualWeight));
+    graphics.setColour (colours::accentBright.withAlpha ((engaged ? 1.0f : 0.78f) * opacity));
+    graphics.strokePath (value, arcStroke);
 
-    // Black anodised skirt over a narrow machined-steel chamfer.
-    const auto metalRadius = radius * 0.74f;
+    // One continuous metal bevel around a satin-black cap; no ornamental rings.
+    const auto metalRadius = radius * 0.75f;
     const auto metalBounds = juce::Rectangle<float> (
         centre.x - metalRadius, centre.y - metalRadius,
         2.0f * metalRadius, 2.0f * metalRadius);
-    graphics.setColour (juce::Colours::black.withAlpha (0.30f * opacity));
-    graphics.fillEllipse (metalBounds.expanded (1.0f).translated (0.0f, 2.4f));
-    graphics.setColour (juce::Colours::black.withAlpha (0.50f * opacity));
-    graphics.fillEllipse (metalBounds.translated (0.0f, 1.3f));
-    juce::ColourGradient chamfer (colours::nickel.withAlpha (opacity),
+    graphics.setColour (juce::Colours::black.withAlpha (0.36f * opacity));
+    graphics.fillEllipse (metalBounds.expanded (0.8f).translated (0.0f, 2.0f));
+    juce::ColourGradient bevel (colours::nickel.withAlpha (0.62f * opacity),
         metalBounds.getX(), metalBounds.getY(),
         colours::bakeliteEdge.withAlpha (opacity),
         metalBounds.getRight(), metalBounds.getBottom(), false);
-    chamfer.addColour (0.33, juce::Colour (0xff555e66).withAlpha (opacity));
-    chamfer.addColour (0.52, juce::Colour (0xff12171b).withAlpha (opacity));
-    chamfer.addColour (0.81, juce::Colour (0xff4c555d).withAlpha (opacity));
-    graphics.setGradientFill (chamfer);
+    bevel.addColour (0.35, juce::Colour (0xff40464b).withAlpha (opacity));
+    bevel.addColour (0.66, juce::Colour (0xff111417).withAlpha (opacity));
+    bevel.addColour (0.90, juce::Colour (0xff3c4247).withAlpha (opacity));
+    graphics.setGradientFill (bevel);
     graphics.fillEllipse (metalBounds);
 
-    const auto gripBounds = metalBounds.reduced (1.5f);
-    graphics.setGradientFill (juce::ColourGradient (
-        juce::Colour (0xff293139).withAlpha (opacity), gripBounds.getX(), gripBounds.getY(),
-        colours::bakeliteEdge.withAlpha (opacity), gripBounds.getRight(), gripBounds.getBottom(), false));
-    graphics.fillEllipse (gripBounds);
-    const int flutes = visualWeight < compactKnobWeight ? 20 : 32;
-    for (int flute = 0; flute < flutes; ++flute)
-    {
-        const auto fluteAngle = juce::MathConstants<float>::twoPi
-            * static_cast<float> (flute) / static_cast<float> (flutes);
-        const auto inner = centre.getPointOnCircumference (metalRadius * 0.79f, fluteAngle);
-        const auto outer = centre.getPointOnCircumference (metalRadius * 0.93f, fluteAngle);
-        graphics.setColour ((flute % 2 == 0 ? colours::nickel : juce::Colours::black)
-            .withAlpha ((flute % 2 == 0 ? 0.12f : 0.62f) * opacity));
-        graphics.drawLine ({ inner, outer }, 0.8f);
-    }
-
-    const auto capRadius = metalRadius * 0.79f;
-    const auto capBounds = juce::Rectangle<float> (
-        centre.x - capRadius, centre.y - capRadius, 2 * capRadius, 2 * capRadius);
-    juce::ColourGradient cap (juce::Colour (0xff343d46).withAlpha (opacity),
-        centre.x - capRadius * 0.65f, centre.y - capRadius,
-        juce::Colour (0xff101419).withAlpha (opacity),
-        centre.x + capRadius * 0.70f, centre.y + capRadius, false);
-    cap.addColour (0.52, colours::knobFace.withAlpha (opacity));
+    const auto capBounds = metalBounds.reduced (juce::jmax (1.1f, metalRadius * 0.065f));
+    const auto capRadius = capBounds.getWidth() * 0.5f;
+    juce::ColourGradient cap (juce::Colour (0xff2c3136).withAlpha (opacity),
+        centre.x - capRadius * 0.5f, capBounds.getY(),
+        juce::Colour (0xff101215).withAlpha (opacity),
+        centre.x + capRadius * 0.6f, capBounds.getBottom(), false);
+    cap.addColour (0.54, colours::knobFace.withAlpha (opacity));
     graphics.setGradientFill (cap);
     graphics.fillEllipse (capBounds);
-    graphics.setColour (colours::nickel.withAlpha (0.22f * opacity));
+    graphics.setColour (juce::Colours::black.withAlpha (0.55f * opacity));
     graphics.drawEllipse (capBounds, 0.7f);
-    graphics.setColour (juce::Colours::black.withAlpha (0.48f * opacity));
-    graphics.drawEllipse (capBounds.reduced (1.2f), 0.6f);
 
-    // A few faint horizontal machining lines stay inside the metal face.
-    for (int line = -3; line <= 3; ++line)
-    {
-        const float lineY = static_cast<float> (line) * capRadius * 0.19f;
-        const float halfWidth = std::sqrt (juce::jmax (0.0f,
-            capRadius * capRadius * 0.80f - lineY * lineY));
-        graphics.setColour (colours::nickel.withAlpha (0.028f * opacity));
-        graphics.drawLine (centre.x - halfWidth, centre.y + lineY,
-                           centre.x + halfWidth, centre.y + lineY, 0.55f);
-    }
-
-    const auto pointerOuter = centre.getPointOnCircumference (capRadius * 0.82f, angle);
-    const auto pointerInner = centre.getPointOnCircumference (capRadius * 0.31f, angle);
-    graphics.setColour (juce::Colours::black.withAlpha (0.68f * opacity));
-    graphics.drawLine ({ pointerInner, pointerOuter }, 3.4f);
-    if (enabled)
-    {
-        graphics.setColour (colours::accent.withAlpha (engaged ? 0.24f : 0.11f));
-        graphics.drawLine ({ pointerInner, pointerOuter }, 4.1f);
-    }
+    const auto pointerOuter = centre.getPointOnCircumference (capRadius * 0.81f, angle);
+    const auto pointerInner = centre.getPointOnCircumference (capRadius * 0.40f, angle);
+    graphics.setColour (juce::Colours::black.withAlpha (0.70f * opacity));
+    graphics.drawLine ({ pointerInner, pointerOuter }, 3.0f);
+    graphics.setColour ((enabled ? colours::text : colours::binding).withAlpha (0.92f * opacity));
+    graphics.drawLine ({ pointerInner, pointerOuter }, 1.6f);
+    const auto pointerTip = centre.getPointOnCircumference (capRadius * 0.68f, angle);
     graphics.setColour (colours::accentBright.withAlpha (opacity));
-    graphics.drawLine ({ pointerInner, pointerOuter }, 1.8f);
-    graphics.setColour (colours::text.withAlpha (0.80f * opacity));
-    graphics.fillEllipse (pointerOuter.x - 0.8f, pointerOuter.y - 0.8f, 1.6f, 1.6f);
+    graphics.drawLine ({ pointerTip, pointerOuter }, 1.6f);
     if (slider.hasKeyboardFocus (true) && enabled)
     {
         graphics.setColour (colours::binding.withAlpha (0.88f));
@@ -469,6 +430,8 @@ void ElectryLookAndFeel::drawButtonBackground (juce::Graphics& graphics,
     const auto bounds = button.getLocalBounds().toFloat().reduced (1.0f);
     const bool on = button.getToggleState();
     const bool enabled = button.isEnabled();
+    if (! enabled)
+        graphics.beginTransparencyLayer (0.58f);
     const auto cut = juce::jmin (4.0f, bounds.getHeight() * 0.17f);
     const auto chamfered = [] (juce::Rectangle<float> area, float corner)
     {
@@ -485,33 +448,29 @@ void ElectryLookAndFeel::drawButtonBackground (juce::Graphics& graphics,
         return path;
     };
     const auto shape = chamfered (bounds, cut);
-    auto fill = on ? juce::Colour (0xff49261f) : backgroundColour;
-    if (enabled && isDown) fill = fill.brighter (0.16f);
-    else if (enabled && isHighlighted) fill = fill.brighter (0.09f);
+    auto fill = on ? backgroundColour.interpolatedWith (colours::oxblood, enabled ? 0.64f : 0.35f)
+                   : backgroundColour;
+    if (enabled && isDown) fill = fill.darker (0.10f);
+    else if (enabled && isHighlighted) fill = fill.brighter (0.08f);
 
     graphics.setColour (juce::Colours::black.withAlpha (0.50f));
     graphics.fillPath (shape, juce::AffineTransform::translation (0.0f, 1.0f));
     graphics.setGradientFill (juce::ColourGradient (
-        fill.brighter (on ? 0.12f : 0.05f), bounds.getCentreX(), bounds.getY(),
-        fill.darker (0.28f), bounds.getCentreX(), bounds.getBottom(), false));
+        fill.brighter (on && enabled ? 0.08f : 0.035f), bounds.getCentreX(), bounds.getY(),
+        fill.darker (0.18f), bounds.getCentreX(), bounds.getBottom(), false));
     graphics.fillPath (shape);
-    if (on && enabled)
-    {
-        graphics.setColour (colours::accent.withAlpha (0.13f));
-        graphics.strokePath (shape, juce::PathStrokeType (3.0f));
-    }
-    graphics.setColour (on ? colours::accent.withAlpha (0.92f)
-        : colours::panelOutline.withAlpha (isHighlighted && enabled ? 0.90f : 0.55f));
+    graphics.setColour (on ? colours::accent.withAlpha (enabled ? 0.78f : 0.30f)
+        : colours::panelOutline.withAlpha (isHighlighted && enabled ? 0.78f : 0.43f));
     graphics.strokePath (shape, juce::PathStrokeType (on ? 1.0f : 0.75f));
-    graphics.setColour (colours::nickel.withAlpha (on ? 0.17f : 0.12f));
+    graphics.setColour (colours::nickel.withAlpha (enabled ? 0.10f : 0.055f));
     graphics.drawLine (bounds.getX() + cut + 1.0f, bounds.getY() + 1.0f,
                        bounds.getRight() - cut - 1.0f, bounds.getY() + 1.0f, 0.65f);
     if (on)
     {
         const auto indicatorWidth = juce::jmin (17.0f, bounds.getWidth() * 0.26f);
-        graphics.setColour (colours::accentBright);
+        graphics.setColour (colours::accentBright.withAlpha (enabled ? 0.94f : 0.38f));
         graphics.fillRoundedRectangle (bounds.getCentreX() - indicatorWidth * 0.5f,
-            bounds.getBottom() - 2.6f, indicatorWidth, 1.6f, 0.8f);
+            bounds.getBottom() - 2.1f, indicatorWidth, 1.1f, 0.55f);
     }
     if (enabled && button.hasKeyboardFocus (true))
     {
@@ -519,6 +478,8 @@ void ElectryLookAndFeel::drawButtonBackground (juce::Graphics& graphics,
         graphics.strokePath (chamfered (bounds.reduced (2.5f), juce::jmax (1.0f, cut - 1.5f)),
                              juce::PathStrokeType (0.8f));
     }
+    if (! enabled)
+        graphics.endTransparencyLayer();
 }
 
 void ElectryLookAndFeel::drawButtonText (juce::Graphics& graphics, juce::TextButton& button,
@@ -526,20 +487,27 @@ void ElectryLookAndFeel::drawButtonText (juce::Graphics& graphics, juce::TextBut
 {
     const auto font = getTextButtonFont (button, button.getHeight());
     graphics.setFont (font);
-    graphics.setColour (button.getToggleState() || isHighlighted ? colours::text
-        : colours::text.withAlpha (0.83f));
+    const auto textColour = colours::text.withAlpha (button.isEnabled()
+        ? (button.getToggleState() || isHighlighted ? 1.0f : 0.87f) : 0.62f);
+    graphics.setColour (textColour);
     auto area = button.getLocalBounds().reduced (5, 2);
     const auto label = button.getButtonText();
     const auto* parent = button.getParentComponent();
     const bool stroke = parent != nullptr && parent->getComponentID() == "pickStyleStrip";
     const bool amp = parent != nullptr && parent->getComponentID() == "ampModel";
-    const float estimatedTextWidth = static_cast<float> (label.length()) * font.getHeight() * 0.56f;
-    if ((stroke || amp) && static_cast<float> (area.getWidth()) > estimatedTextWidth + 24.0f)
+    const bool power = button.getComponentID() == electry::parameters::fxEnabled;
+    const float textWidth = juce::GlyphArrangement::getStringWidth (font, label);
+    const int iconWidth = stroke ? 12 : (power ? 13 : 15);
+    const int iconGap = stroke ? 4 : 6;
+    const int preferredGroupWidth = static_cast<int> (std::ceil (textWidth))
+                                 + iconWidth + iconGap;
+    // All pick directions share the same compact icon slot, including DOWN.
+    if (stroke || power || (amp && area.getWidth() >= preferredGroupWidth))
     {
-        const auto groupWidth = juce::jmin (area.getWidth(), juce::roundToInt (estimatedTextWidth) + 22);
+        const auto groupWidth = juce::jmin (area.getWidth(), preferredGroupWidth);
         area = area.withSizeKeepingCentre (groupWidth, area.getHeight());
-        const auto iconArea = area.removeFromLeft (15).toFloat();
-        area.removeFromLeft (5);
+        const auto iconArea = area.removeFromLeft (iconWidth).toFloat();
+        area.removeFromLeft (iconGap);
         const auto mid = iconArea.getCentre();
         juce::Path icon;
         if (stroke)
@@ -560,6 +528,13 @@ void ElectryLookAndFeel::drawButtonText (juce::Graphics& graphics, juce::TextBut
             arrow (mid.x - (alternate ? 3.0f : 0.0f), up);
             if (alternate) arrow (mid.x + 3.0f, true);
         }
+        else if (power)
+        {
+            icon.addCentredArc (mid.x, mid.y + 0.35f, 4.15f, 4.15f, 0.0f,
+                0.68f, juce::MathConstants<float>::twoPi - 0.68f, true);
+            icon.startNewSubPath (mid.x, mid.y - 5.0f);
+            icon.lineTo (mid.x, mid.y - 0.4f);
+        }
         else if (label.containsIgnoreCase ("CLEAN"))
         {
             icon.startNewSubPath (mid.x - 6.0f, mid.y);
@@ -576,11 +551,11 @@ void ElectryLookAndFeel::drawButtonText (juce::Graphics& graphics, juce::TextBut
             icon.lineTo (mid.x + 5.0f, mid.y + 4.0f);
             icon.lineTo (mid.x + 6.0f, mid.y - 4.0f);
         }
-        graphics.setColour (button.getToggleState() ? colours::accentBright : colours::binding);
+        graphics.setColour ((button.getToggleState() ? colours::accentBright : colours::binding)
+            .withAlpha (button.isEnabled() ? 0.90f : 0.46f));
         graphics.strokePath (icon, juce::PathStrokeType (1.15f,
             juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        graphics.setColour (button.getToggleState() || isHighlighted ? colours::text
-            : colours::text.withAlpha (0.83f));
+        graphics.setColour (textColour);
     }
     graphics.drawFittedText (label, area, juce::Justification::centred, 1);
 }
@@ -591,8 +566,15 @@ void ElectryLookAndFeel::drawLabel (juce::Graphics& graphics, juce::Label& label
         "electryControlCaption", false));
     const bool sliderValue = static_cast<bool> (label.getProperties().getWithDefault (
         "electrySliderValue", false));
+    if (sliderValue && label.isEnabled() && label.isMouseOverOrDragging()
+        && ! label.isBeingEdited())
+    {
+        graphics.setColour (colours::nickel.withAlpha (0.055f));
+        graphics.fillRoundedRectangle (label.getLocalBounds().toFloat().reduced (1.0f),
+                                       2.0f);
+    }
     graphics.setColour (label.findColour (juce::Label::textColourId)
-        .withMultipliedAlpha (label.isEnabled() ? 1.0f : 0.5f));
+        .withMultipliedAlpha (label.isEnabled() ? 1.0f : 0.67f));
     graphics.setFont (label.getFont());
     if (! label.isBeingEdited())
         graphics.drawFittedText (label.getText(), label.getLocalBounds(),
@@ -614,9 +596,9 @@ void ElectryLookAndFeel::drawComboBox (juce::Graphics& graphics, int width,
                                            static_cast<float> (height) - 1.0f);
     const bool engaged = box.isEnabled()
         && (isButtonDown || box.isMouseOverOrDragging() || box.hasKeyboardFocus (true));
-    const auto fill = colours::knobFace.brighter (engaged ? 0.12f : 0.02f);
-    juce::ColourGradient gradient (fill.brighter (0.08f), bounds.getX(),
-                                   bounds.getY(), fill.darker (0.25f),
+    const auto fill = colours::knobFace.brighter (engaged ? 0.08f : 0.015f);
+    juce::ColourGradient gradient (fill.brighter (0.045f), bounds.getX(),
+                                   bounds.getY(), fill.darker (0.16f),
                                    bounds.getX(), bounds.getBottom(), false);
     juce::Path shape;
     constexpr float chamfer = 3.5f;
@@ -631,11 +613,14 @@ void ElectryLookAndFeel::drawComboBox (juce::Graphics& graphics, int width,
     shape.closeSubPath();
     graphics.setGradientFill (gradient);
     graphics.fillPath (shape);
-    graphics.setColour (engaged ? colours::binding.withAlpha (0.78f)
-                               : colours::panelOutline.withAlpha (0.66f));
+    graphics.setColour (engaged ? colours::binding.withAlpha (0.64f)
+                               : colours::panelOutline.withAlpha (0.48f));
     graphics.strokePath (shape, juce::PathStrokeType (0.8f));
-    graphics.setColour (colours::nickel.withAlpha (0.15f));
-    graphics.drawVerticalLine (width - 31, bounds.getY() + 6.0f, bounds.getBottom() - 6.0f);
+    graphics.setColour (colours::nickel.withAlpha (0.10f));
+    graphics.drawLine (bounds.getX() + chamfer + 1.0f, bounds.getY() + 1.0f,
+                       bounds.getRight() - chamfer - 1.0f, bounds.getY() + 1.0f, 0.6f);
+    graphics.setColour (colours::nickel.withAlpha (0.12f));
+    graphics.drawVerticalLine (width - 31, bounds.getY() + 8.0f, bounds.getBottom() - 8.0f);
 
     const auto arrowX = bounds.getRight() - 18.0f;
     const auto arrowY = bounds.getCentreY();
@@ -643,10 +628,10 @@ void ElectryLookAndFeel::drawComboBox (juce::Graphics& graphics, int width,
     arrow.startNewSubPath (arrowX - 4.0f, arrowY - 2.0f);
     arrow.lineTo (arrowX, arrowY + 2.0f);
     arrow.lineTo (arrowX + 4.0f, arrowY - 2.0f);
-    graphics.setColour (colours::accentBright.withAlpha (box.isEnabled() ? 0.9f : 0.35f));
-    graphics.strokePath (arrow, juce::PathStrokeType (1.5f,
-                                                       juce::PathStrokeType::curved,
-                                                       juce::PathStrokeType::rounded));
+    graphics.setColour ((engaged ? colours::accentBright : colours::binding)
+        .withAlpha (box.isEnabled() ? 0.82f : 0.48f));
+    graphics.strokePath (arrow, juce::PathStrokeType (1.25f,
+        juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
 void ElectryLookAndFeel::positionComboBoxText (juce::ComboBox& box,
@@ -674,7 +659,7 @@ juce::Label* ElectryLookAndFeel::createSliderTextBox (juce::Slider& slider)
         juce::Slider::textBoxBackgroundColourId);
     label->setKeyboardType (juce::TextInputTarget::decimalKeyboard);
     label->setFont (juce::FontOptions (11.5f));
-    label->setColour (juce::Label::textColourId, colours::binding.withAlpha (0.88f));
+    label->setColour (juce::Label::textColourId, colours::text.withAlpha (0.88f));
     label->setColour (juce::Label::backgroundColourId,
                       linearBar ? juce::Colours::transparentBlack : background);
     label->setColour (juce::Label::outlineColourId,
@@ -947,15 +932,8 @@ void ElectryKeyboardComponent::drawBlackNote (
 void ElectryTextButton::paintButton (juce::Graphics& graphics,
                                      bool isHighlighted, bool isDown)
 {
-    if (isEnabled())
-    {
-        juce::TextButton::paintButton (graphics, isHighlighted, isDown);
-        return;
-    }
-
-    graphics.beginTransparencyLayer (0.5f);
+    // Draw disabled materials and text at their individual contrast levels.
     juce::TextButton::paintButton (graphics, isHighlighted, isDown);
-    graphics.endTransparencyLayer();
 }
 
 bool ElectryTextButton::keyPressed (const juce::KeyPress& key)
@@ -1239,16 +1217,18 @@ ElectryStatusDisplay::createAccessibilityHandler()
 void ElectryStatusDisplay::paint (juce::Graphics& graphics)
 {
     auto bounds = getLocalBounds().toFloat();
-    graphics.setColour (juce::Colours::black.withAlpha (0.62f));
-    graphics.fillRoundedRectangle (bounds, 5.0f);
-    graphics.setColour (colours::panelOutline.withAlpha (0.52f));
-    graphics.drawRoundedRectangle (bounds.reduced (0.5f), 5.0f, 1.0f);
+    graphics.setColour (colours::background.withAlpha (0.72f));
+    graphics.fillRoundedRectangle (bounds, 3.5f);
+    graphics.setColour (colours::panelOutline.withAlpha (0.40f));
+    graphics.drawRoundedRectangle (bounds.reduced (0.5f), 3.5f, 0.8f);
 
     graphics.setColour (isReady ? colours::accentBright : colours::dimText);
-    graphics.fillEllipse (8.0f, bounds.getCentreY() - 1.8f, 3.6f, 3.6f);
+    graphics.fillEllipse (11.0f, bounds.getCentreY() - 1.8f, 3.6f, 3.6f);
+    graphics.setColour (isReady ? colours::binding : colours::dimText);
     graphics.setFont (juce::FontOptions (11.5f, juce::Font::bold));
     graphics.drawFittedText (getStatusText(),
-                             getLocalBounds().withTrimmedLeft (18).reduced (0, 1),
+                             getLocalBounds().withTrimmedLeft (23)
+                                 .withTrimmedRight (10).reduced (0, 1),
                              juce::Justification::centredLeft, 1, 0.72f);
 }
 
@@ -1570,7 +1550,7 @@ void ElectryFretboardDisplay::paint (juce::Graphics& graphics)
             inlay.lineTo (x, y + halfHeight);
             inlay.lineTo (x - halfWidth, y);
             inlay.closeSubPath();
-            graphics.setColour (colours::nickel.withAlpha (0.25f));
+            graphics.setColour (colours::nickel.withAlpha (0.36f));
             graphics.fillPath (inlay);
             graphics.setColour (colours::ebony.withAlpha (0.75f));
             graphics.drawLine (x, y - halfHeight, x, y + halfHeight, 0.7f);
@@ -1599,7 +1579,7 @@ void ElectryFretboardDisplay::paint (juce::Graphics& graphics)
         graphics.setColour (juce::Colours::black.withAlpha (0.40f));
         graphics.drawLine (x + 0.8f, neck.getY() + 2.0f,
                            x + 0.8f, neck.getBottom() - 2.0f, 1.0f);
-        graphics.setColour (colours::fretWire.withAlpha (0.45f));
+        graphics.setColour (colours::fretWire.withAlpha (0.31f));
         graphics.drawLine (x, neck.getY() + 2.0f, x,
                            neck.getBottom() - 2.0f, 0.7f);
     }
@@ -2169,22 +2149,15 @@ void ElectryAudioProcessorEditor::timerCallback()
 void ElectryAudioProcessorEditor::paint (juce::Graphics& graphics)
 {
     const auto chassis = getLocalBounds().toFloat();
-    juce::ColourGradient metal (juce::Colour (0xff20252b), 0.0f, 0.0f,
+    juce::ColourGradient metal (juce::Colour (0xff1b2026), 0.0f, 0.0f,
                                 colours::background, chassis.getWidth() * 0.7f,
                                 chassis.getHeight(), false);
-    metal.addColour (0.25, juce::Colour (0xff101318));
+    metal.addColour (0.35, juce::Colour (0xff0f1216));
     graphics.setGradientFill (metal);
     graphics.fillAll();
 
-    // Fine satin grain lives in the chassis, not behind the control legends.
-    // Vector strokes remain sharp at host display scales without a bitmap skin.
-    for (int y = 1; y < getHeight(); y += 3)
-    {
-        graphics.setColour (juce::Colours::white.withAlpha (
-            y % 9 == 1 ? 0.018f : 0.008f));
-        graphics.drawHorizontalLine (y, 1.0f, chassis.getRight() - 1.0f);
-    }
-    graphics.setColour (colours::nickel.withAlpha (0.20f));
+    // Broad satin surfaces and one fine edge keep the controls in focus.
+    graphics.setColour (colours::nickel.withAlpha (0.16f));
     graphics.drawRoundedRectangle (chassis.reduced (0.5f), 7.0f, 1.0f);
     graphics.setColour (juce::Colours::black.withAlpha (0.7f));
     graphics.drawRoundedRectangle (chassis.reduced (3.0f), 5.0f, 1.0f);
@@ -2202,11 +2175,9 @@ void ElectryAudioProcessorEditor::paint (juce::Graphics& graphics)
         graphics.setColour (bar == 1 ? colours::text : colours::accentBright);
         graphics.fillPath (cut);
     }
-    graphics.setColour (colours::nickel.withAlpha (0.17f));
-    graphics.drawLine (307.0f, 28.0f, 307.0f, 72.0f, 1.0f);
+    graphics.setColour (colours::nickel.withAlpha (0.12f));
+    graphics.drawLine (307.0f, 30.0f, 307.0f, 69.0f, 1.0f);
     graphics.drawLine (18.0f, 84.0f, chassis.getRight() - 18.0f, 84.0f, 1.0f);
-    graphics.setColour (colours::accentBright);
-    graphics.drawLine (18.0f, 84.0f, 81.0f, 84.0f, 1.5f);
 
     const auto cutPanel = [] (juce::Rectangle<float> r)
     {
@@ -2232,17 +2203,17 @@ void ElectryAudioProcessorEditor::paint (juce::Graphics& graphics)
         const auto bounds = sectionBounds[static_cast<std::size_t> (section)];
         if (bounds.isEmpty()) continue;
         const auto r = bounds.toFloat();
-        graphics.setColour (juce::Colours::black.withAlpha (0.5f));
+        graphics.setColour (juce::Colours::black.withAlpha (0.35f));
         graphics.fillPath (cutPanel (r.translated (0, 2)));
         juce::ColourGradient panelLight (colours::panelTop.interpolatedWith (
-                                            colours::panel, 0.5f),
+                                            colours::panel, 0.62f),
                                          r.getX(), r.getY(), colours::panel,
                                          r.getRight(), r.getBottom(), false);
         graphics.setGradientFill (panelLight);
         graphics.fillPath (cutPanel (r));
-        graphics.setColour (colours::panelOutline.withAlpha (0.52f));
+        graphics.setColour (colours::panelOutline.withAlpha (0.42f));
         graphics.strokePath (cutPanel (r.reduced (0.5f)), juce::PathStrokeType (1.0f));
-        graphics.setColour (juce::Colours::white.withAlpha (0.055f));
+        graphics.setColour (juce::Colours::white.withAlpha (0.042f));
         graphics.drawLine (r.getX() + 6, r.getY() + 1,
                            r.getRight() - 6, r.getY() + 1, 1.0f);
 
@@ -2250,7 +2221,7 @@ void ElectryAudioProcessorEditor::paint (juce::Graphics& graphics)
         const int captionHeight = section == effectsSection
             ? effectsHeaderHeight : sectionTitleHeight;
         const float dividerY = r.getY() + static_cast<float> (captionHeight) - 1.0f;
-        graphics.setColour (colours::nickel.withAlpha (0.12f));
+        graphics.setColour (colours::nickel.withAlpha (0.09f));
         graphics.drawLine (r.getX() + 14, dividerY,
                            r.getRight() - 14, dividerY, 0.8f);
 
@@ -2285,12 +2256,12 @@ void ElectryAudioProcessorEditor::paint (juce::Graphics& graphics)
             symbol.lineTo (x + 4, y + 1); symbol.lineTo (x + 7, y + 11);
             symbol.lineTo (x + 9, y + 6); symbol.lineTo (x + 12, y + 6);
         }
-        graphics.setColour (colours::accentBright.withAlpha (0.85f));
+        graphics.setColour (colours::accentBright.withAlpha (0.78f));
         graphics.strokePath (symbol, juce::PathStrokeType (1.2f,
             juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         graphics.setColour (colours::binding);
-        graphics.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold))
-                              .withExtraKerningFactor (0.075f));
+        graphics.setFont (juce::Font (juce::FontOptions (11.5f, juce::Font::bold))
+                              .withExtraKerningFactor (0.045f));
         auto titleBounds = bounds.withHeight (captionHeight).withTrimmedLeft (34);
         if (section == effectsSection)
             titleBounds.setRight (fxEnableButton.getX() - 10);
@@ -2323,8 +2294,7 @@ void ElectryAudioProcessorEditor::resized()
     statusDisplay.setBounds (header.removeFromRight (statusDisplayWidth)
                                  .reduced (0, 14));
     header.removeFromRight (20);
-    factoryProgramSelector.setBounds (header.withTrimmedTop (22)
-                                          .withTrimmedBottom (8));
+    factoryProgramSelector.setBounds (header.reduced (0, 14));
     area.removeFromTop (10);
 
     // The legend above the keyboard carries the ranges; no footer is needed.
@@ -2467,7 +2437,7 @@ void ElectryAudioProcessorEditor::resized()
     effectsHeader.removeFromRight (8);
     fxOversamplingLabel.setBounds (effectsHeader.removeFromRight (54));
     effectsHeader.removeFromRight (14);
-    fxEnableButton.setBounds (effectsHeader.removeFromRight (76));
+    fxEnableButton.setBounds (effectsHeader.removeFromRight (84));
     ampModelStrip.setBounds (effectsInner.removeFromTop (46));
     effectsInner.removeFromTop (6);
     layoutKnobRow (
@@ -2476,5 +2446,5 @@ void ElectryAudioProcessorEditor::resized()
           { &ampKnob, KnobTier::detail },
           { &compressorKnob, KnobTier::detail },
           { &delayKnob, KnobTier::detail },
-          { &roomKnob, KnobTier::detail } }, 2);
+          { &roomKnob, KnobTier::detail } }, 12);
 }

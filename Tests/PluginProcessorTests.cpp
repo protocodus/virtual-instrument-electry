@@ -4795,10 +4795,10 @@ void testEditorRendering()
                        juce::PopupMenu::textColourId)
                        == editorLookAndFeel.findColour (
                               juce::ComboBox::textColourId)
-                && popupHighlight == juce::Colour (0xffff703f)
+                && popupHighlight == juce::Colour (0xfff17a4b)
                 && editorLookAndFeel.findColour (
                        juce::PopupMenu::highlightedTextColourId)
-                       == juce::Colour (0xff0b0d10),
+                       == juce::Colour (0xff0a0c0f),
             "factory-rig popup fell back to the stock JUCE palette");
     const auto relativeLuminance = [] (juce::Colour colour)
     {
@@ -5854,6 +5854,7 @@ void testEditorRendering()
                     "could not write scaled/active editor snapshot");
             stream.flush();
         };
+        saveVariant ("-1.5x", 1.5f);
         saveVariant ("-2x", 2.0f);
         setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
         saveVariant ("-fx-on", 1.0f);

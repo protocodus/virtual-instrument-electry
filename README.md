@@ -60,6 +60,9 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-11 — [Interface finish](Docs/ui-polish-2026-09-11.md):**
+  quieter graphite surfaces, refined metal knobs, brighter values, aligned
+  header controls and a power icon for FX, with more space between FX controls.
 - **2026-09-08 — [Keyboard groups and Performance spacing](Docs/ui-keyboard-groups-2026-09-08.md):**
   distinct pick, style, gesture and string-solo key colors with a matching legend,
   inline gray key ranges, plus a wider Performance panel that keeps Palm
