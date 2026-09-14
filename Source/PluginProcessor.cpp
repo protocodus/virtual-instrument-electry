@@ -878,7 +878,7 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
         if (data[2] != 0)
             dispatchNoteOn (static_cast<int> (data[1] & 0x7fu),
                             static_cast<float> (data[2] & 0x7fu) / 127.0f,
-                            false);
+                            false, midiChannel);
         else
             dispatchHostNoteOff (static_cast<int> (data[1] & 0x7fu),
                                  midiChannel);
@@ -982,25 +982,25 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
     // Only playable notes participate in per-channel string ownership.
     if (! electry::ElectryEngine::isMidiPlayableNote (note))
     {
-        dispatchNoteOff (note);
+        dispatchNoteOff (note, midiChannel);
         return;
     }
 
     const auto currentExpressionId = expressionIdForNoteOn (midiChannel);
-    const int recordedOwner = takeNoteOwnership (
+    const auto recordedOwner = takeNoteOwnership (
         note, midiChannel,
         currentExpressionId == electry::ElectryEngine::legacyExpressionId);
     // An unmatched/duplicate release owns nothing. In particular it must
     // not decrement another held MPE note's channel total or centre its bend.
-    if (recordedOwner < 0)
+    if (! recordedOwner.has_value())
         return;
-    const auto expressionId =
-        static_cast<electry::ElectryEngine::ExpressionId> (recordedOwner);
+    const auto expressionId = recordedOwner->expressionId;
     const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
     if (expressionId != electry::ElectryEngine::legacyExpressionId)
     {
-        engine.noteOff (engineNote, expressionId);
-        doubleEngine->noteOff (engineNote, expressionId);
+        engine.noteOff (engineNote, expressionId, recordedOwner->engineOwner);
+        doubleEngine->noteOff (engineNote, expressionId,
+                               recordedOwner->doubleEngineOwner);
         if (expressionId <= electry::ElectryEngine::maximumExpressionId)
         {
             auto& total = outstandingMpeChannelNotes[
@@ -1011,8 +1011,9 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
         }
         return;
     }
-    engine.noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
-    doubleEngine->noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
+    engine.noteOff (engineNote, expressionId, recordedOwner->engineOwner);
+    doubleEngine->noteOff (engineNote, expressionId,
+                           recordedOwner->doubleEngineOwner);
 }
 
 bool ElectryAudioProcessor::processMpeController (const juce::uint8* data,
@@ -1209,17 +1210,19 @@ void ElectryAudioProcessor::clearMpeNoteOwnership() noexcept
         note.size = 0;
 }
 
-bool ElectryAudioProcessor::recordNoteOwnership (
+ElectryAudioProcessor::OutstandingNoteOwner*
+ElectryAudioProcessor::recordNoteOwnership (
     int note, int midiChannel,
     electry::ElectryEngine::ExpressionId expressionId) noexcept
 {
     if (note < 0 || note >= 128 || midiChannel < 0 || midiChannel > 16)
-        return false;
+        return nullptr;
 
     auto& queue = outstandingNoteOwners[static_cast<std::size_t> (note)];
     if (queue.size == queue.owners.size())
-        return false;
-    queue.owners[queue.size++] = {
+        return nullptr;
+    auto& owner = queue.owners[queue.size++];
+    owner = {
         static_cast<std::uint8_t> (midiChannel), expressionId
     };
     if (expressionId != electry::ElectryEngine::legacyExpressionId
@@ -1239,14 +1242,15 @@ bool ElectryAudioProcessor::recordNoteOwnership (
         if (total < std::numeric_limits<std::uint16_t>::max())
             ++total;
     }
-    return true;
+    return &owner;
 }
 
-int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
-                                               bool allowAnyLegacy) noexcept
+std::optional<ElectryAudioProcessor::OutstandingNoteOwner>
+ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
+                                         bool allowAnyLegacy) noexcept
 {
     if (note < 0 || note >= 128)
-        return -1;
+        return std::nullopt;
     auto& queue = outstandingNoteOwners[static_cast<std::size_t> (note)];
     int selected = -1;
     for (int index = 0; index < static_cast<int> (queue.size); ++index)
@@ -1271,16 +1275,15 @@ int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
         }
     }
     if (selected < 0)
-        return -1;
+        return std::nullopt;
 
-    const int expressionId = queue.owners[static_cast<std::size_t> (selected)]
-                                 .expressionId;
+    const auto owner = queue.owners[static_cast<std::size_t> (selected)];
     for (int index = selected + 1; index < static_cast<int> (queue.size);
          ++index)
         queue.owners[static_cast<std::size_t> (index - 1)] =
             queue.owners[static_cast<std::size_t> (index)];
     --queue.size;
-    return expressionId;
+    return owner;
 }
 
 void ElectryAudioProcessor::resetPitchBends() noexcept
@@ -1330,18 +1333,18 @@ void ElectryAudioProcessor::releasePlayableNotes() noexcept
 }
 
 void ElectryAudioProcessor::dispatchNoteOn (
-    int note, float velocity, bool selectsBaseArticulation) noexcept
+    int note, float velocity, bool selectsBaseArticulation,
+    int midiChannel) noexcept
 {
     if (electry::ElectryEngine::isVibratoGestureNote (note))
     {
         if (velocity <= 0.0f)
         {
-            dispatchNoteOff (note);
+            dispatchNoteOff (note, midiChannel);
             return;
         }
-        if (vibratoGestureOwners < std::numeric_limits<std::uint16_t>::max())
-            ++vibratoGestureOwners;
-        applyVibratoGesture (velocity);
+        if (vibratoGestureOwners.press (midiChannel))
+            applyVibratoGesture (velocity);
         return;
     }
 
@@ -1349,12 +1352,11 @@ void ElectryAudioProcessor::dispatchNoteOn (
     {
         if (velocity <= 0.0f)
         {
-            dispatchNoteOff (note);
+            dispatchNoteOff (note, midiChannel);
             return;
         }
-        if (tremoloGestureOwners < std::numeric_limits<std::uint16_t>::max())
-            ++tremoloGestureOwners;
-        applyTremoloGesture (velocity);
+        if (tremoloGestureOwners.press (midiChannel))
+            applyTremoloGesture (velocity);
         return;
     }
 
@@ -1371,9 +1373,8 @@ void ElectryAudioProcessor::dispatchNoteOn (
         if (appliedPlayStyleKeysHold)
         {
             auto& count = heldSoloStringCounts[static_cast<std::size_t> (stringIndex)];
-            if (count < std::numeric_limits<std::uint16_t>::max())
-                ++count;
-            applySoloStringMask (computeHeldSoloStringMask());
+            if (count.press (midiChannel))
+                applySoloStringMask (computeHeldSoloStringMask());
         }
         else
         {
@@ -1428,28 +1429,26 @@ void ElectryAudioProcessor::dispatchNoteOn (
     }
 
     auto& count = heldPlayStyleCounts[static_cast<std::size_t> (style)];
-    if (count < std::numeric_limits<std::uint16_t>::max())
-        ++count;
+    if (! count.press (midiChannel))
+        return;
     heldPlayStyleOrder[static_cast<std::size_t> (style)] = ++heldPlayStyleSequence;
     applyPlayStyle (style);
 }
 
-void ElectryAudioProcessor::dispatchNoteOff (int note) noexcept
+void ElectryAudioProcessor::dispatchNoteOff (int note, int midiChannel) noexcept
 {
     if (electry::ElectryEngine::isVibratoGestureNote (note))
     {
-        if (vibratoGestureOwners == 0)
-            return;
-        if (--vibratoGestureOwners == 0)
+        if (vibratoGestureOwners.release (midiChannel)
+            && ! vibratoGestureOwners.isHeld())
             applyVibratoGesture (0.0f);
         return;
     }
 
     if (electry::ElectryEngine::isTremoloGestureNote (note))
     {
-        if (tremoloGestureOwners == 0)
-            return;
-        if (--tremoloGestureOwners == 0)
+        if (tremoloGestureOwners.release (midiChannel)
+            && ! tremoloGestureOwners.isHeld())
             applyTremoloGesture (0.0f);
         return;
     }
@@ -1463,36 +1462,37 @@ void ElectryAudioProcessor::dispatchNoteOff (int note) noexcept
         {
             const int stringIndex = note - electry::ElectryEngine::firstMidiSoloStringNote;
             auto& count = heldSoloStringCounts[static_cast<std::size_t> (stringIndex)];
-            if (count > 0)
-            {
-                --count;
+            if (count.release (midiChannel))
                 applySoloStringMask (computeHeldSoloStringMask());
-            }
         }
         return;
     }
 
-    if (electry::ElectryEngine::isMidiPlayableNote (note)
-        && takeNoteOwnership (note, 0, true) < 0)
+    if (electry::ElectryEngine::isMidiPlayableNote (note))
+    {
+        const auto owner = takeNoteOwnership (note, 0, true);
+        if (! owner.has_value())
+            return;
+        const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
+        engine.noteOff (engineNote, owner->expressionId, owner->engineOwner);
+        doubleEngine->noteOff (engineNote, owner->expressionId,
+                               owner->doubleEngineOwner);
         return;
+    }
 
     const int style = note - electry::ElectryEngine::firstPlayStyleKeyswitchNote;
     if (! appliedPlayStyleKeysHold || style < 0
         || style >= electry::ElectryEngine::playStyleKeyswitchCount)
     {
-        const int engineNote = electry::ElectryEngine::isMidiPlayableNote (note)
-            ? note - electry::ElectryEngine::octaveShiftSemitones
-            : note;
-        engine.noteOff (engineNote);
-        doubleEngine->noteOff (engineNote);
+        engine.noteOff (note);
+        doubleEngine->noteOff (note);
         return;
     }
 
     auto& count = heldPlayStyleCounts[static_cast<std::size_t> (style)];
-    if (count == 0)
+    if (! count.release (midiChannel))
         return;
-    --count;
-    if (count == 0)
+    if (! count.isHeld())
         heldPlayStyleOrder[static_cast<std::size_t> (style)] = 0;
 
     const int held = latestHeldPlayStyle();
@@ -1518,7 +1518,7 @@ int ElectryAudioProcessor::latestHeldPlayStyle() const noexcept
          style < electry::ElectryEngine::playStyleKeyswitchCount; ++style)
     {
         const auto index = static_cast<std::size_t> (style);
-        if (heldPlayStyleCounts[index] != 0
+        if (heldPlayStyleCounts[index].isHeld()
             && heldPlayStyleOrder[index] > latestOrder)
         {
             latest = style;
@@ -1530,7 +1530,7 @@ int ElectryAudioProcessor::latestHeldPlayStyle() const noexcept
 
 void ElectryAudioProcessor::clearHeldPlayStyles() noexcept
 {
-    heldPlayStyleCounts.fill (0);
+    heldPlayStyleCounts.fill ({});
     heldPlayStyleOrder.fill (0);
     heldPlayStyleSequence = 0;
 }
@@ -1548,7 +1548,7 @@ std::uint8_t ElectryAudioProcessor::computeHeldSoloStringMask() const noexcept
     std::uint8_t mask = 0;
     for (int s = 0; s < electry::ElectryEngine::stringCount; ++s)
     {
-        if (heldSoloStringCounts[static_cast<std::size_t> (s)] > 0)
+        if (heldSoloStringCounts[static_cast<std::size_t> (s)].isHeld())
             mask |= static_cast<std::uint8_t> (1u << s);
     }
     return mask;
@@ -1556,7 +1556,7 @@ std::uint8_t ElectryAudioProcessor::computeHeldSoloStringMask() const noexcept
 
 void ElectryAudioProcessor::clearHeldSoloStrings() noexcept
 {
-    heldSoloStringCounts.fill (0);
+    heldSoloStringCounts.fill ({});
     latchedSoloStringMask.store (0, std::memory_order_relaxed);
 }
 
@@ -1571,7 +1571,7 @@ void ElectryAudioProcessor::applyVibratoGesture (float amount) noexcept
 
 void ElectryAudioProcessor::clearVibratoGesture() noexcept
 {
-    vibratoGestureOwners = 0;
+    vibratoGestureOwners = {};
     applyVibratoGesture (0.0f);
 }
 
@@ -1595,7 +1595,7 @@ void ElectryAudioProcessor::applyTremoloGesture (float velocity) noexcept
 
 void ElectryAudioProcessor::clearTremoloGesture() noexcept
 {
-    tremoloGestureOwners = 0;
+    tremoloGestureOwners = {};
     applyTremoloGesture (0.0f);
 }
 
@@ -1936,7 +1936,7 @@ void ElectryAudioProcessor::batchOrDispatchNoteOn (
         || ! electry::ElectryEngine::isMidiPlayableNote (note))
     {
         flushNoteOnBatch (batch);
-        dispatchNoteOn (note, velocity, selectsBaseArticulation);
+        dispatchNoteOn (note, velocity, selectsBaseArticulation, midiChannel);
         return;
     }
 
@@ -1947,9 +1947,11 @@ void ElectryAudioProcessor::batchOrDispatchNoteOn (
     // A sounded Note On must always have a matching fixed ownership entry.
     // Once the per-pitch FIFO is full, drop the hostile excess attack rather
     // than create an owner that no later Note Off can address.
-    if (! recordNoteOwnership (note, midiChannel, expressionId))
+    auto* owner = recordNoteOwnership (note, midiChannel, expressionId);
+    if (owner == nullptr)
         return;
     const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
+    batch.owners[batch.size] = owner;
     batch.events[batch.size++] = { engineNote, velocity, expressionId };
 }
 
@@ -1957,11 +1959,44 @@ void ElectryAudioProcessor::flushNoteOnBatch (NoteOnBatch& batch) noexcept
 {
     if (batch.size != 0)
     {
+        using Engine = electry::ElectryEngine;
+        std::array<Engine::HeldNoteOwner, Engine::maximumChordEvents> before {};
+        std::array<Engine::HeldNoteOwner, Engine::maximumChordEvents> doubleBefore {};
+        for (std::size_t index = 0; index < batch.size; ++index)
+        {
+            const auto& event = batch.events[index];
+            before[index] = engine.getHeldNoteOwner (event.midiNote,
+                                                      event.expressionId);
+            if (doubleModeActive)
+                doubleBefore[index] = doubleEngine->getHeldNoteOwner (
+                    event.midiNote, event.expressionId);
+        }
         const std::span<const electry::ElectryEngine::NoteOnEvent> notes (
             batch.events.data(), batch.size);
         engine.noteOnChord (notes);
         if (doubleModeActive)
             doubleEngine->noteOnChord (notes);
+
+        const auto acceptedOwner = [] (Engine::HeldNoteOwner previous,
+                                       Engine::HeldNoteOwner next)
+        {
+            // A rejected solo-range/chord attack must still consume its own
+            // later MIDI release, without decrementing an older held owner.
+            return next.count > 0 && (next.token != previous.token
+                                      || next.count > previous.count)
+                ? next.token : Engine::invalidNoteOwner;
+        };
+        for (std::size_t index = 0; index < batch.size; ++index)
+        {
+            const auto& event = batch.events[index];
+            auto& owner = *batch.owners[index];
+            owner.engineOwner = acceptedOwner (before[index],
+                engine.getHeldNoteOwner (event.midiNote, event.expressionId));
+            if (doubleModeActive)
+                owner.doubleEngineOwner = acceptedOwner (doubleBefore[index],
+                    doubleEngine->getHeldNoteOwner (event.midiNote,
+                                                    event.expressionId));
+        }
     }
     batch.size = 0;
 }

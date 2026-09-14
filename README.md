@@ -62,9 +62,14 @@ have been published yet.
 
 - **2026-09-14 — Release hardening:** malformed host MIDI, parameter values,
   state chunks and output buffers are handled safely; duplicate note releases
-  preserve MPE ownership, and controller resets respect event order. Extreme
+  preserve MPE ownership, and controller resets respect event order. Held
+  performance keys retain their input-source ownership, so another channel's
+  unmatched release cannot cancel an articulation, solo, vibrato or tremolo.
+  Note releases retain their original string-assignment identity, so stolen or
+  rejected attacks cannot release a newer same-pitch note, including in Double.
+  Internal render-fault recovery retires abandoned held notes. Extreme
   audio input is bounded before recursive effects, settled FX controls avoid
-  redundant CPU work, and independent demo renders can use multiple cores.
+  redundant CPU work, and independent demo renders use multiple cores by default.
 - **2026-09-11 — [Interface finish](Docs/ui-polish-2026-09-11.md):**
   quieter graphite surfaces, refined metal knobs, brighter values, aligned
   header controls and a power icon for FX, with more space between FX controls.
@@ -5152,8 +5157,10 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Independent offline demo takes can render concurrently, with identical audio
-and report order. The worker count is explicit and bounded (1 through 23);
+Independent offline demo takes render concurrently, with identical audio
+and report order. The default uses available logical CPUs, capped at eight workers;
+override the worker count with `--jobs` (1 through 23), including `--jobs 1`
+for serial profiling or memory-constrained machines. The
 large DSP state lives on the heap so small worker stacks are sufficient:
 
 ```bash
@@ -5192,6 +5199,25 @@ mkdir -p build-fuzz/corpus
 Clang installations without a bundled fuzz runtime can supply a separately
 built LLVM libFuzzer archive with `-DELECTRY_LIBFUZZER_LIBRARY=/path/to/libFuzzer.a`.
 Keep sanitizer and fuzz builds separate from distribution builds.
+
+With `ELECTRY_BUILD_PLUGIN=ON`, the same fuzz configuration also builds
+`ElectryPluginFuzz`. It instruments the actual processor, JUCE state parser
+and DSP, and mutates host state chunks, raw parameters, MIDI timestamps and
+ownership, UI events, zero/variable buffers and repeated preparation. Each
+input checks finite output, buffer sentinels and recovery to an audible note:
+
+```bash
+cmake -S . -B build-plugin-fuzz -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo -DELECTRY_BUILD_FUZZER=ON \
+  -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
+cmake --build build-plugin-fuzz --target ElectryPluginFuzz --parallel
+mkdir -p build-plugin-fuzz/corpus
+./build-plugin-fuzz/ElectryPluginFuzz build-plugin-fuzz/corpus \
+  -max_total_time=120 -max_len=4096 -timeout=30 -rss_limit_mb=2048
+```
+
+On headless Linux, prefix the run with `xvfb-run -a`. CI preserves both fuzz
+corpora and any crash reproducers alongside the sanitizer logs.
 
 Run the opt-in full-chain callback benchmark directly from that Release build:
 

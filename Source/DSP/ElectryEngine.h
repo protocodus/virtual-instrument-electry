@@ -303,6 +303,15 @@ public:
     using ExpressionId = std::uint8_t;
     static constexpr ExpressionId legacyExpressionId = 0;
     static constexpr ExpressionId maximumExpressionId = 16;
+    using NoteOwnerToken = std::uint64_t;
+    static constexpr NoteOwnerToken anyNoteOwner = 0;
+    static constexpr NoteOwnerToken invalidNoteOwner = ~NoteOwnerToken { 0 };
+
+    struct HeldNoteOwner
+    {
+        NoteOwnerToken token { invalidNoteOwner };
+        int count { 0 };
+    };
 
     static constexpr int stringCount = 8;
     static constexpr int fretCount = 22;
@@ -406,8 +415,15 @@ public:
     // delays only the strings the pick has not reached; it does not add the
     // scalar note path's causal re-anchor pre-roll to the leading string.
     void noteOnChord(std::span<const NoteOnEvent> events);
+    // A MIDI adapter can retain this assignment token in its ordered Note On
+    // FIFO and supply it on Note Off. A stolen/replaced owner must consume its
+    // own old release without releasing a newer occurrence of the same pitch.
+    // Restrikes and chord re-fingering retain the token while ownership lasts.
+    [[nodiscard]] HeldNoteOwner getHeldNoteOwner(
+        int midiNote, ExpressionId expressionId = legacyExpressionId) const noexcept;
     void noteOff(int midiNote,
-                 ExpressionId expressionId = legacyExpressionId);
+                 ExpressionId expressionId = legacyExpressionId,
+                 NoteOwnerToken expectedOwner = anyNoteOwner);
     void allNotesOff();
     // Standard MIDI pitch bend moves every legacy-ID and sympathetically
     // ringing string by the same nominal -2..+2 semitone interval. Bend Time
@@ -1904,6 +1920,10 @@ private:
     std::array<int, stringCount> heldMidiNotes_ {};
     std::array<int, stringCount> heldNoteCounts_ {};
     std::array<ExpressionId, stringCount> heldExpressionIds_ {};
+    std::array<NoteOwnerToken, stringCount> heldNoteOwnerTokens_ {};
+    // Never reset this sequence during reset()/prepare(): an adapter can
+    // still hold FIFO releases from before a secondary engine was restarted.
+    NoteOwnerToken noteOwnerSequence_ { anyNoteOwner };
     // The visible B0 gesture is one picking wrist, not eight clocks. Its
     // phase is measured in strokes so a rate change takes effect immediately
     // without resetting time or accumulating integer-sample drift.

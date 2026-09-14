@@ -21,6 +21,12 @@ namespace electry
 // Narrow inspection seam for the JUCE-free regression suite.
 struct ElectryEngineTestAccess
 {
+    static void poisonOutputHistory(ElectryEngine& engine) noexcept
+    {
+        engine.outputDc_[0].previousOutput =
+            std::numeric_limits<float>::quiet_NaN();
+    }
+
     static float scaleLengthMetres(const ElectryEngine& engine) noexcept
     {
         return engine.scaleLengthMetres();
@@ -4144,6 +4150,103 @@ void testProcessRejectsInvalidBuffers()
            "an unprepared engine did not fill the buffer with silence");
     expect(fresh.getActiveVoiceCount() == 0,
            "an unprepared engine's process() call created a voice");
+}
+
+void testAssignmentTokensGuardDelayedNoteOffs()
+{
+    auto engine = std::make_unique<ElectryEngine>();
+    engine->prepare(48000.0, 256);
+    const auto absent = engine->getHeldNoteOwner(40);
+    expect(absent.token == ElectryEngine::invalidNoteOwner && absent.count == 0,
+           "a missing MIDI owner returned a usable assignment token");
+
+    // A forced single string makes the steal deterministic. FIFO MIDI can
+    // deliver the first 40's release after a newer 40 owns that string again.
+    engine->setSoloStringMask(1);
+    engine->noteOn(40, 0.8f);
+    const auto original = engine->getHeldNoteOwner(40);
+    engine->noteOn(41, 0.8f);
+    engine->noteOn(40, 0.8f);
+    const auto replacement = engine->getHeldNoteOwner(40);
+    expect(original.token != ElectryEngine::anyNoteOwner
+               && original.token != ElectryEngine::invalidNoteOwner
+               && replacement.token != original.token && replacement.count == 1,
+           "a stolen-and-reclaimed string reused its old MIDI assignment token");
+    engine->noteOff(40, ElectryEngine::legacyExpressionId, original.token);
+    engine->noteOff(40, ElectryEngine::legacyExpressionId, ElectryEngine::invalidNoteOwner);
+    expect(engine->getHeldNoteOwner(40).count == 1,
+           "a stale or ignored Note On released a newer same-pitch owner");
+
+    engine->noteOn(40, 0.7f);
+    const auto overlap = engine->getHeldNoteOwner(40);
+    expect(overlap.token == replacement.token && overlap.count == 2,
+           "an overlapping same-identity restrike changed the assignment token");
+    engine->noteOff(40, ElectryEngine::legacyExpressionId, replacement.token);
+    expect(engine->getHeldNoteOwner(40).count == 1,
+           "a matching token did not balance exactly one overlap");
+    engine->noteOff(40, ElectryEngine::legacyExpressionId, overlap.token);
+    expect(engine->getHeldNoteOwner(40).count == 0,
+           "the last matching assignment release left a held note behind");
+
+    // Device/replay resets must not recycle tokens still retained in an
+    // adapter's FIFO, including when a secondary engine alone is restarted.
+    auto previousToken = overlap.token;
+    for (const bool reprepare : { false, true })
+    {
+        if (reprepare)
+            engine->prepare(96000.0, 1);
+        else
+            engine->reset();
+        engine->noteOn(40, 0.8f);
+        const auto owner = engine->getHeldNoteOwner(40);
+        expect(owner.token != previousToken && owner.count == 1,
+               "reset/prepare recycled a MIDI assignment token");
+        engine->noteOff(40, ElectryEngine::legacyExpressionId, previousToken);
+        expect(engine->getHeldNoteOwner(40).count == 1,
+               "a release from before reset/prepare reached a fresh owner");
+        previousToken = owner.token;
+    }
+    engine->allNotesOff();
+    expect(engine->getHeldNoteOwner(40).count == 0,
+           "all-notes-off retained a live MIDI assignment");
+}
+
+void testFaultRecoveryRetiresHeldNotes()
+{
+    auto engine = std::make_unique<ElectryEngine>();
+    // Native-rate output lets a one-sample callback observe recovery itself,
+    // before a later internal control tick can refresh public voice counts.
+    engine->prepare(192000.0, 1);
+    engine->noteOn(40, 0.8f);
+    StereoBuffer first(1);
+    renderInto(*engine, first);
+    expect(engine->getActiveVoiceCount() == 1,
+           "fault-recovery fixture did not establish its held string");
+    TestAccess::poisonOutputHistory(*engine);
+    renderInto(*engine, first);
+    expect(allFinite(first) && first.left[0] == 0.0f && first.right[0] == 0.0f,
+           "an internal output-history fault escaped the sample guard");
+    expect(engine->getActiveVoiceCount() == 0
+               && engine->getSympatheticStringCount() == 0,
+           "fault recovery retained stale public voice counts");
+
+    // A pending wrist gesture must not re-create a discarded MIDI owner.
+    engine->beginTremoloPicking(1.0f);
+    StereoBuffer afterFault(4096);
+    renderInto(*engine, afterFault);
+    expect(allFinite(afterFault) && peakAbs(afterFault.left) == 0.0f
+               && peakAbs(afterFault.right) == 0.0f
+               && engine->getActiveVoiceCount() == 0,
+           "held tremolo resurrected a note discarded during fault recovery");
+
+    engine->endTremoloPicking();
+    engine->noteOff(40);
+    engine->noteOn(40, 0.8f);
+    StereoBuffer recovered(8192);
+    renderInto(*engine, recovered);
+    expect(allFinite(recovered) && peakAbs(recovered.left) > 1.0e-4f
+               && engine->getActiveVoiceCount() == 1,
+           "a fresh note could not recover after an internal render fault");
 }
 
 void testDeterminism()
@@ -10468,6 +10571,7 @@ void testChordAssignmentIsPermutationInvariant()
     revoiced->prepare(sampleRate, 512);
     revoiced->setParameters(EngineParameters {});
     revoiced->noteOn(64, 0.8f);
+    const auto originalRevoicedOwner = revoiced->getHeldNoteOwner(64);
     StereoBuffer beforeRevoice(64);
     renderInto(*revoiced, beforeRevoice);
     const std::array revoicedChord {
@@ -10481,7 +10585,11 @@ void testChordAssignmentIsPermutationInvariant()
            "a constrained dyad did not re-finger its repeated held pitch ("
                + std::to_string(movedString) + ", "
                + std::to_string(constrainedString) + ")");
-    revoiced->noteOff(64);
+    expect(revoiced->getHeldNoteOwner(64).token == originalRevoicedOwner.token
+               && revoiced->getHeldNoteOwner(64).count == 2,
+           "chord re-fingering did not migrate the complete MIDI assignment");
+    revoiced->noteOff(64, ElectryEngine::legacyExpressionId,
+                     originalRevoicedOwner.token);
     expect(TestAccess::snapshot(*revoiced, movedString).keyDown,
            "re-fingering lost the original held-note owner");
     revoiced->noteOff(64);
@@ -22322,6 +22430,8 @@ int main()
     testDropELowNoteAtMaximumRate();
     testPrepareSanitisesSampleRate();
     testProcessRejectsInvalidBuffers();
+    testAssignmentTokensGuardDelayedNoteOffs();
+    testFaultRecoveryRetiresHeldNotes();
     testDeterminism();
     testKeyswitchesSelectStylesSilently();
     testSoloStringKeyswitches();

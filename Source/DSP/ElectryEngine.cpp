@@ -1457,6 +1457,7 @@ void ElectryEngine::reset()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    heldNoteOwnerTokens_.fill(invalidNoteOwner);
     tremoloPickingPhase_ = 0.0;
 
     smoothedParameters_ = sanitise(targetParameters_);
@@ -2186,6 +2187,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
     const auto previousHeldNotes = heldMidiNotes_;
     const auto previousHeldCounts = heldNoteCounts_;
     const auto previousHeldExpressionIds = heldExpressionIds_;
+    const auto previousHeldOwnerTokens = heldNoteOwnerTokens_;
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
     {
         const auto destination = static_cast<std::size_t>(
@@ -2198,6 +2200,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[destination] = -1;
             heldNoteCounts_[destination] = 0;
             heldExpressionIds_[destination] = legacyExpressionId;
+            heldNoteOwnerTokens_[destination] = invalidNoteOwner;
         }
     }
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
@@ -2220,6 +2223,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[sourceIndex] = -1;
             heldNoteCounts_[sourceIndex] = 0;
             heldExpressionIds_[sourceIndex] = legacyExpressionId;
+            heldNoteOwnerTokens_[sourceIndex] = invalidNoteOwner;
         }
     }
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
@@ -2240,6 +2244,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[destinationIndex] = midiNote;
             heldNoteCounts_[destinationIndex] = previousHeldCounts[sourceIndex];
             heldExpressionIds_[destinationIndex] = expressionId;
+            heldNoteOwnerTokens_[destinationIndex] = previousHeldOwnerTokens[sourceIndex];
             break;
         }
     }
@@ -2563,6 +2568,7 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
                 heldMidiNotes_[oldIndex] = -1;
                 heldNoteCounts_[oldIndex] = 0;
                 heldExpressionIds_[oldIndex] = legacyExpressionId;
+                heldNoteOwnerTokens_[oldIndex] = invalidNoteOwner;
                 auto& oldVoice = voices_[oldIndex];
                 if (oldVoice.active && oldVoice.expressionId == expressionId)
                 {
@@ -2583,6 +2589,9 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
             heldMidiNotes_[heldIndex] = midiNote;
             heldNoteCounts_[heldIndex] = 1;
             heldExpressionIds_[heldIndex] = expressionId;
+            if (++noteOwnerSequence_ == invalidNoteOwner)
+                noteOwnerSequence_ = 1;
+            heldNoteOwnerTokens_[heldIndex] = noteOwnerSequence_;
         }
     }
     // startVoice() normally derives ownership from audible voice state, which
@@ -2594,7 +2603,23 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
     updateActiveVoiceCount();
 }
 
-void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
+ElectryEngine::HeldNoteOwner ElectryEngine::getHeldNoteOwner(
+    int midiNote, ExpressionId expressionId) const noexcept
+{
+    if (expressionId > maximumExpressionId)
+        expressionId = legacyExpressionId;
+    for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
+    {
+        const auto index = static_cast<std::size_t>(stringIndex);
+        if (heldNoteCounts_[index] > 0 && heldMidiNotes_[index] == midiNote
+            && heldExpressionIds_[index] == expressionId)
+            return { heldNoteOwnerTokens_[index], heldNoteCounts_[index] };
+    }
+    return {};
+}
+
+void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId,
+                            NoteOwnerToken expectedOwner)
 {
     if (! prepared_ || isKeyswitchNote(midiNote)
         || isSoloStringKeyswitchNote(midiNote)
@@ -2607,7 +2632,9 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
     {
         const auto index = static_cast<std::size_t>(stringIndex);
         if (heldNoteCounts_[index] <= 0 || heldMidiNotes_[index] != midiNote
-            || heldExpressionIds_[index] != expressionId)
+            || heldExpressionIds_[index] != expressionId
+            || (expectedOwner != anyNoteOwner
+                && heldNoteOwnerTokens_[index] != expectedOwner))
             continue;
 
         auto& voice = voices_[index];
@@ -2623,6 +2650,7 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         heldNoteCounts_[index] = 0;
         heldMidiNotes_[index] = -1;
         heldExpressionIds_[index] = legacyExpressionId;
+        heldNoteOwnerTokens_[index] = invalidNoteOwner;
         if (! voice.active || voice.midiNote != midiNote
             || voice.expressionId != expressionId)
             continue;
@@ -2646,6 +2674,7 @@ void ElectryEngine::allNotesOff()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    heldNoteOwnerTokens_.fill(invalidNoteOwner);
     for (auto& voice : voices_)
     {
         if (! voice.active)
@@ -8705,22 +8734,16 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
             voice.vertical.clear();
             voice.horizontal.clear();
         }
-        for (auto& filter : neckCoils_)
-            filter.reset();
-        for (auto& filter : bridgeCoils_)
-            filter.reset();
-        for (auto& blocker : outputDc_)
-            blocker.reset();
-        for (auto& mode : bodyModes_)
-            mode.reset();
-        previousBodyDisplacement_ = 0.0f;
-        bodyEmfLowpass_.reset();
-        for (auto& mode : artifactRingModes_)
-            mode.reset();
-        for (auto& decimator : decimators_)
-            decimator.reset();
-        sympatheticBus_ = 0.0f;
-        sympatheticBusDelayed_ = 0.0f;
+        // Retire MIDI ownership with the discarded voices. Otherwise the
+        // next held tremolo stroke can resurrect a note from the corrupted
+        // render, and public voice counts remain stale until a control tick.
+        heldMidiNotes_.fill(-1);
+        heldNoteCounts_.fill(0);
+        heldExpressionIds_.fill(legacyExpressionId);
+        heldNoteOwnerTokens_.fill(invalidNoteOwner);
+        updateActiveVoiceCount();
+        freezeSharedPath();
+        idleFrozen_ = true;
         output = {};
     }
 

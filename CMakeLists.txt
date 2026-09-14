@@ -34,7 +34,7 @@ option(ELECTRY_BUILD_PLUGIN "Build the JUCE plug-in and standalone app" ON)
 option(ELECTRY_BUILD_CLAP "Build the CLAP plug-in alongside the JUCE formats" ON)
 option(ELECTRY_ENABLE_SANITIZERS
     "Instrument tests and DSP with address/undefined-behaviour sanitizers" OFF)
-option(ELECTRY_BUILD_FUZZER "Build the Clang libFuzzer DSP input harness" OFF)
+option(ELECTRY_BUILD_FUZZER "Build Clang libFuzzer DSP and enabled plug-in input harnesses" OFF)
 set(ELECTRY_LIBFUZZER_LIBRARY "" CACHE FILEPATH
     "Optional libFuzzer archive for Clang distributions without its runtime")
 if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER)
@@ -253,6 +253,28 @@ if(ELECTRY_BUILD_PLUGIN)
             CLAP_ID "audio.electry.synth"
             CLAP_FEATURES instrument synthesizer stereo)
     endif()
+
+    if(ELECTRY_BUILD_FUZZER)
+        # Reach the actual processor, state parser and DSP implementation with
+        # coverage feedback, rather than instrumenting just the harness. These
+        # are explicitly non-distributable sanitizer builds.
+        target_compile_options(Electry PRIVATE -fsanitize=fuzzer-no-link)
+        target_compile_options(ElectryDSP PRIVATE -fsanitize=fuzzer-no-link)
+        add_executable(ElectryPluginFuzz Tests/PluginFuzz.cpp)
+        target_link_libraries(ElectryPluginFuzz PRIVATE Electry)
+        target_include_directories(ElectryPluginFuzz PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+            "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
+            "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
+        target_compile_definitions(ElectryPluginFuzz PRIVATE
+            $<TARGET_PROPERTY:ElectryDSP,COMPILE_DEFINITIONS>)
+        target_compile_options(ElectryPluginFuzz PRIVATE -fsanitize=fuzzer-no-link)
+        if(ELECTRY_LIBFUZZER_LIBRARY)
+            target_link_libraries(ElectryPluginFuzz PRIVATE "${ELECTRY_LIBFUZZER_LIBRARY}")
+        else()
+            target_link_options(ElectryPluginFuzz PRIVATE -fsanitize=fuzzer)
+        endif()
+    endif()
 endif()
 
 # The committed demonstration WAVs under Docs/audio are rendered by this tool
@@ -439,10 +461,10 @@ if(BUILD_TESTING)
             "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
             "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
         target_compile_features(ElectryPluginProcessorTests PRIVATE cxx_std_20)
-        if(ELECTRY_MEASURED_BODY_RESPONSE)
-            target_compile_definitions(ElectryPluginProcessorTests PRIVATE
-                ELECTRY_MEASURED_BODY_RESPONSE=1)
-        endif()
+        # PluginProcessor.h embeds DSP objects. Every layout-affecting feature
+        # flag must match the linked implementation, including optional models.
+        target_compile_definitions(ElectryPluginProcessorTests PRIVATE
+            $<TARGET_PROPERTY:ElectryDSP,COMPILE_DEFINITIONS>)
 
         if(MSVC)
             target_compile_options(ElectryPluginProcessorTests PRIVATE /W4 /permissive-)

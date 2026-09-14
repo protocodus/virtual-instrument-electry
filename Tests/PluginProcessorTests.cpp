@@ -6191,6 +6191,224 @@ void testSameSampleAllNotesOffOrdering()
     }
 }
 
+void testRetiredPlayableNoteOwnership()
+{
+    for (const bool mpe : { false, true })
+        for (const bool doubleMode : { false, true })
+        {
+            const auto processor = std::make_unique<ElectryAudioProcessor>();
+            setParameterValue (*processor, electry::parameters::outputMode,
+                               doubleMode ? 2.0f : 0.0f);
+            setParameterValue (*processor, electry::parameters::sympathetic, 0.0f);
+            processor->prepareToPlay (sampleRate, blockSize);
+            juce::AudioBuffer<float> audio;
+            juce::MidiBuffer midi;
+            if (mpe)
+                midi.addEvents (juce::MPEMessages::setLowerZone (2), 0, -1, 0);
+            const auto send = [&] (const juce::MidiMessage& message)
+            {
+                midi.addEvent (message, 0);
+                renderBlock (*processor, audio, midi);
+            };
+            const auto held = [&] (int note)
+            {
+                for (int string = 0; string < electry::ElectryEngine::stringCount;
+                     ++string)
+                {
+                    const auto state = processor->getStringVisualState (string);
+                    if (state.sounding && state.midiNote == note && ! state.releasing)
+                        return true;
+                }
+                return false;
+            };
+            const auto on = [] (int note)
+            {
+                return juce::MidiMessage::noteOn (2, note, (juce::uint8) 105);
+            };
+            const auto off = [] (int note)
+            {
+                return juce::MidiMessage::noteOff (2, note);
+            };
+            const auto context = std::string (mpe ? " MPE" : " legacy")
+                + (doubleMode ? " Double" : " Mono");
+
+            // Force the fretting hand onto one string. The old 52 is stolen
+            // by 53; its delayed release still precedes the new 52's release.
+            send (on (electry::ElectryEngine::firstMidiSoloStringNote));
+            send (on (52));
+            send (on (53));
+            send (on (52));
+            send (off (52));
+            expect (held (52), "a stolen note's release stopped its replacement" + context);
+            send (off (52));
+            expect (! held (52), "the replacement's own release was lost" + context);
+            send (off (53));
+
+            // An out-of-range attack is ignored, but its release must still
+            // occupy its FIFO position if the same pitch later becomes playable.
+            send (on (90));
+            send (on (electry::ElectryEngine::midiSoloClearNote));
+            send (on (90));
+            send (off (90));
+            expect (held (90), "a rejected note's release stopped a later attack" + context);
+            send (off (90));
+            expect (! held (90), "a formerly rejected pitch did not release" + context);
+
+            // Also reject a duplicate while an older instance remains held on
+            // an unselected string. A newer real duplicate must survive the
+            // ignored middle event's release without gaining a phantom owner.
+            send (on (52));
+            send (on (electry::ElectryEngine::firstMidiSoloStringNote + 7));
+            send (on (52));
+            send (on (electry::ElectryEngine::midiSoloClearNote));
+            send (on (52));
+            send (off (52));
+            send (off (52));
+            expect (held (52), "an ignored duplicate consumed a real owner" + context);
+            send (off (52));
+            expect (! held (52), "a duplicate retained phantom ownership" + context);
+
+            // The same bookkeeping applies to complete chord batches, where
+            // every duplicate of a selected pitch must retain its own release.
+            send (on (electry::ElectryEngine::firstMidiSoloStringNote + 7));
+            midi.addEvent (on (52), 0);
+            send (on (52));
+            send (on (electry::ElectryEngine::midiSoloClearNote));
+            midi.addEvent (on (52), 0);
+            send (on (52));
+            for (int release = 0; release < 3; ++release)
+            {
+                send (off (52));
+                expect (held (52), "a batched duplicate lost release ownership" + context);
+            }
+            send (off (52));
+            expect (! held (52), "a batched duplicate failed to release" + context);
+            processor->releaseResources();
+        }
+}
+
+void testDoubleEntryReleaseOwnership()
+{
+    const auto reference = std::make_unique<ElectryAudioProcessor>();
+    const auto released = std::make_unique<ElectryAudioProcessor>();
+    juce::AudioBuffer<float> referenceAudio;
+    juce::AudioBuffer<float> releasedAudio;
+    juce::MidiBuffer referenceMidi;
+    juce::MidiBuffer releasedMidi;
+    const auto note = juce::MidiMessage::noteOn (1, 52, (juce::uint8) 110);
+    for (auto* processor : { reference.get(), released.get() })
+    {
+        setParameterValue (*processor, electry::parameters::sympathetic, 0.0f);
+        processor->prepareToPlay (sampleRate, blockSize);
+    }
+    referenceMidi.addEvent (note, 0);
+    releasedMidi.addEvent (note, 0);
+    renderBlock (*reference, referenceAudio, referenceMidi);
+    renderBlock (*released, releasedAudio, releasedMidi);
+    for (auto* processor : { reference.get(), released.get() })
+        setParameterValue (*processor, electry::parameters::outputMode, 2.0f);
+    referenceMidi.addEvent (note, 0);
+    releasedMidi.addEvent (note, 0);
+    renderBlock (*reference, referenceAudio, referenceMidi);
+    renderBlock (*released, releasedAudio, releasedMidi);
+
+    // The older press began in Mono and never acquired a second performance.
+    // Its release must leave the new right-hand Double performance untouched.
+    releasedMidi.addEvent (juce::MidiMessage::noteOff (1, 52), 0);
+    bool secondPerformanceUnchanged = true;
+    for (int block = 0; block < 8; ++block)
+    {
+        renderBlock (*reference, referenceAudio, referenceMidi);
+        renderBlock (*released, releasedAudio, releasedMidi);
+        secondPerformanceUnchanged = secondPerformanceUnchanged
+            && std::equal (referenceAudio.getReadPointer (1),
+                           referenceAudio.getReadPointer (1) + blockSize,
+                           releasedAudio.getReadPointer (1));
+    }
+    expect (secondPerformanceUnchanged,
+            "a pre-Double Note Off stopped the later second performance");
+    reference->releaseResources();
+    released->releaseResources();
+}
+
+void testPerformanceKeySourceOwnership()
+{
+    constexpr int palm = static_cast<int> (electry::PlayStyle::PalmMute);
+    constexpr std::array keys {
+        electry::ElectryEngine::firstPlayStyleKeyswitchNote + palm,
+        electry::ElectryEngine::firstMidiSoloStringNote,
+        electry::ElectryEngine::vibratoGestureNote,
+        electry::ElectryEngine::tremoloGestureNote
+    };
+    for (const int key : keys)
+    {
+        const auto processor = std::make_unique<ElectryAudioProcessor>();
+        processor->setPlayStyleKeysHold (true);
+        processor->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        const auto held = [&]
+        {
+            if (key == keys[0])
+                return processor->getEffectivePlayStyleIndex() == palm;
+            if (key == keys[1])
+                return processor->getSoloStringMask() == 1;
+            if (key == keys[2])
+                return processor->getVibratoGestureForDisplay() != 0;
+            return processor->getTremoloGestureForDisplay() != 0;
+        };
+        const auto send = [&] (const juce::MidiMessage& message)
+        {
+            midi.addEvent (message, 0);
+            renderBlock (*processor, audio, midi, 32);
+        };
+        const auto context = " for performance key " + std::to_string (key);
+
+        send (juce::MidiMessage::noteOn (2, key, (juce::uint8) 100));
+        send (juce::MidiMessage::noteOff (3, key));
+        expect (held(), "an unrelated channel released a held key" + context);
+        send (juce::MidiMessage::noteOn (4, key, (juce::uint8) 0));
+        expect (held(), "unmatched velocity-zero MIDI released a held key" + context);
+        processor->keyboardState.noteOn (1, key, 0.0f);
+        renderBlock (*processor, audio, midi, 32);
+        expect (held(), "a stale GUI release stopped a host-held key" + context);
+
+        // Two contacts on channel 2 and one on channel 3 retain channel 3's
+        // owner even if channel 2 sends a duplicate release.
+        send (juce::MidiMessage::noteOn (2, key, (juce::uint8) 100));
+        send (juce::MidiMessage::noteOn (3, key, (juce::uint8) 100));
+        for (int release = 0; release < 3; ++release)
+            send (juce::MidiMessage::noteOff (2, key));
+        expect (held(), "a duplicate release consumed another channel's owner" + context);
+        send (juce::MidiMessage::noteOff (3, key));
+        expect (! held(), "the final owning channel failed to release its key" + context);
+
+        processor->keyboardState.noteOn (1, key, 0.8f);
+        renderBlock (*processor, audio, midi, 32);
+        send (juce::MidiMessage::noteOff (1, key));
+        expect (held(), "a host release consumed the GUI's key owner" + context);
+        processor->keyboardState.noteOff (1, key, 0.0f);
+        renderBlock (*processor, audio, midi, 32);
+        expect (! held(), "the GUI could not release its own key" + context);
+
+        // All Sound Off preserves held performance keys, including their
+        // release identities. All Notes Off discards those identities.
+        send (juce::MidiMessage::noteOn (2, key, (juce::uint8) 100));
+        send (juce::MidiMessage::controllerEvent (1, 120, 0));
+        expect (held(), "All Sound Off discarded a held performance key" + context);
+        send (juce::MidiMessage::noteOff (2, key));
+        expect (! held(), "All Sound Off orphaned a key's release" + context);
+        send (juce::MidiMessage::noteOn (2, key, (juce::uint8) 100));
+        send (juce::MidiMessage::controllerEvent (1, 123, 0));
+        send (juce::MidiMessage::noteOn (3, key, (juce::uint8) 100));
+        send (juce::MidiMessage::noteOff (2, key));
+        expect (held(), "All Notes Off left a stale performance-key owner" + context);
+        send (juce::MidiMessage::noteOff (3, key));
+        expect (! held(), "a post-reset performance key remained held" + context);
+        processor->releaseResources();
+    }
+}
+
 void testStateValidationAndHostParameterFuzz()
 {
     const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
@@ -6583,6 +6801,9 @@ int main()
     testUnmatchedMpeReleasePreservesHeldBend();
     testSameSampleResetControllerOrdering();
     testSameSampleAllNotesOffOrdering();
+    testRetiredPlayableNoteOwnership();
+    testDoubleEntryReleaseOwnership();
+    testPerformanceKeySourceOwnership();
     testStateValidationAndHostParameterFuzz();
     runRealtimeDeadlineBenchmarkIfRequested();
 

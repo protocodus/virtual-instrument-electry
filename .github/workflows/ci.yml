@@ -39,7 +39,8 @@ jobs:
             -DELECTRY_ENABLE_SANITIZERS=ON -DELECTRY_BUILD_FUZZER=ON \
             -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
           cmake --build build-sanitize --parallel 2 --target \
-            ElectryEngineTests ElectryFxTests ElectryPluginProcessorTests ElectryDspFuzz
+            ElectryEngineTests ElectryFxTests ElectryPluginProcessorTests \
+            ElectryDspFuzz ElectryPluginFuzz
       - name: Run regression and hostile-input suites
         env:
           UBSAN_OPTIONS: print_stacktrace=1
@@ -62,6 +63,39 @@ jobs:
             -seed=20260914 -max_total_time=120 -max_len=4096 \
             -timeout=30 -rss_limit_mb=2048 \
             -artifact_prefix=build-sanitize/fuzz-artifacts/
+      - name: Mutate host state, parameters, MIDI and lifecycle
+        run: |
+          mkdir -p build-sanitize/plugin-corpus build-sanitize/plugin-fuzz-artifacts
+          python3 - <<'PY'
+          import pathlib, random
+          corpus = pathlib.Path('build-sanitize/plugin-corpus')
+          rng = random.Random(0xE1EC7)
+          for index in range(32):
+              # Prepare, queue ordinary and malformed MIDI, then explore all
+              # lifecycle/state opcodes through deterministic random suffixes.
+              prefix = bytes([1, index % 11, 1, 2, 1, 16, 52, 100, 2])
+              (corpus / str(index)).write_bytes(prefix + rng.randbytes(512))
+          xml = b'<ELECTRY_STATE><PARAM id="output" value="1e300"/></ELECTRY_STATE>'
+          (corpus / 'xml').write_bytes(bytes([1, 0, 7, len(xml)]) + xml)
+          def midi(status, first, second):
+              return bytes([1, 2, 0, status - 0x80, first, second, 2])
+          # Enter an MPE zone and exercise a bent member note. Unguided
+          # random CCs rarely discover the complete RPN setup sequence.
+          mpe = bytes([1, 1])
+          for cc, value in [(101, 0), (100, 6), (6, 2)]:
+              mpe += midi(0xb0, cc, value)
+          mpe += midi(0xe1, 127, 127) + midi(0x91, 52, 100) + bytes([0, 4])
+          mpe += midi(0x81, 52, 0) + bytes([0, 4])
+          (corpus / 'mpe').write_bytes(mpe)
+          controls = bytes([1, 1]) + midi(0x90, 52, 100) + bytes([0, 4])
+          for cc, value in [(64, 127), (121, 0), (123, 0)]:
+              controls += midi(0xb0, cc, value)
+          (corpus / 'resets').write_bytes(controls + bytes([0, 4]))
+          PY
+          xvfb-run -a build-sanitize/ElectryPluginFuzz build-sanitize/plugin-corpus \
+            -seed=20260914 -max_total_time=120 -max_len=4096 \
+            -timeout=30 -rss_limit_mb=2048 \
+            -artifact_prefix=build-sanitize/plugin-fuzz-artifacts/
       - name: Preserve fuzz reproducers
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,6 +104,8 @@ jobs:
           path: |
             build-sanitize/corpus
             build-sanitize/fuzz-artifacts
+            build-sanitize/plugin-corpus
+            build-sanitize/plugin-fuzz-artifacts
             build-sanitize/Testing/Temporary/LastTest.log
           retention-days: 7
 

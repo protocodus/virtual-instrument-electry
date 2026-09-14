@@ -27,6 +27,7 @@
 #include <fstream>
 #include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -78,6 +79,17 @@ bool writeWav(const std::filesystem::path& path,
               const std::vector<float>& left,
               const std::vector<float>& right, bool stereo)
 {
+    if (left.size() != right.size())
+        return false;
+
+    // The classic RIFF/WAV header stores both lengths as uint32_t. Reject an
+    // oversized take before narrowing or multiplying, rather than producing a
+    // wrapped header and a file that hosts may read past its actual payload.
+    constexpr auto maxDataBytes = std::numeric_limits<std::uint32_t>::max();
+    constexpr auto bytesPerFrame = 2u * 2u; // the stereo case is the largest
+    if (left.size() > (maxDataBytes - 44u) / bytesPerFrame)
+        return false;
+
     const auto frames = static_cast<std::uint32_t>(left.size());
     const std::uint16_t channels = stereo ? 2u : 1u;
     const std::uint32_t byteRate = static_cast<std::uint32_t>(demoSampleRate)
@@ -2073,7 +2085,19 @@ int main(int argc, char** argv)
     std::vector<std::string> arguments(argv + 1, argv + argc);
     bool smoke = false;
     bool haveDirectory = false;
-    int jobs = 1;
+    // Full demo renders are independent and CPU-heavy. Use the reported
+    // logical processors by default, capped at eight workers because the
+    // measured wall-time gain flattens after that while each worker retains a
+    // complete engine and take in memory. The number is also capped to the
+    // number of takes. --jobs 1 remains available for reproducible serial
+    // profiling and constrained machines. A zero report is permitted by the
+    // C++ contract, so fall back to one worker in that case.
+    const auto reportedCores = std::thread::hardware_concurrency();
+    constexpr int defaultWorkerCap = 8;
+    int jobs = reportedCores == 0u
+             ? 1
+             : std::min({ static_cast<int>(reportedCores), defaultWorkerCap,
+                          static_cast<int>(demos().size()) });
     std::filesystem::path directory = "Docs/audio";
     for (std::size_t i = 0; i < arguments.size(); ++i)
     {

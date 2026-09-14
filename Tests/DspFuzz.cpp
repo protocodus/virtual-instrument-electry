@@ -95,6 +95,19 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     auto fx = std::make_unique<electry::ElectryFx>();
     electry::EngineParameters parameters;
     electry::FxParameters effects;
+    // Hosts may configure, reset and probe a newly constructed processor
+    // before the first device preparation. None of these calls may depend
+    // on allocated FX buffers or configured string delays.
+    std::array<float, 16> unpreparedLeft {}, unpreparedRight {};
+    engine->reset();
+    fx->reset();
+    engine->setParameters(parameters);
+    fx->setParameters(effects);
+    engine->noteOn(40, 0.8f);
+    engine->process(unpreparedLeft.data(), unpreparedRight.data(), 16);
+    fx->process(unpreparedLeft.data(), unpreparedRight.data(), 16);
+    for (std::size_t i = 0; i < unpreparedLeft.size(); ++i)
+        require(unpreparedLeft[i] == 0.0f && unpreparedRight[i] == 0.0f);
     const auto rate = rates[input.byte() % rates.size()];
     engine->prepare(rate, 1 + input.byte());
     fx->prepare(rate);
@@ -102,8 +115,11 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     // Sentinels also catch writes outside the caller's frame count when they
     // remain inside the allocation and would otherwise evade AddressSanitizer.
     std::array<float, 258> left {}, right {};
+    std::array<electry::ElectryEngine::NoteOwnerToken, 16> previousOwners {};
+    previousOwners.fill(electry::ElectryEngine::invalidNoteOwner);
+    std::size_t nextOwner = 0;
     constexpr float sentinel = 12345.0f;
-    const auto render = [&](int count, bool externalInput)
+    const auto render = [&](int count, bool externalInput, bool alias = false)
     {
         left.fill(sentinel);
         right.fill(sentinel);
@@ -117,26 +133,30 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         }
         else
         {
-            engine->process(left.data() + 1, right.data() + 1, count);
+            engine->process(left.data() + 1,
+                            alias ? left.data() + 1 : right.data() + 1, count);
             for (int i = 1; i <= count; ++i)
                 require(std::isfinite(left[static_cast<std::size_t>(i)])
-                        && std::isfinite(right[static_cast<std::size_t>(i)]));
+                        && (alias || std::isfinite(right[static_cast<std::size_t>(i)])));
         }
-        fx->process(left.data() + 1, right.data() + 1, count);
-        engine->pushAcousticReturn(left.data() + 1, right.data() + 1, count);
+        fx->process(left.data() + 1,
+                    alias ? left.data() + 1 : right.data() + 1, count);
+        engine->pushAcousticReturn(left.data() + 1,
+                                   alias ? nullptr : right.data() + 1, count);
         require(left.front() == sentinel && right.front() == sentinel);
         for (std::size_t i = static_cast<std::size_t>(count + 1); i < left.size(); ++i)
             require(left[i] == sentinel && right[i] == sentinel);
         for (int i = 1; i <= count; ++i)
             require(std::isfinite(left[static_cast<std::size_t>(i)])
-                    && std::isfinite(right[static_cast<std::size_t>(i)]));
+                    && (alias || std::isfinite(right[static_cast<std::size_t>(i)])));
         require(engine->getActiveVoiceCount() >= 0
                 && engine->getActiveVoiceCount() <= electry::ElectryEngine::stringCount);
     };
 
+    int prepareCount = 0;
     for (int command = 0; command < 64 && !input.bytes.empty(); ++command)
     {
-        switch (input.byte() % 18)
+        switch (input.byte() % 23)
         {
             case 0:
             {
@@ -154,17 +174,30 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
             }
             case 2:
             {
-                const int note = static_cast<int>(input.byte()) - 32;
+                const int note = input.byte() % 8 == 0
+                    ? std::bit_cast<std::int32_t>(input.word())
+                    : static_cast<int>(input.byte()) - 32;
                 const float velocity = input.scalar();
                 const auto id = input.byte();
                 engine->noteOn(note, velocity, id);
+                previousOwners[nextOwner++ % previousOwners.size()] =
+                    engine->getHeldNoteOwner(note, id).token;
                 break;
             }
             case 3:
             {
-                const int note = static_cast<int>(input.byte()) - 32;
+                const int note = input.byte() % 8 == 0
+                    ? std::bit_cast<std::int32_t>(input.word())
+                    : static_cast<int>(input.byte()) - 32;
                 const auto id = input.byte();
-                engine->noteOff(note, id);
+                const auto previousOwner = previousOwners[input.byte() % previousOwners.size()];
+                const auto currentOwner = engine->getHeldNoteOwner(note, id);
+                const auto expectedOwner = input.byte() % 2 == 0
+                    ? electry::ElectryEngine::anyNoteOwner : previousOwner;
+                engine->noteOff(note, id, expectedOwner);
+                if (expectedOwner != electry::ElectryEngine::anyNoteOwner
+                    && expectedOwner != currentOwner.token)
+                    require(engine->getHeldNoteOwner(note, id).count == currentOwner.count);
                 break;
             }
             case 4: engine->setPitchBend(input.scalar()); break;
@@ -196,8 +229,10 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 break;
             case 12:
             {
-                std::array<electry::ElectryEngine::NoteOnEvent, 16> notes {};
-                const auto count = input.byte() % (notes.size() + 1);
+                // Exercise the exact fixed-capacity boundary and overload,
+                // not merely ordinary eight-note chords.
+                std::array<electry::ElectryEngine::NoteOnEvent, 256> notes {};
+                const std::size_t count = input.byte();
                 for (std::size_t i = 0; i < count; ++i)
                 {
                     notes[i].midiNote = static_cast<int>(input.byte()) - 32;
@@ -227,11 +262,52 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 engine->setParameters(parameters);
                 break;
             case 16:
+            {
+                left.fill(sentinel);
+                right.fill(sentinel);
                 engine->process(nullptr, right.data(), 256);
+                engine->process(left.data(), nullptr, 256);
+                fx->process(nullptr, right.data(), 256);
                 fx->process(left.data(), nullptr, 256);
                 engine->pushAcousticReturn(nullptr, nullptr, 256);
+                const int count = input.byte() % 2 == 0 ? 0
+                    : std::numeric_limits<int>::min();
+                engine->process(left.data(), right.data(), count);
+                fx->process(left.data(), right.data(), count);
+                engine->pushAcousticReturn(left.data(), right.data(), count);
+                for (std::size_t i = 0; i < left.size(); ++i)
+                    require(left[i] == sentinel && right[i] == sentinel);
                 break;
-            default: render(1 + input.byte(), true); break;
+            }
+            case 17: render(1 + input.byte(), true); break;
+            case 18:
+                // Reuse already-live objects at different rates: preparation
+                // must replace recursive histories and delay storage safely.
+                // Bound expensive allocations independently of input length.
+                if (prepareCount++ < 3)
+                {
+                    const double newRate = rates[input.byte() % rates.size()];
+                    engine->prepare(newRate, std::bit_cast<std::int32_t>(input.word()));
+                    fx->prepare(newRate);
+                    require(engine->getActiveVoiceCount() == 0);
+                }
+                break;
+            case 19:
+                for (auto field : engineControls)
+                    parameters.*field = input.scalar();
+                for (auto field : fxControls)
+                    effects.*field = input.scalar();
+                engine->setParameters(parameters);
+                fx->setParameters(effects);
+                break;
+            case 20:
+                engine->setVariationSeed(input.word());
+                engine->reset();
+                break;
+            case 21:
+                render(1 + input.byte(), false, true);
+                break;
+            default: render(1 + input.byte(), true, true); break;
         }
         // Time advances after every event, including control-only prefixes.
         // Keep causal feedback chunks below the smallest supported delay.

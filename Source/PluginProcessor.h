@@ -9,7 +9,9 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <limits>
 #include <memory>
+#include <optional>
 
 namespace electry::parameters
 {
@@ -203,18 +205,26 @@ private:
         bool selectsBaseArticulation = false;
     };
 
-    struct NoteOnBatch
-    {
-        std::array<electry::ElectryEngine::NoteOnEvent,
-                   electry::ElectryEngine::maximumChordEvents> events {};
-        std::size_t size = 0;
-    };
-
     struct OutstandingNoteOwner
     {
         std::uint8_t midiChannel = 0;
         electry::ElectryEngine::ExpressionId expressionId =
             electry::ElectryEngine::legacyExpressionId;
+        electry::ElectryEngine::NoteOwnerToken engineOwner =
+            electry::ElectryEngine::invalidNoteOwner;
+        electry::ElectryEngine::NoteOwnerToken doubleEngineOwner =
+            electry::ElectryEngine::invalidNoteOwner;
+    };
+
+    struct NoteOnBatch
+    {
+        std::array<electry::ElectryEngine::NoteOnEvent,
+                   electry::ElectryEngine::maximumChordEvents> events {};
+        // Appending another owner never moves an existing queue element.
+        // Every release flushes this batch before it can compact a queue.
+        std::array<OutstandingNoteOwner*,
+                   electry::ElectryEngine::maximumChordEvents> owners {};
+        std::size_t size = 0;
     };
 
     static constexpr std::size_t maximumOutstandingOwnersPerNote = 128;
@@ -223,6 +233,38 @@ private:
         std::array<OutstandingNoteOwner, maximumOutstandingOwnersPerNote>
             owners {};
         std::uint8_t size = 0;
+    };
+
+    struct PerformanceKeyOwners
+    {
+        // The UI is source 0; MIDI channels are sources 1..16. The gesture
+        // affects the whole instrument, but only its source may release it.
+        std::array<std::uint16_t, 17> bySource {};
+        std::uint16_t total = 0;
+
+        bool press (int source) noexcept
+        {
+            if (source < 0 || source >= static_cast<int> (bySource.size())
+                || total == std::numeric_limits<std::uint16_t>::max())
+                return false;
+            ++bySource[static_cast<std::size_t> (source)];
+            ++total;
+            return true;
+        }
+
+        bool release (int source) noexcept
+        {
+            if (source < 0 || source >= static_cast<int> (bySource.size()))
+                return false;
+            auto& count = bySource[static_cast<std::size_t> (source)];
+            if (count == 0)
+                return false;
+            --count;
+            --total;
+            return true;
+        }
+
+        bool isHeld() const noexcept { return total != 0; }
     };
 
     static constexpr unsigned uiQueueCapacity = 128;
@@ -252,8 +294,8 @@ private:
     void applyTremoloGesture (float velocity) noexcept;
     void clearTremoloGesture() noexcept;
     void dispatchNoteOn (int note, float velocity,
-                         bool selectsBaseArticulation) noexcept;
-    void dispatchNoteOff (int note) noexcept;
+                         bool selectsBaseArticulation, int midiChannel = 0) noexcept;
+    void dispatchNoteOff (int note, int midiChannel = 0) noexcept;
     electry::ElectryEngine::ExpressionId expressionIdForNoteOn (
         int midiChannel) const noexcept;
     void dispatchHostNoteOff (int note, int midiChannel) noexcept;
@@ -261,11 +303,11 @@ private:
     void dispatchPitchWheel (int midiChannel, float bend) noexcept;
     void refreshMpePitchBend (int midiChannel) noexcept;
     void refreshMpePitchBends() noexcept;
-    bool recordNoteOwnership (
+    OutstandingNoteOwner* recordNoteOwnership (
         int note, int midiChannel,
         electry::ElectryEngine::ExpressionId expressionId) noexcept;
-    int takeNoteOwnership (int note, int midiChannel,
-                           bool allowAnyLegacy) noexcept;
+    std::optional<OutstandingNoteOwner> takeNoteOwnership (
+        int note, int midiChannel, bool allowAnyLegacy) noexcept;
     void clearMpeNoteOwnership() noexcept;
     void resetPitchBends() noexcept;
     void resetAttackConditioningControllers() noexcept;
@@ -318,7 +360,7 @@ private:
     std::atomic<bool> playStyleKeysHold { false };
     bool appliedPlayStyleKeysHold = false;
     int appliedBasePlayStyleIndex = 0;
-    std::array<std::uint16_t,
+    std::array<PerformanceKeyOwners,
                electry::ElectryEngine::playStyleKeyswitchCount>
         heldPlayStyleCounts {};
     std::array<std::uint64_t,
@@ -327,11 +369,11 @@ private:
     std::uint64_t heldPlayStyleSequence = 0;
     std::atomic<std::uint8_t> soloStringMaskForDisplay { 0 };
     std::atomic<std::uint8_t> latchedSoloStringMask { 0 };
-    std::array<std::uint16_t,
+    std::array<PerformanceKeyOwners,
                electry::ElectryEngine::stringCount>
         heldSoloStringCounts {};
-    std::uint16_t vibratoGestureOwners = 0;
-    std::uint16_t tremoloGestureOwners = 0;
+    PerformanceKeyOwners vibratoGestureOwners;
+    PerformanceKeyOwners tremoloGestureOwners;
     bool sustainPedalDown = false;
     juce::MPEZoneLayout mpeZoneLayout;
     juce::MidiRPNDetector mpeRpnDetector;
