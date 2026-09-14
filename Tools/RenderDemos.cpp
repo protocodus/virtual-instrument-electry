@@ -13,6 +13,11 @@
 #include "DSP/ElectryFx.h"
 
 #include <algorithm>
+#include <atomic>
+#include <charconv>
+#include <exception>
+#include <memory>
+#include <thread>
 #include <cmath>
 #include <cstdint>
 #include <array>
@@ -138,12 +143,12 @@ public:
          bool stereo)
         : stereo_(stereo)
     {
-        engine_.prepare(demoSampleRate, renderBlockSize);
-        engine_.setParameters(engineParameters);
-        engine_.reset();
-        effects_.prepare(demoSampleRate);
+        engine_->prepare(demoSampleRate, renderBlockSize);
+        engine_->setParameters(engineParameters);
+        engine_->reset();
+        effects_->prepare(demoSampleRate);
         setFxParameters(fxParameters);
-        effects_.reset();
+        effects_->reset();
         // A short lead-in lets the engine's continuous-parameter smoothers
         // reach the take's settings before the first note, exactly as a host
         // would after loading a preset.
@@ -152,27 +157,27 @@ public:
 
     void setEngineParameters(const EngineParameters& parameters)
     {
-        engine_.setParameters(parameters);
+        engine_->setParameters(parameters);
     }
 
     void setFxParameters(const FxParameters& parameters)
     {
-        effects_.setParameters(parameters);
+        effects_->setParameters(parameters);
         // What the plug-in shell does: the rig's acoustic loudness in the
         // room follows the amplifier controls, so the resonance wheel can
         // push a distorted take into feedback.
-        engine_.setAcousticReturnLevel(
+        engine_->setAcousticReturnLevel(
             std::min(1.0f, parameters.amp + 0.6f * parameters.distortion));
     }
 
     void pick(PickStyle pickStyle)
     {
-        engine_.noteOn(keyswitchFor(pickStyle), 1.0f);
+        engine_->noteOn(keyswitchFor(pickStyle), 1.0f);
     }
 
     void style(PlayStyle playStyle)
     {
-        engine_.noteOn(keyswitchFor(playStyle), 1.0f);
+        engine_->noteOn(keyswitchFor(playStyle), 1.0f);
     }
 
     void noteOn(int note, float velocity)
@@ -180,20 +185,20 @@ public:
         const std::array<ElectryEngine::NoteOnEvent, 1> event {{
             { note, velocity }
         }};
-        engine_.noteOnChord(event);
+        engine_->noteOnChord(event);
     }
-    void noteOff(int note) { engine_.noteOff(note); }
-    void pitchBend(float bipolar) { engine_.setPitchBend(bipolar); }
-    void resonance(float amount) { engine_.setResonance(amount); }
+    void noteOff(int note) { engine_->noteOff(note); }
+    void pitchBend(float bipolar) { engine_->setPitchBend(bipolar); }
+    void resonance(float amount) { engine_->setResonance(amount); }
     // The visible momentary fretting-hand gesture.
-    void vibrato(float amount) { engine_.setVibrato(amount); }
+    void vibrato(float amount) { engine_->setVibrato(amount); }
     void beginTremoloPicking(float velocity)
     {
-        engine_.beginTremoloPicking(velocity);
+        engine_->beginTremoloPicking(velocity);
     }
-    void endTremoloPicking() { engine_.endTremoloPicking(); }
-    void palmMutePressure(float amount) { engine_.setPalmMutePressure(amount); }
-    void sustain(bool down) { engine_.setSustainPedal(down); }
+    void endTremoloPicking() { engine_->endTremoloPicking(); }
+    void palmMutePressure(float amount) { engine_->setPalmMutePressure(amount); }
+    void sustain(bool down) { engine_->setSustainPedal(down); }
 
     void chord(std::initializer_list<int> notes, float velocity)
     {
@@ -201,13 +206,13 @@ public:
         events.reserve(notes.size());
         for (const int note : notes)
             events.push_back({ note, velocity });
-        engine_.noteOnChord(events);
+        engine_->noteOnChord(events);
     }
 
     void releaseChord(std::initializer_list<int> notes)
     {
         for (const int note : notes)
-            engine_.noteOff(note);
+            engine_->noteOff(note);
     }
 
     // One note held for `holdSeconds`, then `gapSeconds` of silence after the
@@ -229,19 +234,19 @@ public:
         while (remaining > 0)
         {
             const int samples = std::min(
-                { renderBlockSize, engine_.getAcousticReturnDelaySamples(),
+                { renderBlockSize, engine_->getAcousticReturnDelaySamples(),
                   remaining });
             const auto offset = left_.size();
             left_.resize(offset + static_cast<std::size_t>(samples));
             right_.resize(offset + static_cast<std::size_t>(samples));
-            engine_.process(left_.data() + offset, right_.data() + offset,
+            engine_->process(left_.data() + offset, right_.data() + offset,
                             samples);
-            effects_.process(left_.data() + offset, right_.data() + offset,
+            effects_->process(left_.data() + offset, right_.data() + offset,
                              samples);
             // Close the acoustic loop the way the plug-in does: the amplified
             // output is what the loudspeaker plays back at the strings. With
             // the resonance wheel down this stores nothing audible.
-            engine_.pushAcousticReturn(left_.data() + offset,
+            engine_->pushAcousticReturn(left_.data() + offset,
                                        right_.data() + offset, samples);
             remaining -= samples;
         }
@@ -315,7 +320,7 @@ public:
     [[nodiscard]] bool allNotesReleased() const noexcept
     {
         std::array<electry::StringVisualState, ElectryEngine::stringCount> states;
-        engine_.getStringVisualState(states);
+        engine_->getStringVisualState(states);
         return std::none_of(states.begin(), states.end(), [] (const auto& state)
         {
             return state.sounding && ! state.releasing;
@@ -323,8 +328,10 @@ public:
     }
 
 private:
-    ElectryEngine engine_;
-    ElectryFx effects_;
+    // Offline workers have small platform-default stacks. Keep the large
+    // delay lines and prepared circuit tables in each take's own heap storage.
+    std::unique_ptr<ElectryEngine> engine_ = std::make_unique<ElectryEngine>();
+    std::unique_ptr<ElectryFx> effects_ = std::make_unique<ElectryFx>();
     bool stereo_ { false };
     std::vector<float> left_;
     std::vector<float> right_;
@@ -1866,9 +1873,9 @@ int runSmokeTest(const std::filesystem::path& directory)
                 take.peak());
     return 0;
 }
-// A demo removed from or renamed in demos() must also disappear from the
-// output directory, or automation that commits the directory preserves the
-// stale file forever while the level table drops its row.
+// Only call for the canonical directory after validating its README ownership
+// markers. Ad-hoc output folders may contain unrelated recordings and are
+// never pruned.
 bool removeStaleWavs(const std::filesystem::path& directory)
 {
     std::vector<std::string> current;
@@ -1982,41 +1989,18 @@ bool updatePeaksTable(const std::filesystem::path& directory,
                 readmePath.string().c_str());
     return ! output.fail();
 }
-} // namespace
 
-int main(int argc, char** argv)
+struct RenderResult
 {
-    std::vector<std::string> arguments(argv + 1, argv + argc);
-    bool smoke = false;
-    std::filesystem::path directory = "Docs/audio";
-    for (const auto& argument : arguments)
-    {
-        if (argument == "--smoke")
-            smoke = true;
-        else if (argument == "--help" || argument == "-h")
-        {
-            std::printf("usage: ElectryRenderDemos [--smoke] [output-directory]\n");
-            return 0;
-        }
-        else
-            directory = argument;
-    }
+    RenderedLevel level;
+    std::string message;
+    bool success = false;
+};
 
-    if (smoke)
-        return runSmokeTest(directory);
-
-    std::error_code error;
-    std::filesystem::create_directories(directory, error);
-    if (! std::filesystem::is_directory(directory))
-    {
-        std::fprintf(stderr, "cannot create output directory %s\n",
-                     directory.string().c_str());
-        return 1;
-    }
-
-    int failures = 0;
-    std::vector<RenderedLevel> levels;
-    for (const auto& demo : demos())
+RenderResult renderDemo(const Demo& demo, const std::filesystem::path& directory)
+{
+    RenderResult result;
+    try
     {
         auto take = demo.render();
         const auto path = directory / demo.fileName;
@@ -2025,31 +2009,26 @@ int main(int argc, char** argv)
 
         if (! take.allNotesReleased())
         {
-            std::fprintf(stderr, "%s: playable notes left held\n", demo.fileName);
-            ++failures;
-            continue;
+            result.message = std::string(demo.fileName) + ": playable notes left held\n";
+            return result;
         }
         if (! take.finite())
         {
-            std::fprintf(stderr, "%s: non-finite sample\n", demo.fileName);
-            ++failures;
-            continue;
+            result.message = std::string(demo.fileName) + ": non-finite sample\n";
+            return result;
         }
         const double renderedPeak = take.peak();
         if (renderedPeak < 1.0e-3)
         {
-            std::fprintf(stderr, "%s: rendered silence\n", demo.fileName);
-            ++failures;
-            continue;
+            result.message = std::string(demo.fileName) + ": rendered silence\n";
+            return result;
         }
         // A mono take must genuinely be exact dual mono before it is written as
         // one channel, so the committed file is lossless rather than a downmix.
         if (! take.stereo() && ! take.channelsIdentical())
         {
-            std::fprintf(stderr, "%s: channels differ, cannot write as mono\n",
-                         demo.fileName);
-            ++failures;
-            continue;
+            result.message = std::string(demo.fileName) + ": channels differ, cannot write as mono\n";
+            return result;
         }
 
         // Each file is peak normalised so the set is comfortable to audition
@@ -2065,18 +2044,147 @@ int main(int argc, char** argv)
 
         if (! writeWav(path, take.left(), take.right(), take.stereo()))
         {
-            std::fprintf(stderr, "%s: write failed\n", demo.fileName);
-            ++failures;
-            continue;
+            result.message = std::string(demo.fileName) + ": write failed\n";
+            return result;
         }
 
         const double renderedPeakDb = 20.0 * std::log10(std::max(renderedPeak, 1.0e-9));
         const double normalisationDb = 20.0 * std::log10(std::max(normalisation, 1.0e-9));
-        levels.push_back({ demo.fileName, renderedPeakDb, normalisationDb });
-        std::printf("%-34s %s  %5.2f s  rendered %6.1f dBFS  normalised %+5.1f dB"
+        result.level = { demo.fileName, renderedPeakDb, normalisationDb };
+        char message[1024];
+        std::snprintf(message, sizeof message, "%-34s %s  %5.2f s  rendered %6.1f dBFS  normalised %+5.1f dB"
                     "  %s\n", demo.fileName,
                     take.stereo() ? "stereo" : "mono  ", seconds,
                     renderedPeakDb, normalisationDb, demo.description);
+        result.message = message;
+        result.success = true;
+        return result;
+    }
+    catch (const std::exception& error)
+    {
+        result.message = std::string(demo.fileName) + ": " + error.what() + "\n";
+        return result;
+    }
+}
+} // namespace
+
+int main(int argc, char** argv)
+{
+    std::vector<std::string> arguments(argv + 1, argv + argc);
+    bool smoke = false;
+    bool haveDirectory = false;
+    int jobs = 1;
+    std::filesystem::path directory = "Docs/audio";
+    for (std::size_t i = 0; i < arguments.size(); ++i)
+    {
+        const auto& argument = arguments[i];
+        if (argument == "--smoke")
+            smoke = true;
+        else if (argument == "--jobs")
+        {
+            if (++i >= arguments.size())
+            {
+                std::fprintf(stderr, "--jobs requires an integer from 1 to 23\n");
+                return 1;
+            }
+            const auto& value = arguments[i];
+            const auto parsed = std::from_chars(value.data(), value.data() + value.size(), jobs);
+            if (parsed.ec != std::errc {} || parsed.ptr != value.data() + value.size()
+                || jobs < 1 || jobs > static_cast<int>(demos().size()))
+            {
+                std::fprintf(stderr, "--jobs requires an integer from 1 to 23\n");
+                return 1;
+            }
+        }
+        else if (argument == "--help" || argument == "-h")
+        {
+            std::printf("usage: ElectryRenderDemos [--smoke] [--jobs 1..23] [output-directory]\n");
+            return 0;
+        }
+        else if (!argument.empty() && argument.front() != '-' && !haveDirectory)
+        {
+            directory = argument;
+            haveDirectory = true;
+        }
+        else
+        {
+            std::fprintf(stderr, "unexpected argument: %s\n", argument.c_str());
+            return 1;
+        }
+    }
+
+    if (smoke)
+        return runSmokeTest(directory);
+
+    // Check ownership before overwriting audio. Previously the table writer
+    // checked this only after all renders and deletion of stale WAVs.
+    const auto readmePath = instrumentReadme(directory);
+    const bool ownsOutputDirectory = !readmePath.empty()
+        && std::filesystem::exists(readmePath);
+    if (ownsOutputDirectory)
+    {
+        std::ifstream readmeInput(readmePath, std::ios::binary);
+        const std::string readme((std::istreambuf_iterator<char>(readmeInput)),
+                                 std::istreambuf_iterator<char>());
+        const auto begin = readme.find(peaksTableBegin);
+        const auto end = readme.find(peaksTableEnd);
+        if (begin == std::string::npos || end == std::string::npos || end < begin)
+        {
+            std::fprintf(stderr, "%s has no valid rendered-peak ownership markers\n",
+                         readmePath.string().c_str());
+            return 1;
+        }
+    }
+
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    if (! std::filesystem::is_directory(directory))
+    {
+        std::fprintf(stderr, "cannot create output directory %s\n",
+                     directory.string().c_str());
+        return 1;
+    }
+
+    // A take owns every engine, random stream and file it touches. Parallel
+    // jobs share only immutable score data; reporting, pruning and the README
+    // update remain on this thread after every worker has joined.
+    std::vector<RenderResult> results(demos().size());
+    std::atomic<std::size_t> next { 0 };
+    const auto worker = [&]
+    {
+        for (;;)
+        {
+            const auto index = next.fetch_add(1, std::memory_order_relaxed);
+            if (index >= demos().size())
+                return;
+            results[index] = renderDemo(demos()[index], directory);
+        }
+    };
+    {
+        std::vector<std::jthread> workers;
+        try
+        {
+            workers.reserve(static_cast<std::size_t>(jobs - 1));
+            for (int i = 1; i < jobs; ++i)
+                workers.emplace_back(worker);
+        }
+        catch (const std::exception&)
+        {
+            // Resource-constrained machines can finish with fewer workers.
+            // The current thread always participates and drains the queue.
+        }
+        worker();
+    }
+
+    int failures = 0;
+    std::vector<RenderedLevel> levels;
+    for (const auto& result : results)
+    {
+        std::fputs(result.message.c_str(), result.success ? stdout : stderr);
+        if (result.success)
+            levels.push_back(result.level);
+        else
+            ++failures;
     }
 
     if (failures != 0)
@@ -2086,7 +2194,7 @@ int main(int argc, char** argv)
     }
     // Only a complete render may prune stale files and rewrite the
     // documented level table.
-    if (! removeStaleWavs(directory))
+    if (ownsOutputDirectory && ! removeStaleWavs(directory))
         return 1;
     if (! updatePeaksTable(directory, levels))
         return 1;

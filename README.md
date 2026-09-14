@@ -60,6 +60,11 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-14 — Release hardening:** malformed host MIDI, parameter values,
+  state chunks and output buffers are handled safely; duplicate note releases
+  preserve MPE ownership, and controller resets respect event order. Extreme
+  audio input is bounded before recursive effects, settled FX controls avoid
+  redundant CPU work, and independent demo renders can use multiple cores.
 - **2026-09-11 — [Interface finish](Docs/ui-polish-2026-09-11.md):**
   quieter graphite surfaces, refined metal knobs, brighter values, aligned
   header controls and a power icon for FX, with more space between FX controls.
@@ -1357,6 +1362,14 @@ this field migrate to on; factory rig selection preserves its current value.
 
 ### What the automated tests do and do not establish
 
+The release-hardening suites include deterministic hostile float/MIDI/state
+sequences and changing block sizes. AddressSanitizer, UndefinedBehaviorSanitizer
+and float-to-integer overflow checks can instrument the engine, effects and
+processor tests; CI also runs a bounded, coverage-guided libFuzzer DSP session
+and preserves its corpus and any crash reproducers. These checks detect tested
+memory, arithmetic and lifecycle faults; they do not establish that arbitrary
+future input or every host is crash-free.
+
 Ordinary tests deliberately do not assert callback deadlines on unknown
 hardware. An opt-in native-processor benchmark now times `processBlock()` after
 warmup at 48, 96 and 384 kHz with 64- and 512-frame callbacks. It covers the
@@ -1378,6 +1391,15 @@ per-block American/British switch missed 147/375 and 174/256 callbacks at 48
 kHz, 598/750 and 256/256 at 96 kHz, and 2,987/3,000 and 375/375 at 384 kHz for
 64 and 512 frames respectively. That row identifies an automation boundary,
 not the cost of a selected, settled amplifier.
+
+A 2026-09-14 native Release diagnostic after the hardening pass kept every
+scenario's p99 below its callback budget, but still recorded 86 individual
+deadline misses across 30,072 callbacks, concentrated at 384 kHz/64 frames.
+This runs on an ordinary test-process thread: it does not certify scheduling
+in a DAW. Separate alternating FX-only measurements at 48 kHz showed a
+22–24% reduction for room-only processing across 64/128/512-frame blocks;
+the complete Modern amp chain showed no reliable speedup. Master FX OFF
+already skips that chain, so those percentages are not whole-instrument gains.
 
 Current automated tests establish: finite, bounded, non-silent output for
 all twenty-one pick-stroke/play-style combinations at 44.1-384 kHz; the 2x/1x
@@ -5129,6 +5151,47 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
+
+Independent offline demo takes can render concurrently, with identical audio
+and report order. The worker count is explicit and bounded (1 through 23);
+large DSP state lives on the heap so small worker stacks are sufficient:
+
+```bash
+./build/ElectryRenderDemos --jobs 4 build/demo-audio
+```
+
+The renderer preserves unrelated WAVs in ad-hoc output directories. The
+canonical `Docs/audio` output requires valid README ownership markers before
+rendering or pruning. Realtime string rendering stays serial: the strings
+exchange sympathetic/body state every simulation sample, so splitting them
+across threads would require synchronization at the physical-model rate.
+
+For instrumented DSP tests (Clang or GCC):
+
+```bash
+cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DELECTRY_BUILD_PLUGIN=OFF -DELECTRY_ENABLE_SANITIZERS=ON
+cmake --build build-sanitize --parallel
+ctest --test-dir build-sanitize --output-on-failure
+```
+
+For coverage-guided input mutation, use a Clang distribution containing
+libFuzzer. Each corpus input drives bounded stateful note, expression,
+parameter, feedback and lifecycle sequences through fresh DSP objects:
+
+```bash
+cmake -S . -B build-fuzz -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo -DELECTRY_BUILD_PLUGIN=OFF \
+  -DELECTRY_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF -DELECTRY_BUILD_FUZZER=ON
+cmake --build build-fuzz --target ElectryDspFuzz --parallel
+mkdir -p build-fuzz/corpus
+./build-fuzz/ElectryDspFuzz build-fuzz/corpus -max_total_time=120 \
+  -max_len=4096 -timeout=30 -rss_limit_mb=2048
+```
+
+Clang installations without a bundled fuzz runtime can supply a separately
+built LLVM libFuzzer archive with `-DELECTRY_LIBFUZZER_LIBRARY=/path/to/libFuzzer.a`.
+Keep sanitizer and fuzz builds separate from distribution builds.
 
 Run the opt-in full-chain callback benchmark directly from that Release build:
 

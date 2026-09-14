@@ -3,6 +3,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <cstdint>
+#include <limits>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -20,6 +23,10 @@ namespace
 constexpr double sampleRate = 48000.0;
 constexpr int blockSize = 512;
 int failureCount = 0;
+
+// Processor fixtures contain the instrument's fixed DSP delay lines. Allocate
+// them as the real plugin factory does: heap ownership keeps optimized inlining
+// and AddressSanitizer stack redzones from exhausting the host test thread.
 
 void expect (bool condition, const std::string& message)
 {
@@ -248,7 +255,8 @@ double measureFundamentalHz (const std::vector<float>& data, int start, int leng
 
 void testParameterLayoutAndDefaults()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     expect (processor.getParameters().size()
                 == static_cast<int> (expectedParameters.size()),
             "processor does not expose exactly 30 APVTS parameters");
@@ -314,7 +322,8 @@ void testFactoryPrograms()
         int programChanges = 0;
     } listener;
 
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     expect (processor.getNumPrograms() == 4,
             "processor does not expose exactly four factory rigs");
     expect (processor.getCurrentProgram() == 0,
@@ -463,7 +472,8 @@ void testFactoryPrograms()
 
 void testParameterTextFormatting()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
 #if ELECTRY_MEASURED_BODY_RESPONSE
     expectParameterText (processor, electry::parameters::guitarBuild, 0.0f,
                          "Walnut short/heavy");
@@ -551,7 +561,8 @@ void expectParameterValueForText (ElectryAudioProcessor& processor, const char* 
 // failing a single existing test.
 void testParameterTextParsing()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
 
     // percentValue(): a 0..1-ranged parameter's plain value equals its
     // normalised one, so the parsed percentage is the expected value exactly.
@@ -615,7 +626,8 @@ void testParameterTextParsing()
 
 void testStateRoundTrip()
 {
-    ElectryAudioProcessor source;
+    const auto sourceStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& source = *sourceStorage;
     source.setCurrentProgram (3);
     source.setPlayStyleKeysHold (true);
     setParameterValue (source, electry::parameters::fxEnabled, 1.0f);
@@ -641,7 +653,8 @@ void testStateRoundTrip()
     source.getStateInformation (state);
     expect (state.getSize() > 0, "state serialisation produced no data");
 
-    ElectryAudioProcessor restored;
+    const auto restoredStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& restored = *restoredStorage;
     restored.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
 
     expect (restored.getCurrentProgram() == 3,
@@ -724,7 +737,8 @@ void testStateRoundTrip()
         if (const auto legacyXml = legacyState.createXml())
             juce::AudioProcessor::copyXmlToBinary (*legacyXml, legacyData);
 
-        ElectryAudioProcessor legacyRestored;
+        const auto legacyRestoredStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& legacyRestored = *legacyRestoredStorage;
         setParameterValue (legacyRestored, electry::parameters::ampModel, 0.0f);
         legacyRestored.setStateInformation (
             legacyData.getData(), static_cast<int> (legacyData.getSize()));
@@ -756,7 +770,8 @@ void testStateRoundTrip()
 
 void testBusAndPluginContract()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     expect (processor.acceptsMidi(), "instrument does not accept MIDI");
     expect (! processor.producesMidi(), "instrument unexpectedly produces MIDI");
     expect (! processor.isMidiEffect(), "instrument reports being a MIDI effect");
@@ -792,7 +807,8 @@ void testBusAndPluginContract()
 
 void testSampleAccurateNoteAndSound()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     expect (processor.isEngineReady(), "engine is not ready after prepareToPlay");
 
@@ -831,7 +847,8 @@ void testSameSampleChordAllocationIsCanonical()
         const std::array<int, N>& hostNotes, std::span<const int> uiNotes,
         float spreadMilliseconds, int onset, int ownershipProbe = -1)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
         setParameterValue (processor, electry::parameters::strumSpread,
@@ -1058,7 +1075,8 @@ void testSameSampleChordAllocationIsCanonical()
     // before an attack and a release after it must therefore remain different.
     const auto noteThenRelease = [] (bool releaseFirst)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -1087,7 +1105,8 @@ void testSameSampleChordAllocationIsCanonical()
                 && held.sounding && ! held.releasing,
             "same-sample Note On/Off lifecycle order was canonicalised away");
 
-    ElectryAudioProcessor overlaps;
+    const auto overlapsStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& overlaps = *overlapsStorage;
     overlaps.prepareToPlay (sampleRate, blockSize);
     juce::AudioBuffer<float> overlapAudio;
     juce::MidiBuffer overlapMidi;
@@ -1123,7 +1142,8 @@ void testSameSampleChordAllocationIsCanonical()
 
 void testKeyswitchContract()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
 
     juce::AudioBuffer<float> audio;
@@ -1186,7 +1206,8 @@ void testPlayStyleHoldContract()
     const auto conditionedAttack = [=] (bool release, bool switchFirst,
                                         bool zeroVelocityRelease)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.setPlayStyleKeysHold (true);
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
@@ -1229,7 +1250,8 @@ void testPlayStyleHoldContract()
 
     const auto allNotesOffOrder = [=] (bool resetFirst)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.setPlayStyleKeysHold (true);
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
@@ -1252,7 +1274,8 @@ void testPlayStyleHoldContract()
                 && allNotesOffOrder (false) == sustain,
             "CC123 and a HOLD Note On lost their same-sample source order");
 
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.setPlayStyleKeysHold (true);
     setParameterValue (processor, electry::parameters::bendTime, 0.04f);
     setParameterValue (processor, electry::parameters::bodyResonance, 0.0f);
@@ -1386,7 +1409,8 @@ void testPlayStyleHoldContract()
     send (juce::MidiMessage::noteOn (1, palmKey, (juce::uint8) 127));
     juce::MemoryBlock heldState;
     processor.getStateInformation (heldState);
-    ElectryAudioProcessor restored;
+    const auto restoredStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& restored = *restoredStorage;
     restored.setStateInformation (heldState.getData(),
                                   static_cast<int> (heldState.getSize()));
     expect (restored.getPlayStyleKeysHold()
@@ -1402,7 +1426,8 @@ void testPlayStyleHoldContract()
 
 void testSoloStringProcessorKeyswitches()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     juce::AudioBuffer<float> audio;
     juce::MidiBuffer midi;
@@ -1522,7 +1547,8 @@ void testSameSampleMuteKeyswitchOrder()
     const auto renderAttack = [] (electry::PlayStyle playStyle,
                                   bool playableNoteFirst)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
 
@@ -1554,7 +1580,8 @@ void testSameSampleMuteKeyswitchOrder()
     const auto renderUiAttack = [] (electry::PlayStyle playStyle,
                                     bool playableNoteFirst)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
 
@@ -1588,7 +1615,8 @@ void testSameSampleMuteKeyswitchOrder()
     const auto renderHostSwitchWithUiNote = [] (electry::PlayStyle playStyle,
                                                 int samplePosition = 0)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
         processor.keyboardState.noteOn (
@@ -1676,7 +1704,8 @@ void testSameSampleMuteKeyswitchOrder()
     // The remainder pass must preserve GUI note order as well as Note Ons.
     // Losing or pulling the Note Off ahead of the attack would leave a stuck
     // low string after this same sample-zero conditioning merge.
-    ElectryAudioProcessor releasedUiNote;
+    const auto releasedUiNoteStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& releasedUiNote = *releasedUiNoteStorage;
     releasedUiNote.prepareToPlay (sampleRate, blockSize);
     releasedUiNote.keyboardState.noteOn (
         1, electry::ElectryEngine::lowestMidiPlayableNote, 120.0f / 127.0f);
@@ -1697,7 +1726,8 @@ void testSameSampleMuteKeyswitchOrder()
 
 void testMidiControllersAndVoiceLifecycle()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
 
     juce::AudioBuffer<float> audio;
@@ -1790,7 +1820,8 @@ void testSameSamplePalmMutePressureAttack()
 
     const auto renderAttack = [] (PressureTiming timing)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
 
@@ -1918,7 +1949,8 @@ void testRepickMidiContract()
     };
     const auto renderConditionedRepick = [] (bool repickFirst, int cc2Value)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
 
@@ -2001,7 +2033,8 @@ void testRepickMidiContract()
     const auto renderAlternateRepick = [] (RepickInput input, bool sustainOnly,
                                             bool shouldRepick)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
 
@@ -2086,7 +2119,8 @@ void testRepickMidiContract()
     };
     const auto renderDoubleRepick = [] (bool shouldRepick)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
         setParameterValue (processor, electry::parameters::outputMode, 2.0f);
@@ -2200,7 +2234,8 @@ void testPitchWheelMidiDispatch()
     const auto measuredHz = [] (int midiNote, int wheelPosition14,
                                 double openHz) -> double
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
 
         juce::AudioBuffer<float> audio;
@@ -2249,7 +2284,8 @@ void testPitchWheelMidiDispatch()
     // dropping the second event leaves the first case about 200 cents sharp.
     const auto afterCentreHz = [] (int initialWheelPosition14) -> double
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
 
         juce::AudioBuffer<float> audio;
@@ -2303,7 +2339,8 @@ void testMpeRouting()
     // channel-agnostic path, including the global +/-2-semitone wheel.
     const auto renderLegacy = [] (bool spreadAcrossChannels)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -2336,7 +2373,8 @@ void testMpeRouting()
     // complete but unrelated to zone layout or pitch-bend sensitivity.
     const auto renderLegacyInterruptedChord = [] (int rpnParameter)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -2377,7 +2415,8 @@ void testMpeRouting()
     // an ignored legacy controller sequence, not silently enable a zone.
     const auto renderAfterZoneLikeNrpn = [] (bool useNrpn)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -2413,7 +2452,8 @@ void testMpeRouting()
     const auto renderConfiguredChord = [] (int setupPosition,
                                             bool interleaveTimbre)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -2454,7 +2494,8 @@ void testMpeRouting()
     // a spectral estimator to separate overlapping guitar harmonics.
     const auto renderForeignMemberBend = [] (bool sendForeignBend)
     {
-        ElectryAudioProcessor memberProcessor;
+        const auto memberProcessorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& memberProcessor = *memberProcessorStorage;
         setParameterValue (memberProcessor,
                            electry::parameters::bodyResonance, 0.0f);
         setParameterValue (memberProcessor, electry::parameters::artifacts,
@@ -2484,7 +2525,8 @@ void testMpeRouting()
             "one MPE member wheel changed another member's sounding string");
 
     constexpr double lowOpenHz = 41.2034;
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     setParameterValue (processor, electry::parameters::bodyResonance, 0.0f);
     setParameterValue (processor, electry::parameters::artifacts, 0.0f);
     setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
@@ -2564,7 +2606,8 @@ void testMpeRouting()
     // The upper zone has a different master channel and reverse member range.
     // Exercise those indices and the mirrored Double engine independently of
     // the lower-zone path above.
-    ElectryAudioProcessor upperProcessor;
+    const auto upperProcessorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& upperProcessor = *upperProcessorStorage;
     setParameterValue (upperProcessor, electry::parameters::outputMode, 2.0f);
     setParameterValue (upperProcessor, electry::parameters::bodyResonance, 0.0f);
     setParameterValue (upperProcessor, electry::parameters::artifacts, 0.0f);
@@ -2659,8 +2702,10 @@ void testMpeIdlePitchPreservesReleaseTail()
 {
     constexpr int note = 62;
     constexpr double openHz = 146.83238;
-    ElectryAudioProcessor reference;
-    ElectryAudioProcessor idleBent;
+    const auto referenceStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& reference = *referenceStorage;
+    const auto idleBentStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& idleBent = *idleBentStorage;
     for (auto* processor : { &reference, &idleBent })
     {
         setParameterValue (*processor, electry::parameters::bodyResonance, 0.0f);
@@ -2741,7 +2786,8 @@ void testMpeFractionalRangeAndLiveMasterTail()
 {
     constexpr int note = 62;
     constexpr double openHz = 146.83238;
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     setParameterValue (processor, electry::parameters::bodyResonance, 0.0f);
     setParameterValue (processor, electry::parameters::artifacts, 0.0f);
     setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
@@ -2843,7 +2889,8 @@ void testMpeFractionalRangeAndLiveMasterTail()
 
 void testMpeSamePitchOwnershipAcrossLayoutChange()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.setPlayStyleKeysHold (true);
     processor.prepareToPlay (sampleRate, blockSize);
     juce::AudioBuffer<float> audio;
@@ -3011,7 +3058,8 @@ void testMpeSamePitchOwnershipAcrossLayoutChange()
 
 void testMpeOwnershipCapacityIsClosed()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     juce::AudioBuffer<float> audio;
     juce::MidiBuffer midi;
@@ -3061,7 +3109,8 @@ void testMpeOwnershipLifecycleBoundaries()
     for (const auto boundary : { Boundary::Panic, Boundary::AllSoundOff,
                                  Boundary::AllNotesOff, Boundary::Prepare })
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> audio;
         juce::MidiBuffer midi;
@@ -3113,7 +3162,8 @@ void testMpeOwnershipLifecycleBoundaries()
 // loop, so deleting the return, CC1 dispatch or loudness derivation fails.
 void testResonanceWheelFeedback()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
     processor.prepareToPlay (sampleRate, blockSize);
 
@@ -3173,7 +3223,8 @@ void testResonanceFeedbackIsBlockSizeInvariant()
     constexpr int noteOffSample = 4099;
     const auto render = [] (int hostBlockSize)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
         processor.prepareToPlay (sampleRate, hostBlockSize);
         setParameterValue (processor, electry::parameters::amp, 0.9f);
@@ -3264,7 +3315,8 @@ void testMidiPressureLeavesChordUnchanged()
 
     const auto renderChord = [] (Pressure pressure)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
 
         juce::AudioBuffer<float> audio;
@@ -3320,7 +3372,8 @@ void testResetAllControllersDispatch()
     // then send Reset All Controllers and confirm the bend glides back to the
     // unbent pitch exactly as a centred pitch wheel would.
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
 
         juce::AudioBuffer<float> audio;
@@ -3364,7 +3417,8 @@ void testResetAllControllersDispatch()
     // documented CC64 semantics), then send Reset All Controllers and confirm
     // the flagged voice is released exactly as an explicit pedal-up would.
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
 
         juce::AudioBuffer<float> audio;
@@ -3389,7 +3443,8 @@ void testResetAllControllersDispatch()
 
 void testMutePressureDisplayFeedback()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     expect (processor.getMidiMutePressureForDisplay() == 0,
             "a prepared processor displayed stale CC2 mute pressure");
@@ -3436,7 +3491,8 @@ void testMutePressureDisplayFeedback()
 void testVibratoGestureMidiAndLifecycle()
 {
     constexpr int gestureNote = electry::ElectryEngine::vibratoGestureNote;
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     expect (processor.getVibratoGestureForDisplay() == 0,
             "a prepared processor displayed stale A#0 vibrato");
@@ -3516,7 +3572,8 @@ void testVibratoGestureMidiAndLifecycle()
             int fret = -1;
         } result;
 
-        ElectryAudioProcessor p;
+        const auto pStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& p = *pStorage;
         p.prepareToPlay (sampleRate, blockSize);
         setParameterValue (p, electry::parameters::sympathetic, 0.0f);
         setParameterValue (p, electry::parameters::artifacts, 0.0f);
@@ -3562,7 +3619,8 @@ void testVibratoGestureMidiAndLifecycle()
     const auto renderDormantDouble = [] (bool gesture)
     {
         std::vector<float> right;
-        ElectryAudioProcessor p;
+        const auto pStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& p = *pStorage;
         p.prepareToPlay (sampleRate, blockSize);
         setParameterValue (p, electry::parameters::sympathetic, 0.0f);
         juce::AudioBuffer<float> block;
@@ -3616,7 +3674,8 @@ void testTremoloPickingMidiAndLifecycle()
 {
     constexpr int gestureNote = electry::ElectryEngine::tremoloGestureNote;
     constexpr int heldNote = electry::ElectryEngine::lowestMidiPlayableNote;
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
     expect (gestureNote == 23
@@ -3708,7 +3767,8 @@ void testTremoloPickingMidiAndLifecycle()
     gestureOn (110);
     juce::MemoryBlock saved;
     processor.getStateInformation (saved);
-    ElectryAudioProcessor restored;
+    const auto restoredStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& restored = *restoredStorage;
     restored.setStateInformation (saved.getData(), static_cast<int> (saved.getSize()));
     expect (restored.getTremoloGestureForDisplay() == 0
                 && std::abs (parameterValue (
@@ -3725,7 +3785,8 @@ void testTremoloPickingMidiAndLifecycle()
     // or double a same-sample chord.
     const auto renderSameBoundary = [] (int gesturePosition)
     {
-        ElectryAudioProcessor p;
+        const auto pStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& p = *pStorage;
         p.prepareToPlay (sampleRate, blockSize);
         setParameterValue (p, electry::parameters::sympathetic, 0.0f);
         juce::AudioBuffer<float> block;
@@ -3761,7 +3822,8 @@ void testTremoloPickingMidiAndLifecycle()
     // This crosses the APVTS boundary rather than setting EngineParameters
     // directly: 20 strokes/s repeats after exactly 2,400 host samples at
     // 48 kHz, then a live 4 -> 20 change keeps the existing wrist phase.
-    ElectryAudioProcessor hostRate;
+    const auto hostRateStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& hostRate = *hostRateStorage;
     hostRate.prepareToPlay (sampleRate, blockSize);
     setParameterValue (hostRate, electry::parameters::sympathetic, 0.0f);
     setParameterValue (hostRate, electry::parameters::tremoloRate, 20.0f);
@@ -3808,7 +3870,8 @@ void testTremoloPickingMidiAndLifecycle()
 
     const auto renderReenteredDouble = [] (bool gesture)
     {
-        ElectryAudioProcessor p;
+        const auto pStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& p = *pStorage;
         p.prepareToPlay (sampleRate, blockSize);
         setParameterValue (p, electry::parameters::sympathetic, 0.0f);
         juce::AudioBuffer<float> block;
@@ -3875,7 +3938,8 @@ void testUiArticulationTriggerAndPanic()
     enum class ResetPath { None, Panic, AllSoundOff };
     const auto renderPalmAttack = [] (ResetPath resetPath)
     {
-        ElectryAudioProcessor attackProcessor;
+        const auto attackProcessorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& attackProcessor = *attackProcessorStorage;
         attackProcessor.prepareToPlay (sampleRate, blockSize);
         juce::AudioBuffer<float> attackAudio;
         juce::MidiBuffer attackMidi;
@@ -3919,7 +3983,8 @@ void testUiArticulationTriggerAndPanic()
     expect (renderPalmAttack (ResetPath::AllSoundOff) == directPalm,
             "CC120 preserved the visible Palm latch but reset its audible style");
 
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
 
     juce::AudioBuffer<float> audio;
@@ -3972,7 +4037,8 @@ void testOutputGainImpact()
 {
     const auto renderPeak = [] (float outputDb)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::output, outputDb);
 
@@ -4007,7 +4073,8 @@ void testPerformanceControls()
     const auto tailAfterRelease = [] (float sympatheticPercent, float palmMutePercent,
                                       int palmMuteCc)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::sympathetic,
                            sympatheticPercent);
@@ -4055,7 +4122,8 @@ void testPerformanceControls()
     // longer all start on the same sample.
     const auto chordPeak = [] (float spreadMs)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::strumSpread, spreadMs);
         setParameterValue (processor, electry::parameters::sympathetic, 0.0f);
@@ -4084,7 +4152,8 @@ void testFxOversamplingInLiveFeedbackPath()
     const auto render = [] (float quality, bool wet, bool automate,
                             bool changeOutputMode = false)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
         setParameterValue (processor, electry::parameters::fxOversampling, quality);
         setParameterValue (processor, electry::parameters::outputMode, 0.0f);
@@ -4230,7 +4299,8 @@ void testFxEnabledAudioAndLifecycle()
                              bool feedback, bool shortNote, double seconds,
                              int preparedFrames = 0)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         setParameterValue (processor, electry::parameters::fxEnabled, initialEnabled ? 1.0f : 0.0f);
         setParameterValue (processor, electry::parameters::outputMode, mode);
         for (const auto* id : { electry::parameters::pickNoise, electry::parameters::fingerNoise,
@@ -4373,7 +4443,8 @@ void testFxEnabledAudioAndLifecycle()
             "re-enabling FX replayed stale delay/reverb audio after bypass (peak "
                 + std::to_string (resumedPeak) + ")");
 
-    ElectryAudioProcessor rigs;
+    const auto rigsStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& rigs = *rigsStorage;
     for (const bool enabled : { false, true })
         for (int program = 0; program < rigs.getNumPrograms(); ++program)
         {
@@ -4400,7 +4471,8 @@ void testOutputModeAudioField()
 
     const auto render = [] (float mode, int midiNote)
     {
-        ElectryAudioProcessor processor;
+        const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& processor = *processorStorage;
         processor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (processor, electry::parameters::outputMode, mode);
 
@@ -4505,7 +4577,8 @@ void testOutputModeAudioField()
     // Double is a new-note boundary, not a clone of an already-ringing voice.
     // Re-entering it clears the dormant player's old tail; the primary keeps
     // ringing on the left and the next physical attack starts both players.
-    ElectryAudioProcessor toggled;
+    const auto toggledStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& toggled = *toggledStorage;
     toggled.prepareToPlay (sampleRate, blockSize);
     setParameterValue (toggled, electry::parameters::outputMode, 2.0f);
     juce::AudioBuffer<float> audio;
@@ -4675,7 +4748,8 @@ void testTextButtonKeyboardActivation()
 
 void testFxEditorToggle()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     processor.prepareToPlay (sampleRate, blockSize);
     for (const auto* id : { electry::parameters::distortion, electry::parameters::amp,
                            electry::parameters::compressor, electry::parameters::delay,
@@ -4776,7 +4850,8 @@ void testFxEditorToggle()
 
 void testEditorRendering()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     setParameterValue (processor, electry::parameters::fxEnabled, 1.0f);
     processor.prepareToPlay (sampleRate, blockSize);
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
@@ -5525,7 +5600,8 @@ void testEditorRendering()
     // it through the processor so the wording cannot drift from the actual
     // physical-string assignment, articulation or bridge-coupled ring state.
     {
-        ElectryAudioProcessor semanticProcessor;
+        const auto semanticProcessorStorage = std::make_unique<ElectryAudioProcessor>();
+        auto& semanticProcessor = *semanticProcessorStorage;
         semanticProcessor.prepareToPlay (sampleRate, blockSize);
         setParameterValue (semanticProcessor,
                            electry::parameters::sympathetic, 0.0f);
@@ -5912,7 +5988,8 @@ void testEditorRendering()
 
 void testPrepareReleaseCycles()
 {
-    ElectryAudioProcessor processor;
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
     for (const double rate : { 44100.0, 96000.0, 192000.0 })
     {
         processor.prepareToPlay (rate, blockSize);
@@ -5928,6 +6005,337 @@ void testPrepareReleaseCycles()
         expect (! processor.isEngineReady(),
                 "engine still ready after releaseResources");
     }
+}
+
+bool audioIsFinite (const juce::AudioBuffer<float>& audio)
+{
+    for (int channel = 0; channel < audio.getNumChannels(); ++channel)
+        for (int sample = 0; sample < audio.getNumSamples(); ++sample)
+            if (! std::isfinite (audio.getSample (channel, sample)))
+                return false;
+    return true;
+}
+
+void testMalformedHostInputAndUiReleases()
+{
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
+    processor.setPlayStyleKeysHold (true);
+    processor.prepareToPlay (sampleRate, blockSize);
+    juce::AudioBuffer<float> audio;
+    juce::MidiBuffer midi;
+
+    for (const auto bytes : { std::array<juce::uint8, 3> { 0x90, 52, 0xff },
+                              std::array<juce::uint8, 3> { 0x90, 0xb4, 100 } })
+        midi.addEvent (bytes.data(), static_cast<int> (bytes.size()), 0);
+    renderBlock (processor, audio, midi);
+    expect (processor.getActiveVoiceCount() == 0
+                && audio.getMagnitude (0, blockSize) == 0.0f,
+            "malformed MIDI data bytes were masked into a sounding note");
+
+    constexpr int palm = static_cast<int> (electry::PlayStyle::PalmMute);
+    constexpr int palmKey = electry::ElectryEngine::firstPlayStyleKeyswitchNote + palm;
+    processor.keyboardState.noteOn (1, palmKey, 0.8f);
+    renderBlock (processor, audio, midi);
+    expect (processor.getEffectivePlayStyleIndex() == palm,
+            "UI zero-velocity regression did not engage its HOLD key");
+    processor.keyboardState.noteOn (1, palmKey, 0.0f);
+    renderBlock (processor, audio, midi);
+    expect (processor.getEffectivePlayStyleIndex()
+                == static_cast<int> (electry::PlayStyle::Sustain),
+            "UI zero-velocity Note On retained a momentary HOLD key");
+
+    processor.keyboardState.noteOn (1, palmKey,
+                                    std::numeric_limits<float>::quiet_NaN());
+    renderBlock (processor, audio, midi);
+    expect (processor.getEffectivePlayStyleIndex()
+                == static_cast<int> (electry::PlayStyle::Sustain),
+            "non-finite UI velocity changed performance state");
+
+    for (const int channels : { 0, 1 })
+    {
+        midi.addEvent (juce::MidiMessage::noteOn (1, 52, (juce::uint8) 100), 0);
+        renderBlock (processor, audio, midi);
+        juce::AudioBuffer<float> malformed (channels, blockSize);
+        midi.addEvent (juce::MidiMessage::noteOff (1, 52), 0);
+        processor.processBlock (malformed, midi);
+        midi.clear();
+        renderBlock (processor, audio, midi);
+        expect (processor.getActiveVoiceCount() == 0
+                    && audio.getMagnitude (0, blockSize) == 0.0f,
+                "a callback missing stereo channels left a stuck note");
+    }
+    processor.releaseResources();
+}
+
+void testUnmatchedMpeReleasePreservesHeldBend()
+{
+    const auto referenceStorage = std::make_unique<ElectryAudioProcessor>();
+    const auto strayStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& reference = *referenceStorage;
+    auto& strayRelease = *strayStorage;
+    juce::AudioBuffer<float> referenceAudio;
+    juce::AudioBuffer<float> strayAudio;
+    juce::MidiBuffer referenceMidi;
+    juce::MidiBuffer strayMidi;
+    for (auto* processor : { &reference, &strayRelease })
+    {
+        processor->prepareToPlay (sampleRate, blockSize);
+        setParameterValue (*processor, electry::parameters::sympathetic, 0.0f);
+    }
+    const auto setup = juce::MPEMessages::setLowerZone (2, 5, 1);
+    for (auto* midi : { &referenceMidi, &strayMidi })
+    {
+        midi->addEvents (setup, 0, -1, 0);
+        midi->addEvent (juce::MidiMessage::pitchWheel (2, 16383), 0);
+        midi->addEvent (juce::MidiMessage::noteOn (2, 52, (juce::uint8) 108), 0);
+    }
+    renderBlock (reference, referenceAudio, referenceMidi);
+    renderBlock (strayRelease, strayAudio, strayMidi);
+
+    // No channel-2 finger has ever owned note 60. Its release must not retire
+    // note 52's channel count, otherwise the next attack snaps its bend to zero.
+    strayMidi.addEvent (juce::MidiMessage::noteOff (2, 60), 0);
+    for (auto* midi : { &referenceMidi, &strayMidi })
+        midi->addEvent (juce::MidiMessage::noteOn (2, 64, (juce::uint8) 108), 1);
+    renderBlock (reference, referenceAudio, referenceMidi);
+    renderBlock (strayRelease, strayAudio, strayMidi);
+    for (int block = 0; block < 8; ++block)
+    {
+        expect (std::equal (referenceAudio.getReadPointer (0),
+                           referenceAudio.getReadPointer (0) + blockSize,
+                           strayAudio.getReadPointer (0)),
+                "an unmatched MPE Note Off reset another held note's bend");
+        renderBlock (reference, referenceAudio, referenceMidi);
+        renderBlock (strayRelease, strayAudio, strayMidi);
+    }
+    reference.releaseResources();
+    strayRelease.releaseResources();
+}
+
+void testSameSampleResetControllerOrdering()
+{
+    for (const bool resetLast : { false, true })
+    {
+        const auto reference = std::make_unique<ElectryAudioProcessor>();
+        const auto reordered = std::make_unique<ElectryAudioProcessor>();
+        for (auto* processor : { reference.get(), reordered.get() })
+            processor->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> referenceAudio;
+        juce::AudioBuffer<float> reorderedAudio;
+        juce::MidiBuffer referenceMidi;
+        juce::MidiBuffer reorderedMidi;
+        const auto controls = [] (juce::MidiBuffer& midi)
+        {
+            midi.addEvent (juce::MidiMessage::controllerEvent (1, 64, 127), 0);
+            midi.addEvent (juce::MidiMessage::controllerEvent (1, 1, 127), 0);
+            midi.addEvent (juce::MidiMessage::pitchWheel (1, 16383), 0);
+        };
+        const auto reset = juce::MidiMessage::controllerEvent (1, 121, 0);
+        if (resetLast)
+        {
+            referenceMidi.addEvent (reset, 0);
+            controls (reorderedMidi);
+            reorderedMidi.addEvent (reset, 0);
+        }
+        else
+        {
+            controls (referenceMidi);
+            reorderedMidi.addEvent (reset, 0);
+            controls (reorderedMidi);
+        }
+        for (auto* midi : { &referenceMidi, &reorderedMidi })
+            midi->addEvent (juce::MidiMessage::noteOn (1, 52, (juce::uint8) 108), 1);
+        renderBlock (*reference, referenceAudio, referenceMidi);
+        renderBlock (*reordered, reorderedAudio, reorderedMidi);
+        expect (std::equal (referenceAudio.getReadPointer (0),
+                           referenceAudio.getReadPointer (0) + blockSize,
+                           reorderedAudio.getReadPointer (0)),
+                "same-sample CC121 reversed pitch/resonance controller order");
+        reorderedMidi.addEvent (juce::MidiMessage::noteOff (1, 52), 0);
+        renderBlock (*reordered, reorderedAudio, reorderedMidi);
+        renderSeconds (*reordered, reorderedAudio, 3.0);
+        expect ((reordered->getActiveVoiceCount() == 0) == resetLast,
+                "same-sample CC121 reversed sustain-pedal order");
+        reference->releaseResources();
+        reordered->releaseResources();
+    }
+}
+
+void testSameSampleAllNotesOffOrdering()
+{
+    for (const bool releaseLast : { false, true })
+    {
+        const auto processor = std::make_unique<ElectryAudioProcessor>();
+        processor->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        const auto note = juce::MidiMessage::noteOn (2, 52, (juce::uint8) 108);
+        const auto release = juce::MidiMessage::controllerEvent (1, 123, 0);
+        const auto setup = juce::MPEMessages::setLowerZone (2, 5, 1);
+        midi.addEvents (setup, 0, -1, 0);
+        midi.addEvent (releaseLast ? note : release, 0);
+        midi.addEvent (releaseLast ? release : note, 0);
+        renderBlock (*processor, audio, midi);
+        renderSeconds (*processor, audio, 3.0);
+        expect ((processor->getActiveVoiceCount() == 0) == releaseLast,
+                "same-sample CC123 reversed playable Note On/All Notes Off order");
+        // A note after CC123 must retain the ownership record needed by its
+        // eventual channel-addressed release, even after its original group.
+        midi.addEvent (juce::MidiMessage::noteOff (2, 52), 0);
+        renderBlock (*processor, audio, midi);
+        renderSeconds (*processor, audio, 3.0);
+        expect (processor->getActiveVoiceCount() == 0,
+                "same-sample CC123 discarded a later MPE note's ownership");
+        processor->releaseResources();
+    }
+}
+
+void testStateValidationAndHostParameterFuzz()
+{
+    const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+    auto& processor = *processorStorage;
+    processor.setStateInformation (nullptr, 4096);
+    processor.setStateInformation (nullptr, -1);
+
+    // Missing values use the published default even over a modified patch;
+    // duplicate parameters have one deterministic first-value winner.
+    setParameterValue (processor, electry::parameters::tone, 0.0f);
+    juce::ValueTree state { "ELECTRY_STATE" };
+    const auto addValue = [&] (const char* id, const juce::var& value)
+    {
+        juce::ValueTree child { "PARAM" };
+        child.setProperty ("id", id, nullptr);
+        child.setProperty ("value", value, nullptr);
+        state.appendChild (child, nullptr);
+    };
+    addValue (electry::parameters::output, 1.0e300);
+    addValue (electry::parameters::output, -24.0);
+    addValue (electry::parameters::pickupSelector, -1.0e300);
+    addValue (electry::parameters::delay, "nan");
+    state.setProperty ("pickStyle", 1.0e300, nullptr);
+    state.setProperty ("playStyle", -1.0e300, nullptr);
+    juce::MemoryBlock data;
+    if (const auto xml = state.createXml())
+        juce::AudioProcessor::copyXmlToBinary (*xml, data);
+    processor.setStateInformation (data.getData(), static_cast<int> (data.getSize()));
+    expect (std::abs (parameterValue (processor, electry::parameters::tone) - 0.70f)
+                < 1.0e-5f,
+            "a missing preset parameter inherited the receiving patch");
+    expect (parameterValue (processor, electry::parameters::output) == 6.0f,
+            "duplicate or overflowing state output did not clamp deterministically");
+    expect (parameterValue (processor, electry::parameters::pickupSelector) == 0.0f,
+            "state enum was converted before clamping its numeric range");
+    for (const auto& item : expectedParameters)
+    {
+        const auto* parameter = processor.parameters.getParameter (item.id);
+        const auto value = parameterValue (processor, item.id);
+        const auto& range = parameter->getNormalisableRange();
+        expect (std::isfinite (value) && value >= range.start && value <= range.end,
+                std::string ("state restored an invalid value for ") + item.id);
+    }
+    processor.getStateInformation (data);
+    const auto xml = juce::AudioProcessor::getXmlFromBinary (
+        data.getData(), static_cast<int> (data.getSize()));
+    expect (xml != nullptr && xml->getNumChildElements()
+                == static_cast<int> (expectedParameters.size()),
+            "state validation did not discard duplicate parameter nodes");
+
+    // Reject excessive nesting and entity declarations before entering
+    // JUCE's recursive parser. Keep the old parameter state on rejection.
+    const auto wrapXml = [&] (const std::string& body)
+    {
+        juce::MemoryBlock chunk;
+        juce::MemoryOutputStream stream (chunk, false);
+        stream.write (data.getData(), 4); // JUCE's verified XML magic.
+        stream.writeInt (static_cast<int> (body.size()));
+        stream.write (body.data(), body.size());
+        stream.writeByte (0);
+        processor.setStateInformation (chunk.getData(),
+                                       static_cast<int> (chunk.getSize()));
+    };
+    std::string nested = "<ELECTRY_STATE>";
+    for (int depth = 0; depth < 512; ++depth)
+        nested += "<PARAM>";
+    for (int depth = 0; depth < 512; ++depth)
+        nested += "</PARAM>";
+    nested += "</ELECTRY_STATE>";
+    wrapXml (nested);
+    expect (parameterValue (processor, electry::parameters::output) == 6.0f,
+            "excessively nested state was accepted");
+    wrapXml ("<!DOCTYPE ELECTRY_STATE [<!ENTITY x 'expanded'>]>"
+             "<ELECTRY_STATE value='&x;'/>");
+    expect (parameterValue (processor, electry::parameters::output) == 6.0f,
+            "state with an entity declaration was accepted");
+
+    std::uint32_t random = 0xbadc0deu;
+    const auto draw = [&] ()
+    {
+        random ^= random << 13;
+        random ^= random >> 17;
+        random ^= random << 5;
+        return random;
+    };
+    constexpr std::array hostileValues {
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::lowest(), 0.0f, 1.0f
+    };
+    juce::AudioBuffer<float> audio;
+    juce::MidiBuffer midi;
+    for (const double rate : { std::numeric_limits<double>::quiet_NaN(),
+                               -1.0, 1.0e300, sampleRate })
+    {
+        processor.prepareToPlay (rate, -1);
+        const double displayedRate = processor.getCurrentSampleRateForDisplay();
+        expect (std::isfinite (displayedRate) && displayedRate >= 8000.0
+                    && displayedRate <= 384000.0,
+                "prepare published a non-finite or unsupported sample rate");
+        for (int iteration = 0; iteration < 32; ++iteration)
+        {
+            for (const auto& item : expectedParameters)
+            {
+                const float value = iteration < static_cast<int> (hostileValues.size())
+                    ? hostileValues[static_cast<std::size_t> (iteration)]
+                    : std::bit_cast<float> (draw());
+                processor.parameters.getRawParameterValue (item.id)->store (
+                    value, std::memory_order_relaxed);
+            }
+            for (int event = 0; event < 12; ++event)
+            {
+                const int channel = 1 + static_cast<int> (draw() % 16u);
+                const int note = 40 + static_cast<int> (draw() % 48u);
+                const auto message = (draw() & 1u) != 0u
+                    ? juce::MidiMessage::noteOn (channel, note,
+                        static_cast<juce::uint8> (1u + draw() % 127u))
+                    : juce::MidiMessage::noteOff (channel, note);
+                midi.addEvent (message, static_cast<int> (draw() % 100u) - 16);
+            }
+            for (int malformed = 0; malformed < 4; ++malformed)
+            {
+                const std::array<juce::uint8, 3> bytes {
+                    static_cast<juce::uint8> (0x80u + draw() % 0x70u),
+                    static_cast<juce::uint8> (draw()),
+                    static_cast<juce::uint8> (draw())
+                };
+                midi.addEvent (bytes.data(), static_cast<int> (bytes.size()),
+                               static_cast<int> (draw() % 64u));
+            }
+            renderBlock (processor, audio, midi, iteration % 5 == 0 ? 0 : 64);
+            expect (audioIsFinite (audio), "host parameter/MIDI fuzz produced non-finite audio");
+        }
+        processor.releaseResources();
+    }
+    for (const auto& item : expectedParameters)
+        setParameterValue (processor, item.id, item.defaultValue);
+    processor.prepareToPlay (sampleRate, blockSize);
+    midi.addEvent (juce::MidiMessage::noteOn (1, 52, (juce::uint8) 100), 0);
+    renderBlock (processor, audio, midi);
+    expect (audioIsFinite (audio) && audio.getMagnitude (0, blockSize) > 1.0e-7f,
+            "processor failed to recover after hostile host input");
+    processor.releaseResources();
 }
 
 void runRealtimeDeadlineBenchmarkIfRequested()
@@ -5991,7 +6399,8 @@ void runRealtimeDeadlineBenchmarkIfRequested()
     {
         for (const int frames : frameCounts)
         {
-            ElectryAudioProcessor processor;
+            const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
+            auto& processor = *processorStorage;
             for (const auto& scenario : scenarios)
             {
                 if (processor.isEngineReady())
@@ -6170,6 +6579,11 @@ int main()
     testFxEditorToggle();
     testEditorRendering();
     testPrepareReleaseCycles();
+    testMalformedHostInputAndUiReleases();
+    testUnmatchedMpeReleasePreservesHeldBend();
+    testSameSampleResetControllerOrdering();
+    testSameSampleAllNotesOffOrdering();
+    testStateValidationAndHostParameterFuzz();
     runRealtimeDeadlineBenchmarkIfRequested();
 
     if (failureCount != 0)

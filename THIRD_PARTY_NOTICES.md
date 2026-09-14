@@ -85,11 +85,14 @@ AGPLv3 for the complete combined work or an appropriate commercial JUCE
 licence. Review the JUCE 8 licence terms before distribution:
 <https://github.com/juce-framework/JUCE/blob/8.0.14/LICENSE.md>
 
-JUCE includes or interfaces with additional third-party components. Their
-copyright notices and licence terms are listed in JUCE's own `LICENSE.md` and
-in the JUCE source tree. The VST3 SDK portions used through JUCE are identified
-there as MIT-licensed; Apple's Audio Unit frameworks are supplied by the macOS
-SDK and remain subject to Apple's terms.
+JUCE includes or interfaces with additional third-party components. Complete
+notices for the dependencies compiled by Electry's default desktop builds are
+included in `ThirdParty/JUCE-DEPENDENCIES-LICENSE.md` (installed as
+`JUCE-DEPENDENCIES-LICENSE.md` on macOS and Linux). That file records the pinned
+JUCE source paths, platform use and verbatim licence text for the VST3 SDK,
+AudioUnitSDK, HarfBuzz, SheenBidi, libpng, Independent JPEG Group, zlib, FLAC,
+Ogg and Vorbis. The JUCE framework's own licence is included separately in
+`JUCE-LICENSE.md`. System Apple frameworks remain supplied by the macOS SDK.
 
 ## CLAP support
 

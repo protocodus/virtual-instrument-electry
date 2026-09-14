@@ -58,6 +58,7 @@ $noticePaths = @(
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "ThirdParty/JUCE-LICENSE.md",
+    "ThirdParty/JUCE-DEPENDENCIES-LICENSE.md",
     "ThirdParty/CLAP-LICENSE.md",
     "ThirdParty/CLAP-HELPERS-LICENSE.md",
     "ThirdParty/CLAP-JUCE-EXTENSIONS-LICENSE.md"

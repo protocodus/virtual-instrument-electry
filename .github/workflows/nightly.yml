@@ -168,7 +168,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build pkg-config \
+            ninja-build pkg-config xvfb xauth \
             libasound2-dev \
             libfreetype-dev libfontconfig1-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
@@ -182,12 +182,20 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DELECTRY_BUILD_PLUGIN=ON \
-            -DBUILD_TESTING=OFF
+            -DELECTRY_BUILD_CLAP=ON \
+            -DBUILD_TESTING=ON
 
       - name: Build VST3, CLAP and standalone
         run: |
           cmake --build build-linux --parallel \
-            --target Electry_VST3 Electry_CLAP Electry_Standalone
+            --target Electry_VST3 Electry_CLAP Electry_Standalone \
+              ElectryPluginProcessorTests ElectryVST3ArtifactSmokeTests \
+              ElectryCLAPArtifactSmokeTests
+
+      - name: Validate Linux plug-ins and processor
+        run: |
+          xvfb-run -a ctest --test-dir build-linux --output-on-failure \
+            -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package (Linux x64 tarball)
         run: |

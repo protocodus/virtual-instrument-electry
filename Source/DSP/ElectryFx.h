@@ -71,6 +71,8 @@ public:
     void prepare(double sampleRate);
     void reset() noexcept;
     void setParameters(const FxParameters& parameters) noexcept;
+    // Sanitises non-finite input to silence and bounds hostile finite input
+    // before it can overflow recursive state. Normal audio is unchanged.
     void process(float* left, float* right, int numSamples) noexcept;
 
     // True while the oversampled gain stage is running. With both gain
@@ -599,6 +601,10 @@ private:
                                         float input) noexcept;
 
     FxParameters targetParameters_ {};
+    // A float smoother eventually reaches a fixed point even when its target
+    // lies between representable steps. Stop repeating that identical work
+    // until the next control update; setParameters() re-arms it allocation-free.
+    bool parametersMoving_ { false };
     float distortionDrive_ { 0.0f };
     float ampDrive_ { 0.0f };
     float pedalWet_ { 0.0f };

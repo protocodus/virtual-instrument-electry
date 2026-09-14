@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <complex>
@@ -128,6 +129,37 @@ struct ElectryFxTestAccess
     static std::array<float, 2> compressorState(const ElectryFx& fx) noexcept
     {
         return { fx.compressorAttack_, fx.compressorEnvelope_ };
+    }
+
+    static bool timeEffectsFinite(const ElectryFx& fx) noexcept
+    {
+        const auto finiteLine = [] (const auto& line)
+        {
+            return std::all_of(line.begin(), line.end(),
+                               [] (float value) { return std::isfinite(value); });
+        };
+        for (std::size_t channel = 0; channel < fx.delayLines_.size(); ++channel)
+        {
+            if (! finiteLine(fx.delayLines_[channel])
+                || ! std::isfinite(fx.delayDamping_[channel].state)
+                || ! std::isfinite(fx.delayHighpassState_[channel]))
+                return false;
+            for (const auto& diffuser : fx.diffusers_[channel])
+                if (! finiteLine(diffuser.line))
+                    return false;
+            for (const auto& comb : fx.combs_[channel])
+                if (! finiteLine(comb.line) || ! std::isfinite(comb.state))
+                    return false;
+        }
+        return std::isfinite(fx.compressorEnvelope_);
+    }
+
+    static void poisonDelayedSample(ElectryFx& fx, int offset) noexcept
+    {
+        const auto size = static_cast<int>(fx.delayLines_[0].size());
+        const int index = (fx.delayWriteIndex_ + offset - fx.delayTaps_[0] + size) % size;
+        fx.delayLines_[0][static_cast<std::size_t>(index)] =
+            std::numeric_limits<float>::quiet_NaN();
     }
 
     static float diodeStep(double inputVolts, double rate,
@@ -4043,6 +4075,130 @@ void testHostileInput()
            "an unprepared chain modified the buffer");
 }
 
+void testExtremeInputAndParameterFuzz()
+{
+    // Repeatable bit-pattern fuzzing reaches finite overflow, subnormals,
+    // signed zero, NaNs and infinities. The comparison chain receives the
+    // documented finite input headroom explicitly and uses different callback
+    // boundaries, so output limiting cannot conceal poisoned internal state.
+    std::uint32_t random = 0x4658465au;
+    const auto next = [&random]
+    {
+        random ^= random << 13;
+        random ^= random >> 17;
+        random ^= random << 5;
+        return random;
+    };
+    const auto randomFloat = [&] { return std::bit_cast<float>(next()); };
+    constexpr std::array<float, 8> extremes {
+        std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::denorm_min(),
+        0.0f, -0.0f
+    };
+    for (double rate : {8000.0, 48000.0, 384000.0})
+    {
+        ElectryFx hostile;
+        ElectryFx reference;
+        hostile.prepare(rate);
+        reference.prepare(rate);
+        bool equal = true;
+        bool finite = true;
+        for (int block = 0; block < 48; ++block)
+        {
+            FxParameters parameters;
+            parameters.distortion = randomFloat();
+            parameters.amp = randomFloat();
+            parameters.compressor = randomFloat();
+            parameters.delay = randomFloat();
+            parameters.room = randomFloat();
+            parameters.ampModel = static_cast<AmpModel>(next() % 5u);
+            parameters.oversampling = static_cast<FxOversampling>(next() % 3u);
+            // Guarantee all prepared nonlinear paths run, including a switch
+            // while the other quality/model is still fading out.
+            if (block % 8 == 0)
+            {
+                parameters = {1.0f, 1.0f, static_cast<AmpModel>((block / 8) % 3),
+                              1.0f, 1.0f, 1.0f,
+                              block % 16 == 0 ? FxOversampling::High
+                                              : FxOversampling::Standard};
+            }
+            hostile.setParameters(parameters);
+            reference.setParameters(parameters);
+            const int count = 1 + static_cast<int>(next() % 257u);
+            std::array<std::vector<float>, 2> input {
+                std::vector<float>(static_cast<std::size_t>(count)),
+                std::vector<float>(static_cast<std::size_t>(count)) };
+            for (auto& channel : input)
+                for (auto& value : channel)
+                    value = next() % 3u == 0
+                        ? extremes[next() % extremes.size()] : randomFloat();
+            auto expected = input;
+            for (auto& channel : expected)
+                for (auto& value : channel)
+                    value = std::isfinite(value)
+                        ? std::clamp(value, -1.0e6f, 1.0e6f) : 0.0f;
+            hostile.process(input[0].data(), input[1].data(), count);
+            for (int offset = 0; offset < count;)
+            {
+                const int frames = std::min(count - offset, 1 + static_cast<int>(next() % 23u));
+                reference.process(expected[0].data() + offset,
+                                  expected[1].data() + offset, frames);
+                offset += frames;
+            }
+            for (std::size_t channel = 0; channel < input.size(); ++channel)
+            {
+                finite = finite && allFinite(input[channel]) && peakOf(input[channel]) <= 2.0;
+                equal = equal && std::memcmp(input[channel].data(), expected[channel].data(),
+                                            input[channel].size() * sizeof(float)) == 0;
+            }
+        }
+        expect(finite && FxAccess::timeEffectsFinite(hostile),
+               "extreme input/parameter fuzz overflowed output or recirculating FX state at "
+                   + std::to_string(rate) + " Hz");
+        expect(equal, "extreme input recovery depends on host callback boundaries at "
+                          + std::to_string(rate) + " Hz");
+        hostile.setParameters({});
+        hostile.reset();
+        const auto source = sineBlock(1024, 31, 0.3);
+        auto left = source;
+        auto right = source;
+        hostile.process(left.data(), right.data(), static_cast<int>(left.size()));
+        expect(std::memcmp(left.data(), source.data(), source.size() * sizeof(float)) == 0
+                   && std::memcmp(right.data(), source.data(), source.size() * sizeof(float)) == 0,
+               "the chain did not recover its exact bypass after extreme-input fuzz");
+    }
+}
+
+void testSampleLocalFaultRecovery()
+{
+    ElectryFx blocked;
+    ElectryFx split;
+    blocked.prepare(sampleRate);
+    split.prepare(sampleRate);
+    constexpr int faultOffset = 17;
+    FxAccess::poisonDelayedSample(blocked, faultOffset);
+    FxAccess::poisonDelayedSample(split, faultOffset);
+    auto left = sineBlock(97, 5, 0.3);
+    auto right = left;
+    auto expectedLeft = left;
+    auto expectedRight = right;
+    const auto source = left;
+    blocked.process(left.data(), right.data(), static_cast<int>(left.size()));
+    for (std::size_t sample = 0; sample < expectedLeft.size(); ++sample)
+        split.process(expectedLeft.data() + sample, expectedRight.data() + sample, 1);
+    bool preserved = left[faultOffset] == 0.0f && right[faultOffset] == 0.0f;
+    for (std::size_t sample = 0; sample < source.size(); ++sample)
+        if (sample != faultOffset)
+            preserved = preserved && left[sample] == source[sample] && right[sample] == source[sample];
+    expect(preserved && allFinite(left) && allFinite(right),
+           "an internal non-finite fault escaped or erased valid neighbouring audio");
+    expect(std::memcmp(left.data(), expectedLeft.data(), left.size() * sizeof(float)) == 0
+               && std::memcmp(right.data(), expectedRight.data(), right.size() * sizeof(float)) == 0
+               && FxAccess::timeEffectsFinite(blocked),
+           "internal fault recovery depends on host callback boundaries or retains poisoned state");
+}
+
 // `prepare()`'s sample-rate guard - a non-finite rate falls back to 48 kHz,
 // then any finite rate is clamped to its supported 8 kHz-384 kHz range - was
 // only ever driven with rates already inside that range: testDeterminismAndRateMatrix
@@ -4184,6 +4340,8 @@ int main()
     testOversamplingSelectionAndTransitions();
     testIdenticalGainChannelReuse();
     testHostileInput();
+    testExtremeInputAndParameterFuzz();
+    testSampleLocalFaultRecovery();
     testPrepareSanitisesSampleRate();
     testSetParametersSanitisation();
 

@@ -1612,6 +1612,10 @@ using electry::PickupSelector;
 using electry::PlayStyle;
 using TestAccess = electry::ElectryEngineTestAccess;
 
+// Each DSP object contains megabytes of fixed delay/table storage. Keep test
+// fixtures on the heap: optimizer inlining plus sanitizer stack redzones can
+// otherwise combine independent fixtures into a frame exceeding 100 MB.
+
 int pickKeyswitch(PickStyle pick)
 {
     return ElectryEngine::firstKeyswitchNote + static_cast<int>(pick);
@@ -2229,7 +2233,8 @@ void testPassiveRepickSpringCandidate()
     TestAccess::VoiceSnapshot representative;
     for (const double sampleRate : { 44100.0, 96000.0, 384000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -2298,7 +2303,8 @@ void testPassiveRepickSpringCandidate()
     // `active` begins at scheduling, not at physical contact. A same-note
     // reservation made inside a fresh strum's silent pre-roll must retain the
     // original false preservation bit when the pending contact finally fires.
-    ElectryEngine freshPreRoll;
+    auto freshPreRollHeapFixture = std::make_unique<ElectryEngine>();
+    auto& freshPreRoll = *freshPreRollHeapFixture;
     freshPreRoll.prepare(48000.0, 512);
     EngineParameters preRollParameters;
     preRollParameters.artifactAmount = 0.0f;
@@ -2777,7 +2783,8 @@ void testAnalyticReleasedStringInitialCondition()
 
     // Nothing is seeded during strum lookahead. Cancelling before the actual
     // contact clears both the fresh-contact latch and the pending amplitude.
-    ElectryEngine cancelled;
+    auto cancelledHeapFixture = std::make_unique<ElectryEngine>();
+    auto& cancelled = *cancelledHeapFixture;
     cancelled.prepare(sampleRate, 512);
     cancelled.setParameters(parameters);
     cancelled.reset();
@@ -2797,7 +2804,8 @@ void testAnalyticReleasedStringInitialCondition()
                && ! afterCancel.analyticReleaseFreshContact,
            "cancelled analytic release left pending state");
 
-    ElectryEngine delayed;
+    auto delayedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& delayed = *delayedHeapFixture;
     delayed.prepare(sampleRate, 512);
     delayed.setParameters(parameters);
     delayed.reset();
@@ -3035,7 +3043,8 @@ void testAnalyticReleasedStringInitialCondition()
 void testAnalyticReleaseMaximumRateAttackCost()
 {
     constexpr double sampleRate = 384000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.strumSpreadSeconds = 0.0f;
@@ -3172,7 +3181,8 @@ void testMeasuredBodyResponsePhysics()
         }
     }
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.bodySize = 0.5f;
@@ -3235,7 +3245,8 @@ void testMeasuredBodyResponsePhysics()
     const auto renderInactiveAxes = [&] (float size, float shape,
                                          float construction)
     {
-        ElectryEngine inactiveEngine;
+        auto inactiveEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& inactiveEngine = *inactiveEngineHeapFixture;
         inactiveEngine.prepare(sampleRate, 512);
         EngineParameters inactiveParameters;
         inactiveParameters.bodyWood = 0.5f;
@@ -3269,7 +3280,8 @@ void testMeasuredBodyResponsePhysics()
         bool muteDirect, int midiNote, PickupSelector pickup,
         float shape, float construction, float wood)
     {
-        ElectryEngine renderEngine;
+        auto renderEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& renderEngine = *renderEngineHeapFixture;
         renderEngine.prepare(sampleRate, 512);
         EngineParameters renderParameters;
         renderParameters.pickupSelector = pickup;
@@ -3445,7 +3457,8 @@ void testLowRegisterGuitarEnvelope()
                                    const char* variant,
                                    double maximumPeakToSustainDb)
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(sampleRate, 512);
             engine.setParameters(parameters);
             const auto render = renderNote(
@@ -3549,7 +3562,8 @@ void testOpenLowStringLevelBalance()
     parameters.pickupSelector = PickupSelector::Bridge;
     parameters.outputMode = electry::OutputMode::Mono;
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(parameters);
 
@@ -3629,7 +3643,8 @@ void testInternalOversamplingPolicy()
 
     for (const auto& rate : rates)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(rate.hostRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -3669,7 +3684,8 @@ void testInternalOversamplingPolicy()
     // the played pitch after the halfband FIR and host-rate decimation.
     for (const double sampleRate : { 48000.0, 192000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -3694,7 +3710,8 @@ void testStringDelaySmoothingTimeConstant()
              44100.0, 48000.0, 88200.0, 96000.0,
              96001.0, 192000.0, 384000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(hostRate, 512);
 
         const double retention = TestAccess::voiceDelayRetention(engine);
@@ -3717,7 +3734,8 @@ void testStringDelaySmoothingTimeConstant()
     // introspection alone would not catch a moved cadence or missed path.
     for (const double hostRate : { 44100.0, 96000.0, 96001.0, 384000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(hostRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -3873,7 +3891,8 @@ void testPrepareClampsHostileSampleRate()
 
     for (const auto& hostileCase : cases)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(hostileCase.requested, 512);
 
         expect(TestAccess::hostSampleRate(engine) == hostileCase.expectedClamped,
@@ -3904,7 +3923,8 @@ void testRenderMatrixFiniteAndBounded()
 {
     for (const double sampleRate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         engine.setParameters(parameters);
@@ -3951,7 +3971,8 @@ void testPitchAccuracy()
 {
     for (const double sampleRate : { 44100.0, 48000.0, 96000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -3980,7 +4001,8 @@ void testPitchAccuracy()
 void testDropELowNoteAtMaximumRate()
 {
     constexpr double sampleRate = 384000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickNoise = 0.0f;
@@ -4024,7 +4046,8 @@ void testPrepareSanitisesSampleRate()
 {
     const auto openStringDelayTarget = [] (double sampleRate)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 256);
         EngineParameters parameters;
         engine.setParameters(parameters);
@@ -4065,7 +4088,8 @@ void testPrepareSanitisesSampleRate()
 // own direct coverage in testHostileInput(); this closes the same gap here.
 void testProcessRejectsInvalidBuffers()
 {
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(48000.0, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -4107,7 +4131,8 @@ void testProcessRejectsInvalidBuffers()
     // An unprepared engine fills the caller's buffer with silence and
     // returns, rather than touching voice state sized for whatever the
     // engine was (or was never) prepared at.
-    ElectryEngine fresh;
+    auto freshHeapFixture = std::make_unique<ElectryEngine>();
+    auto& fresh = *freshHeapFixture;
     std::vector<float> unpreparedLeft(256, 0.7f);
     std::vector<float> unpreparedRight(256, -0.7f);
     fresh.process(unpreparedLeft.data(), unpreparedRight.data(),
@@ -4126,7 +4151,8 @@ void testDeterminism()
     constexpr double sampleRate = 48000.0;
     const auto renderSequence = [] ()
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 256);
         EngineParameters parameters;
         engine.setParameters(parameters);
@@ -4167,7 +4193,8 @@ void testDeterminism()
 void testKeyswitchesSelectStylesSilently()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -4262,7 +4289,8 @@ void testKeyswitchesSelectStylesSilently()
 void testSoloStringKeyswitches()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -4382,7 +4410,8 @@ void testSoloStringKeyswitches()
 
 void testOverlappingSameNoteOffKeepsLatestRepickHeld()
 {
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(48000.0, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -4421,7 +4450,8 @@ void testHeldStringRepickKeys()
                       + ElectryEngine::repickNoteCount - 1 == 95,
            "held-string repick mapping drifted from MIDI E6..B6");
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.sympatheticAmount = 0.0f;
@@ -4492,7 +4522,8 @@ void testHeldStringRepickKeys()
     // the way through normal retirement, remains visible at zero level, blocks
     // that stopped string from being reused or sympathetically opened, and can
     // still be restarted by its picking-hand key.
-    ElectryEngine retired;
+    auto retiredHeapFixture = std::make_unique<ElectryEngine>();
+    auto& retired = *retiredHeapFixture;
     retired.prepare(sampleRate, 512);
     auto retirementParameters = parameters;
     retirementParameters.sympatheticAmount = 0.80f;
@@ -4990,7 +5021,8 @@ void testHammerLatchedRepicksUsePickingHand()
     // scheduler, not create simultaneous per-string taps.
     auto strummedParameters = parameters;
     strummedParameters.strumSpreadSeconds = 0.003f;
-    ElectryEngine strummed;
+    auto strummedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& strummed = *strummedHeapFixture;
     strummed.prepare(sampleRate, 512);
     strummed.setParameters(strummedParameters);
     strummed.reset();
@@ -5027,7 +5059,8 @@ void testHammerLatchedRepicksUsePickingHand()
 void testAlternateStrokeSequence()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.noteOn(pickKeyswitch(PickStyle::Alternate), 1.0f);
@@ -5049,7 +5082,8 @@ void testAlternateStrokeSequence()
     // must not turn the next real Palm stroke into an upstroke when no physical
     // downstroke ever landed.
     {
-        ElectryEngine cancelled;
+        auto cancelledHeapFixture = std::make_unique<ElectryEngine>();
+        auto& cancelled = *cancelledHeapFixture;
         cancelled.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.strumSpreadSeconds = 0.040f;
@@ -5077,7 +5111,8 @@ void testAlternateStrokeSequence()
     // still travelling. Cancelling one moved finger must not return the shared
     // Alternate direction while another member's original pick is still due.
     {
-        ElectryEngine partiallyCancelled;
+        auto partiallyCancelledHeapFixture = std::make_unique<ElectryEngine>();
+        auto& partiallyCancelled = *partiallyCancelledHeapFixture;
         partiallyCancelled.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.strumSpreadSeconds = 0.040f;
@@ -5196,7 +5231,8 @@ void testAlternateChordSharesOneStroke()
     constexpr double sampleRate = 48000.0;
     constexpr std::array<int, 4> chord { 28, 35, 40, 45 };
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.strumSpreadSeconds = 0.012f;
@@ -5239,7 +5275,8 @@ void testAlternateChordSharesOneStroke()
     // every arrival. Five unique strings ten milliseconds apart span 40 ms, so
     // the fifth is a new Alternate stroke even though every adjacent gap is
     // shorter than the 35 ms assembly window.
-    ElectryEngine bounded;
+    auto boundedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& bounded = *boundedHeapFixture;
     bounded.prepare(sampleRate, 512);
     bounded.setParameters(parameters);
     bounded.reset();
@@ -5290,7 +5327,8 @@ void testChordSharesPickingHandVariation()
         return true;
     };
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.strumSpreadSeconds = 0.010f;
@@ -5425,7 +5463,8 @@ void testRapidSameStringRepicksAreSeparateStrokes()
     // It must not merge a new attack on a string the current chord already
     // crossed: 25 ms tremolo picking is fast, but it is still three strokes.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -5461,7 +5500,8 @@ void testZeroSpreadAlternateRunChangesStrings()
     // merging its 25 ms events into the chord window turns Alternate into
     // repeated downstrokes exactly where a metal performance needs it most.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -5499,7 +5539,8 @@ void testZeroSpreadAlternateRunChangesStrings()
 void testArticulationsSoundDistinct()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -5595,7 +5636,8 @@ void testArticulationsSoundDistinct()
 void testStyleAndStrokeCombinations()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -5675,7 +5717,8 @@ void testStyleAndStrokeCombinations()
     // render comparison catches level, pulse, comb and noise leaks together.
     const auto hammerAtPickControls = [&] (float value)
     {
-        ElectryEngine fingered;
+        auto fingeredHeapFixture = std::make_unique<ElectryEngine>();
+        auto& fingered = *fingeredHeapFixture;
         fingered.prepare(sampleRate, 512);
         EngineParameters fingeredParameters;
         fingeredParameters.artifactAmount = 0.0f;
@@ -5725,7 +5768,8 @@ void testFingeredNotesDrawNoPickingHandVariation()
     // points in the stroke sequence.
     const auto attackAt = [&] (PlayStyle style, bool afterAnotherNote)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -5809,8 +5853,10 @@ void testFingeredNotesDrawNoPickingHandVariation()
 void testExplicitLegacyExpressionIdIsBitExact()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine implicit;
-    ElectryEngine explicitId;
+    auto implicitHeapFixture = std::make_unique<ElectryEngine>();
+    auto& implicit = *implicitHeapFixture;
+    auto explicitIdHeapFixture = std::make_unique<ElectryEngine>();
+    auto& explicitId = *explicitIdHeapFixture;
     implicit.prepare(sampleRate, 512);
     explicitId.prepare(sampleRate, 512);
     implicit.setPitchBend(0.35f);
@@ -5856,7 +5902,8 @@ void testExpressionPitchBendIsSelective()
     constexpr double sampleRate = 48000.0;
     constexpr ElectryEngine::ExpressionId lowerId = 2;
     constexpr ElectryEngine::ExpressionId upperId = 15;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.noteOn(45, 0.8f, lowerId);
     engine.noteOn(52, 0.8f, upperId);
@@ -5979,7 +6026,8 @@ void testDelayedRepickPreservesFrozenExpressionPitch()
     constexpr ElectryEngine::ExpressionId expressionId = 2;
     constexpr float performedBend = 1.25f;
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     EngineParameters parameters;
     parameters.strumSpreadSeconds = 0.020f;
     engine.prepare(sampleRate, 512);
@@ -6080,7 +6128,8 @@ void testDelayedRepickPreservesFrozenExpressionPitch()
     // The converse path reclaims a frozen CC64 tail with a genuinely new
     // finger. Its old ring stays at the frozen pitch during pick travel, but
     // contact must thaw it and configure the cached member target immediately.
-    ElectryEngine reclaimed;
+    auto reclaimedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& reclaimed = *reclaimedHeapFixture;
     reclaimed.prepare(sampleRate, 512);
     reclaimed.setParameters(parameters);
     reclaimed.reset();
@@ -6138,7 +6187,8 @@ void testSamePitchExpressionOwnersReleaseIndependently()
     constexpr double sampleRate = 48000.0;
     constexpr ElectryEngine::ExpressionId firstId = 3;
     constexpr ElectryEngine::ExpressionId secondId = 4;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     const std::array<ElectryEngine::NoteOnEvent, 2> unison {{
         { 64, 0.82f, firstId }, { 64, 0.78f, secondId }
@@ -6184,7 +6234,8 @@ void testSamePitchExpressionOwnersReleaseIndependently()
 
     for (const auto style : { PlayStyle::Hammer, PlayStyle::Slide })
     {
-        ElectryEngine legatoEngine;
+        auto legatoEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& legatoEngine = *legatoEngineHeapFixture;
         legatoEngine.prepare(sampleRate, 512);
         legatoEngine.noteOn(
             ElectryEngine::firstPlayStyleKeyswitchNote
@@ -6217,7 +6268,8 @@ void testPitchWheelUsesUniformSemitoneInterval()
     // and D3 must therefore reach the same +/-2-semitone targets rather than
     // pulling a chord apart according to per-string compliance.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickNoise = 0.0f;
@@ -6292,7 +6344,8 @@ void testReleaseDampingUsesPerformedPitch()
     const auto check = [&] (float legacyWheel, float memberSemitones,
                             float masterSemitones)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -6391,7 +6444,8 @@ void testHeldDampingUsesPerformedPitch()
 
     const auto configured = []
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -6490,7 +6544,8 @@ void testStiffnessFollowsLiveTension()
 
     const auto stiffnessAt = [&] (bool memberExpression, float semitones)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -6530,7 +6585,8 @@ void testStiffnessFollowsLiveTension()
     // attack factor present while a member bend actually re-fits B, so using
     // the experiment's f0 here cannot pass as an unchanged-cache result.
     {
-        ElectryEngine energy;
+        auto energyHeapFixture = std::make_unique<ElectryEngine>();
+        auto& energy = *energyHeapFixture;
         energy.prepare(sampleRate, 512);
         energy.setParameters(EngineParameters {});
         energy.reset();
@@ -6558,7 +6614,8 @@ void testStiffnessFollowsLiveTension()
     // Fretting-hand vibrato reaches the same tension coordinate through its
     // own public gesture. Score only ticks that actually re-fit the quantised
     // dispersion grid, where B and the sampled excursion are synchronous.
-    ElectryEngine vibrato;
+    auto vibratoHeapFixture = std::make_unique<ElectryEngine>();
+    auto& vibrato = *vibratoHeapFixture;
     vibrato.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -6610,7 +6667,8 @@ void testPitchWheelGlideFollowsBendTime()
 
     const auto travelAfter = [&] (float bendTimeSeconds, double measureAt)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -6658,7 +6716,8 @@ void testPitchWheelGlideFollowsBendTime()
     // that phase change instead of making a rising wheel briefly fall.
     {
         constexpr double traceSampleRate = 44100.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(traceSampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -6706,7 +6765,8 @@ void testPitchWheelBendsSympatheticStrings()
     // A ringing coupled string follows the same MIDI interval as a played
     // string.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickNoise = 0.0f;
@@ -6892,7 +6952,8 @@ void testHeldLegatoSourceOutranksPlainReleaseTails()
     // to 69. The closer 67 tail must remain a tail rather than becoming the
     // performed gesture.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickupSelector = PickupSelector::Bridge;
@@ -7022,7 +7083,8 @@ void testHeldLegatoSourceOutranksPlainReleaseTails()
 void testHammerOnLegatoContinuity()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickNoise = 0.0f;
@@ -7096,7 +7158,8 @@ void testPullOffLegatoDirection()
     const auto render = [] (int start, int target,
                             PickStyle pickStyle = PickStyle::Down)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -7240,7 +7303,8 @@ void testPullOffLegatoDirection()
 
     // A simultaneous second note makes the host use the chord allocator. It
     // must retain the same open-string continuation as the scalar path.
-    ElectryEngine chordEngine;
+    auto chordEngineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& chordEngine = *chordEngineHeapFixture;
     chordEngine.prepare(sampleRate, 512);
     chordEngine.setParameters(EngineParameters {});
     chordEngine.noteOn(49, 0.7f);
@@ -7284,7 +7348,8 @@ void testFingerReleaseUsesContactPeriodAcrossRates()
     };
     const auto renderContact = [=] (double sampleRate, int sourceNote)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -7363,7 +7428,8 @@ void testHardPickingStaysInTune()
 
     const auto renderHard = [&] (int note, PlayStyle style)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -7462,7 +7528,8 @@ void testHardPickingStaysInTune()
     // Also exercise allocation, summing and the default played-string bridge
     // coupling. Isolated strings alone would not prove that the low voicing a
     // player actually hears survives the complete polyphonic path.
-    ElectryEngine chordEngine;
+    auto chordEngineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& chordEngine = *chordEngineHeapFixture;
     chordEngine.prepare(sampleRate, 512);
     EngineParameters chordParameters;
     chordParameters.pickNoise = 0.0f;
@@ -7614,7 +7681,8 @@ void testEnergyAttackPitchExperiment()
     const auto freshStroke = [&] (int note, float velocity, double rate,
                                    int controlPhaseOffset = 0)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         prepare(engine, rate);
         for (int i = 0; i < controlPhaseOffset; ++i)
             TestAccess::renderOneInternalSample(engine);
@@ -7754,7 +7822,8 @@ void testEnergyAttackPitchExperiment()
     std::size_t rateIndex = 0;
     for (const double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         prepare(engine, rate);
         engine.noteOn(40, 0.95f);
         const int stringIndex = TestAccess::stringForNote(engine, 40);
@@ -7789,7 +7858,8 @@ void testEnergyAttackPitchExperiment()
     for (const auto style : { PlayStyle::PalmMute, PlayStyle::Dead,
                               PlayStyle::Harmonics, PlayStyle::Pinch })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         prepare(engine, sampleRate);
         engine.noteOn(styleKeyswitch(style), 1.0f);
         engine.noteOn(40, 0.95f);
@@ -7815,7 +7885,8 @@ void testEnergyAttackPitchExperiment()
                "unsupported articulation created tension at physical release");
     }
 
-    ElectryEngine legato;
+    auto legatoHeapFixture = std::make_unique<ElectryEngine>();
+    auto& legato = *legatoHeapFixture;
     prepare(legato, sampleRate);
     legato.noteOn(40, 0.95f);
     const int legatoString = TestAccess::stringForNote(legato, 40);
@@ -7840,7 +7911,8 @@ void testEnergyAttackPitchExperiment()
     // Release must not be mistaken for that now-cancelled plectrum release.
     for (const auto style : { PlayStyle::Hammer, PlayStyle::Slide })
     {
-        ElectryEngine interrupted;
+        auto interruptedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& interrupted = *interruptedHeapFixture;
         prepare(interrupted, sampleRate);
         interrupted.noteOn(40, 0.95f);
         const int interruptedString = TestAccess::stringForNote(
@@ -7864,7 +7936,8 @@ void testEnergyAttackPitchExperiment()
                "finger Release committed an interrupted plectrum seed");
     }
 
-    ElectryEngine delayed;
+    auto delayedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& delayed = *delayedHeapFixture;
     auto delayedParameters = parameters;
     delayedParameters.strumSpreadSeconds = 0.020f;
     delayed.prepare(sampleRate, 512);
@@ -7942,7 +8015,8 @@ void testEnergyPitchMuteContinuity()
     for (const int phase : { 0, 7 })
     for (const bool dedicatedRepick : { false, true })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(rate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -7981,8 +8055,10 @@ void testEnergyPitchMuteContinuity()
     // contact must accelerate loss without needing another note on that string.
     for (const double rate : { 44100.0, 48000.0, 96000.0 })
     {
-        ElectryEngine open;
-        ElectryEngine muted;
+        auto openHeapFixture = std::make_unique<ElectryEngine>();
+        auto& open = *openHeapFixture;
+        auto mutedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& muted = *mutedHeapFixture;
         for (auto* engine : { &open, &muted })
         {
             engine->prepare(rate, 512);
@@ -8036,7 +8112,8 @@ void testAttackStateTransitions()
     // amplitude and must retain 0.28^2 energy. Delay the new contact by one
     // sample so its excitation cannot hide an incomplete choke.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         auto parameters = quietParameters();
         parameters.palmMute = 0.55f;
@@ -8152,8 +8229,10 @@ void testAttackStateTransitions()
     // it. All audible state must remain exact through that pre-roll, then the
     // reserved attack must still arrive at contact.
     {
-        ElectryEngine control;
-        ElectryEngine pendingRepick;
+        auto controlHeapFixture = std::make_unique<ElectryEngine>();
+        auto& control = *controlHeapFixture;
+        auto pendingRepickHeapFixture = std::make_unique<ElectryEngine>();
+        auto& pendingRepick = *pendingRepickHeapFixture;
         auto parameters = quietParameters();
         parameters.strumSpreadSeconds = 0.020f;
         for (auto* engine : { &control, &pendingRepick })
@@ -8198,7 +8277,8 @@ void testAttackStateTransitions()
     // reach the latest moving pitch after the original remaining travel time.
     for (const auto legatoStyle : { PlayStyle::Hammer, PlayStyle::Slide })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         auto parameters = quietParameters();
         parameters.strumSpreadSeconds = 0.040f;
         engine.prepare(sampleRate, 512);
@@ -8309,7 +8389,8 @@ void testAttackStateTransitions()
     // gives its delayed revival a ringing state. Promote that reserved contact
     // before the finger overwrites its captured wrist data.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         auto parameters = quietParameters();
         parameters.strumSpreadSeconds = 0.040f;
         engine.prepare(sampleRate, 512);
@@ -8362,7 +8443,8 @@ void testAttackStateTransitions()
     // If legato moves it before contact, assign that new finger at the move and
     // then preserve it through the plectrum; never revive the released one.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         auto parameters = quietParameters();
         parameters.strumSpreadSeconds = 0.040f;
         engine.prepare(sampleRate, 512);
@@ -8550,7 +8632,8 @@ void testMeasuredPickupFluxLaw()
 void testPickupsToneAndBuildMorph()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     const int start = static_cast<int>(0.05 * sampleRate);
@@ -8642,7 +8725,8 @@ void testPickupsToneAndBuildMorph()
 void testArtifactsControl()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     // Pinned for the same reason as testMaterialAndControlAudibility: the bounds
@@ -8714,7 +8798,8 @@ void testArtifactsControl()
     {
         for (const int note : { 28, 40 })
         {
-            ElectryEngine collision;
+            auto collisionHeapFixture = std::make_unique<ElectryEngine>();
+            auto& collision = *collisionHeapFixture;
             collision.prepare(sampleRate, 512);
             collision.setParameters(parameters);
             collision.reset();
@@ -8856,7 +8941,8 @@ void testPositionedFretCollision()
     for (const double sampleRate : { 44100.0, 48000.0, 88200.0, 96000.0,
                                      96001.0, 192000.0, 384000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 1.0f;
@@ -8886,7 +8972,8 @@ void testPositionedFretCollision()
     EngineParameters parameters;
     parameters.artifactAmount = 1.0f;
     parameters.bendTimeSeconds = 0.02f;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(48000.0, 512);
     engine.setParameters(parameters);
     engine.reset();
@@ -8952,7 +9039,8 @@ void testPositionedFretCollision()
 void testAdvancedDispersionAndBodyConductance()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -9023,7 +9111,8 @@ void testAdvancedDispersionAndBodyConductance()
 void testMonoStereoOutputField()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -9115,7 +9204,8 @@ void testVelocityDynamicRange()
     // stroke's residual ring into the peak of the next one.
     const auto peakDbAt = [&] (int midiVelocity, float velocityAmount)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.velocityAmount = velocityAmount;
@@ -9195,7 +9285,8 @@ void testVelocityDynamicRange()
     // 3.431 dB across the same pair.
     const auto attackBandRatioDb = [&] (int midiVelocity, float velocityAmount)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.velocityAmount = velocityAmount;
@@ -9261,7 +9352,8 @@ void testPickingHandVariation()
 
     const auto repeat = [&] (double gapSeconds, PickStyle pickStyle)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -9409,7 +9501,8 @@ void testPickingHandVariation()
 void testVelocityExpression()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -9473,7 +9566,8 @@ void testVelocityExpression()
 void testMaterialAndControlAudibility()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     // This test asks whether each build axis is audible when it is swept, and
@@ -9975,7 +10069,8 @@ void testGuitarBuildRangeIsAudible()
         renders.reserve(6);
         for (std::size_t anchor = 0; anchor < 6; ++anchor)
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(sampleRate, 512);
             EngineParameters parameters;
             parameters.pickupType = 0.32f;
@@ -10080,7 +10175,8 @@ void testNoiseComponentsAndSilence()
     // Exercise an actual fretting-finger lift. Open strings now use the
     // separate quieter damping-hand stop, covered by RealismContactTests.
     constexpr int contactNote = 46;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     // Complete silence with no input.
@@ -10195,7 +10291,8 @@ void testNoiseComponentsAndSilence()
 void testStringAllocationAndPolyphony()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -10266,7 +10363,8 @@ void testChordAssignmentIsPermutationInvariant()
         auto order = notes;
         StereoBuffer reference(renderSamples);
         bool haveReference = false;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -10417,7 +10515,8 @@ void testChordAssignmentIsPermutationInvariant()
 void testVoiceStealingPriority()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
 
@@ -10464,7 +10563,8 @@ void testVoiceStealingPriority()
 void testNoteOnVelocitySanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
 
@@ -10491,13 +10591,15 @@ void testNoteOnVelocitySanitisation()
     // would: every downstream use (makeVelocityProfile and its callers)
     // only ever sees the value noteOn() itself already clamped, so the two
     // renders must be bit-identical.
-    ElectryEngine reference;
+    auto referenceHeapFixture = std::make_unique<ElectryEngine>();
+    auto& reference = *referenceHeapFixture;
     reference.prepare(sampleRate, 512);
     reference.setParameters(EngineParameters {});
     const auto inRange = renderNote(reference, sampleRate, 45, 1.0f,
                                      PlayStyle::Sustain, 0.5);
 
-    ElectryEngine overshoot;
+    auto overshootHeapFixture = std::make_unique<ElectryEngine>();
+    auto& overshoot = *overshootHeapFixture;
     overshoot.prepare(sampleRate, 512);
     overshoot.setParameters(EngineParameters {});
     const auto outOfRange = renderNote(overshoot, sampleRate, 45, 5.0f,
@@ -10529,7 +10631,8 @@ void testNoteOnVelocitySanitisation()
 void testSetVibratoSanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
 
@@ -10586,7 +10689,8 @@ void testSetVibratoSanitisation()
 void testSetPitchBendSanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
 
@@ -10646,7 +10750,8 @@ void testSetPitchBendSanitisation()
 void testSetResonanceReturnLevelAndPalmMutePressureSanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
 
@@ -10888,7 +10993,8 @@ void testFractionalDelayIsIndependentOfRingOrigin()
 void testTouchHarmonics()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -10962,7 +11068,8 @@ void testTouchHarmonics()
     // by more than a hundred samples on an aged open E1.
     const auto lowTouchGeometry = [] (float stringAge, float pitchBend)
     {
-        ElectryEngine low;
+        auto lowHeapFixture = std::make_unique<ElectryEngine>();
+        auto& low = *lowHeapFixture;
         low.prepare(sampleRate, 512);
         EngineParameters lowParameters;
         lowParameters.stringAge = stringAge;
@@ -11016,7 +11123,8 @@ void testTouchHarmonics()
     {
         for (const float bend : { -1.0f, 0.0f, 1.0f })
         {
-            ElectryEngine farSide;
+            auto farSideHeapFixture = std::make_unique<ElectryEngine>();
+            auto& farSide = *farSideHeapFixture;
             farSide.prepare(hostRate, 512);
             auto farParameters = parameters;
             farParameters.pickPosition = 1.0f;
@@ -11067,7 +11175,8 @@ void testTouchHarmonics()
     // currentDelay is deliberately between its old and new targets. The touch
     // must follow that live period, not jump to the target and not fall back to
     // a fraction of raw delay.
-    ElectryEngine gliding;
+    auto glidingHeapFixture = std::make_unique<ElectryEngine>();
+    auto& gliding = *glidingHeapFixture;
     gliding.prepare(sampleRate, 512);
     gliding.setParameters(parameters);
     gliding.reset();
@@ -11173,7 +11282,8 @@ void testTouchHarmonics()
 void testDeadNote()
 {
     constexpr double sampleRate = 44100.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.outputMode = electry::OutputMode::Mono;
@@ -11257,7 +11367,8 @@ void testDeadNote()
     // string. Recreate both annotated passes without inferred note-offs and
     // keep all four real-style repicks inside the same envelope bounds as the
     // isolated fixture.
-    ElectryEngine phrase;
+    auto phraseHeapFixture = std::make_unique<ElectryEngine>();
+    auto& phrase = *phraseHeapFixture;
     phrase.prepare(sampleRate, 512);
     phrase.setParameters(parameters);
     phrase.reset();
@@ -11396,7 +11507,8 @@ void testDeadNote()
     // threshold made 10.1% jump much farther than the equal step below it.
     const auto renderPressure = [&] (float pressure)
     {
-        ElectryEngine probe;
+        auto probeHeapFixture = std::make_unique<ElectryEngine>();
+        auto& probe = *probeHeapFixture;
         probe.prepare(sampleRate, 512);
         probe.setParameters(parameters);
         probe.setPalmMutePressure(pressure);
@@ -11458,7 +11570,8 @@ void testFrettingHandVibrato()
     };
     const auto traceOf = [&] (float pressure, double seconds)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -11505,7 +11618,8 @@ void testFrettingHandVibrato()
     {
         const auto excursionCents = [&] (bool raiseAfterReset)
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(sampleRate, 512);
             EngineParameters parameters;
             parameters.artifactAmount = 0.0f;
@@ -11562,7 +11676,8 @@ void testFrettingHandVibrato()
     // Zero pressure is an exact no-op: the same score with the control never
     // touched renders bit-for-bit the same audio.
     {
-        ElectryEngine untouched;
+        auto untouchedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& untouched = *untouchedHeapFixture;
         untouched.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -11573,7 +11688,8 @@ void testFrettingHandVibrato()
         StereoBuffer withoutControl(static_cast<int>(0.6 * sampleRate));
         renderInto(untouched, withoutControl);
 
-        ElectryEngine silenced;
+        auto silencedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& silenced = *silencedHeapFixture;
         silenced.prepare(sampleRate, 512);
         silenced.setParameters(parameters);
         silenced.reset();
@@ -11594,8 +11710,10 @@ void testFrettingHandVibrato()
     // must continue exactly; releasing and fretting the note again is the
     // event that assigns a new finger.
     {
-        ElectryEngine engine;
-        ElectryEngine control;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
+        auto controlHeapFixture = std::make_unique<ElectryEngine>();
+        auto& control = *controlHeapFixture;
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
         parameters.sympatheticAmount = 0.0f;
@@ -11750,7 +11868,8 @@ void testFrettingHandVibrato()
     // picked note with the coupling wide open.
     const auto coupledRing = [&] (bool useWheel, bool useVibrato)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -11814,7 +11933,8 @@ void testVibratoIsAHandNotAnLfo()
     const auto traceOf = [&] (float vibratoDepth, double seconds,
                               std::vector<double>* envelope)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -11931,7 +12051,8 @@ void testVibratoIsAHandNotAnLfo()
 
     // ---- two fingered strings are two fingers ----------------------------
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -12013,7 +12134,8 @@ void testVibratoIsAHandNotAnLfo()
     {
         const auto render = [&] (bool touchControl)
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(sampleRate, 512);
             EngineParameters parameters;
             parameters.artifactAmount = 0.0f;
@@ -12050,7 +12172,8 @@ void testVibratoRequiresHeldFinger()
     // actually gives the hand a string to rock.
     for (const double sampleRate : sampleRates)
     {
-        ElectryEngine preHeld;
+        auto preHeldHeapFixture = std::make_unique<ElectryEngine>();
+        auto& preHeld = *preHeldHeapFixture;
         preHeld.prepare(sampleRate, 512);
         preHeld.setParameters(parameters);
         preHeld.reset();
@@ -12077,7 +12200,8 @@ void testVibratoRequiresHeldFinger()
         StereoBuffer preHeldTick(controlFrames);
         renderInto(preHeld, preHeldTick, controlFrames);
 
-        ElectryEngine simultaneous;
+        auto simultaneousHeapFixture = std::make_unique<ElectryEngine>();
+        auto& simultaneous = *simultaneousHeapFixture;
         simultaneous.prepare(sampleRate, 512);
         simultaneous.setParameters(parameters);
         simultaneous.reset();
@@ -12102,7 +12226,8 @@ void testVibratoRequiresHeldFinger()
     // hidden onset to rest even though A#0 itself remains held.
     {
         constexpr double sampleRate = 48000.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -12158,7 +12283,8 @@ void testVibratoRequiresHeldFinger()
     // and the old finger's last pitch offset.
     {
         constexpr double sampleRate = 48000.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -12197,7 +12323,8 @@ void testVibratoRequiresHeldFinger()
     // a control tick happened to land between the two MIDI events.
     {
         constexpr double sampleRate = 48000.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -12231,7 +12358,8 @@ void testVibratoRequiresHeldFinger()
     // earlier decision to reseed against the released finger it replaced.
     {
         constexpr double sampleRate = 48000.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         EngineParameters delayedParameters = parameters;
         delayedParameters.strumSpreadSeconds = 0.020f;
         engine.prepare(sampleRate, 512);
@@ -12296,7 +12424,8 @@ void testSlideArticulation()
                "invalid mid-slide Hammer-allocation fixture");
     };
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         placeFingerAtSlideMidpoint(engine);
         expect(TestAccess::chosenString(engine, 39, PlayStyle::Hammer) == 0,
                "scalar Hammer reach used the unfinished Slide destination");
@@ -12306,7 +12435,8 @@ void testSlideArticulation()
                "scalar Hammer left the string under the travelling finger");
     }
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         placeFingerAtSlideMidpoint(engine);
         engine.noteOn(styleKeyswitch(PlayStyle::Hammer), 1.0f);
         const std::array<ElectryEngine::NoteOnEvent, 2> chord {{
@@ -12323,7 +12453,8 @@ void testSlideArticulation()
     // unpicked moving finger, not a nearby tail or a repeated-note restrike.
     {
         constexpr double scoreSampleRate = 44100.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(scoreSampleRate, 256);
         engine.reset();
         const auto trigger = [&] (int note, float velocity)
@@ -12404,7 +12535,8 @@ void testSlideArticulation()
     const auto renderSlide = [&] (int fromNote, int toNote, float fingerNoise,
                                   float bendTime)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -12498,7 +12630,8 @@ void testSlideArticulation()
     // string ringing; a held key is the control that still reaches the target.
     for (const bool sustainTail : { false, true })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -12598,7 +12731,8 @@ void testSlideArticulation()
     // follows 1/L^2 continuously; selecting the destination fret must not
     // install its stiffness before the finger has moved there.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -12618,7 +12752,8 @@ void testSlideArticulation()
             engine, stringIndex);
         const float sourceEffective = TestAccess::effectiveLoopFrequency(
             engine, stringIndex);
-        ElectryEngine targetReference;
+        auto targetReferenceHeapFixture = std::make_unique<ElectryEngine>();
+        auto& targetReference = *targetReferenceHeapFixture;
         targetReference.prepare(sampleRate, 512);
         targetReference.setParameters(parameters);
         targetReference.reset();
@@ -12638,7 +12773,8 @@ void testSlideArticulation()
                "the stiffness-continuity slide changed effective pitch at "
                "contact");
 
-        ElectryEngine cancelledPitch;
+        auto cancelledPitchHeapFixture = std::make_unique<ElectryEngine>();
+        auto& cancelledPitch = *cancelledPitchHeapFixture;
         cancelledPitch.prepare(sampleRate, 512);
         cancelledPitch.setParameters(parameters);
         cancelledPitch.reset();
@@ -12750,7 +12886,8 @@ void testSlideArticulation()
     // this state handoff even though their new travel times differ.
     for (const auto retargetStyle : { PlayStyle::Slide, PlayStyle::Hammer })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -12869,7 +13006,8 @@ void testSlideArticulation()
     for (const float fixtureBendTime : { 0.16f, 0.21f })
     {
         constexpr double demoSampleRate = 44100.0;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(demoSampleRate, 512);
         EngineParameters parameters;
         parameters.pickupSelector = PickupSelector::Bridge;
@@ -13019,7 +13157,8 @@ void testSlideArticulation()
                                PlayStyle style,
                                std::array<float, 3> blends = {{ 0.25f, 0.50f, 0.75f }})
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(hostRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -13214,7 +13353,8 @@ void testSlideArticulation()
     // output-side centroid measures the coil rather than the friction.
     const auto bandCentre = [&] (float bendTime)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.fingerNoise = 0.8f;
@@ -13364,7 +13504,8 @@ void testSlideArticulation()
 void testPinchHarmonic()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -13571,7 +13712,8 @@ void testPinchHarmonic()
 void testFrettingHandPosition()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -13666,7 +13808,8 @@ void testFrettingHandPosition()
 void testSustainPedal()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickNoise = 0.0f;
@@ -13704,7 +13847,8 @@ void testVibratoOnlyMovesFingeredStrings()
     // pitch wheel, not the A#0 fretting gesture.
     const auto renderNote = [&](int midiNote, float vibrato)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -13719,7 +13863,8 @@ void testVibratoOnlyMovesFingeredStrings()
     };
 
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.noteOn(ElectryEngine::lowestPlayableNote, 0.8f);
         StereoBuffer settle(512);
@@ -13757,7 +13902,8 @@ void testLegatoSlideDoesNotConsumeAPickStroke()
     // that really is picked on the wrong one.
     const auto strokeAfter = [&](bool slideInBetween)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickNoise = 0.0f;
@@ -13810,7 +13956,8 @@ void testLegatoSlideDoesNotConsumeAPickStroke()
     // same clock. Re-anchoring the pending stroke from the slide's string used
     // to push E4 several string crossings later even though no second pick was
     // involved.
-    ElectryEngine scheduled;
+    auto scheduledHeapFixture = std::make_unique<ElectryEngine>();
+    auto& scheduled = *scheduledHeapFixture;
     scheduled.prepare(sampleRate, 512);
     EngineParameters scheduledParameters;
     scheduledParameters.artifactAmount = 0.0f;
@@ -13846,7 +13993,8 @@ void testLegatoSlideDoesNotConsumeAPickStroke()
 void testParameterSanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters hostile;
@@ -14183,7 +14331,8 @@ void testAcousticReturnUsesFixedNominalDelay()
 {
     for (const double rate : { 44100.0, 48000.0, 96000.0, 384000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(rate, 1024);
         const int delay = engine.getAcousticReturnDelaySamples();
         const int expected = static_cast<int>(std::lround(
@@ -14230,7 +14379,8 @@ void testAcousticReturnUsesFixedNominalDelay()
 void testPushAcousticReturnSanitisation()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     const int delay = engine.getAcousticReturnDelaySamples();
     expect(delay == static_cast<int>(std::lround(
@@ -14417,6 +14567,224 @@ void testPushAcousticReturnSanitisation()
            "a saturated acoustic-return ring produced unbounded audio");
 }
 
+void testExtremeFiniteAcousticReturnPreservesSaturation()
+{
+    // Both the average and the limiter's square used to overflow separately:
+    // a finite extreme then became silence instead of a saturated return.
+    // Compare against a smaller input whose limiter is already exactly +/-1
+    // in float. This checks the actual drive, not merely finite final audio
+    // (which would also pass if recovery silently killed every string).
+    for (const double sampleRate : { 48000.0, 192000.0 })
+    {
+        for (const float input : { 1.0e30f, -1.0e30f,
+                                   std::numeric_limits<float>::max(),
+                                   -std::numeric_limits<float>::max() })
+        {
+            auto extreme = std::make_unique<ElectryEngine>();
+            auto reference = std::make_unique<ElectryEngine>();
+            EngineParameters parameters;
+            parameters.resonanceDepth = 1.0f;
+            for (auto* engine : { extreme.get(), reference.get() })
+            {
+                engine->prepare(sampleRate, 257);
+                engine->setParameters(parameters);
+                engine->setResonance(1.0f);
+                engine->setAcousticReturnLevel(1.0f);
+                engine->reset();
+                engine->noteOn(47, 0.9f);
+            }
+
+            std::array<float, 1024> returnSamples;
+            returnSamples.fill(input);
+            extreme->pushAcousticReturn(returnSamples.data(), nullptr,
+                                         static_cast<int>(returnSamples.size()));
+            const int delay = extreme->getAcousticReturnDelaySamples();
+            const float stored = TestAccess::feedbackRingSample(*extreme, delay);
+            expect(std::isfinite(stored * stored) && stored != 0.0f
+                       && std::signbit(stored) == std::signbit(input),
+                   "a finite extreme return lost polarity or cannot be squared safely");
+
+            returnSamples.fill(std::copysign(1.0e6f, input));
+            reference->pushAcousticReturn(returnSamples.data(), nullptr,
+                                           static_cast<int>(returnSamples.size()));
+            StereoBuffer actual(delay + static_cast<int>(returnSamples.size()));
+            StereoBuffer expected(actual.size());
+            renderInto(*extreme, actual, 127);
+            renderInto(*reference, expected, 127);
+            expect(allFinite(actual) && actual.left == expected.left
+                       && actual.right == expected.right,
+                   "a finite extreme return did not preserve signed saturation at "
+                       + std::to_string(sampleRate) + " Hz");
+            expect(extreme->getActiveVoiceCount() > 0,
+                   "a finite extreme return silently retired the fretted string");
+        }
+    }
+}
+
+void testAdversarialEventStreamIsPartitionInvariant()
+{
+    // Fixed-seed stateful fuzzing keeps automation, MPE, strums, pedal holds,
+    // repicks and hostile inputs interleaved instead of testing each setter
+    // only against a fresh voice. The same sample-timestamped stream must
+    // render bit-for-bit identically through unrelated host block partitions,
+    // including the closed acoustic-return loop.
+    static constexpr float EngineParameters::* fields[] {
+        &EngineParameters::bodyWood, &EngineParameters::bodySize,
+        &EngineParameters::bodyShape, &EngineParameters::construction,
+        &EngineParameters::scaleLength, &EngineParameters::pickupType,
+        &EngineParameters::toneKnob, &EngineParameters::bodyResonance,
+        &EngineParameters::stringGauge, &EngineParameters::stringAge,
+        &EngineParameters::pickPosition, &EngineParameters::pickHardness,
+        &EngineParameters::pickNoise, &EngineParameters::fingerNoise,
+        &EngineParameters::releaseNoise, &EngineParameters::muteDamping,
+        &EngineParameters::bendTimeSeconds, &EngineParameters::velocityAmount,
+        &EngineParameters::outputGain, &EngineParameters::artifactAmount,
+        &EngineParameters::sympatheticAmount, &EngineParameters::palmMute,
+        &EngineParameters::strumSpreadSeconds, &EngineParameters::tremoloRateHz,
+        &EngineParameters::resonanceDepth, &EngineParameters::vibratoDepth
+    };
+    static constexpr std::array<float, 11> extremes {
+        0.0f, 1.0f, -1.0f, 192.0f, -192.0f,
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::denorm_min(),
+        std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN()
+    };
+    constexpr int steps = 160;
+    constexpr int framesPerStep = 131;
+    const auto renderStream = [&] (double sampleRate, bool fragmented)
+    {
+        auto storage = std::make_unique<ElectryEngine>();
+        auto& engine = *storage;
+        engine.prepare(sampleRate, fragmented ? 7 : framesPerStep);
+        engine.setVariationSeed(0x81af53u);
+        engine.reset();
+        engine.noteOn(47, 0.8f);
+        StereoBuffer output(steps * framesPerStep);
+        std::uint32_t randomState = 0x71634e29u;
+        const auto next = [&] ()
+        {
+            randomState ^= randomState << 13;
+            randomState ^= randomState >> 17;
+            randomState ^= randomState << 5;
+            return randomState;
+        };
+        const auto scalar = [&] ()
+        {
+            const auto bits = next();
+            return (bits & 3u) == 0
+                ? extremes[(bits >> 2) % extremes.size()]
+                : static_cast<float>(bits & 1023u) / 1023.0f;
+        };
+        for (int step = 0; step < steps; ++step)
+        {
+            if (step > 0)
+            {
+                if (step % 8 == 0)
+                {
+                    EngineParameters parameters;
+                    for (const auto member : fields)
+                        parameters.*member = scalar();
+                    parameters.pickupSelector = static_cast<PickupSelector>(
+                        static_cast<int>(next() % 7u) - 2);
+                    parameters.outputMode = static_cast<electry::OutputMode>(
+                        static_cast<int>(next() % 5u) - 2);
+                    engine.setParameters(parameters);
+                }
+                if (step == steps / 2)
+                    engine.reset();
+                engine.noteOn(ElectryEngine::firstKeyswitchNote
+                                  + static_cast<int>(next() % 10u), 1.0f);
+                const auto expression = static_cast<ElectryEngine::ExpressionId>(
+                    next() % (step % 7 == 0 ? 256u : 17u));
+                engine.setExpressionPitchBend(expression, scalar() * 192.0f);
+                engine.setExpressionMasterPitchBend(expression,
+                                                     scalar() * -192.0f);
+                engine.snapExpressionPitchBendToTarget(expression);
+                engine.setPitchBend(scalar());
+                engine.setVibrato(scalar());
+                engine.setResonance(scalar());
+                engine.setPalmMutePressure(scalar());
+                engine.setAcousticReturnLevel(scalar());
+                if (step % 9 == 0)
+                    engine.setSustainPedal(true);
+                else if (step % 9 == 4)
+                    engine.setSustainPedal(false);
+                if (step % 11 == 0)
+                    engine.beginTremoloPicking(scalar());
+                else if (step % 11 == 5)
+                    engine.endTremoloPicking();
+                if (step % 13 == 0)
+                    engine.setSoloStringMask(static_cast<std::uint8_t>(next()));
+                else if (step % 13 == 1)
+                    engine.setSoloStringMask(0);
+                if (step % 5 == 0)
+                {
+                    std::array<ElectryEngine::NoteOnEvent, 12> chord;
+                    for (auto& event : chord)
+                        event = { 28 + static_cast<int>(next() % 59u),
+                                  scalar(), static_cast<ElectryEngine::ExpressionId>(
+                                      next() % 17u) };
+                    engine.noteOnChord(chord);
+                }
+                else
+                {
+                    const int note = step % 17 == 0
+                        ? std::numeric_limits<int>::max()
+                        : 28 + static_cast<int>(next() % 68u);
+                    engine.noteOn(note, scalar(), expression);
+                    engine.noteOff(note, expression);
+                    engine.noteOn(28 + static_cast<int>(next() % 59u),
+                                  0.8f, expression);
+                }
+                engine.noteOff(step % 19 == 0 ? std::numeric_limits<int>::min()
+                                              : 28 + static_cast<int>(next() % 59u),
+                               expression);
+                if (step % 31 == 0)
+                    engine.allNotesOff();
+            }
+
+            int rendered = 0;
+            while (rendered < framesPerStep)
+            {
+                const int partition = fragmented ? 1 + (rendered % 17)
+                                                  : framesPerStep;
+                const int count = std::min({ partition, framesPerStep - rendered,
+                                             engine.getAcousticReturnDelaySamples() });
+                const int offset = step * framesPerStep + rendered;
+                engine.process(output.left.data() + offset,
+                               output.right.data() + offset, count);
+                engine.pushAcousticReturn(output.left.data() + offset,
+                                          output.right.data() + offset, count);
+                rendered += count;
+            }
+            std::array<electry::StringVisualState, ElectryEngine::stringCount> visuals;
+            engine.getStringVisualState(visuals);
+            for (const auto& visual : visuals)
+                expect(std::isfinite(visual.level) && visual.level >= 0.0f
+                           && visual.level <= 1.0f,
+                       "a mixed hostile event stream corrupted the visual readout");
+            expect(engine.getActiveVoiceCount() >= 0
+                       && engine.getActiveVoiceCount() <= ElectryEngine::stringCount,
+                   "a mixed hostile event stream exceeded physical polyphony");
+        }
+        expect(allFinite(output) && peakAbs(output.left) < 8.0f
+                   && peakAbs(output.right) < 8.0f,
+               "a mixed hostile event stream produced non-finite or unbounded audio");
+        return output;
+    };
+    for (const double sampleRate : { 8000.0, 48000.0, 96000.0, 192000.0, 384000.0 })
+    {
+        const auto reference = renderStream(sampleRate, false);
+        const auto fragmented = renderStream(sampleRate, true);
+        expect(reference.left == fragmented.left && reference.right == fragmented.right,
+               "host block partition changed a mixed hostile event stream at "
+                   + std::to_string(sampleRate) + " Hz");
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Version 1.1: bridge-coupled sympathetic strings
 // ---------------------------------------------------------------------------
@@ -14497,7 +14865,8 @@ void testLiveDampingRefitsPreservePitch()
                  std::pair { PlayStyle::Sustain, PlayStyle::PalmMute },
                  std::pair { PlayStyle::PalmMute, PlayStyle::Sustain } })
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             const auto fixture = prepareRinging(
                 engine, sampleRate, 28, fromStyle, parameters);
             const auto before = loopFrequencies(engine, fixture.stringIndex);
@@ -14527,7 +14896,8 @@ void testLiveDampingRefitsPreservePitch()
     // and small coordinate errors that accumulate over a pressure sweep.
     for (const double sampleRate : sampleRates)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         const auto fixture = prepareRinging(
             engine, sampleRate, 28, PlayStyle::Sustain, parameters);
         const auto reference = loopFrequencies(engine, fixture.stringIndex);
@@ -14600,7 +14970,8 @@ void testLiveDampingRefitsPreservePitch()
     // lower E1's longer period to represent every filter-phase proportion.
     for (const double sampleRate : sampleRates)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         const auto fixture = prepareRinging(
             engine, sampleRate, 47, PlayStyle::Sustain, parameters);
         const auto before = loopFrequencies(engine, fixture.stringIndex);
@@ -14623,8 +14994,10 @@ void testLiveDampingRefitsPreservePitch()
         constexpr double sampleRate = 44100.0;
         EngineParameters glideParameters = parameters;
         glideParameters.bendTimeSeconds = 0.04f;
-        ElectryEngine reference;
-        ElectryEngine pressured;
+        auto referenceHeapFixture = std::make_unique<ElectryEngine>();
+        auto& reference = *referenceHeapFixture;
+        auto pressuredHeapFixture = std::make_unique<ElectryEngine>();
+        auto& pressured = *pressuredHeapFixture;
         const auto referenceFixture = prepareRinging(
             reference, sampleRate, 28, PlayStyle::Sustain, glideParameters);
         const auto pressuredFixture = prepareRinging(
@@ -15241,7 +15614,8 @@ void testReopenedPickRetainsHandRelaxation()
             for (const bool continuousPressure : { false, true })
                 for (const float velocity : { 0.25f, 0.85f })
                 {
-                    ElectryEngine engine;
+                    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+                    auto& engine = *engineHeapFixture;
                     engine.prepare(rate, 256);
                     EngineParameters parameters;
                     parameters.sympatheticAmount = 0.0f;
@@ -15382,7 +15756,8 @@ void testSympatheticBridgeCoupling()
             28, 35, 40, 47, 52, 56
         }};
 
-        ElectryEngine score;
+        auto scoreHeapFixture = std::make_unique<ElectryEngine>();
+        auto& score = *scoreHeapFixture;
         score.prepare(scoreSampleRate, 256);
         EngineParameters scoreParameters;
         scoreParameters.pickupSelector = electry::PickupSelector::Both;
@@ -15486,7 +15861,8 @@ void testSympatheticBridgeCoupling()
         score.noteOff(28);
     }
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -15524,7 +15900,8 @@ void testSympatheticBridgeCoupling()
     // played note can inherit delay-line and filter residue that the engine
     // has declared absent.
     {
-        ElectryEngine liveBypass;
+        auto liveBypassHeapFixture = std::make_unique<ElectryEngine>();
+        auto& liveBypass = *liveBypassHeapFixture;
         liveBypass.prepare(sampleRate, 512);
         auto liveParameters = parameters;
         liveParameters.sympatheticAmount = 1.0f;
@@ -15804,7 +16181,8 @@ void testSympatheticBridgeCoupling()
     // the coupled loops driven as hard as the model allows.
     for (const double rate : { 44100.0, 96000.0, 192000.0 })
     {
-        ElectryEngine hot;
+        auto hotHeapFixture = std::make_unique<ElectryEngine>();
+        auto& hot = *hotHeapFixture;
         hot.prepare(rate, 512);
         EngineParameters extreme;
         extreme.sympatheticAmount = 1.0f;
@@ -15862,7 +16240,8 @@ void testSympatheticBridgeCoupling()
 void testPalmMuteContinuum()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -15961,7 +16340,8 @@ void testPalmMuteContinuum()
     // excitation and palm impact were configured from a stale cached blend.
     const auto cc2Attack = [] (bool pressureBeforeReset)
     {
-        ElectryEngine probe;
+        auto probeHeapFixture = std::make_unique<ElectryEngine>();
+        auto& probe = *probeHeapFixture;
         probe.prepare(sampleRate, 512);
         probe.setParameters(EngineParameters {});
         if (pressureBeforeReset)
@@ -16018,7 +16398,8 @@ void testPalmMuteHandContactDynamics()
                              PlayStyle style, float continuousPressure,
                              bool forceUnityContact)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.setPalmMutePressure(continuousPressure);
@@ -16196,7 +16577,8 @@ void testTremoloStudyClearsPalmBeforeHighLead()
     constexpr double sampleRate = 44100.0;
     const auto inspect = [] (bool clearDuringRest)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 256);
         EngineParameters parameters;
         parameters.palmMute = 0.12f;
@@ -16292,7 +16674,8 @@ void testPalmMuteSpectralLoss()
             0.030 * analysisSampleRate);
         const int bodyLength = static_cast<int>(
             0.050 * analysisSampleRate);
-        ElectryEngine boundaryEngine;
+        auto boundaryEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& boundaryEngine = *boundaryEngineHeapFixture;
         boundaryEngine.prepare(analysisSampleRate, 512);
         boundaryEngine.setParameters(parameters);
         const auto open = renderNote(
@@ -16388,7 +16771,8 @@ void testPalmMuteSpectralLoss()
 
     for (const int midiNote : { 28, 40 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         const auto open = renderNote(engine, sampleRate, midiNote, 0.90f,
@@ -16497,7 +16881,8 @@ void testRapidPalmMuteChugs()
         const int ioiSamples = static_cast<int>(ioiMs * sampleRate / 1000.0);
         Chugs result(hitCount * ioiSamples);
 
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         prepareEngine(engine, pickStyle);
 
         // Never let one hit's meter cross the next onset. This matters at the
@@ -16525,7 +16910,8 @@ void testRapidPalmMuteChugs()
         const int ioiSamples = static_cast<int>(ioiMs * sampleRate / 1000.0);
         const int measurementSamples = std::min(
             ioiSamples, static_cast<int>(0.030 * sampleRate));
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         prepareEngine(engine, PickStyle::Down);
         // startVoice() increments this counter before drawing the stroke. A
         // value of `strokeIndex` therefore recreates phrase hit
@@ -16688,7 +17074,8 @@ void testScoreMatchedC2PalmProxy()
     }};
     constexpr int totalSamples = hitStarts.back() + tailSamples;
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.artifactAmount = 0.0f;
@@ -16851,7 +17238,8 @@ void testExtendedRangeMutedMatrixProxy()
 
     for (const int note : { 31, 38, 43 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         const auto open = renderNote(engine, sampleRate, note, 0.90f,
@@ -16916,7 +17304,8 @@ void testExtendedRangeMutedMatrixProxy()
 void testPalmHandLossStartsEngaged()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(EngineParameters {});
     engine.reset();
@@ -16979,7 +17368,8 @@ void testPalmAttackContactsCompose()
     };
     const auto inspect = [] (PlayStyle style, float pressure)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.strumSpreadSeconds = 0.0f;
@@ -17089,7 +17479,8 @@ void testPalmImpactIsSampleRateInvariant()
 
     for (const double sampleRate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -17152,7 +17543,8 @@ void testPalmImpactWaitsForStrokeAndClears()
     // control-tick countdown and an off-by-one at the exact contact sample.
     for (const double timingRate : { 44100.0, 48000.0, 96000.0 })
     {
-        ElectryEngine timed;
+        auto timedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& timed = *timedHeapFixture;
         timed.prepare(timingRate, 512);
         timed.setParameters(parameters);
         timed.reset();
@@ -17203,7 +17595,8 @@ void testPalmImpactWaitsForStrokeAndClears()
     // long strum pre-roll must not spend this counter against a silent string
     // and leave a delayed Palm contact artificially clean.
     {
-        ElectryEngine artifactTimed;
+        auto artifactTimedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& artifactTimed = *artifactTimedHeapFixture;
         auto artifactParameters = parameters;
         artifactParameters.artifactAmount = 1.0f;
         artifactTimed.prepare(sampleRate, 512);
@@ -17226,7 +17619,8 @@ void testPalmImpactWaitsForStrokeAndClears()
                "a delayed Palm stroke spent its artifact window before contact");
     }
 
-    ElectryEngine delayed;
+    auto delayedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& delayed = *delayedHeapFixture;
     auto delayedParameters = parameters;
     delayedParameters.sympatheticAmount = 0.80f;
     delayed.prepare(sampleRate, 512);
@@ -17251,7 +17645,8 @@ void testPalmImpactWaitsForStrokeAndClears()
     expect(peakAbs(throughPick.left) > 1.0e-5f,
            "the delayed Palm stroke never sounded at its pick contact");
 
-    ElectryEngine aborted;
+    auto abortedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& aborted = *abortedHeapFixture;
     aborted.prepare(sampleRate, 512);
     aborted.setParameters(parameters);
     aborted.reset();
@@ -17272,7 +17667,8 @@ void testPalmImpactWaitsForStrokeAndClears()
     // style in the shared scan for the 50 ms voice-retirement floor, imposing
     // about 27 dB of unintended decay on an already-ringing bank at 48 kHz.
     {
-        ElectryEngine shared;
+        auto sharedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& shared = *sharedHeapFixture;
         auto sharedParameters = parameters;
         sharedParameters.sympatheticAmount = 0.80f;
         shared.prepare(sampleRate, 512);
@@ -17319,7 +17715,8 @@ void testPalmImpactWaitsForStrokeAndClears()
     // Cancelling a delayed same-string repick must not erase the preceding
     // stroke that is still physically ringing in that voice.
     {
-        ElectryEngine repick;
+        auto repickHeapFixture = std::make_unique<ElectryEngine>();
+        auto& repick = *repickHeapFixture;
         repick.prepare(sampleRate, 512);
         repick.setParameters(parameters);
         repick.reset();
@@ -17617,7 +18014,8 @@ void testStrumSpread()
 
     const auto renderChord = [&] (float spreadSeconds)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -17696,7 +18094,8 @@ void testStrumSpread()
     // with the stroke direction.
     const auto completeChord = [&] (PickStyle pick, int blockSize = 512)
     {
-        ElectryEngine complete;
+        auto completeHeapFixture = std::make_unique<ElectryEngine>();
+        auto& complete = *completeHeapFixture;
         complete.prepare(sampleRate, 512);
         EngineParameters spread;
         spread.artifactAmount = 0.0f;
@@ -17757,7 +18156,8 @@ void testStrumSpread()
     // previously charged a fixed 20 ms before the instrument could respond.
     const auto completeSingle = [&] (float spreadSeconds)
     {
-        ElectryEngine single;
+        auto singleHeapFixture = std::make_unique<ElectryEngine>();
+        auto& single = *singleHeapFixture;
         single.prepare(sampleRate, 512);
         EngineParameters singleParameters;
         singleParameters.artifactAmount = 0.0f;
@@ -17787,7 +18187,8 @@ void testStrumSpread()
     // scalar chord window. Alternate must therefore advance, and the second
     // one-note batch must also begin without hidden pre-roll.
     {
-        ElectryEngine timed;
+        auto timedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& timed = *timedHeapFixture;
         timed.prepare(sampleRate, 512);
         EngineParameters timedParameters;
         timedParameters.artifactAmount = 0.0f;
@@ -17813,7 +18214,8 @@ void testStrumSpread()
     // to a one-string batch rather than growing a late phantom attack.
     const auto cancelledCrossing = [&] (bool scheduleHighString)
     {
-        ElectryEngine cancelled;
+        auto cancelledHeapFixture = std::make_unique<ElectryEngine>();
+        auto& cancelled = *cancelledHeapFixture;
         cancelled.prepare(sampleRate, 512);
         EngineParameters cancelParameters;
         cancelParameters.artifactAmount = 0.0f;
@@ -17852,7 +18254,8 @@ void testStrumSpread()
     // A note that arrives after the chord window starts a fresh stroke, so it
     // carries the pre-roll and nothing else - never the previous chord's
     // travel.
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.strumSpreadSeconds = 0.040f;
@@ -17884,7 +18287,8 @@ void testStrumSpread()
     // syncs the smoothed state from the target, so this deliberately does not
     // reset after the change.
     {
-        ElectryEngine automated;
+        auto automatedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& automated = *automatedHeapFixture;
         automated.prepare (sampleRate, 512);
         EngineParameters flat;
         flat.artifactAmount = 0.0f;
@@ -17916,7 +18320,8 @@ void testStrumSpread()
     // Leaving the countdown running excited the string after its release, so a
     // short strummed chord grew a late attack once the keys were already up.
     {
-        ElectryEngine released;
+        auto releasedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& released = *releasedHeapFixture;
         released.prepare(sampleRate, 512);
         EngineParameters spread;
         spread.artifactAmount = 0.0f;
@@ -18197,7 +18602,8 @@ void testResonanceControlRaisesSympatheticRing()
     // toward total, scaled by the Resonance Depth parameter, and a lowered
     // wheel is a bit-exact no-op.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
 
     EngineParameters parameters;
@@ -18290,7 +18696,8 @@ void testResonanceFeedbackSelfSustains()
     const auto runClosedLoop = [&] (float resonance, float distortion,
                                     float amp, bool palmMuted = false)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, hostBlockSize);
         EngineParameters parameters;
         parameters.artifactAmount = 0.0f;
@@ -18305,7 +18712,8 @@ void testResonanceFeedbackSelfSustains()
         if (palmMuted)
             engine.noteOn(styleKeyswitch(PlayStyle::PalmMute), 1.0f);
 
-        electry::ElectryFx fx;
+        auto fxHeapFixture = std::make_unique<electry::ElectryFx>();
+        auto& fx = *fxHeapFixture;
         fx.prepare(sampleRate);
         electry::FxParameters fxParameters;
         fxParameters.distortion = distortion;
@@ -18399,7 +18807,8 @@ void testResonanceFeedbackSelfSustains()
     {
         constexpr double ownershipRate = 44100.0;
         constexpr int ownershipBlockSize = 256;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(ownershipRate, ownershipBlockSize);
         EngineParameters parameters;
         parameters.pickupSelector = PickupSelector::Bridge;
@@ -18416,7 +18825,8 @@ void testResonanceFeedbackSelfSustains()
         engine.setParameters(parameters);
         engine.reset();
 
-        electry::ElectryFx fx;
+        auto fxHeapFixture = std::make_unique<electry::ElectryFx>();
+        auto& fx = *fxHeapFixture;
         fx.prepare(ownershipRate);
         electry::FxParameters fxParameters;
         fxParameters.distortion = 0.30f;
@@ -18526,7 +18936,8 @@ void testPickGeometryFollowsFret()
     // that same string open, which pins the comparison to one physical string.
     const auto combFraction = [&] (int midiNote)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickPosition = 0.30f;
@@ -18566,7 +18977,8 @@ void testPickContactGeometry()
         PickStyle pickStyle = PickStyle::Down,
         PlayStyle playStyle = PlayStyle::Sustain)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickHardness = hardness;
@@ -18832,7 +19244,8 @@ void testPalmMuteDoesNotShiftPitch()
         {
             EngineParameters parameters;
             parameters.palmMute = pressure;
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(sampleRate, 512);
             engine.setParameters(parameters);
             engine.reset();
@@ -18958,7 +19371,8 @@ void testLowestStringLossCorrection()
     {
         for (const int note : { 30, 36, 42 })
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(hostRate, 512);
             EngineParameters parameters;
             parameters.sympatheticAmount = 0.0f;
@@ -19044,7 +19458,8 @@ void testLowestStringLossCorrection()
     for (const auto [stringIndex, note] :
          { std::pair { 0, 28 }, std::pair { 0, 43 }, std::pair { 1, 36 } })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(48000.0, 512);
         engine.reset();
         TestAccess::retriggerVoice(engine, stringIndex, note, 0.9f);
@@ -19064,7 +19479,8 @@ void testLowestStringLossCorrection()
         BoundaryMove { 42, 43, true, false },
         BoundaryMove { 43, 42, false, true } })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(48000.0, 512);
         EngineParameters quiet;
         quiet.sympatheticAmount = 0.0f;
@@ -19199,7 +19615,8 @@ void testLowestStringLossCorrection()
     for (const double sampleRate : { 44100.0, 48000.0, 96000.0,
                                      192000.0, 384000.0 })
     {
-        ElectryEngine phaseCompensated;
+        auto phaseCompensatedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& phaseCompensated = *phaseCompensatedHeapFixture;
         phaseCompensated.prepare(sampleRate, 512);
         phaseCompensated.reset();
         TestAccess::retriggerVoice(phaseCompensated, 0, 29, 0.85f);
@@ -19224,7 +19641,8 @@ void testLowestStringLossCorrection()
 
     // A new target reached before the old glide finishes must start from the
     // live filter, not either stale endpoint.
-    ElectryEngine chained;
+    auto chainedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& chained = *chainedHeapFixture;
     chained.prepare(48000.0, 512);
     chained.reset();
     TestAccess::retriggerVoice(chained, 0, 29, 0.85f);
@@ -19264,7 +19682,8 @@ void testLowestStringLossCorrection()
         BentNote { 29, 1.0f }, BentNote { 30, -1.0f },
         BentNote { 42, 1.0f }, BentNote { 43, -1.0f } })
     {
-        ElectryEngine bent;
+        auto bentHeapFixture = std::make_unique<ElectryEngine>();
+        auto& bent = *bentHeapFixture;
         bent.prepare(48000.0, 512);
         bent.reset();
         TestAccess::retriggerVoice(bent, 0, bentNote.note, 0.85f);
@@ -19277,7 +19696,8 @@ void testLowestStringLossCorrection()
     }
 
     constexpr ElectryEngine::ExpressionId expressionId = 2;
-    ElectryEngine expressed;
+    auto expressedHeapFixture = std::make_unique<ElectryEngine>();
+    auto& expressed = *expressedHeapFixture;
     expressed.prepare(48000.0, 512);
     expressed.reset();
     expressed.noteOn(30, 0.85f, expressionId);
@@ -19292,7 +19712,8 @@ void testLowestStringLossCorrection()
     // Idle strings are open and therefore outside this fretted-data candidate.
     // Bending unsupported open E1 across F#1 must not carry the played filter
     // into the sympathetic loop or switch topology during the wheel gesture.
-    ElectryEngine sympathetic;
+    auto sympatheticHeapFixture = std::make_unique<ElectryEngine>();
+    auto& sympathetic = *sympatheticHeapFixture;
     sympathetic.prepare(48000.0, 512);
     EngineParameters parameters;
     parameters.sympatheticAmount = 0.8f;
@@ -19325,7 +19746,8 @@ void testHandDipNeverExpands()
                 parameters.palmMute = pressure;
                 parameters.muteDamping = muteDamping;
 
-                ElectryEngine engine;
+                auto engineHeapFixture = std::make_unique<ElectryEngine>();
+                auto& engine = *engineHeapFixture;
                 engine.prepare(sampleRate, 512);
                 engine.setParameters(parameters);
 
@@ -19464,7 +19886,8 @@ void testLowRegisterFundamentalWeight()
         return total > 0.0 ? inBand / total : 0.0;
     };
 
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     engine.setParameters(parameters);
 
@@ -19513,7 +19936,8 @@ void testLowRegisterFundamentalWeight()
     // position stays the brighter of the two.
     EngineParameters neckParameters = parameters;
     neckParameters.pickupSelector = PickupSelector::Neck;
-    ElectryEngine neckEngine;
+    auto neckEngineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& neckEngine = *neckEngineHeapFixture;
     neckEngine.prepare(sampleRate, 512);
     neckEngine.setParameters(neckParameters);
     const auto neck = renderNote(neckEngine, sampleRate, 28, 0.9f,
@@ -19658,7 +20082,8 @@ void testVisualStateAndGeometry()
 
     // The engine's readout names the right physical string, fret and note.
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.sympatheticAmount = 0.8f;
@@ -19852,7 +20277,8 @@ void testPickupCullingAndChannelLinking()
                               SelectorCase { PickupSelector::Neck, true, false },
                               SelectorCase { PickupSelector::Both, true, true } })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.pickupSelector = item.selector;
@@ -19882,7 +20308,8 @@ void testPickupCullingAndChannelLinking()
 
     // Bringing a culled pickup back must not click: its aperture and EMF
     // memory is cleared and the selector mix fades it in over about 4 ms.
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.pickupSelector = PickupSelector::Bridge;
@@ -19905,7 +20332,8 @@ void testPickupCullingAndChannelLinking()
 
     // Mono runs one shared output chain and is bit-identical dual mono;
     // opening the field copies its state across without a discontinuity.
-    ElectryEngine field;
+    auto fieldHeapFixture = std::make_unique<ElectryEngine>();
+    auto& field = *fieldHeapFixture;
     field.prepare(sampleRate, 512);
     EngineParameters mono;
     mono.outputMode = electry::OutputMode::Mono;
@@ -19979,7 +20407,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
 
     const auto geometryAt = [&] (float bendSemitones)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         // The legacy wheel's public range is +/-1 for +/-2 semitones. reset()
@@ -20033,7 +20462,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
     // must not consume a smaller attack-tension move before pickup c sees it.
     {
         constexpr float attackFactor = 1.003f;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -20056,7 +20486,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
     // Member expression reaches configureVoicePitch through separate state.
     {
         constexpr ElectryEngine::ExpressionId expressionId = 3;
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.setExpressionPitchBend(expressionId, 2.0f);
@@ -20074,7 +20505,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
     // Faraday differentiator. A reset would turn every control tick into a
     // false attack even if the steady-state delay were right.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -20090,7 +20522,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
     // A pure slide changes speaking length and pitch reciprocally, so it must
     // not masquerade as a tension change. Absolute pickup delays stay fixed.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -20144,7 +20577,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
     // A live finger vibrato is the other tension path. Use the voice's actual
     // semitone excursion rather than deriving the expectation from this cache.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         engine.setParameters(parameters);
         engine.reset();
@@ -20192,7 +20626,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
         auto coupledParameters = parameters;
         coupledParameters.sympatheticAmount = 1.0f;
         coupledParameters.stringGauge = 0.0f;
-        ElectryEngine coupled;
+        auto coupledHeapFixture = std::make_unique<ElectryEngine>();
+        auto& coupled = *coupledHeapFixture;
         coupled.prepare(sampleRate, 512);
         coupled.setParameters(coupledParameters);
         coupled.reset();
@@ -20209,7 +20644,8 @@ void testPickupGeometryFollowsLiveWaveSpeed()
         const auto idleFilterState = TestAccess::loopFilterState(
             coupled, idleString);
 
-        ElectryEngine played;
+        auto playedHeapFixture = std::make_unique<ElectryEngine>();
+        auto& played = *playedHeapFixture;
         played.prepare(sampleRate, 512);
         auto playedParameters = coupledParameters;
         playedParameters.sympatheticAmount = 0.0f;
@@ -20450,7 +20886,8 @@ void testHumbuckerTwoCoilNotch()
     // 1. Where the notch is, and how deep, read off the two stages the voice
     // is actually running rather than off a rendered spectrum.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         auto parameters = pickupReference();
         parameters.pickupType = 0.0f;
@@ -20524,7 +20961,8 @@ void testHumbuckerTwoCoilNotch()
     // change refreshes the numbers while the structural assertion above still
     // owns the pickup topology.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         auto parameters = pickupReference();
         parameters.pickupType = 1.0f;
@@ -20607,7 +21045,8 @@ void testHumbuckerTwoCoilNotch()
     // Live automation has to reach the same structural endpoint as reset().
     // Otherwise an asymptotic residue keeps the second coil rendering forever.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         auto parameters = pickupReference();
         parameters.pickupType = 0.0f;
@@ -20794,7 +21233,8 @@ void testDecayIsSampleRateInvariant()
         for (const double rate :
              { 44100.0, 48000.0, 88200.0, 96000.0, 96001.0, 192000.0 })
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(rate, 512);
             EngineParameters parameters;
             parameters.sympatheticAmount = 0.0f;
@@ -20867,7 +21307,8 @@ void testPolarisationCouplingIsRateInvariant()
         std::array<double, rates.size()> couplings {};
         for (std::size_t index = 0; index < rates.size(); ++index)
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             engine.prepare(rates[index], 512);
             engine.setParameters(parameters);
             engine.reset();
@@ -20923,7 +21364,8 @@ void testPolarisationCouplingIsRateInvariant()
     // Pin live sounding pitch rather than only static MIDI assignment. A
     // future shortcut from f0 back to baseFrequency would pass every check
     // above but make the seam ignore wheel, MPE, legato and vibrato travel.
-    ElectryEngine bent;
+    auto bentHeapFixture = std::make_unique<ElectryEngine>();
+    auto& bent = *bentHeapFixture;
     bent.prepare(48000.0, 512);
     bent.setParameters(parameters);
     bent.setPitchBend(0.5f); // +1 semitone at the legacy +/-2-semitone range.
@@ -20952,7 +21394,8 @@ void testPolarisationCouplingIsRateInvariant()
     // must keep its established sustain on both sides of the rate-family seam.
     for (const double rate : { 44100.0, 48000.0, 96000.0, 96001.0, 192000.0 })
     {
-        ElectryEngine rateEngine;
+        auto rateEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& rateEngine = *rateEngineHeapFixture;
         rateEngine.prepare(rate, 512);
         rateEngine.setParameters(parameters);
         rateEngine.reset();
@@ -20980,7 +21423,8 @@ void testPolarisationCouplingIsRateInvariant()
 void testCoupledStringLosesItsTopEndLikeAPlayedString()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.sympatheticAmount = 0.6f;
@@ -21153,7 +21597,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
         // long here - 8.97, 8.52 and 8.07 s on the bottom three - and the
         // clamp realised 0.099, 0.79 and 1.48.
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             configured(rate, 1.0f, 0.0f, engine);
             for (int s = 0; s < ElectryEngine::stringCount; ++s)
             {
@@ -21173,7 +21618,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
         // 0.080 s at full pressure, whatever the string and whatever the host
         // rate. Six of the eight strings realised 8 to 53 ms instead.
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             configured(rate, 0.30f, 1.0f, engine);
             for (int s = 0; s < ElectryEngine::stringCount; ++s)
             {
@@ -21190,7 +21636,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
         // Half pressure, where the targets run from 1.11 to 1.28 s and the
         // clamp realised 16 to 99 ms.
         {
-            ElectryEngine engine;
+            auto engineHeapFixture = std::make_unique<ElectryEngine>();
+            auto& engine = *engineHeapFixture;
             configured(rate, 0.30f, 0.5f, engine);
             for (int s = 0; s < ElectryEngine::stringCount; ++s)
             {
@@ -21213,7 +21660,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
     int index = 0;
     for (const double rate : { 44100.0, 48000.0, 96000.0 })
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         configured(rate, 1.0f, 0.0f, engine);
         lowE[index++] = realisedT60(engine, 0);
     }
@@ -21237,7 +21685,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
     constexpr double sampleRate = 48000.0;
     const auto ringEnergy = [&] (float sympathetic)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.stringAge = 1.0f;
@@ -21285,7 +21734,8 @@ void testFingeredStringsShareTheBridge()
                                   float sympathetic, float resonanceDepth,
                                   double seconds)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.sympatheticAmount = sympathetic;
@@ -21409,7 +21859,8 @@ void testFingeredStringsShareTheBridge()
         for (const float resonance : { 0.0f, 1.0f })
             for (const float mute : { 0.0f, 0.5f })
             {
-                ElectryEngine engine;
+                auto engineHeapFixture = std::make_unique<ElectryEngine>();
+                auto& engine = *engineHeapFixture;
                 engine.prepare(sampleRate, 512);
                 EngineParameters parameters;
                 parameters.sympatheticAmount = sympathetic;
@@ -21473,7 +21924,8 @@ void testFingeredStringsShareTheBridge()
     //    in the instrument sits downstream of that.
     const auto singleNoteLoopEnergy = [&] (float sympathetic)
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.sympatheticAmount = sympathetic;
@@ -21504,7 +21956,8 @@ void testFingeredStringsShareTheBridge()
     //    injection into eight high-Q loops, which is exactly the shape that
     //    folds energy back above Nyquist if it is unbounded.
     {
-        ElectryEngine engine;
+        auto engineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& engine = *engineHeapFixture;
         engine.prepare(sampleRate, 512);
         EngineParameters parameters;
         parameters.sympatheticAmount = 0.0f;
@@ -21550,7 +22003,8 @@ void testFingeredStringsShareTheBridge()
 void testIdleFreezeAndDenormalSafety()
 {
     constexpr double sampleRate = 48000.0;
-    ElectryEngine engine;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
     engine.prepare(sampleRate, 512);
     EngineParameters parameters;
     parameters.sympatheticAmount = 1.0f;
@@ -21670,11 +22124,13 @@ void testCpuGuardrail()
     double defaultCase = 1.0e9;
     for (int attempt = 0; attempt < 5; ++attempt)
     {
-        ElectryEngine worstEngine;
+        auto worstEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& worstEngine = *worstEngineHeapFixture;
         strike (worstEngine, PickupSelector::Both, electry::OutputMode::Stereo);
         worstCase = std::min (worstCase, timeRender (worstEngine, buffer));
 
-        ElectryEngine defaultEngine;
+        auto defaultEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& defaultEngine = *defaultEngineHeapFixture;
         strike (defaultEngine, PickupSelector::Bridge, electry::OutputMode::Mono);
         defaultCase = std::min (defaultCase,
                                 timeRender (defaultEngine, buffer));
@@ -21698,7 +22154,8 @@ void testCpuGuardrail()
     double palmCase = 1.0e9;
     for (int attempt = 0; attempt < 5; ++attempt)
     {
-        ElectryEngine palmEngine;
+        auto palmEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& palmEngine = *palmEngineHeapFixture;
         strike (palmEngine, PickupSelector::Both,
                 electry::OutputMode::Stereo, PlayStyle::PalmMute);
         palmCase = std::min(
@@ -21743,14 +22200,16 @@ void testCpuGuardrail()
     };
     for (int attempt = 0; attempt < 5; ++attempt)
     {
-        ElectryEngine worstEngine;
+        auto worstEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& worstEngine = *worstEngineHeapFixture;
         strikeWithIdleStrings(
             worstEngine, PickupSelector::Both, electry::OutputMode::Stereo);
         wakeIdleStrings(worstEngine, "Both/Stereo idle CPU fixture");
         idleWorstCase = std::min(
             idleWorstCase, timeRender(worstEngine, buffer));
 
-        ElectryEngine defaultEngine;
+        auto defaultEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& defaultEngine = *defaultEngineHeapFixture;
         strikeWithIdleStrings(
             defaultEngine, PickupSelector::Bridge, electry::OutputMode::Mono);
         wakeIdleStrings(defaultEngine, "Bridge/Mono idle CPU fixture");
@@ -21770,7 +22229,8 @@ void testCpuGuardrail()
     double idleGlideCase = 1.0e9;
     for (int attempt = 0; attempt < 3; ++attempt)
     {
-        ElectryEngine glideEngine;
+        auto glideEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& glideEngine = *glideEngineHeapFixture;
         strikeWithIdleStrings(
             glideEngine, PickupSelector::Both, electry::OutputMode::Stereo);
         wakeIdleStrings(glideEngine, "idle wheel-glide CPU fixture");
@@ -21820,7 +22280,8 @@ void testCpuGuardrail()
     double glideCase = 1.0e9;
     for (int attempt = 0; attempt < 3; ++attempt)
     {
-        ElectryEngine glideEngine;
+        auto glideEngineHeapFixture = std::make_unique<ElectryEngine>();
+        auto& glideEngine = *glideEngineHeapFixture;
         strike (glideEngine, PickupSelector::Both, electry::OutputMode::Stereo);
         glideEngine.setPitchBend (1.0f);
         glideCase = std::min (glideCase, timeRender (glideEngine, buffer));
@@ -21985,6 +22446,8 @@ int main()
     testParameterSanitisationFallsBackToDefaults();
     testAcousticReturnUsesFixedNominalDelay();
     testPushAcousticReturnSanitisation();
+    testExtremeFiniteAcousticReturnPreservesSaturation();
+    testAdversarialEventStreamIsPartitionInvariant();
     testCpuGuardrail();
 
     // Palm-mute bridge impact smoke check.

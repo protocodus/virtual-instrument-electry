@@ -1668,7 +1668,19 @@ void ElectryEngine::pushAcousticReturn(const float* left, const float* right,
     {
         float value = 0.5f * (left[sample] + right[sample]);
         if (! std::isfinite(value))
-            value = 0.0f;
+        {
+            // A pair of finite full-range floats can overflow the sum even
+            // though its average is representable. Preserve its polarity;
+            // only a genuinely non-finite input is silence.
+            value = std::isfinite(left[sample]) && std::isfinite(right[sample])
+                ? 0.5f * left[sample] + 0.5f * right[sample] : 0.0f;
+        }
+        // Leave room for midpoint interpolation and the acoustic limiter's
+        // square. Beyond this ceiling that limiter is already indistinguish-
+        // able from +/-1 in float, while an unchecked square overflows and
+        // perversely turns a very large finite return into zero drive.
+        constexpr float maximumAcousticReturn = 0x1p60f;
+        value = clampf(value, -maximumAcousticReturn, maximumAcousticReturn);
         feedbackRing_[static_cast<std::size_t>(feedbackWriteIndex_)] = value;
         feedbackWriteIndex_ = (feedbackWriteIndex_ + 1) & (feedbackRingSize - 1);
         if (feedbackAvailable_ < feedbackRingSize)

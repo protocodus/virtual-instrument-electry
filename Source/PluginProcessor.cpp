@@ -6,6 +6,7 @@
 #include <limits>
 #include <memory>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -97,9 +98,33 @@ bool isAttackConditioningNote (int note) noexcept
         || electry::ElectryEngine::isMidiSoloClearNote (note);
 }
 
+// Channel messages must contain complete 7-bit data bytes. Masking a status
+// byte in a data slot can turn corrupt host input into a real note or panic.
+bool isValidChannelMidiData (const juce::uint8* data, int numBytes) noexcept
+{
+    if (data == nullptr || numBytes < 1 || data[0] < 0x80u || data[0] >= 0xf0u)
+        return false;
+    const auto kind = data[0] & 0xf0u;
+    const int required = kind == 0xc0u || kind == 0xd0u ? 2 : 3;
+    return numBytes >= required && data[1] < 0x80u
+        && (required == 2 || data[2] < 0x80u);
+}
+
+bool isResetControllersEvent (const juce::MidiMessageMetadata& metadata) noexcept
+{
+    return isValidChannelMidiData (metadata.data, metadata.numBytes)
+        && (metadata.data[0] & 0xf0u) == 0xb0u && metadata.data[1] == 121u;
+}
+
+bool isAllNotesOffEvent (const juce::MidiMessageMetadata& metadata) noexcept
+{
+    return isValidChannelMidiData (metadata.data, metadata.numBytes)
+        && (metadata.data[0] & 0xf0u) == 0xb0u && metadata.data[1] == 123u;
+}
+
 bool isRpnStateMidiEvent (const juce::MidiMessageMetadata& metadata) noexcept
 {
-    if (metadata.data == nullptr || metadata.numBytes < 3
+    if (! isValidChannelMidiData (metadata.data, metadata.numBytes)
         || (metadata.data[0] & 0xf0u) != 0xb0u)
         return false;
 
@@ -111,7 +136,7 @@ bool isRpnStateMidiEvent (const juce::MidiMessageMetadata& metadata) noexcept
 bool isAttackConditioningMidiEvent (
     const juce::MidiMessageMetadata& metadata) noexcept
 {
-    if (metadata.data == nullptr || metadata.numBytes < 1)
+    if (! isValidChannelMidiData (metadata.data, metadata.numBytes))
         return false;
 
     const auto kind = static_cast<unsigned> (metadata.data[0]) & 0xf0u;
@@ -139,9 +164,11 @@ bool isAttackConditioningMidiEvent (
         || isRpnStateMidiEvent (metadata);
 }
 
-float valueOf (const std::atomic<float>* value) noexcept
+float valueOf (const std::atomic<float>* value, float minimum = 0.0f,
+               float maximum = 1.0f, float fallback = 0.0f) noexcept
 {
-    return value->load (std::memory_order_relaxed);
+    const float raw = value->load (std::memory_order_relaxed);
+    return juce::jlimit (minimum, maximum, std::isfinite (raw) ? raw : fallback);
 }
 
 juce::String percentText (float value, int)
@@ -511,6 +538,9 @@ void ElectryAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // survives the preparation work for the first new block.
     panicRequested.store (false, std::memory_order_release);
     engineReady.store (false, std::memory_order_release);
+    sampleRate = juce::jlimit (8000.0, 384000.0,
+        std::isfinite (sampleRate) ? sampleRate : 44100.0);
+    samplesPerBlock = std::max (0, samplesPerBlock);
     engine.prepare (sampleRate, samplesPerBlock);
     doubleEngine->prepare (sampleRate, samplesPerBlock);
     updateEngineParameters();
@@ -604,6 +634,15 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     if (! engineReady.load (std::memory_order_acquire))
         return;
+
+    // The advertised bus is stereo, but a malformed host callback must not
+    // dereference a missing channel. Retire its note state at the next valid
+    // callback as well, so a discarded Note Off cannot leave a stuck string.
+    if (buffer.getNumChannels() < 2)
+    {
+        requestPanic();
+        return;
+    }
 
     updateEngineParameters();
     updateEffectParameters();
@@ -723,6 +762,10 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     acceptedMpeRpn = processMpeController (
                                           metadata.data, metadata.numBytes)
                                       || acceptedMpeRpn;
+                else if (isResetControllersEvent (metadata))
+                    resetAttackConditioningControllers();
+                else if (isAllNotesOffEvent (metadata))
+                    releasePerformanceKeys();
                 else
                     dispatchMidiData (metadata.data, metadata.numBytes);
             }
@@ -743,6 +786,21 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             const auto metadata = *current;
             if (isAttackConditioningMidiEvent (metadata))
             {
+                // Only CC2/RPN state is hoisted with attack conditioning.
+                // Reset wheel/pedal/resonance here so CC121 keeps source order
+                // with same-sample CC1, CC64, pitch wheels and note releases.
+                if (isResetControllersEvent (metadata))
+                {
+                    flushNoteOnBatch (groupBatch);
+                    resetRemainingControllers();
+                }
+                else if (isAllNotesOffEvent (metadata))
+                {
+                    // All Notes Off releases attacks before it and leaves
+                    // attacks after it held, including ownership bookkeeping.
+                    flushNoteOnBatch (groupBatch);
+                    releasePlayableNotes();
+                }
                 // RPN state has already been consumed by the conditioning
                 // pass, but an ignored controller historically split the two
                 // surrounding note batches. Retain that boundary whenever no
@@ -754,6 +812,8 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
 
             const auto* data = metadata.data;
+            if (! isValidChannelMidiData (data, metadata.numBytes))
+                continue;
             const bool ordinaryPositiveNoteOn =
                 data != nullptr && metadata.numBytes >= 3
                 && (data[0] & 0xf0u) == 0x90u
@@ -806,7 +866,7 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
 void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBytes) noexcept
 {
-    if (data == nullptr || numBytes < 1)
+    if (! isValidChannelMidiData (data, numBytes))
         return;
 
     const auto status = static_cast<unsigned> (data[0]);
@@ -860,16 +920,8 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
         }
         else if (controller == 121u)
         {
-            sustainPedalDown = false;
-            mpeRpnDetector.reset();
-            resetPitchBends();
-            engine.setResonance (0.0f);
-            doubleEngine->setResonance (0.0f);
-            engine.setPalmMutePressure (0.0f);
-            doubleEngine->setPalmMutePressure (0.0f);
-            midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
-            engine.setSustainPedal (false);
-            doubleEngine->setSustainPedal (false);
+            resetAttackConditioningControllers();
+            resetRemainingControllers();
         }
         else if (controller == 120u)
         {
@@ -896,18 +948,8 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
             // All Notes Off releases the held strings so the natural damped
             // ring-out remains musical. In HOLD mode the play-style
             // keyswitches are notes too, so they return to the saved base.
-            clearHeldPlayStyles();
-            if (appliedPlayStyleKeysHold)
-            {
-                clearHeldSoloStrings();
-                applySoloStringMask (0);
-            }
-            clearVibratoGesture();
-            clearTremoloGesture();
-            applyPlayStyle (appliedBasePlayStyleIndex);
-            engine.allNotesOff();
-            doubleEngine->allNotesOff();
-            clearMpeNoteOwnership();
+            releasePerformanceKeys();
+            releasePlayableNotes();
         }
     }
     // Pressure is deliberately unassigned: mapping either channel pressure or
@@ -948,9 +990,12 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
     const int recordedOwner = takeNoteOwnership (
         note, midiChannel,
         currentExpressionId == electry::ElectryEngine::legacyExpressionId);
-    const auto expressionId = recordedOwner >= 0
-        ? static_cast<electry::ElectryEngine::ExpressionId> (recordedOwner)
-        : currentExpressionId;
+    // An unmatched/duplicate release owns nothing. In particular it must
+    // not decrement another held MPE note's channel total or centre its bend.
+    if (recordedOwner < 0)
+        return;
+    const auto expressionId =
+        static_cast<electry::ElectryEngine::ExpressionId> (recordedOwner);
     const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
     if (expressionId != electry::ElectryEngine::legacyExpressionId)
     {
@@ -1246,6 +1291,44 @@ void ElectryAudioProcessor::resetPitchBends() noexcept
     refreshMpePitchBends();
 }
 
+void ElectryAudioProcessor::resetAttackConditioningControllers() noexcept
+{
+    mpeRpnDetector.reset();
+    engine.setPalmMutePressure (0.0f);
+    doubleEngine->setPalmMutePressure (0.0f);
+    midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
+}
+
+void ElectryAudioProcessor::resetRemainingControllers() noexcept
+{
+    sustainPedalDown = false;
+    resetPitchBends();
+    engine.setResonance (0.0f);
+    doubleEngine->setResonance (0.0f);
+    engine.setSustainPedal (false);
+    doubleEngine->setSustainPedal (false);
+}
+
+void ElectryAudioProcessor::releasePerformanceKeys() noexcept
+{
+    clearHeldPlayStyles();
+    if (appliedPlayStyleKeysHold)
+    {
+        clearHeldSoloStrings();
+        applySoloStringMask (0);
+    }
+    clearVibratoGesture();
+    clearTremoloGesture();
+    applyPlayStyle (appliedBasePlayStyleIndex);
+}
+
+void ElectryAudioProcessor::releasePlayableNotes() noexcept
+{
+    engine.allNotesOff();
+    doubleEngine->allNotesOff();
+    clearMpeNoteOwnership();
+}
+
 void ElectryAudioProcessor::dispatchNoteOn (
     int note, float velocity, bool selectsBaseArticulation) noexcept
 {
@@ -1389,8 +1472,9 @@ void ElectryAudioProcessor::dispatchNoteOff (int note) noexcept
         return;
     }
 
-    if (electry::ElectryEngine::isMidiPlayableNote (note))
-        static_cast<void> (takeNoteOwnership (note, 0, true));
+    if (electry::ElectryEngine::isMidiPlayableNote (note)
+        && takeNoteOwnership (note, 0, true) < 0)
+        return;
 
     const int style = note - electry::ElectryEngine::firstPlayStyleKeyswitchNote;
     if (! appliedPlayStyleKeysHold || style < 0
@@ -1568,12 +1652,13 @@ void ElectryAudioProcessor::renderEngines (float* left, float* right,
 void ElectryAudioProcessor::updateEngineParameters() noexcept
 {
     electry::EngineParameters next;
-    const auto selector = juce::jlimit (0, 2,
-        juce::roundToInt (valueOf (parameterPointers.pickupSelector)));
+    const auto selector = juce::roundToInt (valueOf (
+        parameterPointers.pickupSelector, 0.0f, 2.0f, 2.0f));
     next.pickupSelector = static_cast<electry::PickupSelector> (selector);
     next.pickupType = valueOf (parameterPointers.pickupType);
     next.toneKnob = valueOf (parameterPointers.tone);
-    electry::applyGuitarBuild(next, valueOf (parameterPointers.guitarBuild));
+    electry::applyGuitarBuild (next, valueOf (parameterPointers.guitarBuild,
+        0.0f, 1.0f, electry::defaultGuitarBuild));
     next.bodyResonance = valueOf (parameterPointers.bodyResonance);
     next.stringAge = valueOf (parameterPointers.stringAge);
     next.pickPosition = valueOf (parameterPointers.pickPosition);
@@ -1582,17 +1667,20 @@ void ElectryAudioProcessor::updateEngineParameters() noexcept
     next.fingerNoise = valueOf (parameterPointers.fingerNoise);
     next.releaseNoise = valueOf (parameterPointers.releaseNoise);
     next.muteDamping = valueOf (parameterPointers.muteDamping);
-    next.bendTimeSeconds = valueOf (parameterPointers.bendTime);
+    next.bendTimeSeconds = valueOf (parameterPointers.bendTime, 0.04f, 2.0f, 0.28f);
     next.velocityAmount = valueOf (parameterPointers.velocity);
-    next.outputGain = juce::Decibels::decibelsToGain (valueOf (parameterPointers.output));
+    next.outputGain = juce::Decibels::decibelsToGain (valueOf (
+        parameterPointers.output, -24.0f, 6.0f, -6.0f));
     next.artifactAmount = valueOf (parameterPointers.artifacts);
     next.sympatheticAmount = valueOf (parameterPointers.sympathetic);
     next.palmMute = valueOf (parameterPointers.palmMute);
-    next.strumSpreadSeconds = 0.001f * valueOf (parameterPointers.strumSpread);
-    next.tremoloRateHz = valueOf (parameterPointers.tremoloRate);
-    next.resonanceDepth = 0.01f * valueOf (parameterPointers.resonanceDepth);
-    const auto mode = juce::jlimit (0, 2,
-        juce::roundToInt (valueOf (parameterPointers.outputMode)));
+    next.strumSpreadSeconds = 0.001f * valueOf (
+        parameterPointers.strumSpread, 0.0f, 40.0f);
+    next.tremoloRateHz = valueOf (parameterPointers.tremoloRate, 4.0f, 20.0f, 12.0f);
+    next.resonanceDepth = 0.01f * valueOf (
+        parameterPointers.resonanceDepth, 0.0f, 100.0f, 35.0f);
+    const auto mode = juce::roundToInt (valueOf (
+        parameterPointers.outputMode, 0.0f, 2.0f));
     const bool requestedDouble = mode == 2;
     next.outputMode = mode == 1 ? electry::OutputMode::Stereo
                                 : electry::OutputMode::Mono;
@@ -1626,13 +1714,13 @@ void ElectryAudioProcessor::updateEffectParameters() noexcept
     electry::FxParameters next;
     next.distortion = valueOf (parameterPointers.distortion);
     next.amp = valueOf (parameterPointers.amp);
-    next.ampModel = static_cast<electry::AmpModel> (juce::jlimit (
-        0, 2, juce::roundToInt (valueOf (parameterPointers.ampModel))));
+    next.ampModel = static_cast<electry::AmpModel> (juce::roundToInt (
+        valueOf (parameterPointers.ampModel, 0.0f, 2.0f, 2.0f)));
     next.compressor = valueOf (parameterPointers.compressor);
     next.delay = valueOf (parameterPointers.delay);
     next.room = valueOf (parameterPointers.room);
-    next.oversampling = static_cast<electry::FxOversampling> (juce::jlimit (
-        0, 1, juce::roundToInt (valueOf (parameterPointers.fxOversampling))));
+    next.oversampling = static_cast<electry::FxOversampling> (juce::roundToInt (
+        valueOf (parameterPointers.fxOversampling)));
     effects.setParameters (next);
 
     const bool enabled = valueOf (parameterPointers.fxEnabled) >= 0.5f;
@@ -1778,6 +1866,11 @@ void ElectryAudioProcessor::enqueueUiMidiEvent (
     int note, float velocity, bool isNoteOn,
     bool selectsBaseArticulation) noexcept
 {
+    if (note < 0 || note > 127 || ! std::isfinite (velocity))
+        return;
+    // MIDI Note On at zero velocity is a release, including UI gestures and
+    // keyswitches; it must also consume its outstanding ownership record.
+    isNoteOn = isNoteOn && velocity > 0.0f;
     const auto write = uiWriteIndex.load (std::memory_order_relaxed);
     const auto next = (write + 1u) % uiQueueCapacity;
 
@@ -1896,6 +1989,19 @@ void ElectryAudioProcessor::getStateInformation (juce::MemoryBlock& destinationD
 
 void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
+    // Our state is one root plus 30 flat parameter elements (a few KB).
+    // Bound work before JUCE's recursive XML parser sees a corrupted host
+    // chunk, and disallow entity declarations which our writer never emits.
+    constexpr int maximumStateBytes = 1024 * 1024;
+    constexpr int maximumXmlTags = 256;
+    if (data == nullptr || sizeInBytes <= 8 || sizeInBytes > maximumStateBytes)
+        return;
+    const std::string_view document (static_cast<const char*> (data) + 8,
+                                     static_cast<std::size_t> (sizeInBytes - 8));
+    if (std::count (document.begin(), document.end(), '<') > maximumXmlTags
+        || document.find ("<!DOCTYPE") != std::string_view::npos
+        || document.find ("<!ENTITY") != std::string_view::npos)
+        return;
     const auto xml = getXmlFromBinary (data, sizeInBytes);
     if (xml != nullptr && xml->hasTagName (parameters.state.getType()))
     {
@@ -1931,15 +2037,53 @@ void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInByt
                 "value", static_cast<int> (electry::AmpModel::ModernHighGain), nullptr);
             restoredState.appendChild (legacyAmpModel, nullptr);
         }
-        const int restoredProgram = static_cast<int> (
+        // Restore one canonical, finite value per published parameter. An
+        // incomplete preset is based on defaults, never the receiving patch;
+        // duplicate/unknown trees cannot override a parameter a second time.
+        juce::ValueTree validatedState { parameters.state.getType() };
+        validatedState.copyPropertiesFrom (restoredState, nullptr);
+        for (auto* hostParameter : getParameters())
+        {
+            auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (hostParameter);
+            if (parameter == nullptr)
+                continue;
+            const float defaultValue = parameter->convertFrom0to1 (
+                parameter->getDefaultValue());
+            const auto source = restoredState.getChildWithProperty (
+                "id", parameter->paramID);
+            const double raw = static_cast<double> (
+                source.getProperty ("value", defaultValue));
+            const auto& range = parameter->getNormalisableRange();
+            const float bounded = std::isfinite (raw)
+                ? static_cast<float> (juce::jlimit (
+                    static_cast<double> (range.start),
+                    static_cast<double> (range.end), raw))
+                : defaultValue;
+            juce::ValueTree child { "PARAM" };
+            child.setProperty ("id", parameter->paramID, nullptr);
+            child.setProperty ("value", range.snapToLegalValue (bounded), nullptr);
+            validatedState.appendChild (child, nullptr);
+        }
+        restoredState = validatedState;
+        const auto boundedStateIndex = [&] (const char* property, int maximum)
+        {
+            const double value = static_cast<double> (
+                restoredState.getProperty (property, 0));
+            return std::isfinite (value)
+                ? static_cast<int> (juce::jlimit (
+                    0.0, static_cast<double> (maximum), value))
+                : 0;
+        };
+        const double rawProgram = static_cast<double> (
             restoredState.getProperty (factoryProgramProperty, 0));
-        pickStyleIndex.store (juce::jlimit (
-            0, electry::ElectryEngine::pickStyleKeyswitchCount - 1,
-            static_cast<int> (restoredState.getProperty (pickStyleProperty, 0))),
+        const int restoredProgram = std::isfinite (rawProgram) && rawProgram >= 0.0
+            && rawProgram < static_cast<double> (getNumPrograms())
+                ? static_cast<int> (rawProgram) : 0;
+        pickStyleIndex.store (boundedStateIndex (pickStyleProperty,
+            electry::ElectryEngine::pickStyleKeyswitchCount - 1),
             std::memory_order_relaxed);
-        const int restoredPlayStyle = juce::jlimit (
-            0, electry::ElectryEngine::playStyleKeyswitchCount - 1,
-            static_cast<int> (restoredState.getProperty (playStyleProperty, 0)));
+        const int restoredPlayStyle = boundedStateIndex (playStyleProperty,
+            electry::ElectryEngine::playStyleKeyswitchCount - 1);
         playStyleIndex.store (restoredPlayStyle, std::memory_order_relaxed);
         effectivePlayStyleIndex.store (restoredPlayStyle,
                                        std::memory_order_relaxed);

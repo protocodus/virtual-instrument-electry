@@ -32,6 +32,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ELECTRY_BUILD_PLUGIN "Build the JUCE plug-in and standalone app" ON)
 option(ELECTRY_BUILD_CLAP "Build the CLAP plug-in alongside the JUCE formats" ON)
+option(ELECTRY_ENABLE_SANITIZERS
+    "Instrument tests and DSP with address/undefined-behaviour sanitizers" OFF)
+option(ELECTRY_BUILD_FUZZER "Build the Clang libFuzzer DSP input harness" OFF)
+set(ELECTRY_LIBFUZZER_LIBRARY "" CACHE FILEPATH
+    "Optional libFuzzer archive for Clang distributions without its runtime")
+if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER)
+    if(MSVC OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(FATAL_ERROR "Sanitizer builds require Clang or GCC")
+    endif()
+    add_compile_options(-fsanitize=address,undefined,float-cast-overflow
+        -fno-sanitize-recover=all -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined,float-cast-overflow)
+endif()
 option(ELECTRY_MEASURED_BODY_RESPONSE
     "Use the shipping matched-material modal body response" ON)
 option(ELECTRY_DECOUPLED_PICK_RELEASE
@@ -119,6 +132,24 @@ if(MSVC)
     target_compile_options(ElectryDSP PRIVATE /W4 /permissive-)
 else()
     target_compile_options(ElectryDSP PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(ELECTRY_BUILD_FUZZER)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "ELECTRY_BUILD_FUZZER requires Clang/libFuzzer")
+    endif()
+    # Compile a separate DSP copy so coverage instrumentation reaches the
+    # implementation without making shipping targets depend on libFuzzer.
+    add_executable(ElectryDspFuzz Tests/DspFuzz.cpp ${ELECTRY_DSP_SOURCES})
+    target_include_directories(ElectryDspFuzz PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+    target_compile_definitions(ElectryDspFuzz PRIVATE
+        $<TARGET_PROPERTY:ElectryDSP,COMPILE_DEFINITIONS>)
+    target_compile_options(ElectryDspFuzz PRIVATE -fsanitize=fuzzer-no-link)
+    if(ELECTRY_LIBFUZZER_LIBRARY)
+        target_link_libraries(ElectryDspFuzz PRIVATE "${ELECTRY_LIBFUZZER_LIBRARY}")
+    else()
+        target_link_options(ElectryDspFuzz PRIVATE -fsanitize=fuzzer)
+    endif()
 endif()
 
 if(ELECTRY_BUILD_PLUGIN)
@@ -231,8 +262,9 @@ endif()
 option(ELECTRY_BUILD_TOOLS "Build the demo/evaluation renderers and FX benchmark" ON)
 
 if(ELECTRY_BUILD_TOOLS)
+    find_package(Threads REQUIRED)
     add_executable(ElectryRenderDemos Tools/RenderDemos.cpp)
-    target_link_libraries(ElectryRenderDemos PRIVATE ElectryDSP)
+    target_link_libraries(ElectryRenderDemos PRIVATE ElectryDSP Threads::Threads)
     target_compile_features(ElectryRenderDemos PRIVATE cxx_std_20)
 
     add_executable(ElectryRenderEvaluation Tools/RenderEvaluation.cpp)
@@ -335,7 +367,8 @@ if(BUILD_TESTING)
     # had started firing on ordinary growth rather than on the runaway it is
     # for. Raised to 300 s, keeping roughly the same margin over the real
     # runtime that the 60 s bound gave when it was chosen.
-    if(CMAKE_CXX_FLAGS MATCHES "fsanitize")
+    if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER
+       OR CMAKE_CXX_FLAGS MATCHES "fsanitize")
         set(ELECTRY_ENGINE_TEST_TIMEOUT 600)
     else()
         set(ELECTRY_ENGINE_TEST_TIMEOUT 300)
@@ -358,7 +391,8 @@ if(BUILD_TESTING)
     # rate matrix and every nonlinear oversampling boundary. Debug and
     # instrumented builds need the wider guard; optimised builds still retain
     # a three-minute runaway bound.
-    if(CMAKE_CXX_FLAGS MATCHES "fsanitize"
+    if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER
+       OR CMAKE_CXX_FLAGS MATCHES "fsanitize"
        OR CMAKE_BUILD_TYPE STREQUAL "Debug"
        OR NOT CMAKE_BUILD_TYPE)
         set(ELECTRY_FX_TEST_TIMEOUT 600)
@@ -418,7 +452,12 @@ if(BUILD_TESTING)
         endif()
 
         add_test(NAME Electry.PluginProcessor COMMAND ElectryPluginProcessorTests)
-        set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 60)
+        if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER
+           OR CMAKE_CXX_FLAGS MATCHES "fsanitize")
+            set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 600)
+        else()
+            set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 60)
+        endif()
 
         # Black-box the built product rather than linking the processor class:
         # this catches a broken VST3 bundle, wrapper or exported host contract.
@@ -494,6 +533,14 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        if(ELECTRY_BUILD_TOOLS AND NOT ELECTRY_ENABLE_SANITIZERS
+           AND NOT ELECTRY_BUILD_FUZZER AND NOT CMAKE_CXX_FLAGS MATCHES "fsanitize")
+            add_test(NAME Electry.ParallelRender
+                COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Tests/ParallelRenderTests.py"
+                    $<TARGET_FILE:ElectryRenderDemos>)
+            set_tests_properties(Electry.ParallelRender PROPERTIES TIMEOUT 300)
+        endif()
         add_test(NAME Electry.RefreshGeneratedMedia
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RefreshGeneratedMediaTests.py")

@@ -26,6 +26,18 @@ float sanitiseMix(float value) noexcept
     return clampf(value, 0.0f, 1.0f);
 }
 
+float sanitiseAudio(float value) noexcept
+{
+    // The public output is limited to +/-2, but an otherwise finite FLT_MAX
+    // input can overflow the always-clocked delay/room and nonlinear filter
+    // histories before reaching that limiter. Leave 120 dB of input headroom
+    // above full scale while keeping every internal multiply/sum well inside
+    // float range. Ordinary audio is unchanged, including the dry bypass.
+    constexpr float maximumInput = 1.0e6f;
+    return std::isfinite(value)
+        ? clampf(value, -maximumInput, maximumInput) : 0.0f;
+}
+
 constexpr std::size_t ampModelIndex(AmpModel model) noexcept
 {
     return static_cast<std::size_t>(model);
@@ -1831,6 +1843,10 @@ void ElectryFx::GainChannel::copyStateFrom(const GainChannel& source) noexcept
 
 void ElectryFx::prepare(double sampleRate)
 {
+    // Repreparation can allocate several differently sized delay lines. If an
+    // allocation fails after one channel grows, process() must not use a
+    // half-prepared bank with the old channel's shorter storage.
+    prepared_ = false;
     if (! std::isfinite(sampleRate))
         sampleRate = 48000.0;
     sampleRate_ = std::clamp(sampleRate, minimumSampleRate, maximumSampleRate);
@@ -2199,6 +2215,7 @@ void ElectryFx::reset() noexcept
     compressorMix_ = targetParameters_.compressor;
     delayMix_ = targetParameters_.delay;
     roomMix_ = targetParameters_.room;
+    parametersMoving_ = false;
     updateDriveConstants();
 }
 
@@ -2212,6 +2229,7 @@ void ElectryFx::setParameters(const FxParameters& parameters) noexcept
     targetParameters_.room = sanitiseMix(parameters.room);
     targetParameters_.oversampling = parameters.oversampling == FxOversampling::High
         ? FxOversampling::High : FxOversampling::Standard;
+    parametersMoving_ = true;
 }
 
 float ElectryFx::transformerFluxCoefficient(float sampleRate) noexcept
@@ -3423,34 +3441,44 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
     // bypass bit-exact instead of merely quiet.
     const auto smooth = [this] (float& value, float targetValue)
     {
+        const float previous = value;
         value += parameterCoefficient_ * (targetValue - value);
         if (targetValue <= 0.0f && value < 1.0e-5f)
             value = 0.0f;
         else if (targetValue >= 1.0f && value > 1.0f - 1.0e-5f)
             value = 1.0f;
+        parametersMoving_ |= value != previous;
     };
 
     for (int i = 0; i < numSamples; ++i)
     {
-        smooth(distortionDrive_, target.distortion);
-        smooth(ampDrive_, target.amp);
-        smooth(pedalWet_, target.distortion > 0.0f ? 1.0f : 0.0f);
-        smooth(ampWet_, target.amp > 0.0f ? 1.0f : 0.0f);
-        const auto targetModel = ampModelIndex(target.ampModel);
-        for (std::size_t model = 0; model < ampModelWeights_.size(); ++model)
+        if (parametersMoving_)
         {
-            smooth(ampModelWeights_[model], model == targetModel ? 1.0f : 0.0f);
-            // A float recurrence toward one stalls roughly 2e-5 short when
-            // its correction falls below half an ulp. The older continuous
-            // controls retain their established behaviour; model weights use
-            // a reachable endpoint so exactly one recursive circuit remains
-            // active after a switch.
-            if (model == targetModel && ampModelWeights_[model] > 0.99995f)
-                ampModelWeights_[model] = 1.0f;
+            parametersMoving_ = false;
+            smooth(distortionDrive_, target.distortion);
+            smooth(ampDrive_, target.amp);
+            smooth(pedalWet_, target.distortion > 0.0f ? 1.0f : 0.0f);
+            smooth(ampWet_, target.amp > 0.0f ? 1.0f : 0.0f);
+            const auto targetModel = ampModelIndex(target.ampModel);
+            for (std::size_t model = 0; model < ampModelWeights_.size(); ++model)
+            {
+                smooth(ampModelWeights_[model], model == targetModel ? 1.0f : 0.0f);
+                // A float recurrence toward one stalls roughly 2e-5 short when
+                // its correction falls below half an ulp. The older continuous
+                // controls retain their established behaviour; model weights use
+                // a reachable endpoint so exactly one recursive circuit remains
+                // active after a switch.
+                if (model == targetModel && ampModelWeights_[model] > 0.99995f
+                    && ampModelWeights_[model] != 1.0f)
+                {
+                    ampModelWeights_[model] = 1.0f;
+                    parametersMoving_ = true;
+                }
+            }
+            smooth(compressorMix_, target.compressor);
+            smooth(delayMix_, target.delay);
+            smooth(roomMix_, target.room);
         }
-        smooth(compressorMix_, target.compressor);
-        smooth(delayMix_, target.delay);
-        smooth(roomMix_, target.room);
 
         gainEngagement_ += engagementCoefficient_
                          * (engagementTarget - gainEngagement_);
@@ -3475,11 +3503,10 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
         // controls are open, so one non-finite input sample would otherwise
         // recirculate and keep poisoning the output long after it arrived -
         // even at a mix of zero, where multiplying it by zero still yields a
-        // NaN. Finite input passes through this untouched, so the dry bypass
-        // stays bit-exact.
+        // NaN. Audio within the safety headroom passes through untouched, so
+        // the dry bypass stays bit-exact.
         std::array<float, 2> samples {
-            std::isfinite(left[i]) ? left[i] : 0.0f,
-            std::isfinite(right[i]) ? right[i] : 0.0f };
+            sanitiseAudio(left[i]), sanitiseAudio(right[i]) };
 
         // The oversampled gain block. With both controls at zero it is skipped
         // outright, so the chain costs nothing and adds no group delay; while
@@ -3624,19 +3651,17 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
                             + ambience[index] * 0.42f * roomMix_;
         }
 
+        // Check before limiting, which would conceal infinities, and at the
+        // sample where the failure occurs. A last-sample-only block check can
+        // miss a transient fault or erase valid audio earlier in the block;
+        // recovering here gives identical results for every host block size.
+        if (! std::isfinite(samples[0]) || ! std::isfinite(samples[1]))
+        {
+            reset();
+            samples = {};
+        }
         left[i] = clampf(samples[0], -2.0f, 2.0f);
         right[i] = clampf(samples[1], -2.0f, 2.0f);
-    }
-
-    // Backstop: the input is sanitised above and every recursion here is
-    // bounded, so this should be unreachable, but a non-finite sample must
-    // never be allowed to latch - the string engine recovers the same way.
-    if (! std::isfinite(left[numSamples - 1])
-        || ! std::isfinite(right[numSamples - 1]))
-    {
-        reset();
-        std::fill(left, left + numSamples, 0.0f);
-        std::fill(right, right + numSamples, 0.0f);
     }
 }
 

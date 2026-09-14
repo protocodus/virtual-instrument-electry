@@ -268,6 +268,10 @@ private:
                            bool allowAnyLegacy) noexcept;
     void clearMpeNoteOwnership() noexcept;
     void resetPitchBends() noexcept;
+    void resetAttackConditioningControllers() noexcept;
+    void resetRemainingControllers() noexcept;
+    void releasePerformanceKeys() noexcept;
+    void releasePlayableNotes() noexcept;
     void applyPlayStyle (int styleIndex) noexcept;
     int latestHeldPlayStyle() const noexcept;
     void clearHeldPlayStyles() noexcept;

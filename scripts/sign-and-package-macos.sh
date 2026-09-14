@@ -119,6 +119,7 @@ ditto "${APP}" "${PACKAGE_ROOT}/Applications/Electry.app"
 NOTICE_ROOT="${PACKAGE_ROOT}/Library/Application Support/Electry/Documentation"
 THIRD_PARTY_LICENSES=(
     "${PROJECT_DIR}/ThirdParty/JUCE-LICENSE.md"
+    "${PROJECT_DIR}/ThirdParty/JUCE-DEPENDENCIES-LICENSE.md"
     "${PROJECT_DIR}/ThirdParty/CLAP-LICENSE.md"
     "${PROJECT_DIR}/ThirdParty/CLAP-HELPERS-LICENSE.md"
     "${PROJECT_DIR}/ThirdParty/CLAP-JUCE-EXTENSIONS-LICENSE.md"
