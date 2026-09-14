@@ -1,4 +1,5 @@
 #include "DSP/ElectryFx.h"
+#include "DSP/DspDenormals.h"
 #include "DSP/DspMath.h"
 #if ELECTRY_MEASURED_MODERN_CABINET
 #include "DSP/ModernCabinetIR.h"
@@ -21,9 +22,19 @@ constexpr double pi = 3.14159265358979323846;
 
 float sanitiseMix(float value) noexcept
 {
-    if (! std::isfinite(value))
+    // Subnormal positive amounts must not open a nonlinear module depending
+    // on whether the caller currently flushes denormals. The public DSP and
+    // JUCE wrapper use the same canonical zero target in either environment.
+    // Integer classification also avoids raising FE_INVALID on signaling NaN
+    // before the guard can substitute zero, including in trap-enabled hosts.
+    const auto bits = std::bit_cast<std::uint32_t>(value);
+    const auto magnitude = bits & 0x7fffffffu;
+    if (bits != magnitude || magnitude < 0x00800000u || magnitude >= 0x7f800000u)
         return 0.0f;
-    return clampf(value, 0.0f, 1.0f);
+    // Positive IEEE encodings have the same ordering as their float values.
+    // Keep the clamp integer too: otherwise an optimiser can speculate its
+    // floating-point comparisons before the non-finite branch above.
+    return std::bit_cast<float>(std::min(magnitude, std::uint32_t {0x3f800000u}));
 }
 
 float sanitiseAudio(float value) noexcept
@@ -34,8 +45,12 @@ float sanitiseAudio(float value) noexcept
     // above full scale while keeping every internal multiply/sum well inside
     // float range. Ordinary audio is unchanged, including the dry bypass.
     constexpr float maximumInput = 1.0e6f;
-    return std::isfinite(value)
-        ? clampf(value, -maximumInput, maximumInput) : 0.0f;
+    const auto bits = std::bit_cast<std::uint32_t>(value);
+    const auto magnitude = bits & 0x7fffffffu;
+    return magnitude < 0x7f800000u
+        ? std::bit_cast<float>((bits & 0x80000000u)
+            | std::min(magnitude, std::bit_cast<std::uint32_t>(maximumInput)))
+        : 0.0f;
 }
 
 constexpr std::size_t ampModelIndex(AmpModel model) noexcept
@@ -1847,9 +1862,17 @@ void ElectryFx::prepare(double sampleRate)
     // allocation fails after one channel grows, process() must not use a
     // half-prepared bank with the old channel's shorter storage.
     prepared_ = false;
-    if (! std::isfinite(sampleRate))
-        sampleRate = 48000.0;
-    sampleRate_ = std::clamp(sampleRate, minimumSampleRate, maximumSampleRate);
+    // Classify and clamp in the integer domain before using a host-supplied
+    // double, including signaling NaN, in any floating-point expression.
+    const auto rateBits = std::bit_cast<std::uint64_t>(sampleRate);
+    const auto rateMagnitude = rateBits & std::uint64_t {0x7fffffffffffffffull};
+    constexpr auto minimumRateBits = std::bit_cast<std::uint64_t>(minimumSampleRate);
+    constexpr auto maximumRateBits = std::bit_cast<std::uint64_t>(maximumSampleRate);
+    const auto safeRateBits = rateMagnitude >= 0x7ff0000000000000ull
+        ? std::bit_cast<std::uint64_t>(48000.0)
+        : rateBits != rateMagnitude ? minimumRateBits
+        : std::clamp(rateMagnitude, minimumRateBits, maximumRateBits);
+    sampleRate_ = std::bit_cast<double>(safeRateBits);
 
     // High retains the original adaptive bandwidth; Standard retires its
     // innermost 2x stage. A host already running at 384 kHz needs neither.
@@ -3422,6 +3445,8 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
 {
     if (! prepared_ || left == nullptr || right == nullptr || numSamples <= 0)
         return;
+
+    const ScopedDspNoDenormals noDenormals;
 
     const int lineSize = static_cast<int>(delayLines_[0].size());
     if (lineSize <= 1)

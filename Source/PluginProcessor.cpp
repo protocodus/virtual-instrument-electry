@@ -987,20 +987,23 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
     }
 
     const auto currentExpressionId = expressionIdForNoteOn (midiChannel);
+    int ownershipSource = midiChannel;
     const int recordedOwner = takeNoteOwnership (
         note, midiChannel,
-        currentExpressionId == electry::ElectryEngine::legacyExpressionId);
+        currentExpressionId == electry::ElectryEngine::legacyExpressionId,
+        &ownershipSource);
     // An unmatched/duplicate release owns nothing. In particular it must
     // not decrement another held MPE note's channel total or centre its bend.
     if (recordedOwner < 0)
         return;
     const auto expressionId =
         static_cast<electry::ElectryEngine::ExpressionId> (recordedOwner);
+    const auto source = static_cast<std::uint8_t> (ownershipSource);
     const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
     if (expressionId != electry::ElectryEngine::legacyExpressionId)
     {
-        engine.noteOff (engineNote, expressionId);
-        doubleEngine->noteOff (engineNote, expressionId);
+        engine.noteOff (engineNote, expressionId, source);
+        doubleEngine->noteOff (engineNote, expressionId, source);
         if (expressionId <= electry::ElectryEngine::maximumExpressionId)
         {
             auto& total = outstandingMpeChannelNotes[
@@ -1011,8 +1014,8 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
         }
         return;
     }
-    engine.noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
-    doubleEngine->noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
+    engine.noteOff (engineNote, electry::ElectryEngine::legacyExpressionId, source);
+    doubleEngine->noteOff (engineNote, electry::ElectryEngine::legacyExpressionId, source);
 }
 
 bool ElectryAudioProcessor::processMpeController (const juce::uint8* data,
@@ -1243,7 +1246,8 @@ bool ElectryAudioProcessor::recordNoteOwnership (
 }
 
 int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
-                                               bool allowAnyLegacy) noexcept
+                                               bool allowAnyHostLegacy,
+                                               int* ownershipSource) noexcept
 {
     if (note < 0 || note >= 128)
         return -1;
@@ -1258,12 +1262,16 @@ int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
             break;
         }
     }
-    if (selected < 0 && allowAnyLegacy)
+    if (selected < 0 && allowAnyHostLegacy)
     {
         for (int index = 0; index < static_cast<int> (queue.size); ++index)
         {
-            if (queue.owners[static_cast<std::size_t> (index)].expressionId
-                == electry::ElectryEngine::legacyExpressionId)
+            const auto& owner = queue.owners[static_cast<std::size_t> (index)];
+            // Ordinary host channels retain the historical omni fallback,
+            // but channel zero belongs exclusively to the on-screen keyboard.
+            // A stray host release must never consume a still-held UI key.
+            if (owner.midiChannel != 0
+                && owner.expressionId == electry::ElectryEngine::legacyExpressionId)
             {
                 selected = index;
                 break;
@@ -1275,6 +1283,8 @@ int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
 
     const int expressionId = queue.owners[static_cast<std::size_t> (selected)]
                                  .expressionId;
+    if (ownershipSource != nullptr)
+        *ownershipSource = queue.owners[static_cast<std::size_t> (selected)].midiChannel;
     for (int index = selected + 1; index < static_cast<int> (queue.size);
          ++index)
         queue.owners[static_cast<std::size_t> (index - 1)] =
@@ -1473,16 +1483,19 @@ void ElectryAudioProcessor::dispatchNoteOff (int note) noexcept
     }
 
     if (electry::ElectryEngine::isMidiPlayableNote (note)
-        && takeNoteOwnership (note, 0, true) < 0)
+        && takeNoteOwnership (note, 0, false) < 0)
         return;
 
     const int style = note - electry::ElectryEngine::firstPlayStyleKeyswitchNote;
     if (! appliedPlayStyleKeysHold || style < 0
         || style >= electry::ElectryEngine::playStyleKeyswitchCount)
     {
-        const int engineNote = electry::ElectryEngine::isMidiPlayableNote (note)
-            ? note - electry::ElectryEngine::octaveShiftSemitones
-            : note;
+        // Ignored written pitches can still be valid sounding engine pitches.
+        // Only the playable MIDI range has a release to translate; forwarding
+        // an unmapped raw note would release a different note an octave up.
+        if (! electry::ElectryEngine::isMidiPlayableNote (note))
+            return;
+        const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
         engine.noteOff (engineNote);
         doubleEngine->noteOff (engineNote);
         return;
@@ -1699,6 +1712,7 @@ void ElectryAudioProcessor::updateEngineParameters() noexcept
         const int pickStyle = static_cast<int> (engine.getCurrentPickStyle());
         const int playStyle = static_cast<int> (engine.getCurrentPlayStyle());
         doubleEngine->reset();
+        doubleEngine->inheritOutstandingNoteOffs (engine);
         doubleEngine->noteOn (electry::ElectryEngine::firstKeyswitchNote
                                   + pickStyle, 1.0f);
         doubleEngine->noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
@@ -1950,7 +1964,8 @@ void ElectryAudioProcessor::batchOrDispatchNoteOn (
     if (! recordNoteOwnership (note, midiChannel, expressionId))
         return;
     const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
-    batch.events[batch.size++] = { engineNote, velocity, expressionId };
+    batch.events[batch.size++] = { engineNote, velocity, expressionId,
+                                   static_cast<std::uint8_t> (midiChannel) };
 }
 
 void ElectryAudioProcessor::flushNoteOnBatch (NoteOnBatch& batch) noexcept

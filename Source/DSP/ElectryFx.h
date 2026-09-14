@@ -72,7 +72,8 @@ public:
     void reset() noexcept;
     void setParameters(const FxParameters& parameters) noexcept;
     // Sanitises non-finite input to silence and bounds hostile finite input
-    // before it can overflow recursive state. Normal audio is unchanged.
+    // before it can overflow recursive state. Flushes subnormal arithmetic on
+    // SSE2/AArch64, restoring the caller's FP control mode. Normal audio is unchanged.
     void process(float* left, float* right, int numSamples) noexcept;
 
     // True while the oversampled gain stage is running. With both gain

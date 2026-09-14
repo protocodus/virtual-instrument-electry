@@ -1,4 +1,5 @@
 #include "ElectryEngine.h"
+#include "DspDenormals.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1457,6 +1458,10 @@ void ElectryEngine::reset()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    for (auto& owners : outstandingNoteOwners_)
+        owners.size = 0;
+    heldOwnerGenerations_.fill(0);
+    ownerGeneration_ = 0;
     tremoloPickingPhase_ = 0.0;
 
     smoothedParameters_ = sanitise(targetParameters_);
@@ -1751,12 +1756,33 @@ void ElectryEngine::setSustainPedal(bool down) noexcept
 // ---------------------------------------------------------------------------
 
 void ElectryEngine::noteOn(int midiNote, float velocity,
-                           ExpressionId expressionId)
+                           ExpressionId expressionId,
+                           std::uint8_t ownershipSource)
 {
     if (expressionId > maximumExpressionId)
         expressionId = legacyExpressionId;
+    int ownerIndex = -1;
+    if (prepared_ && isPlayableNote(midiNote)
+        && std::isfinite(velocity) && velocity > 0.0f)
+    {
+        ownerIndex = reserveNoteOwner(midiNote, expressionId, ownershipSource);
+        if (ownerIndex < 0)
+            return;
+    }
     noteOnInternal(midiNote, velocity, -1, true, false, false, -1, true,
-                   expressionId);
+                   expressionId, ownerIndex);
+}
+
+int ElectryEngine::reserveNoteOwner(int midiNote, ExpressionId expressionId,
+                                    std::uint8_t ownershipSource) noexcept
+{
+    auto& owners = outstandingNoteOwners_[
+        static_cast<std::size_t>(midiNote - lowestPlayableNote)];
+    if (owners.size == maximumChordEvents)
+        return -1;
+    const int index = owners.size++;
+    owners.entries[static_cast<std::size_t>(index)] = { 0, expressionId, ownershipSource };
+    return index;
 }
 
 void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
@@ -1767,7 +1793,8 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
     // Keep a bounded attack group in canonical pitch/velocity order. Eight
     // distinct pitches can sound, while repeated pitches remain separate MIDI
     // owners and physical restrikes of the one assigned string.
-    std::array<NoteOnEvent, maximumChordEvents> sorted {};
+    struct ChordEvent : NoteOnEvent { int ownerIndex { -1 }; };
+    std::array<ChordEvent, maximumChordEvents> sorted {};
     int eventCount = 0;
     for (const auto& event : events)
     {
@@ -1777,6 +1804,10 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
         const ExpressionId expressionId = event.expressionId <= maximumExpressionId
             ? event.expressionId : legacyExpressionId;
         if (! isPlayableNote(event.midiNote) || velocity <= 0.0f)
+            continue;
+        const int ownerIndex = reserveNoteOwner(event.midiNote, expressionId,
+                                                event.ownershipSource);
+        if (ownerIndex < 0)
             continue;
 
         int insertion = 0;
@@ -1800,7 +1831,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             sorted[static_cast<std::size_t>(index)] =
                 sorted[static_cast<std::size_t>(index - 1)];
         sorted[static_cast<std::size_t>(insertion)] = {
-            event.midiNote, velocity, expressionId
+            { event.midiNote, velocity, expressionId, event.ownershipSource }, ownerIndex
         };
         eventCount = newCount;
     }
@@ -1810,7 +1841,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
     {
         const auto& event = sorted[0];
         noteOnInternal(event.midiNote, event.velocity, -1, true, false,
-                       true, -1, true, event.expressionId);
+                       true, -1, true, event.expressionId, event.ownerIndex);
         return;
     }
 
@@ -2173,7 +2204,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
         {
             const auto& event = sorted[static_cast<std::size_t>(eventIndex)];
             noteOnInternal(event.midiNote, event.velocity, -1, true, false,
-                           false, -1, true, event.expressionId);
+                           false, -1, true, event.expressionId, event.ownerIndex);
         }
         return;
     }
@@ -2186,6 +2217,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
     const auto previousHeldNotes = heldMidiNotes_;
     const auto previousHeldCounts = heldNoteCounts_;
     const auto previousHeldExpressionIds = heldExpressionIds_;
+    const auto previousHeldGenerations = heldOwnerGenerations_;
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
     {
         const auto destination = static_cast<std::size_t>(
@@ -2198,6 +2230,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[destination] = -1;
             heldNoteCounts_[destination] = 0;
             heldExpressionIds_[destination] = legacyExpressionId;
+            heldOwnerGenerations_[destination] = 0;
         }
     }
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
@@ -2220,6 +2253,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[sourceIndex] = -1;
             heldNoteCounts_[sourceIndex] = 0;
             heldExpressionIds_[sourceIndex] = legacyExpressionId;
+            heldOwnerGenerations_[sourceIndex] = 0;
         }
     }
     for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
@@ -2240,6 +2274,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             heldMidiNotes_[destinationIndex] = midiNote;
             heldNoteCounts_[destinationIndex] = previousHeldCounts[sourceIndex];
             heldExpressionIds_[destinationIndex] = expressionId;
+            heldOwnerGenerations_[destinationIndex] = previousHeldGenerations[sourceIndex];
             break;
         }
     }
@@ -2298,7 +2333,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
         noteOnInternal(event.midiNote, event.velocity,
                        bestAssignment[static_cast<std::size_t>(noteIndex)],
                        true, true, completeChordStart,
-                       chordAnchor, true, event.expressionId);
+                       chordAnchor, true, event.expressionId, event.ownerIndex);
     };
     // Form the complete physical chord first, then apply duplicate-pitch
     // restrikes. This is canonical across host insertion order and avoids a
@@ -2352,7 +2387,8 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
                                    bool completeChordStart,
                                    int completeChordAnchor,
                                    bool reanchorTremolo,
-                                   ExpressionId expressionId)
+                                   ExpressionId expressionId,
+                                   int noteOwnerIndex)
 {
     if (! prepared_)
         return;
@@ -2563,6 +2599,7 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
                 heldMidiNotes_[oldIndex] = -1;
                 heldNoteCounts_[oldIndex] = 0;
                 heldExpressionIds_[oldIndex] = legacyExpressionId;
+                heldOwnerGenerations_[oldIndex] = 0;
                 auto& oldVoice = voices_[oldIndex];
                 if (oldVoice.active && oldVoice.expressionId == expressionId)
                 {
@@ -2583,7 +2620,13 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
             heldMidiNotes_[heldIndex] = midiNote;
             heldNoteCounts_[heldIndex] = 1;
             heldExpressionIds_[heldIndex] = expressionId;
+            heldOwnerGenerations_[heldIndex] = ++ownerGeneration_;
         }
+        if (noteOwnerIndex >= 0)
+            outstandingNoteOwners_[static_cast<std::size_t>(
+                midiNote - lowestPlayableNote)].entries[
+                static_cast<std::size_t>(noteOwnerIndex)].generation
+                    = heldOwnerGenerations_[heldIndex];
     }
     // startVoice() normally derives ownership from audible voice state, which
     // may have retired since the fretting key went down. The durable per-string
@@ -2594,20 +2637,43 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
     updateActiveVoiceCount();
 }
 
-void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
+void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId,
+                            std::uint8_t ownershipSource)
 {
-    if (! prepared_ || isKeyswitchNote(midiNote)
-        || isSoloStringKeyswitchNote(midiNote)
-        || isSoloClearKeyswitchNote(midiNote))
+    if (! prepared_ || ! isPlayableNote(midiNote))
         return;
     if (expressionId > maximumExpressionId)
         expressionId = legacyExpressionId;
+
+    auto& owners = outstandingNoteOwners_[
+        static_cast<std::size_t>(midiNote - lowestPlayableNote)];
+    int selected = -1;
+    for (int index = 0; index < owners.size; ++index)
+    {
+        const auto& owner = owners.entries[static_cast<std::size_t>(index)];
+        if (owner.expressionId == expressionId
+            && owner.ownershipSource == ownershipSource)
+        {
+            selected = index;
+            break;
+        }
+    }
+    if (selected < 0)
+        return;
+    const auto generation = owners.entries[static_cast<std::size_t>(selected)].generation;
+    for (int index = selected + 1; index < owners.size; ++index)
+        owners.entries[static_cast<std::size_t>(index - 1)] =
+            owners.entries[static_cast<std::size_t>(index)];
+    --owners.size;
+    if (generation == 0)
+        return;
 
     for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
     {
         const auto index = static_cast<std::size_t>(stringIndex);
         if (heldNoteCounts_[index] <= 0 || heldMidiNotes_[index] != midiNote
-            || heldExpressionIds_[index] != expressionId)
+            || heldExpressionIds_[index] != expressionId
+            || heldOwnerGenerations_[index] != generation)
             continue;
 
         auto& voice = voices_[index];
@@ -2623,6 +2689,7 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         heldNoteCounts_[index] = 0;
         heldMidiNotes_[index] = -1;
         heldExpressionIds_[index] = legacyExpressionId;
+        heldOwnerGenerations_[index] = 0;
         if (! voice.active || voice.midiNote != midiNote
             || voice.expressionId != expressionId)
             continue;
@@ -2646,6 +2713,10 @@ void ElectryEngine::allNotesOff()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    for (auto& owners : outstandingNoteOwners_)
+        owners.size = 0;
+    heldOwnerGenerations_.fill(0);
+    ownerGeneration_ = 0;
     for (auto& voice : voices_)
     {
         if (! voice.active)
@@ -2656,6 +2727,22 @@ void ElectryEngine::allNotesOff()
         beginVoiceRelease(voice);
     }
     resetVibratoOnset();
+}
+
+void ElectryEngine::inheritOutstandingNoteOffs(const ElectryEngine& other) noexcept
+{
+    for (std::size_t pitch = 0; pitch < outstandingNoteOwners_.size(); ++pitch)
+    {
+        auto& destination = outstandingNoteOwners_[pitch];
+        const auto& source = other.outstandingNoteOwners_[pitch];
+        destination.size = source.size;
+        for (int index = 0; index < source.size; ++index)
+        {
+            const auto slot = static_cast<std::size_t>(index);
+            destination.entries[slot] = source.entries[slot];
+            destination.entries[slot].generation = 0;
+        }
+    }
 }
 
 float ElectryEngine::legatoPitchOffset(const Voice& voice) noexcept
@@ -8739,6 +8826,7 @@ void ElectryEngine::process(float* left, float* right, int numSamples)
         return;
     }
 
+    const ScopedDspNoDenormals noDenormals;
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // One acoustic-return sample per host sample. Correct callers keep the

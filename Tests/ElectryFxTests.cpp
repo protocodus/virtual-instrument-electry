@@ -1,5 +1,6 @@
 #include "DSP/ElectryEngine.h"
 #include "DSP/ElectryFx.h"
+#include "DSP/DspDenormals.h"
 #if ELECTRY_MEASURED_MODERN_CABINET
 #include "DSP/ModernCabinetIR.h"
 #endif
@@ -8,6 +9,7 @@
 #include <array>
 #include <bit>
 #include <chrono>
+#include <cfenv>
 #include <cmath>
 #include <complex>
 #include <cstddef>
@@ -152,6 +154,35 @@ struct ElectryFxTestAccess
                     return false;
         }
         return std::isfinite(fx.compressorEnvelope_);
+    }
+
+    static bool timeEffectsWithoutSubnormals(const ElectryFx& fx) noexcept
+    {
+        // Inspect bits: a comparison performed by an already-FTZ caller can
+        // classify a stored subnormal as zero and conceal the stuck history.
+        const auto normalOrZero = [](float value)
+        {
+            const auto magnitude = std::bit_cast<std::uint32_t>(value) & 0x7fffffffu;
+            return magnitude == 0u || magnitude >= 0x00800000u;
+        };
+        const auto normalLine = [&](const auto& line)
+        {
+            return std::all_of(line.begin(), line.end(), normalOrZero);
+        };
+        for (std::size_t channel = 0; channel < fx.delayLines_.size(); ++channel)
+        {
+            if (!normalLine(fx.delayLines_[channel])
+                || !normalOrZero(fx.delayDamping_[channel].state)
+                || !normalOrZero(fx.delayHighpassState_[channel]))
+                return false;
+            for (const auto& diffuser : fx.diffusers_[channel])
+                if (!normalLine(diffuser.line))
+                    return false;
+            for (const auto& comb : fx.combs_[channel])
+                if (!normalLine(comb.line) || !normalOrZero(comb.state))
+                    return false;
+        }
+        return normalOrZero(fx.compressorEnvelope_);
     }
 
     static void poisonDelayedSample(ElectryFx& fx, int offset) noexcept
@@ -4075,6 +4106,117 @@ void testHostileInput()
            "an unprepared chain modified the buffer");
 }
 
+float subnormalArithmeticProbe()
+{
+    volatile float minimumNormal = std::numeric_limits<float>::min();
+    volatile float half = 0.5f;
+    return minimumNormal * half;
+}
+
+void testDenormalModeAndTailSafety()
+{
+    if (!electry::ScopedDspNoDenormals::supported)
+        return;
+
+    // Invoke through a volatile function pointer so an optimiser cannot
+    // constant-fold or move arithmetic across the floating-point mode changes.
+    float (*volatile probe)() = subnormalArithmeticProbe;
+    std::fenv_t callerEnvironment {};
+    std::fegetenv(&callerEnvironment);
+    std::fesetenv(FE_DFL_ENV);
+    std::fesetround(FE_DOWNWARD);
+    const auto initialProbe = std::bit_cast<std::uint32_t>(probe());
+    expect(initialProbe != 0u,
+           "the denormal fixture did not start with gradual underflow enabled");
+    {
+        const electry::ScopedDspNoDenormals outer;
+        expect(std::bit_cast<std::uint32_t>(probe()) == 0u,
+               "the raw DSP denormal guard did not flush arithmetic underflow");
+        {
+            const electry::ScopedDspNoDenormals nested;
+            expect(std::bit_cast<std::uint32_t>(probe()) == 0u,
+                   "nesting a DSP guard re-enabled denormal arithmetic");
+        }
+        expect(std::bit_cast<std::uint32_t>(probe()) == 0u
+                   && std::fegetround() == FE_DOWNWARD,
+               "a nested DSP guard changed its caller's floating-point mode");
+    }
+    expect(std::bit_cast<std::uint32_t>(probe()) == initialProbe
+               && std::fegetround() == FE_DOWNWARD,
+           "the DSP guard did not restore the caller's FP control mode");
+    std::fesetenv(&callerEnvironment);
+
+    // A real full-scale impulse used to leave thousands of float subnormal
+    // fixed points in the always-clocked room/compressor after 30 seconds.
+    // Check stored histories, not merely the bypassed public output, and cover
+    // the lowest, normal and highest supported host rates.
+    for (double rate : {8000.0, 48000.0, 384000.0})
+    {
+        ElectryFx fx;
+        fx.prepare(rate);
+        std::array<float, 257> left {}, right {};
+        left.front() = right.front() = 1.0f;
+        fx.process(left.data(), right.data(), 1);
+        expect(FxAccess::compressorState(fx)[1] > 0.0f,
+               "the denormal tail fixture failed to excite recursive state");
+        const auto totalFrames = static_cast<int>(30.0 * rate);
+        for (int offset = 0; offset < totalFrames;)
+        {
+            const int frames = std::min(totalFrames - offset, static_cast<int>(left.size()));
+            left.fill(0.0f);
+            right.fill(0.0f);
+            fx.process(left.data(), right.data(), frames);
+            offset += frames;
+        }
+        expect(FxAccess::timeEffectsWithoutSubnormals(fx) && FxAccess::timeEffectsFinite(fx),
+               "silent FX tails retained subnormal recursive state at "
+                   + std::to_string(rate) + " Hz");
+    }
+}
+
+void testSignalingNaNBoundarySanitisation()
+{
+    // A signaling NaN must be classified before any floating-point comparison
+    // can raise FE_INVALID. Trap-enabled hosts can otherwise fault inside a
+    // supposedly protective isfinite() check before it substitutes silence.
+    const float badFloat = std::bit_cast<float>(std::uint32_t {0x7f800001u});
+    const double badRate = std::bit_cast<double>(std::uint64_t {0x7ff0000000000001ull});
+    std::fenv_t callerEnvironment {};
+    std::fegetenv(&callerEnvironment);
+    ElectryFx fx;
+    // Isolate rate sanitation from the one-time nonlinear lookup generation,
+    // whose scalar math may independently set FP status flags on some libms.
+    fx.prepare(48000.0);
+    std::feclearexcept(FE_INVALID);
+    fx.prepare(badRate);
+    expect(std::fetestexcept(FE_INVALID) == 0
+               && FxAccess::sampleRate(fx) == 48000.0,
+           "signaling-NaN sample-rate sanitation raised an invalid exception");
+
+    FxParameters parameters;
+    parameters.distortion = parameters.amp = parameters.compressor =
+        parameters.delay = parameters.room = badFloat;
+    std::feclearexcept(FE_INVALID);
+    fx.setParameters(parameters);
+    expect(std::fetestexcept(FE_INVALID) == 0,
+           "signaling-NaN control sanitation raised an invalid exception");
+
+    // Nesting inside an existing guard avoids its restoration hiding a newly
+    // raised x86 exception flag; the public audio boundary itself must be safe.
+    {
+        const electry::ScopedDspNoDenormals noDenormals;
+        std::array<float, 3> left {0.25f, badFloat, -0.25f};
+        auto right = left;
+        std::feclearexcept(FE_INVALID);
+        fx.process(left.data(), right.data(), static_cast<int>(left.size()));
+        expect(std::fetestexcept(FE_INVALID) == 0
+                   && left == std::array<float, 3> {0.25f, 0.0f, -0.25f}
+                   && right == left,
+               "signaling-NaN audio sanitation raised an exception or damaged neighboring audio");
+    }
+    std::fesetenv(&callerEnvironment);
+}
+
 void testExtremeInputAndParameterFuzz()
 {
     // Repeatable bit-pattern fuzzing reaches finite overflow, subnormals,
@@ -4308,6 +4450,31 @@ void testSetParametersSanitisation()
                && passedThrough.ampModel == AmpModel::BritishCrunch
                && passedThrough.oversampling == FxOversampling::High,
            "ordinary in-range mixes were altered by sanitisation");
+
+    FxParameters subnormal;
+    subnormal.distortion = std::numeric_limits<float>::denorm_min();
+    subnormal.amp = std::numeric_limits<float>::min() * 0.5f;
+    subnormal.compressor = subnormal.distortion;
+    subnormal.delay = subnormal.distortion;
+    subnormal.room = -subnormal.distortion;
+    const auto tiny = sanitised(subnormal);
+    FxParameters guardedTiny;
+    {
+        const electry::ScopedDspNoDenormals noDenormals;
+        ElectryFx fx;
+        fx.setParameters(subnormal);
+        guardedTiny = FxAccess::targetParameters(fx);
+    }
+    const auto canonicalZero = [](const FxParameters& parameters)
+    {
+        return std::bit_cast<std::uint32_t>(parameters.distortion) == 0u
+            && std::bit_cast<std::uint32_t>(parameters.amp) == 0u
+            && std::bit_cast<std::uint32_t>(parameters.compressor) == 0u
+            && std::bit_cast<std::uint32_t>(parameters.delay) == 0u
+            && std::bit_cast<std::uint32_t>(parameters.room) == 0u;
+    };
+    expect(canonicalZero(tiny) && canonicalZero(guardedTiny),
+           "subnormal amounts depend on the caller's denormal arithmetic mode");
 }
 
 } // namespace
@@ -4340,6 +4507,8 @@ int main()
     testOversamplingSelectionAndTransitions();
     testIdenticalGainChannelReuse();
     testHostileInput();
+    testDenormalModeAndTailSafety();
+    testSignalingNaNBoundarySanitisation();
     testExtremeInputAndParameterFuzz();
     testSampleLocalFaultRecovery();
     testPrepareSanitisesSampleRate();

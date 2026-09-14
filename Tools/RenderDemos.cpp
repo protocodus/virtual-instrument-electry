@@ -186,8 +186,19 @@ public:
             { note, velocity }
         }};
         engine_->noteOnChord(event);
+        if (ElectryEngine::isPlayableNote(note) && velocity > 0.0f)
+            ++outstandingNotes_[static_cast<std::size_t>(note)];
     }
-    void noteOff(int note) { engine_->noteOff(note); }
+    void noteOff(int note)
+    {
+        engine_->noteOff(note);
+        if (ElectryEngine::isPlayableNote(note))
+        {
+            auto& count = outstandingNotes_[static_cast<std::size_t>(note)];
+            if (count > 0)
+                --count;
+        }
+    }
     void pitchBend(float bipolar) { engine_->setPitchBend(bipolar); }
     void resonance(float amount) { engine_->setResonance(amount); }
     // The visible momentary fretting-hand gesture.
@@ -205,14 +216,18 @@ public:
         std::vector<ElectryEngine::NoteOnEvent> events;
         events.reserve(notes.size());
         for (const int note : notes)
+        {
             events.push_back({ note, velocity });
+            if (ElectryEngine::isPlayableNote(note) && velocity > 0.0f)
+                ++outstandingNotes_[static_cast<std::size_t>(note)];
+        }
         engine_->noteOnChord(events);
     }
 
     void releaseChord(std::initializer_list<int> notes)
     {
         for (const int note : notes)
-            engine_->noteOff(note);
+            noteOff(note);
     }
 
     // One note held for `holdSeconds`, then `gapSeconds` of silence after the
@@ -319,6 +334,12 @@ public:
 
     [[nodiscard]] bool allNotesReleased() const noexcept
     {
+        // Physical voice stealing/retirement does not balance MIDI Note Ons.
+        // Count the score itself so repeated pitches in a legato run cannot
+        // hide missing key-ups after their earlier strings were displaced.
+        if (std::any_of(outstandingNotes_.begin(), outstandingNotes_.end(),
+                         [] (int count) { return count != 0; }))
+            return false;
         std::array<electry::StringVisualState, ElectryEngine::stringCount> states;
         engine_->getStringVisualState(states);
         return std::none_of(states.begin(), states.end(), [] (const auto& state)
@@ -333,6 +354,7 @@ private:
     std::unique_ptr<ElectryEngine> engine_ = std::make_unique<ElectryEngine>();
     std::unique_ptr<ElectryFx> effects_ = std::make_unique<ElectryFx>();
     bool stereo_ { false };
+    std::array<int, 128> outstandingNotes_ {};
     std::vector<float> left_;
     std::vector<float> right_;
 };
@@ -404,6 +426,7 @@ Take renderPlayStyles()
                 take.wait(0.20);
                 take.noteOn(40, 0.75f);
                 take.wait(0.28);
+                take.noteOff(40);
                 take.noteOff(40);
                 take.noteOff(43);
                 take.noteOff(45);
@@ -1023,6 +1046,7 @@ Take renderMuteAndDeadAudition()
     take.noteOn(28, 0.78f);
     take.wait(0.26);
     take.noteOff(31);
+    take.noteOff(28);
     take.releaseChord({ 28, 40 });
     take.wait(0.20);
 
@@ -1228,7 +1252,7 @@ Take renderExtendedTechniqueSolo()
         take.noteOn(note, 0.82f);
         take.wait(0.12);
     }
-    for (const int note : { 64, 67, 69, 72, 74 })
+    for (const int note : { 64, 67, 69, 72, 74, 72, 69, 67, 64 })
         take.noteOff(note);
     take.wait(0.12);
 
@@ -1374,7 +1398,7 @@ Take renderSyncopatedDjentStudy()
         take.noteOn(note, 0.80f);
         take.wait(0.105);
     }
-    for (const int note : { 64, 67, 71, 72, 74, 76, 79 })
+    for (const int note : { 64, 71, 76, 72, 79, 74, 71, 67, 64 })
         take.noteOff(note);
     take.wait(0.22);
 
@@ -1582,7 +1606,7 @@ Take renderBluesRockLeadStudy()
         take.noteOn(note, 0.68f);
         take.wait(0.18);
     }
-    for (const int note : { 62, 64, 67, 69 })
+    for (const int note : { 64, 67, 69, 67, 64, 62, 64 })
         take.noteOff(note);
     take.wait(0.20);
 
@@ -1717,7 +1741,7 @@ Take renderTremoloPickingStudy()
     take.noteOn(30, 0.82f);
     take.wait(1.25);
     take.endTremoloPicking();
-    take.releaseChord({ 30, 35, 40 });
+    take.releaseChord({ 28, 30, 35, 40 });
     take.wait(2.0);
     take.fadeOut(0.9);
     return take;

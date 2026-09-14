@@ -173,6 +173,14 @@ sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/Components/Electry.component
 sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/CLAP/Electry.clap"
 sign_bundle "${PACKAGE_ROOT}/Applications/Electry.app"
 
+# Validate the exact signed bundles that will enter the packages. The built
+# smoke executables are resolved from BUILD_DIR/CONFIG (Xcode and Ninja
+# multi-config) or BUILD_DIR (single-config CMake), then pointed at the staged
+# VST3, CLAP and AU paths. This keeps a successful build from publishing a
+# bundle that only passed a smoke test before staging/signing.
+BUILD_DIR="${BUILD_DIR}" CONFIG="${CONFIG}" \
+    "${SCRIPT_DIR}/validate-macos-artifacts.sh" "${ARTIFACT_DIR}" "${PACKAGE_ROOT}"
+
 ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
 PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-unsigned.pkg"
 PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"

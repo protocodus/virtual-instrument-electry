@@ -6016,6 +6016,56 @@ bool audioIsFinite (const juce::AudioBuffer<float>& audio)
     return true;
 }
 
+void testDoubleEntryPreservesEarlierNoteOffHistory()
+{
+    const auto reference = std::make_unique<ElectryAudioProcessor>();
+    const auto candidate = std::make_unique<ElectryAudioProcessor>();
+    juce::AudioBuffer<float> referenceAudio, candidateAudio;
+    juce::MidiBuffer referenceMidi, candidateMidi;
+    const auto noteOn = juce::MidiMessage::noteOn (1, 40, static_cast<juce::uint8> (100));
+    const auto noteOff = juce::MidiMessage::noteOff (1, 40);
+    for (auto* processor : { reference.get(), candidate.get() })
+    {
+        processor->prepareToPlay (sampleRate, blockSize);
+        setParameterValue (*processor, electry::parameters::sympathetic, 0.0f);
+    }
+    const auto render = [&]
+    {
+        renderBlock (*reference, referenceAudio, referenceMidi);
+        renderBlock (*candidate, candidateAudio, candidateMidi);
+    };
+    referenceMidi.addEvent (noteOn, 0);
+    candidateMidi.addEvent (noteOn, 0);
+    render();
+    for (auto* processor : { reference.get(), candidate.get() })
+        setParameterValue (*processor, electry::parameters::outputMode, 2.0f);
+    render();
+    referenceMidi.addEvent (noteOn, 0);
+    candidateMidi.addEvent (noteOn, 0);
+    render();
+    candidateMidi.addEvent (noteOff, 0); // Release only the pre-Double owner.
+    for (int block = 0; block < 4; ++block)
+    {
+        render();
+        expect (std::equal (referenceAudio.getReadPointer (1),
+                            referenceAudio.getReadPointer (1) + blockSize,
+                            candidateAudio.getReadPointer (1)),
+                "pre-Double Note Off released the new doubled performance");
+    }
+    // Release both owners in the reference and the remaining one in the
+    // candidate. The second lane must enter the same release at this sample.
+    referenceMidi.addEvent (noteOff, 0);
+    referenceMidi.addEvent (noteOff, 0);
+    candidateMidi.addEvent (noteOff, 0);
+    render();
+    expect (std::equal (referenceAudio.getReadPointer (1),
+                        referenceAudio.getReadPointer (1) + blockSize,
+                        candidateAudio.getReadPointer (1)),
+            "Double lane could not release its own post-enable note");
+    reference->releaseResources();
+    candidate->releaseResources();
+}
+
 void testMalformedHostInputAndUiReleases()
 {
     const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
@@ -6068,6 +6118,110 @@ void testMalformedHostInputAndUiReleases()
     processor.releaseResources();
 }
 
+void testIgnoredNoteReleasesLeavePlayableNotesUnchanged()
+{
+    // Written notes 33..39 are unmapped, but their raw numbers are valid
+    // sounding engine pitches. A release must not bypass the octave mapping
+    // and address the unrelated written note one octave above it.
+    for (const int input : { 0, 1, 2 })
+    {
+        const auto reference = std::make_unique<ElectryAudioProcessor>();
+        const auto candidate = std::make_unique<ElectryAudioProcessor>();
+        reference->prepareToPlay (sampleRate, blockSize);
+        candidate->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> referenceAudio;
+        juce::AudioBuffer<float> candidateAudio;
+        juce::MidiBuffer referenceMidi;
+        juce::MidiBuffer candidateMidi;
+        for (int ignoredNote = 33; ignoredNote <= 39; ++ignoredNote)
+        {
+            reference->requestPanic();
+            candidate->requestPanic();
+            const int playableNote = ignoredNote
+                + electry::ElectryEngine::octaveShiftSemitones;
+            const auto noteOn = juce::MidiMessage::noteOn (
+                1, playableNote, static_cast<juce::uint8> (100));
+            referenceMidi.addEvent (noteOn, 0);
+            candidateMidi.addEvent (noteOn, 0);
+            renderBlock (*reference, referenceAudio, referenceMidi);
+            renderBlock (*candidate, candidateAudio, candidateMidi);
+
+            if (input == 0)
+                candidateMidi.addEvent (juce::MidiMessage::noteOff (
+                                            1, ignoredNote), 37);
+            else if (input == 1)
+                candidateMidi.addEvent (juce::MidiMessage::noteOn (
+                    1, ignoredNote, static_cast<juce::uint8> (0)), 37);
+            else
+            {
+                candidate->keyboardState.noteOn (1, ignoredNote, 0.8f);
+                candidate->keyboardState.noteOff (1, ignoredNote, 0.0f);
+            }
+
+            for (int block = 0; block < 3; ++block)
+            {
+                renderBlock (*reference, referenceAudio, referenceMidi);
+                renderBlock (*candidate, candidateAudio, candidateMidi);
+                bool identical = true;
+                for (int channel = 0; channel < 2; ++channel)
+                    identical = identical && std::equal (
+                        referenceAudio.getReadPointer (channel),
+                        referenceAudio.getReadPointer (channel) + blockSize,
+                        candidateAudio.getReadPointer (channel));
+                expect (identical,
+                        "unmapped Note Off changed a playable note one octave above it");
+            }
+        }
+        reference->releaseResources();
+        candidate->releaseResources();
+    }
+}
+
+void testUiAndHostNoteReleaseOwnershipIsIsolated()
+{
+    const auto noteIsHeld = [] (const ElectryAudioProcessor& processor)
+    {
+        for (int string = 0; string < electry::ElectryEngine::stringCount; ++string)
+        {
+            const auto state = processor.getStringVisualState (string);
+            if (state.midiNote == 52 && state.sounding && ! state.releasing)
+                return true;
+        }
+        return false;
+    };
+    for (const bool hostOwnsNote : { false, true })
+    {
+        const auto processor = std::make_unique<ElectryAudioProcessor>();
+        processor->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        if (hostOwnsNote)
+            midi.addEvent (juce::MidiMessage::noteOn (
+                1, 52, static_cast<juce::uint8> (100)), 0);
+        else
+            processor->keyboardState.noteOn (1, 52, 100.0f / 127.0f);
+        renderBlock (*processor, audio, midi);
+        expect (noteIsHeld (*processor), "source ownership fixture did not sound");
+
+        if (hostOwnsNote)
+            processor->keyboardState.noteOn (1, 52, 0.0f);
+        else
+            midi.addEvent (juce::MidiMessage::noteOff (1, 52), 0);
+        renderBlock (*processor, audio, midi);
+        expect (noteIsHeld (*processor),
+                "an unmatched release consumed the other input source's note");
+
+        if (hostOwnsNote)
+            midi.addEvent (juce::MidiMessage::noteOff (1, 52), 0);
+        else
+            processor->keyboardState.noteOff (1, 52, 0.0f);
+        renderBlock (*processor, audio, midi);
+        expect (! noteIsHeld (*processor),
+                "the matching input source could not release its own note");
+        processor->releaseResources();
+    }
+}
+
 void testUnmatchedMpeReleasePreservesHeldBend()
 {
     const auto referenceStorage = std::make_unique<ElectryAudioProcessor>();
@@ -6111,6 +6265,160 @@ void testUnmatchedMpeReleasePreservesHeldBend()
     }
     reference.releaseResources();
     strayRelease.releaseResources();
+}
+
+void testMixedSourceReleaseAfterStringSteal()
+{
+    // The two lowest written pitches can only use the lowest string. The
+    // first A remains a stale owner when B steals it; the new A's source must
+    // release its own generation even when the older source has not sent off.
+    for (const auto sources : { std::array<int, 3> { 1, 0, 0 },
+                               std::array<int, 3> { 0, 1, 1 },
+                               std::array<int, 3> { 1, 2, 2 },
+                               std::array<int, 3> { 1, 2, 3 } })
+    {
+        const auto processor = std::make_unique<ElectryAudioProcessor>();
+        processor->prepareToPlay (sampleRate, blockSize);
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        const auto noteOn = [&] (int source, int pitch)
+        {
+            if (source == 0)
+                processor->keyboardState.noteOn (1, pitch, 0.8f);
+            else
+                midi.addEvent (juce::MidiMessage::noteOn (
+                    source, pitch, static_cast<juce::uint8> (100)), 0);
+            renderBlock (*processor, audio, midi);
+        };
+        const auto isHeld = [&]
+        {
+            const auto state = processor->getStringVisualState (0);
+            return state.sounding && !state.releasing && state.midiNote == 40;
+        };
+        noteOn (sources[0], 40);
+        noteOn (1, 41);
+        noteOn (sources[1], 40);
+        expect (isHeld(), "mixed-source steal fixture did not hold the replacement A");
+        if (sources[2] == 0)
+            processor->keyboardState.noteOff (1, 40, 0.0f);
+        else
+            midi.addEvent (juce::MidiMessage::noteOff (sources[2], 40), 0);
+        renderBlock (*processor, audio, midi);
+        if (sources[2] == 3)
+        {
+            // The historical host omni fallback consumes the first host owner
+            // (channel 1's stale A). The next release must then reach channel 2.
+            expect (isHeld(), "omni fallback released a newer channel's generation");
+            midi.addEvent (juce::MidiMessage::noteOff (3, 40), 0);
+            renderBlock (*processor, audio, midi);
+        }
+        expect (!isHeld(), "mixed-source release consumed a stolen note's owner");
+        processor->releaseResources();
+    }
+}
+
+void testRandomizedSourceOwnershipAndStringSteals()
+{
+    // Both pitches require the lowest string, so an independent small model
+    // can predict exactly which generation every source-addressed release
+    // owns. This catches FIFO/source mistakes without inspecting DSP internals.
+    struct Owner
+    {
+        int source;
+        std::uint64_t generation;
+    };
+    for (const std::uint32_t seed : { 0x16cda031u, 0x9a753fe1u, 0x81a0b599u })
+    {
+        std::uint32_t random = seed;
+        const auto draw = [&] ()
+        {
+            random ^= random << 13;
+            random ^= random >> 17;
+            random ^= random << 5;
+            return random;
+        };
+        const auto processor = std::make_unique<ElectryAudioProcessor>();
+        processor->prepareToPlay (sampleRate, 64);
+        juce::AudioBuffer<float> audio;
+        juce::MidiBuffer midi;
+        std::array<std::vector<Owner>, 2> owners;
+        int heldPitch = -1;
+        int heldCount = 0;
+        std::uint64_t generation = 0;
+        for (int iteration = 0; iteration < 384; ++iteration)
+        {
+            if (iteration > 0 && iteration % 97 == 0)
+            {
+                processor->requestPanic();
+                for (auto& pitchOwners : owners)
+                    pitchOwners.clear();
+                heldPitch = -1;
+                heldCount = 0;
+                generation = 0;
+            }
+            else
+            {
+                const int pitch = 40 + static_cast<int> (draw() % 2u);
+                const int source = static_cast<int> (draw() % 4u);
+                const bool noteOn = draw() % 10u < 6u;
+                auto& pitchOwners = owners[static_cast<std::size_t> (pitch - 40)];
+                if (noteOn)
+                {
+                    if (heldPitch == pitch)
+                        ++heldCount;
+                    else
+                    {
+                        heldPitch = pitch;
+                        heldCount = 1;
+                        ++generation;
+                    }
+                    pitchOwners.push_back ({ source, generation });
+                }
+                else
+                {
+                    auto selected = std::find_if (
+                        pitchOwners.begin(), pitchOwners.end(), [source] (const Owner& owner)
+                        {
+                            return owner.source == source;
+                        });
+                    if (selected == pitchOwners.end() && source != 0)
+                        selected = std::find_if (
+                            pitchOwners.begin(), pitchOwners.end(), [] (const Owner& owner)
+                            {
+                                return owner.source != 0;
+                            });
+                    if (selected != pitchOwners.end())
+                    {
+                        if (heldPitch == pitch && selected->generation == generation
+                            && --heldCount == 0)
+                            heldPitch = -1;
+                        pitchOwners.erase (selected);
+                    }
+                }
+
+                if (source == 0)
+                    // JUCE forwards a zero-velocity keyboard Note On through
+                    // the same queue even if its visual key is already up.
+                    processor->keyboardState.noteOn (
+                        1, pitch, noteOn ? 100.0f / 127.0f : 0.0f);
+                else if (noteOn || (draw() & 1u) != 0u)
+                    midi.addEvent (juce::MidiMessage::noteOn (
+                        source, pitch, static_cast<juce::uint8> (noteOn ? 100 : 0)), 0);
+                else
+                    midi.addEvent (juce::MidiMessage::noteOff (source, pitch), 0);
+            }
+            renderBlock (*processor, audio, midi, 64);
+            const auto string = processor->getStringVisualState (0);
+            const bool actualHeld = string.sounding && ! string.releasing;
+            expect (actualHeld == (heldPitch >= 0)
+                        && (! actualHeld || string.midiNote == heldPitch),
+                    "randomized source/steal ownership mismatch at seed "
+                        + std::to_string (seed) + " event " + std::to_string (iteration));
+            expect (audioIsFinite (audio),
+                    "randomized source/steal stream produced non-finite output");
+        }
+        processor->releaseResources();
+    }
 }
 
 void testSameSampleResetControllerOrdering()
@@ -6579,7 +6887,12 @@ int main()
     testFxEditorToggle();
     testEditorRendering();
     testPrepareReleaseCycles();
+    testDoubleEntryPreservesEarlierNoteOffHistory();
     testMalformedHostInputAndUiReleases();
+    testIgnoredNoteReleasesLeavePlayableNotesUnchanged();
+    testUiAndHostNoteReleaseOwnershipIsIsolated();
+    testMixedSourceReleaseAfterStringSteal();
+    testRandomizedSourceOwnershipAndStringSteals();
     testUnmatchedMpeReleasePreservesHeldBend();
     testSameSampleResetControllerOrdering();
     testSameSampleAllNotesOffOrdering();

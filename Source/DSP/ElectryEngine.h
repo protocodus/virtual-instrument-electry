@@ -388,6 +388,7 @@ public:
         int midiNote { -1 };
         float velocity { 0.0f };
         ExpressionId expressionId { legacyExpressionId };
+        std::uint8_t ownershipSource { 0 };
     };
 
     void prepare(double sampleRate, int maxBlockSize);
@@ -398,8 +399,12 @@ public:
     // random.
     void setVariationSeed(std::uint32_t seed) noexcept { variationSeed_ = seed; }
     void setParameters(const EngineParameters& parameters);
+    // The optional source distinguishes independent MIDI channels/UI keys
+    // whose expression may still share the legacy global pitch wheel. A key's
+    // Note Off must supply the same source that its Note On supplied.
     void noteOn(int midiNote, float velocity,
-                ExpressionId expressionId = legacyExpressionId);
+                ExpressionId expressionId = legacyExpressionId,
+                std::uint8_t ownershipSource = 0);
     // Solves one complete sample-accurate chord as a whole, so host insertion
     // order cannot change its physical strings, hand shape or variation
     // stream. Because the edge is known up front, a non-zero Strum Spread
@@ -407,8 +412,13 @@ public:
     // scalar note path's causal re-anchor pre-roll to the leading string.
     void noteOnChord(std::span<const NoteOnEvent> events);
     void noteOff(int midiNote,
-                 ExpressionId expressionId = legacyExpressionId);
+                 ExpressionId expressionId = legacyExpressionId,
+                 std::uint8_t ownershipSource = 0);
     void allNotesOff();
+    // After resetting a newly enabled double take, inherit the primary's
+    // pending key-ups as silent entries. A pre-existing key-up must not end a
+    // new double-take note that happens to reuse its pitch/channel/source.
+    void inheritOutstandingNoteOffs(const ElectryEngine& other) noexcept;
     // Standard MIDI pitch bend moves every legacy-ID and sympathetically
     // ringing string by the same nominal -2..+2 semitone interval. Bend Time
     // controls how long the strings take to reach the target.
@@ -1724,7 +1734,10 @@ private:
                         bool completeChordStart = false,
                         int completeChordAnchor = -1,
                         bool reanchorTremolo = true,
-                        ExpressionId expressionId = legacyExpressionId);
+                        ExpressionId expressionId = legacyExpressionId,
+                        int noteOwnerIndex = -1);
+    int reserveNoteOwner(int midiNote, ExpressionId expressionId,
+                         std::uint8_t ownershipSource) noexcept;
     void legatoRetarget(Voice& voice, int midiNote, float velocity,
                         PlayStyle playStyle,
                         ExpressionId expressionId = legacyExpressionId) noexcept;
@@ -1904,6 +1917,25 @@ private:
     std::array<int, stringCount> heldMidiNotes_ {};
     std::array<int, stringCount> heldNoteCounts_ {};
     std::array<ExpressionId, stringCount> heldExpressionIds_ {};
+    // Match FIFO key-ups to their original physical ownership even after a
+    // steal, MPE channel reuse or an unplayable chord/solo-string assignment.
+    // Generation zero is an ignored attack. This fixed per-pitch capacity
+    // matches the host adapter's ownership FIFO and never allocates in render.
+    struct NoteOwner
+    {
+        std::uint64_t generation {};
+        ExpressionId expressionId {};
+        std::uint8_t ownershipSource {};
+    };
+    struct NoteOwners
+    {
+        std::array<NoteOwner, maximumChordEvents> entries {};
+        int size {};
+    };
+    std::array<NoteOwners, highestPlayableNote - lowestPlayableNote + 1>
+        outstandingNoteOwners_ {};
+    std::array<std::uint64_t, stringCount> heldOwnerGenerations_ {};
+    std::uint64_t ownerGeneration_ {};
     // The visible B0 gesture is one picking wrist, not eight clocks. Its
     // phase is measured in strokes so a rate change takes effect immediately
     // without resetting time or accumulating integer-sample drift.

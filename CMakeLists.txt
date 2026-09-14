@@ -73,6 +73,7 @@ set(ELECTRY_DSP_SOURCES
     Source/DSP/ElectryFx.cpp
     Source/DSP/ElectryVisuals.cpp)
 set(ELECTRY_DSP_HEADERS
+    Source/DSP/DspDenormals.h
     Source/DSP/DspMath.h
     Source/DSP/ElectryEngine.h
     Source/DSP/ElectryFx.h
@@ -268,7 +269,7 @@ if(ELECTRY_BUILD_TOOLS)
     target_compile_features(ElectryRenderDemos PRIVATE cxx_std_20)
 
     add_executable(ElectryRenderEvaluation Tools/RenderEvaluation.cpp)
-    target_link_libraries(ElectryRenderEvaluation PRIVATE ElectryDSP)
+    target_link_libraries(ElectryRenderEvaluation PRIVATE ElectryDSP Threads::Threads)
     target_compile_features(ElectryRenderEvaluation PRIVATE cxx_std_20)
     target_compile_definitions(ElectryRenderEvaluation PRIVATE
         ELECTRY_EVALUATION_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/evaluation"
@@ -452,6 +453,14 @@ if(BUILD_TESTING)
         endif()
 
         add_test(NAME Electry.PluginProcessor COMMAND ElectryPluginProcessorTests)
+        add_executable(ElectryPluginStateFuzzTests Tests/PluginStateFuzzTests.cpp)
+        target_link_libraries(ElectryPluginStateFuzzTests PRIVATE Electry)
+        target_include_directories(ElectryPluginStateFuzzTests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+            "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
+            "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
+        add_test(NAME Electry.PluginStateFuzz COMMAND ElectryPluginStateFuzzTests)
+        set_tests_properties(Electry.PluginStateFuzz PROPERTIES TIMEOUT 180)
         if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER
            OR CMAKE_CXX_FLAGS MATCHES "fsanitize")
             set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 600)
@@ -540,6 +549,11 @@ if(BUILD_TESTING)
                     "${CMAKE_CURRENT_SOURCE_DIR}/Tests/ParallelRenderTests.py"
                     $<TARGET_FILE:ElectryRenderDemos>)
             set_tests_properties(Electry.ParallelRender PROPERTIES TIMEOUT 300)
+            add_test(NAME Electry.ParallelEvaluation
+                COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Tests/ParallelEvaluationTests.py"
+                    $<TARGET_FILE:ElectryRenderEvaluation>)
+            set_tests_properties(Electry.ParallelEvaluation PROPERTIES TIMEOUT 120)
         endif()
         add_test(NAME Electry.RefreshGeneratedMedia
                  COMMAND "${Python3_EXECUTABLE}"

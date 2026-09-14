@@ -3,7 +3,28 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ARTIFACT_DIR="${1:-${PROJECT_DIR}/build-macos/Electry_artefacts/Release}"
+ARTIFACT_DIR_INPUT="${1:-${PROJECT_DIR}/build-macos/Electry_artefacts/Release}"
+STAGED_ROOT_INPUT="${2:-}"
+
+if [[ ! -d "${ARTIFACT_DIR_INPUT}" ]]; then
+    echo "error: artifact directory is missing: ${ARTIFACT_DIR_INPUT}" >&2
+    exit 1
+fi
+ARTIFACT_DIR="$(cd "${ARTIFACT_DIR_INPUT}" && pwd)"
+# A single-config CMake build puts smoke binaries directly in BUILD_DIR. The
+# Xcode and Ninja multi-config generators put them in BUILD_DIR/CONFIG. Keep
+# both locations deterministic so this validator cannot accidentally run a
+# host test from an unrelated checkout.
+BUILD_DIR="${BUILD_DIR:-$(cd "${ARTIFACT_DIR}/../.." && pwd)}"
+CONFIG="${CONFIG:-$(basename "${ARTIFACT_DIR}")}"
+STAGED_ROOT=""
+if [[ -n "${STAGED_ROOT_INPUT}" ]]; then
+    if [[ ! -d "${STAGED_ROOT_INPUT}" ]]; then
+        echo "error: staged package root is missing: ${STAGED_ROOT_INPUT}" >&2
+        exit 1
+    fi
+    STAGED_ROOT="$(cd "${STAGED_ROOT_INPUT}" && pwd)"
+fi
 AU_BUNDLE="${ARTIFACT_DIR}/AU/Electry.component"
 VST3_BUNDLE="${ARTIFACT_DIR}/VST3/Electry.vst3"
 CLAP_BUNDLE="${ARTIFACT_DIR}/CLAP/Electry.clap"
@@ -19,6 +40,20 @@ for bundle in "${AU_BUNDLE}" "${VST3_BUNDLE}" "${CLAP_BUNDLE}"; do
         exit 1
     fi
 done
+
+STAGED_AU_BUNDLE="${STAGED_ROOT}/Library/Audio/Plug-Ins/Components/Electry.component"
+STAGED_VST3_BUNDLE="${STAGED_ROOT}/Library/Audio/Plug-Ins/VST3/Electry.vst3"
+STAGED_CLAP_BUNDLE="${STAGED_ROOT}/Library/Audio/Plug-Ins/CLAP/Electry.clap"
+STAGED_APP_BUNDLE="${STAGED_ROOT}/Applications/Electry.app"
+if [[ -n "${STAGED_ROOT}" ]]; then
+    for bundle in "${STAGED_AU_BUNDLE}" "${STAGED_VST3_BUNDLE}" \
+                  "${STAGED_CLAP_BUNDLE}" "${STAGED_APP_BUNDLE}"; do
+        if [[ ! -d "${bundle}" ]]; then
+            echo "error: staged bundle is missing: ${bundle}" >&2
+            exit 1
+        fi
+    done
+fi
 
 plist_value() {
     /usr/libexec/PlistBuddy -c "Print :$2" "$1"
@@ -88,6 +123,123 @@ for bundle in "${AU_BUNDLE}" "${VST3_BUNDLE}" "${CLAP_BUNDLE}"; do
     /usr/bin/codesign --verify --deep --strict --verbose=2 "${bundle}"
 done
 
+smoke_binary() {
+    local target="$1"
+    local candidate
+    local -a candidates=(
+        "${BUILD_DIR}/${CONFIG}/${target}"
+        "${BUILD_DIR}/${target}"
+        "${BUILD_DIR}/bin/${CONFIG}/${target}"
+        "${BUILD_DIR}/bin/${target}"
+    )
+    if [[ -n "${SMOKE_TEST_DIR:-}" ]]; then
+        candidates=("${SMOKE_TEST_DIR}/${target}" "${candidates[@]}")
+    fi
+    for candidate in "${candidates[@]}"; do
+        if [[ -x "${candidate}" ]]; then
+            printf '%s\n' "${candidate}"
+            return 0
+        fi
+    done
+    echo "error: built host smoke test '${target}' was not found under ${BUILD_DIR} (config ${CONFIG})" >&2
+    echo "Set SMOKE_TEST_DIR to the CMake runtime output directory if it is non-standard." >&2
+    return 1
+}
+
+NOTICE_BASENAMES=(
+    "Electry-LICENSE.txt"
+    "THIRD_PARTY_NOTICES.md"
+    "JUCE-LICENSE.md"
+    "JUCE-DEPENDENCIES-LICENSE.md"
+    "CLAP-LICENSE.md"
+    "CLAP-HELPERS-LICENSE.md"
+    "CLAP-JUCE-EXTENSIONS-LICENSE.md"
+)
+
+validate_staged_notices() {
+    local notice
+    local notice_root="${STAGED_ROOT}/Library/Application Support/Electry/Documentation"
+    for notice in "${NOTICE_BASENAMES[@]}"; do
+        if [[ ! -s "${notice_root}/${notice}" ]]; then
+            echo "error: staged distribution notice is missing: ${notice_root}/${notice}" >&2
+            return 1
+        fi
+    done
+    for bundle in "${STAGED_AU_BUNDLE}" "${STAGED_VST3_BUNDLE}" \
+                  "${STAGED_CLAP_BUNDLE}" "${STAGED_APP_BUNDLE}"; do
+        notice_root="${bundle}/Contents/Resources/Documentation"
+        for notice in "${NOTICE_BASENAMES[@]}"; do
+            if [[ ! -s "${notice_root}/${notice}" ]]; then
+                echo "error: staged bundle notice is missing: ${notice_root}/${notice}" >&2
+                return 1
+            fi
+        done
+    done
+}
+
+validate_staged_identity() {
+    local staged_au_plist="${STAGED_AU_BUNDLE}/Contents/Info.plist"
+    local staged_vst3_plist="${STAGED_VST3_BUNDLE}/Contents/Info.plist"
+    local staged_clap_plist="${STAGED_CLAP_BUNDLE}/Contents/Info.plist"
+    local staged_app_plist="${STAGED_APP_BUNDLE}/Contents/Info.plist"
+    expect_value "$(plist_value "${staged_au_plist}" CFBundleShortVersionString)" \
+        "${AU_VERSION}" "staged AU version"
+    expect_value "$(plist_value "${staged_vst3_plist}" CFBundleShortVersionString)" \
+        "${AU_VERSION}" "staged VST3 version"
+    expect_value "$(plist_value "${staged_clap_plist}" CFBundleShortVersionString)" \
+        "${AU_VERSION}" "staged CLAP version"
+    expect_value "$(plist_value "${staged_app_plist}" CFBundleShortVersionString)" \
+        "${AU_VERSION}" "staged app version"
+    for plist in "${staged_au_plist}" "${staged_vst3_plist}" \
+                 "${staged_clap_plist}" "${staged_app_plist}"; do
+        expect_value "$(plist_value "${plist}" CFBundleIdentifier)" \
+            "audio.electry.synth" "staged bundle ID"
+    done
+}
+
+validate_staged_binaries() {
+    local staged_au_binary staged_vst3_binary staged_clap_binary staged_app_binary
+    staged_au_binary="${STAGED_AU_BUNDLE}/Contents/MacOS/$(plist_value "${STAGED_AU_BUNDLE}/Contents/Info.plist" CFBundleExecutable)"
+    staged_vst3_binary="${STAGED_VST3_BUNDLE}/Contents/MacOS/$(plist_value "${STAGED_VST3_BUNDLE}/Contents/Info.plist" CFBundleExecutable)"
+    staged_clap_binary="${STAGED_CLAP_BUNDLE}/Contents/MacOS/$(plist_value "${STAGED_CLAP_BUNDLE}/Contents/Info.plist" CFBundleExecutable)"
+    staged_app_binary="${STAGED_APP_BUNDLE}/Contents/MacOS/$(plist_value "${STAGED_APP_BUNDLE}/Contents/Info.plist" CFBundleExecutable)"
+    for binary in "${staged_au_binary}" "${staged_vst3_binary}" \
+                  "${staged_clap_binary}" "${staged_app_binary}"; do
+        if [[ ! -x "${binary}" ]]; then
+            echo "error: staged bundle executable is missing: ${binary}" >&2
+            return 1
+        fi
+        expect_value "$(/usr/bin/lipo -archs "${binary}")" \
+            "${AU_ARCHS}" "staged executable architecture set"
+    done
+    echo "Validating staged VST3 through built host smoke test"
+    "${VST3_SMOKE}" "${STAGED_VST3_BUNDLE}"
+    echo "Validating staged CLAP through built host smoke test"
+    "${CLAP_SMOKE}" "${staged_clap_binary}"
+    echo "Validating staged AU through built host smoke test"
+    "${AU_SMOKE}" "${staged_au_binary}"
+}
+
+VST3_SMOKE="$(smoke_binary ElectryVST3ArtifactSmokeTests)"
+CLAP_SMOKE="$(smoke_binary ElectryCLAPArtifactSmokeTests)"
+AU_SMOKE="$(smoke_binary ElectryAUArtifactSmokeTests)"
+echo "Validating built VST3 through host smoke test"
+"${VST3_SMOKE}" "${VST3_BUNDLE}"
+echo "Validating built CLAP through host smoke test"
+"${CLAP_SMOKE}" "${CLAP_BINARY}"
+echo "Validating built AU through host smoke test"
+"${AU_SMOKE}" "${AU_BINARY}"
+
+if [[ -n "${STAGED_ROOT}" ]]; then
+    validate_staged_notices
+    for bundle in "${STAGED_AU_BUNDLE}" "${STAGED_VST3_BUNDLE}" \
+                  "${STAGED_CLAP_BUNDLE}" "${STAGED_APP_BUNDLE}"; do
+        /usr/bin/codesign --verify --deep --strict --verbose=2 "${bundle}"
+    done
+    validate_staged_identity
+    validate_staged_binaries
+fi
+
 AU_BINARY_HASH="$(/usr/bin/shasum -a 256 "${AU_BINARY}" | /usr/bin/awk '{print $1}')"
 VST3_BINARY_HASH="$(/usr/bin/shasum -a 256 "${VST3_BINARY}" | /usr/bin/awk '{print $1}')"
 CLAP_BINARY_HASH="$(/usr/bin/shasum -a 256 "${CLAP_BINARY}" | /usr/bin/awk '{print $1}')"
@@ -127,6 +279,7 @@ echo "  VST3 code-directory hash: ${VST3_CD_HASH}"
 echo "  CLAP executable SHA-256: ${CLAP_BINARY_HASH}"
 echo "  CLAP Info.plist SHA-256: ${CLAP_PLIST_HASH}"
 echo "  CLAP code-directory hash: ${CLAP_CD_HASH}"
-echo "  VST3 host load: use ElectryVST3ArtifactSmokeTests (or an external path-based validator)"
-echo "  CLAP host load: use ElectryCLAPArtifactSmokeTests (or an external path-based validator)"
+if [[ -n "${STAGED_ROOT}" ]]; then
+    echo "  staged host loads: VST3, CLAP and AU passed"
+fi
 echo "  auval: not run; auval selects registered components by type/subtype/manufacturer, not bundle path"

@@ -16,14 +16,20 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <exception>
+#include <memory>
 #include <string>
+#include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -144,7 +150,10 @@ Probe renderProbe(const char* id, const char* fileName,
     probe.samples.reserve(static_cast<std::size_t>(
         leadInFrames + heldFrames + releaseFrames));
 
-    ElectryEngine engine;
+    // The waveguide arrays exceed the default worker stack on some hosts.
+    // Each independent take owns its large DSP state on the heap.
+    auto storage = std::make_unique<ElectryEngine>();
+    auto& engine = *storage;
     engine.prepare(sampleRate, blockSize);
     engine.setParameters(parameters);
     engine.setPitchBend(0.0f);
@@ -950,7 +959,8 @@ int renderMetalBenchmark(const std::filesystem::path& outputDirectory)
 
     const auto engineParameters = metalBenchmarkParameters();
     const auto fxParameters = metalBenchmarkFxParameters();
-    MetalBenchmarkTake take(engineParameters, fxParameters);
+    auto storage = std::make_unique<MetalBenchmarkTake>(engineParameters, fxParameters);
+    auto& take = *storage;
     playMetalBenchmarkScore(take);
     const auto failure = metalBenchmarkFailure(take);
     if (! failure.empty())
@@ -995,39 +1005,69 @@ int renderMetalBenchmark(const std::filesystem::path& outputDirectory)
 }
 } // namespace
 
-int main(int argc, char** argv)
+int run(int argc, char** argv)
 {
-    if (argc >= 2 && std::string(argv[1]) == "--metal-benchmark")
+    bool runSelfTests = false;
+    bool metalBenchmark = false;
+    bool hasOutput = false;
+    int jobs = 1;
+    std::filesystem::path outputDirectory;
+    for (int argument = 1; argument < argc; ++argument)
     {
-        if (argc > 3)
+        const std::string_view value(argv[argument]);
+        if (value == "--self-test")
+            runSelfTests = true;
+        else if (value == "--metal-benchmark")
+            metalBenchmark = true;
+        else if (value == "--jobs")
         {
-            std::printf("Usage: ElectryRenderEvaluation --metal-benchmark "
-                        "[output-directory]\n");
+            if (++argument == argc)
+            {
+                std::fprintf(stderr, "--jobs requires an integer from 1 to 10\n");
+                return 1;
+            }
+            const std::string_view count(argv[argument]);
+            const auto parsed = std::from_chars(count.data(), count.data() + count.size(), jobs);
+            if (parsed.ec != std::errc() || parsed.ptr != count.data() + count.size()
+                || jobs < 1 || jobs > 10)
+            {
+                std::fprintf(stderr, "--jobs requires an integer from 1 to 10\n");
+                return 1;
+            }
+        }
+        else if (value == "--help" && argc == 2)
+        {
+            std::printf("Usage: ElectryRenderEvaluation [--self-test] [--jobs 1..10] "
+                        "[output-directory]\n"
+                        "       ElectryRenderEvaluation --metal-benchmark "
+                        "[output-directory]\n"
+                        "Default: %s\n", ELECTRY_EVALUATION_OUTPUT_DIR);
+            return 0;
+        }
+        else if (value.empty() || value.front() == '-' || hasOutput)
+        {
+            std::fprintf(stderr, "Unexpected argument: %s\n", argv[argument]);
             return 1;
         }
-        const auto outputDirectory = argc == 3
-            ? std::filesystem::path(argv[2])
-            : std::filesystem::path(ELECTRY_EVALUATION_OUTPUT_DIR) / "metal";
-        return renderMetalBenchmark(outputDirectory);
+        else
+        {
+            outputDirectory = argv[argument];
+            hasOutput = true;
+        }
     }
-
-    const bool runSelfTests = argc >= 2
-                           && std::string(argv[1]) == "--self-test";
-    const int outputArgument = runSelfTests ? 2 : 1;
-    if (argc > outputArgument + 1
-        || (argc == 2 && std::string(argv[1]) == "--help"))
+    if (metalBenchmark && (runSelfTests || jobs != 1))
     {
-        std::printf("Usage: ElectryRenderEvaluation [--self-test] "
-                    "[output-directory]\n"
-                    "       ElectryRenderEvaluation --metal-benchmark "
-                    "[output-directory]\n"
-                    "Default: %s\n", ELECTRY_EVALUATION_OUTPUT_DIR);
-        return argc > outputArgument + 1 ? 1 : 0;
+        std::fprintf(stderr, "The single metal score does not support --self-test or parallel jobs\n");
+        return 1;
     }
-
-    const std::filesystem::path outputDirectory = argc == outputArgument + 1
-        ? std::filesystem::path(argv[outputArgument])
-        : std::filesystem::path(ELECTRY_EVALUATION_OUTPUT_DIR);
+    if (!hasOutput)
+    {
+        outputDirectory = ELECTRY_EVALUATION_OUTPUT_DIR;
+        if (metalBenchmark)
+            outputDirectory /= "metal";
+    }
+    if (metalBenchmark)
+        return renderMetalBenchmark(outputDirectory);
     std::error_code error;
     std::filesystem::create_directories(outputDirectory, error);
     if (error)
@@ -1059,43 +1099,80 @@ int main(int argc, char** argv)
     auto hardMuteParameters = parameters;
     hardMuteParameters.muteDamping = 1.0f;
 
-    std::vector<Probe> probes;
-    probes.push_back(renderProbe("e1-open", "e1-open.wav", "sustain",
-                                 PlayStyle::Sustain, e1MidiNote, 8,
-                                 41.20344461, parameters));
-    probes.push_back(renderProbe("e1-palm-mute-light",
-                                 "e1-palm-mute-light.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e1MidiNote, 8,
-                                 41.20344461, lightMuteParameters));
-    probes.push_back(renderProbe("e1-palm-mute-medium",
-                                 "e1-palm-mute-medium.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e1MidiNote, 8,
-                                 41.20344461, mediumMuteParameters));
-    probes.push_back(renderProbe("e1-palm-mute-hard",
-                                 "e1-palm-mute-hard.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e1MidiNote, 8,
-                                 41.20344461, hardMuteParameters));
-    probes.push_back(renderProbe("e1-dead", "e1-dead.wav", "dead",
-                                 PlayStyle::Dead, e1MidiNote, 8,
-                                 41.20344461, parameters));
-    probes.push_back(renderProbe("e2-open", "e2-open.wav", "sustain",
-                                 PlayStyle::Sustain, e2MidiNote, 6,
-                                 82.40688923, parameters));
-    probes.push_back(renderProbe("e2-palm-mute-light",
-                                 "e2-palm-mute-light.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e2MidiNote, 6,
-                                 82.40688923, lightMuteParameters));
-    probes.push_back(renderProbe("e2-palm-mute-medium",
-                                 "e2-palm-mute-medium.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e2MidiNote, 6,
-                                 82.40688923, mediumMuteParameters));
-    probes.push_back(renderProbe("e2-palm-mute-hard",
-                                 "e2-palm-mute-hard.wav", "palm_mute",
-                                 PlayStyle::PalmMute, e2MidiNote, 6,
-                                 82.40688923, hardMuteParameters));
-    probes.push_back(renderProbe("e2-dead", "e2-dead.wav", "dead",
-                                 PlayStyle::Dead, e2MidiNote, 6,
-                                 82.40688923, parameters));
+    struct ProbeSpec
+    {
+        const char* id;
+        const char* file;
+        const char* styleName;
+        PlayStyle style;
+        int note;
+        int string;
+        double hz;
+        const EngineParameters* parameters;
+    };
+    const std::array<ProbeSpec, 10> specs {{
+        { "e1-open", "e1-open.wav", "sustain", PlayStyle::Sustain,
+          e1MidiNote, 8, 41.20344461, &parameters },
+        { "e1-palm-mute-light", "e1-palm-mute-light.wav", "palm_mute", PlayStyle::PalmMute,
+          e1MidiNote, 8, 41.20344461, &lightMuteParameters },
+        { "e1-palm-mute-medium", "e1-palm-mute-medium.wav", "palm_mute", PlayStyle::PalmMute,
+          e1MidiNote, 8, 41.20344461, &mediumMuteParameters },
+        { "e1-palm-mute-hard", "e1-palm-mute-hard.wav", "palm_mute", PlayStyle::PalmMute,
+          e1MidiNote, 8, 41.20344461, &hardMuteParameters },
+        { "e1-dead", "e1-dead.wav", "dead", PlayStyle::Dead,
+          e1MidiNote, 8, 41.20344461, &parameters },
+        { "e2-open", "e2-open.wav", "sustain", PlayStyle::Sustain,
+          e2MidiNote, 6, 82.40688923, &parameters },
+        { "e2-palm-mute-light", "e2-palm-mute-light.wav", "palm_mute", PlayStyle::PalmMute,
+          e2MidiNote, 6, 82.40688923, &lightMuteParameters },
+        { "e2-palm-mute-medium", "e2-palm-mute-medium.wav", "palm_mute", PlayStyle::PalmMute,
+          e2MidiNote, 6, 82.40688923, &mediumMuteParameters },
+        { "e2-palm-mute-hard", "e2-palm-mute-hard.wav", "palm_mute", PlayStyle::PalmMute,
+          e2MidiNote, 6, 82.40688923, &hardMuteParameters },
+        { "e2-dead", "e2-dead.wav", "dead", PlayStyle::Dead,
+          e2MidiNote, 6, 82.40688923, &parameters }
+    }};
+    // Only independent takes run concurrently. Each job owns its engine and
+    // random stream; validation, serialization and report order stay serial.
+    std::vector<Probe> probes(specs.size());
+    std::array<std::exception_ptr, 10> failures {};
+    std::atomic<std::size_t> next { 0 };
+    const auto worker = [&]
+    {
+        for (;;)
+        {
+            const auto index = next.fetch_add(1, std::memory_order_relaxed);
+            if (index >= specs.size())
+                return;
+            try
+            {
+                const auto& spec = specs[index];
+                probes[index] = renderProbe(spec.id, spec.file, spec.styleName,
+                    spec.style, spec.note, spec.string, spec.hz, *spec.parameters);
+            }
+            catch (...)
+            {
+                failures[index] = std::current_exception();
+            }
+        }
+    };
+    {
+        std::vector<std::jthread> workers;
+        try
+        {
+            workers.reserve(static_cast<std::size_t>(jobs - 1));
+            for (int index = 1; index < jobs; ++index)
+                workers.emplace_back(worker);
+        }
+        catch (const std::exception&)
+        {
+            // Finish with the available workers if thread creation fails.
+        }
+        worker();
+    }
+    for (const auto& failure : failures)
+        if (failure)
+            std::rethrow_exception(failure);
 
     for (const auto& probe : probes)
     {
@@ -1166,4 +1243,17 @@ int main(int argc, char** argv)
                 "(WAVE_FORMAT_IEEE_FLOAT, 32-bit, mono, unnormalized).\n",
                 outputDirectory.string().c_str());
     return 0;
+}
+
+int main(int argc, char** argv)
+{
+    try
+    {
+        return run(argc, argv);
+    }
+    catch (const std::exception& error)
+    {
+        std::fprintf(stderr, "Evaluation failed: %s\n", error.what());
+        return 1;
+    }
 }

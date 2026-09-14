@@ -64,7 +64,11 @@ have been published yet.
   state chunks and output buffers are handled safely; duplicate note releases
   preserve MPE ownership, and controller resets respect event order. Extreme
   audio input is bounded before recursive effects, settled FX controls avoid
-  redundant CPU work, and independent demo renders can use multiple cores.
+  redundant CPU work, and independent demo and evaluation renders can use
+  multiple cores. Note releases retain their original source and ownership
+  through string steals, rejected attacks and entering Double mid-phrase;
+  releases in ignored keyboard ranges leave playable notes alone. Raw DSP
+  rendering flushes denormal tails while preserving the caller's FP mode.
 - **2026-09-11 — [Interface finish](Docs/ui-polish-2026-09-11.md):**
   quieter graphite surfaces, refined metal knobs, brighter values, aligned
   header controls and a power icon for FX, with more space between FX controls.
@@ -1363,7 +1367,9 @@ this field migrate to on; factory rig selection preserves its current value.
 ### What the automated tests do and do not establish
 
 The release-hardening suites include deterministic hostile float/MIDI/state
-sequences and changing block sizes. AddressSanitizer, UndefinedBehaviorSanitizer
+sequences and changing block sizes, a 2,048-case saved-state mutation campaign
+with repeated valid-session recovery, and randomized UI/host ownership checks
+across string stealing and panic. AddressSanitizer, UndefinedBehaviorSanitizer
 and float-to-integer overflow checks can instrument the engine, effects and
 processor tests; CI also runs a bounded, coverage-guided libFuzzer DSP session
 and preserves its corpus and any crash reproducers. These checks detect tested
@@ -1400,6 +1406,15 @@ in a DAW. Separate alternating FX-only measurements at 48 kHz showed a
 22–24% reduction for room-only processing across 64/128/512-frame blocks;
 the complete Modern amp chain showed no reliable speedup. Master FX OFF
 already skips that chain, so those percentages are not whole-instrument gains.
+
+A follow-up universal candidate comparison on the same machine recorded
+59 baseline versus 62 candidate misses across 30,072 callbacks each, so it
+does not establish a whole-processor speedup. The candidate had no misses at
+48 kHz, one at 96 kHz and 61 at 384 kHz. Its only over-budget p99 was continuous
+amp switching at 384 kHz/64 frames: 0.1949 ms against a 0.1667 ms deadline.
+Independent evaluation rendering with four workers improved median wall time
+from 0.516 s to 0.301 s across four alternating runs (1.71x); raw DSP denormal
+protection prevents persistent subnormal tails without changing audible output.
 
 Current automated tests establish: finite, bounded, non-silent output for
 all twenty-one pick-stroke/play-style combinations at 44.1-384 kHz; the 2x/1x
@@ -5158,7 +5173,12 @@ large DSP state lives on the heap so small worker stacks are sufficient:
 
 ```bash
 ./build/ElectryRenderDemos --jobs 4 build/demo-audio
+./build/ElectryRenderEvaluation --jobs 4 build/evaluation
 ```
+
+The ten independent evaluation probes support 1 through 10 workers, with
+byte-identical WAVs and manifests checked at 1, 4 and 10 workers. The paired
+metal benchmark remains one continuous score and runs serially.
 
 The renderer preserves unrelated WAVs in ad-hoc output directories. The
 canonical `Docs/audio` output requires valid README ownership markers before
@@ -5248,6 +5268,9 @@ registry check, but it selects by type/subtype/manufacturer and therefore is not
 proof that it found the just-built component. `./scripts/sign-and-package-macos.sh`
 stages, signs and packages all four products; provide the signing and
 notarization environment described by that script for Developer ID distribution.
+Packaging requires the built AU, VST3 and CLAP smoke-test executables and
+validates the exact signed staging tree, including notices and architecture
+sets, before creating either archive.
 
 Every push to `main` (including a merged pull request) runs the
 [Main build workflow](.github/workflows/nightly.yml). It builds macOS universal

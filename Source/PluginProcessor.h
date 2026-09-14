@@ -265,7 +265,8 @@ private:
         int note, int midiChannel,
         electry::ElectryEngine::ExpressionId expressionId) noexcept;
     int takeNoteOwnership (int note, int midiChannel,
-                           bool allowAnyLegacy) noexcept;
+                           bool allowAnyHostLegacy,
+                           int* ownershipSource = nullptr) noexcept;
     void clearMpeNoteOwnership() noexcept;
     void resetPitchBends() noexcept;
     void resetAttackConditioningControllers() noexcept;

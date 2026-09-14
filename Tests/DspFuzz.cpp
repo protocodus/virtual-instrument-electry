@@ -51,6 +51,13 @@ struct Input
             default: return static_cast<float>(byte()) / 255.0f;
         }
     }
+    int note()
+    {
+        // Exercise the full int boundary as well as enough valid notes to
+        // reach the active string path regularly.
+        return byte() % 4 == 0 ? std::bit_cast<std::int32_t>(word())
+                              : static_cast<int>(byte()) - 32;
+    }
 };
 
 constexpr std::array engineControls {
@@ -95,9 +102,15 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     auto fx = std::make_unique<electry::ElectryFx>();
     electry::EngineParameters parameters;
     electry::FxParameters effects;
-    const auto rate = rates[input.byte() % rates.size()];
-    engine->prepare(rate, 1 + input.byte());
-    fx->prepare(rate);
+    const auto initialMode = input.byte();
+    const auto rate = rates[initialMode % rates.size()];
+    bool fxPrepared = false;
+    if ((initialMode & 0x80u) == 0)
+    {
+        engine->prepare(rate, 1 + input.byte());
+        fx->prepare(rate);
+        fxPrepared = true;
+    }
 
     // Sentinels also catch writes outside the caller's frame count when they
     // remain inside the allocation and would otherwise evade AddressSanitizer.
@@ -122,21 +135,39 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 require(std::isfinite(left[static_cast<std::size_t>(i)])
                         && std::isfinite(right[static_cast<std::size_t>(i)]));
         }
+        const auto beforeLeft = left;
+        const auto beforeRight = right;
         fx->process(left.data() + 1, right.data() + 1, count);
+        if (! fxPrepared)
+            for (int i = 1; i <= count; ++i)
+            {
+                const auto index = static_cast<std::size_t>(i);
+                require(std::bit_cast<std::uint32_t>(left[index])
+                            == std::bit_cast<std::uint32_t>(beforeLeft[index])
+                        && std::bit_cast<std::uint32_t>(right[index])
+                            == std::bit_cast<std::uint32_t>(beforeRight[index]));
+            }
         engine->pushAcousticReturn(left.data() + 1, right.data() + 1, count);
         require(left.front() == sentinel && right.front() == sentinel);
         for (std::size_t i = static_cast<std::size_t>(count + 1); i < left.size(); ++i)
             require(left[i] == sentinel && right[i] == sentinel);
-        for (int i = 1; i <= count; ++i)
-            require(std::isfinite(left[static_cast<std::size_t>(i)])
-                    && std::isfinite(right[static_cast<std::size_t>(i)]));
+        if (fxPrepared || ! externalInput)
+            for (int i = 1; i <= count; ++i)
+                require(std::isfinite(left[static_cast<std::size_t>(i)])
+                        && std::isfinite(right[static_cast<std::size_t>(i)]));
         require(engine->getActiveVoiceCount() >= 0
                 && engine->getActiveVoiceCount() <= electry::ElectryEngine::stringCount);
+        std::array<electry::StringVisualState, electry::ElectryEngine::stringCount>
+            visuals {};
+        engine->getStringVisualState(visuals);
+        for (const auto& visual : visuals)
+            require(std::isfinite(visual.level)
+                    && visual.level >= 0.0f && visual.level <= 1.0f);
     };
 
     for (int command = 0; command < 64 && !input.bytes.empty(); ++command)
     {
-        switch (input.byte() % 18)
+        switch (input.byte() % 23)
         {
             case 0:
             {
@@ -154,17 +185,17 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
             }
             case 2:
             {
-                const int note = static_cast<int>(input.byte()) - 32;
+                const int note = input.note();
                 const float velocity = input.scalar();
                 const auto id = input.byte();
-                engine->noteOn(note, velocity, id);
+                engine->noteOn(note, velocity, id, input.byte());
                 break;
             }
             case 3:
             {
-                const int note = static_cast<int>(input.byte()) - 32;
+                const int note = input.note();
                 const auto id = input.byte();
-                engine->noteOff(note, id);
+                engine->noteOff(note, id, input.byte());
                 break;
             }
             case 4: engine->setPitchBend(input.scalar()); break;
@@ -196,13 +227,16 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 break;
             case 12:
             {
-                std::array<electry::ElectryEngine::NoteOnEvent, 16> notes {};
-                const auto count = input.byte() % (notes.size() + 1);
+                // Include groups exceeding the engine's fixed 128-event
+                // capacity, and exact boundary sizes, without allocating.
+                std::array<electry::ElectryEngine::NoteOnEvent, 256> notes {};
+                const std::size_t count = input.byte();
                 for (std::size_t i = 0; i < count; ++i)
                 {
-                    notes[i].midiNote = static_cast<int>(input.byte()) - 32;
+                    notes[i].midiNote = input.note();
                     notes[i].velocity = input.scalar();
                     notes[i].expressionId = input.byte();
+                    notes[i].ownershipSource = input.byte();
                 }
                 engine->noteOnChord({ notes.data(), count });
                 break;
@@ -230,6 +264,54 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 engine->process(nullptr, right.data(), 256);
                 fx->process(left.data(), nullptr, 256);
                 engine->pushAcousticReturn(nullptr, nullptr, 256);
+                break;
+            case 18:
+            {
+                const auto nextRate = rates[input.byte() % rates.size()];
+                engine->prepare(nextRate, std::bit_cast<std::int32_t>(input.word()));
+                fx->prepare(nextRate);
+                fxPrepared = true;
+                break;
+            }
+            case 19:
+            {
+                // Non-positive frame counts must neither advance state nor
+                // touch caller storage, including the extreme signed count.
+                const int count = input.byte() % 2 == 0
+                    ? 0 : std::numeric_limits<int>::min();
+                left.fill(sentinel);
+                right.fill(sentinel);
+                engine->process(left.data(), right.data(), count);
+                fx->process(left.data(), right.data(), count);
+                engine->pushAcousticReturn(left.data(), right.data(), count);
+                for (std::size_t i = 0; i < left.size(); ++i)
+                    require(left[i] == sentinel && right[i] == sentinel);
+                break;
+            }
+            case 20:
+            {
+                left.fill(sentinel);
+                const int count = 1 + input.byte();
+                engine->process(left.data() + 1, left.data() + 1, count);
+                fx->process(left.data() + 1, left.data() + 1, count);
+                engine->pushAcousticReturn(left.data() + 1, nullptr, count);
+                require(left.front() == sentinel);
+                for (int i = 1; i <= count; ++i)
+                    require(std::isfinite(left[static_cast<std::size_t>(i)]));
+                for (std::size_t i = static_cast<std::size_t>(count + 1);
+                     i < left.size(); ++i)
+                    require(left[i] == sentinel);
+                break;
+            }
+            case 21:
+                engine->setVariationSeed(input.word());
+                engine->reset();
+                break;
+            case 22:
+                // Reach multiple control periods and delayed contacts even
+                // when a corpus entry contains only a short event prefix.
+                for (int block = 0; block < 32; ++block)
+                    render(32, false);
                 break;
             default: render(1 + input.byte(), true); break;
         }
