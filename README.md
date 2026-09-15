@@ -60,6 +60,10 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-09-15 — Picked-note transitions:** a newly picked fret starts at its
+  stopped pitch instead of briefly gliding from the previous note. Same-note
+  repicks preserve live bends and slides, and scheduled strums keep their
+  contact timing.
 - **2026-09-14 — Release hardening:** malformed host MIDI, parameter values,
   state chunks and output buffers are handled safely; duplicate note releases
   preserve MPE ownership, and controller resets respect event order. Extreme
@@ -194,6 +198,48 @@ Every model has named research references, listed below. Electry does not claim
 to be a capture-accurate clone of any one instrument.
 
 ## Audio demos
+
+### Showroom Sessions — ten original performances
+
+The optional showroom renderer creates ten curated preset settings with original
+musical performances: **Drop-E Titan, Glasshouse Clean, Velvet Blues, Copper
+Crunch, Ghost Pocket, Northern Lights, Iron Cathedral, Gravity Lead, Midnight
+Hollow and Voltage Tremolo**. These cover American clean, British crunch and
+Modern high-gain voices, exposed chord melodies, natural harmonics, expressive
+lead playing and the instrument's own Double mode. They are new showcase
+settings; the four selectable factory programs remain the existing bank.
+
+Render the set with the shipping DSP at **96 kHz, High FX quality and 24-bit
+stereo WAV**. Each performance runs approximately 29–36 seconds followed by a
+five-second release tail. The exporter preserves dynamics with constant gain,
+targets −16 LUFS within a −1 dBTP ceiling, fades only the final 900 ms, and adds
+deterministic TPDF dither at 24-bit precision. There are no external instruments,
+effects or backing tracks. Native guitar/amp processing, including Double's
+two independently seeded engines and acoustic returns, follows the plugin.
+
+```bash
+cmake -S . -B build-showcase -DCMAKE_BUILD_TYPE=Release \
+  -DELECTRY_BUILD_PLUGIN=OFF -DELECTRY_BUILD_UNIVERSAL=OFF -DBUILD_TESTING=OFF
+cmake --build build-showcase --target ElectryRenderShowcase --parallel
+# Python dependencies: numpy and scipy; ffmpeg/ffprobe must be on PATH.
+python3 Tools/Showcase/build.py --jobs 3
+```
+
+The local `out/Electry-Showroom-Sessions/` delivery contains ten WAVs, a listening
+player, the source scores, MIDI companions, JSON preset settings, measured audio
+QA and checksums. A ZIP is written beside it. MIDI uses Electry's written-guitar
+pitch layout; select **LATCH**, enable **FX**, choose **High**, and apply the
+accompanying plain host parameter values before playback. JSON files document
+the settings and are not an in-plugin preset import format. These original
+performances supplement the 23 committed technical demonstrations below.
+
+Velvet Blues uses a firmer, more bridgeward pick contact for a defined attack.
+Copper Crunch uses tighter strums, explicit string fingering and balanced held
+MIDI ownership through repeated muted passages, so its fretting hand stays
+planted while the picking hand plays the rhythm. Both retain their original
+melodies, tempo and amplifier settings.
+
+### Technical demonstrations
 
 Twenty-three takes, rendered by [`Tools/RenderDemos.cpp`](Tools/RenderDemos.cpp)
 from the same JUCE-free code the plug-in runs: the full playable range, every

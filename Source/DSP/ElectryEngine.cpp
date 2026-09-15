@@ -5848,6 +5848,12 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     const int fret = midiNote - spec.openMidiNote;
 
     const bool wasRinging = voice.active;
+    // A new picked fret is already stopped when the pick reaches it. Keep
+    // that assignment distinct from repicking the same finger, whose live
+    // bend/vibrato (or unfinished slide) must retain its current trajectory.
+    // Capture the old identity before the new MIDI owner replaces it below.
+    const bool pickedFretChange = wasRinging && voice.midiNote != midiNote
+                              && plectrumContacts(playStyle, false);
     // A delayed pending contact captured this at scheduling time. `active`
     // alone is insufficient: a fresh strummed voice is active throughout its
     // silent pre-roll and may receive another same-note reservation there.
@@ -6125,6 +6131,14 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
 #endif
             voice.vertical.currentDelay = voice.vertical.targetDelay;
             voice.horizontal.currentDelay = voice.horizontal.targetDelay;
+        }
+        else if (pickedFretChange)
+        {
+            // The six-ms follower is for continuously moving fingers, not
+            // the previous note's fret under a fresh picked attack. Reuse
+            // the ordinary stopped-note pitch solve without erasing the
+            // ringing string or advancing a delayed strum's pick contact.
+            configureVoicePitch(voice, true);
         }
     }
 

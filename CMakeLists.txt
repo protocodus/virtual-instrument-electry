@@ -267,6 +267,10 @@ if(ELECTRY_BUILD_TOOLS)
     target_link_libraries(ElectryRenderDemos PRIVATE ElectryDSP Threads::Threads)
     target_compile_features(ElectryRenderDemos PRIVATE cxx_std_20)
 
+    add_executable(ElectryRenderShowcase Tools/RenderShowcase.cpp)
+    target_link_libraries(ElectryRenderShowcase PRIVATE ElectryDSP)
+    target_compile_features(ElectryRenderShowcase PRIVATE cxx_std_20)
+
     add_executable(ElectryRenderEvaluation Tools/RenderEvaluation.cpp)
     target_link_libraries(ElectryRenderEvaluation PRIVATE ElectryDSP)
     target_compile_features(ElectryRenderEvaluation PRIVATE cxx_std_20)
@@ -280,10 +284,13 @@ if(ELECTRY_BUILD_TOOLS)
 
     if(MSVC)
         target_compile_options(ElectryRenderDemos PRIVATE /W4 /permissive-)
+        target_compile_options(ElectryRenderShowcase PRIVATE /W4 /permissive-)
         target_compile_options(ElectryRenderEvaluation PRIVATE /W4 /permissive-)
         target_compile_options(ElectryBenchmarkFx PRIVATE /W4 /permissive-)
     else()
         target_compile_options(ElectryRenderDemos PRIVATE
+            -Wall -Wextra -Wpedantic)
+        target_compile_options(ElectryRenderShowcase PRIVATE
             -Wall -Wextra -Wpedantic)
         target_compile_options(ElectryRenderEvaluation PRIVATE
             -Wall -Wextra -Wpedantic)
@@ -293,6 +300,10 @@ if(ELECTRY_BUILD_TOOLS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(ElectryRealismPickedRefretTests Tests/RealismPickedRefretTests.cpp)
+    target_link_libraries(ElectryRealismPickedRefretTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismPickedRefret COMMAND ElectryRealismPickedRefretTests)
+
     add_executable(ElectryRealismTimingTests Tests/RealismTimingTests.cpp)
     target_link_libraries(ElectryRealismTimingTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismTiming COMMAND ElectryRealismTimingTests)
