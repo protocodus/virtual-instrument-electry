@@ -25,7 +25,7 @@ ARTIFACT_URL = re.compile(
     r"[A-Za-z0-9_-][A-Za-z0-9_.-]*/actions/runs/[1-9][0-9]*/artifacts/[1-9][0-9]*"
 )
 PUBLISHED_BUILD = re.compile(
-    rb"\*\*\[Download distributable binaries \xe2\x80\x94 build ([0-9]+)\]\("
+    rb"\*\*\[Download distributable binaries \xe2\x80\x94 build ([0-9]+(?:\.[0-9]+)?)\]\("
 )
 SCREENSHOT = "Docs/screenshots/electry-standalone.png"
 WAV_NAME = re.compile(r"(0[1-9]|1[0-9]|2[0-3])-[a-z0-9]+(?:-[a-z0-9]+)*\.wav")
@@ -71,11 +71,11 @@ def validate_download(build_number, artifact_url):
         return None
     if build_number is None or artifact_url is None:
         raise ValueError("--build-number and --artifact-url must be provided together")
-    if re.fullmatch(r"[0-9]+", str(build_number)) is None or int(build_number) <= 0:
-        raise ValueError("--build-number must be a positive ASCII integer")
+    if re.fullmatch(r"[1-9][0-9]*(?:\.[1-9][0-9]*)?", str(build_number)) is None:
+        raise ValueError("--build-number must be a positive integer or run.attempt pair")
     if ARTIFACT_URL.fullmatch(artifact_url) is None:
         raise ValueError("--artifact-url must be an HTTPS GitHub Actions artifact URL")
-    return int(build_number)
+    return str(build_number)
 
 
 def read_payload(media_dir):
@@ -192,7 +192,7 @@ def refresh(source_commit, media_dir, remote, branch, build_number=None, artifac
         if build_number is not None:
             _, download, _ = download_parts(git(repo, "show", f"{tip}:README.md").stdout)
             published = PUBLISHED_BUILD.search(download)
-            if published is not None and int(published[1]) > build_number:
+            if published is not None and tuple(map(int, published[1].split(b"."))) > tuple(map(int, build_number.split("."))):
                 print("Skipped outdated build: README already links to a newer build.")
                 return
         if not source_is_current(repo, source, tip):

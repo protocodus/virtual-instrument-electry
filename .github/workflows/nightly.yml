@@ -12,7 +12,8 @@ permissions:
   contents: read
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}
+  DIST_ROOT: ${{ github.workspace }}/dist
+  BUILD_NUMBER: ${{ github.run_id }}.${{ github.run_attempt }}
 
 # Each push builds independently: a shared concurrency group would discard
 # pending builds when several merges arrive while another run is still active.
@@ -53,6 +54,8 @@ jobs:
           retention-days: 14
 
   build-macos:
+    outputs:
+      version: ${{ steps.release.outputs.version }}
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: macOS universal (VST3, AU, CLAP, standalone)
     runs-on: macos-latest
@@ -120,38 +123,32 @@ jobs:
           retention-days: 14
 
       - name: Package (ad-hoc-signed bundles)
+        id: release
+        shell: bash
         run: |
           set -euo pipefail
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-macos/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          VERSION="$version" ./scripts/sign-and-package-macos.sh
+          ./scripts/sign-and-package-macos.sh
+          archs="$(lipo -archs build-macos/Electry_artefacts/Release/VST3/Electry.vst3/Contents/MacOS/Electry)"
+          arch="x64"
+          if [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]; then arch="universal"
+          elif [[ "$archs" == *arm64* ]]; then arch="arm64"; fi
+          echo "version=$(python scripts/release_metadata.py --build-dir build-macos --field version)" >> "$GITHUB_OUTPUT"
+          echo "arch=$arch" >> "$GITHUB_OUTPUT"
+          echo "dist=$(python scripts/release_metadata.py --build-dir build-macos --platform macOS --arch "$arch" --dist)" >> "$GITHUB_OUTPUT"
 
       - name: Check that both distributable packages were produced
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
-          packages=(
-            build-macos/dist/Electry-*-macOS-universal.zip
-            build-macos/dist/Electry-*-macOS-universal.pkg
-          )
-          if (( ${#packages[@]} != 2 )); then
-            echo "error: expected one zip and one pkg, found ${#packages[@]}" >&2
-            printf '  %s\n' "${packages[@]:-(none)}" >&2
-            exit 1
-          fi
-          printf 'Packaged %s\n' "${packages[@]}"
+          packages=("${{ steps.release.outputs.dist }}"/*.zip "${{ steps.release.outputs.dist }}"/*.pkg)
+          test "${#packages[@]}" -eq 2
 
-      # Handed to the aggregate artifact job as one complete cross-platform set.
       - name: Upload the distributable packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: distribution-packages-macos
-          path: |
-            build-macos/dist/Electry-*-macOS-universal.zip
-            build-macos/dist/Electry-*-macOS-universal.pkg
+          name: Electry-${{ steps.release.outputs.version }}-build.${{ env.BUILD_NUMBER }}-macOS-${{ steps.release.outputs.arch }}
+          path: ${{ steps.release.outputs.dist }}/*
           if-no-files-found: error
           retention-days: 1
 
@@ -198,37 +195,21 @@ jobs:
             -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package (Linux x64 tarball)
+        id: release
+        shell: bash
         run: |
           set -euo pipefail
-          artefacts="build-linux/Electry_artefacts/Release"
-          test -d "$artefacts/VST3/Electry.vst3"
-          test -s "$artefacts/CLAP/Electry.clap"
-          test -x "$artefacts/Standalone/Electry"
-          dist="build-linux/dist"
-          mkdir -p "$dist"
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-linux/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          archive="$dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
-          # Licence and notice files ship inside the binary archive (the MIT
-          # licence requires the notice to accompany binaries).
-          contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
-          for notice in LICENSE THIRD_PARTY_NOTICES.md ThirdParty/*-LICENSE.md; do
-            test -s "$notice"
-            cp "$notice" "$artefacts/$(basename "$notice")"
-            contents+=("$(basename "$notice")")
-          done
-          tar -czf "$archive" -C "$artefacts" "${contents[@]}"
-          test -s "$archive"
-          tar -tzf "$archive" >/dev/null
+          BUILD_DIR=build-linux bash scripts/package-linux.sh
+          arch="x64"
+          echo "version=$(python scripts/release_metadata.py --build-dir build-linux --field version)" >> "$GITHUB_OUTPUT"
+          echo "arch=$arch" >> "$GITHUB_OUTPUT"
+          echo "dist=$(python scripts/release_metadata.py --build-dir build-linux --platform Linux --arch "$arch" --dist)" >> "$GITHUB_OUTPUT"
 
       - name: Upload the distributable Linux package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: distribution-packages-linux
-          path: build-linux/dist/Electry-*-Linux-x64.tar.gz
+          name: Electry-${{ steps.release.outputs.version }}-build.${{ env.BUILD_NUMBER }}-Linux-${{ steps.release.outputs.arch }}
+          path: ${{ steps.release.outputs.dist }}/*
           if-no-files-found: error
           retention-days: 1
 
@@ -253,14 +234,21 @@ jobs:
           ctest --test-dir build-win -C Release --output-on-failure
 
       - name: Package (Windows x64 ZIP)
-        shell: pwsh
-        run: ./scripts/package-windows.ps1 -BuildDir build-win
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/package-windows.py --build-dir build-win
+          arch="x64"
+          echo "version=$(python scripts/release_metadata.py --build-dir build-win --field version)" >> "$GITHUB_OUTPUT"
+          echo "arch=$arch" >> "$GITHUB_OUTPUT"
+          echo "dist=$(python scripts/release_metadata.py --build-dir build-win --platform Windows --arch "$arch" --dist)" >> "$GITHUB_OUTPUT"
 
       - name: Upload the distributable Windows package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: distribution-packages-win
-          path: build-win/dist/Electry-*-Windows-x64.zip
+          name: Electry-${{ steps.release.outputs.version }}-build.${{ env.BUILD_NUMBER }}-Windows-${{ steps.release.outputs.arch }}
+          path: ${{ steps.release.outputs.dist }}/*
           if-no-files-found: error
           retention-days: 1
 
@@ -276,11 +264,12 @@ jobs:
       contents: read
     outputs:
       artifact-url: ${{ steps.upload-build.outputs.artifact-url }}
+      version: ${{ needs.build-macos.outputs.version }}
     steps:
       - name: Download every package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: distribution-packages-*
+          pattern: Electry-*-build.${{ env.BUILD_NUMBER }}-*
           merge-multiple: true
           path: dist
 
@@ -298,16 +287,16 @@ jobs:
           fi
           filename="${mac_zips[0]##*/}"
           version="${filename#Electry-}"
-          version="${version%-build-${BUILD_NUMBER}-macOS-universal.zip}"
+          version="${version%-build.${BUILD_NUMBER}-macOS-universal.zip}"
           if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
             echo "error: invalid version in $filename" >&2
             exit 1
           fi
           expected=(
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.zip"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.pkg"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-Windows-x64.zip"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-macOS-universal.zip"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-macOS-universal.pkg"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-Linux-x64.tar.gz"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-Windows-x64.zip"
           )
           for asset in "${expected[@]}"; do
             if [[ ! -s "$asset" ]]; then
@@ -315,7 +304,7 @@ jobs:
               exit 1
             fi
           done
-          assets=(dist/*)
+          assets=(dist/*.zip dist/*.pkg dist/*.tar.gz)
           if (( ${#assets[@]} != 4 )); then
             echo "error: expected exactly four release assets, found ${#assets[@]}" >&2
             printf '  %s\n' "${assets[@]:-(none)}" >&2
@@ -357,7 +346,7 @@ jobs:
         id: upload-build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: electry-main-build-${{ github.run_number }}
+          name: Electry-${{ needs.build-macos.outputs.version }}-build.${{ env.BUILD_NUMBER }}-All-platforms
           path: dist
           if-no-files-found: error
           retention-days: 14
@@ -381,7 +370,7 @@ jobs:
       - name: Download the complete build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: electry-main-build-${{ github.run_number }}
+          name: Electry-${{ needs.collect-packages.outputs.version }}-build.${{ env.BUILD_NUMBER }}-All-platforms
           path: completed-build
 
       - name: Verify the downloaded build

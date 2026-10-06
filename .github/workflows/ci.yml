@@ -14,6 +14,10 @@ concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  BUILD_NUMBER: ${{ github.run_id }}.${{ github.run_attempt }}
+  DIST_ROOT: ${{ github.workspace }}/dist
+
 jobs:
   sanitizer-fuzz:
     name: Address/UB sanitizers and stateful input fuzzing
@@ -146,37 +150,21 @@ jobs:
             -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package Linux VST3, CLAP and standalone
+        id: release
+        shell: bash
         run: |
           set -euo pipefail
-          artefacts="build-dsp/Electry_artefacts/Release"
-          test -d "$artefacts/VST3/Electry.vst3"
-          test -s "$artefacts/CLAP/Electry.clap"
-          test -x "$artefacts/Standalone/Electry"
-          dist="build-dsp/dist"
-          mkdir -p "$dist"
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-dsp/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          archive="$dist/Electry-${version}-build-${GITHUB_RUN_NUMBER}-Linux-x64.tar.gz"
-          # Licence and notice files ship inside the binary archive (the MIT
-          # licence requires the notice to accompany binaries).
-          contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
-          for notice in LICENSE THIRD_PARTY_NOTICES.md ThirdParty/*-LICENSE.md; do
-            test -s "$notice"
-            cp "$notice" "$artefacts/$(basename "$notice")"
-            contents+=("$(basename "$notice")")
-          done
-          tar -czf "$archive" -C "$artefacts" "${contents[@]}"
-          test -s "$archive"
-          tar -tzf "$archive" >/dev/null
+          BUILD_DIR=build-dsp bash scripts/package-linux.sh
+          arch="x64"
+          echo "version=$(python scripts/release_metadata.py --build-dir build-dsp --field version)" >> "$GITHUB_OUTPUT"
+          echo "arch=$arch" >> "$GITHUB_OUTPUT"
+          echo "dist=$(python scripts/release_metadata.py --build-dir build-dsp --platform Linux --arch "$arch" --dist)" >> "$GITHUB_OUTPUT"
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: ci-linux
-          path: build-dsp/dist/Electry-*-build-*-Linux-x64.tar.gz
+          name: Electry-${{ steps.release.outputs.version }}-build.${{ env.BUILD_NUMBER }}-Linux-${{ steps.release.outputs.arch }}
+          path: ${{ steps.release.outputs.dist }}/*
           if-no-files-found: error
           retention-days: 7
 
@@ -253,13 +241,20 @@ jobs:
           ctest --test-dir build-win -C Release --output-on-failure -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package Windows VST3, CLAP and standalone
-        shell: pwsh
-        run: ./scripts/package-windows.ps1 -BuildDir build-win
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/package-windows.py --build-dir build-win
+          arch="x64"
+          echo "version=$(python scripts/release_metadata.py --build-dir build-win --field version)" >> "$GITHUB_OUTPUT"
+          echo "arch=$arch" >> "$GITHUB_OUTPUT"
+          echo "dist=$(python scripts/release_metadata.py --build-dir build-win --platform Windows --arch "$arch" --dist)" >> "$GITHUB_OUTPUT"
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: ci-windows
-          path: build-win/dist/Electry-*-Windows-x64.zip
+          name: Electry-${{ steps.release.outputs.version }}-build.${{ env.BUILD_NUMBER }}-Windows-${{ steps.release.outputs.arch }}
+          path: ${{ steps.release.outputs.dist }}/*
           if-no-files-found: error
           retention-days: 7

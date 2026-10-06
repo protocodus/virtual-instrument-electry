@@ -25,6 +25,8 @@ endif()
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
 project(Electry VERSION 1.2.0 LANGUAGES C CXX)
 
+include(cmake/BuildIdentity.cmake)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -207,6 +209,7 @@ if(ELECTRY_BUILD_PLUGIN)
 
     juce_add_plugin(Electry
         VERSION ${PROJECT_VERSION}
+        BUILD_VERSION ${PROTOCODUS_BUILD_NUMBER}
         COMPANY_NAME "Electry Audio"
         BUNDLE_ID "audio.electry.synth"
         PLUGIN_MANUFACTURER_CODE Eltr
@@ -225,6 +228,7 @@ if(ELECTRY_BUILD_PLUGIN)
         COPY_PLUGIN_AFTER_BUILD FALSE)
 
     juce_generate_juce_header(Electry)
+    target_sources(Electry PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/BuildIdentity.cpp")
 
     target_sources(Electry PRIVATE
         Source/PluginProcessor.cpp
@@ -565,5 +569,13 @@ if(BUILD_TESTING)
             Electry.ValidateReferenceFixture Electry.CompareReferenceFixture
             Electry.FitDispersion
             PROPERTIES TIMEOUT 60)
+    endif()
+endif()
+
+if(BUILD_TESTING)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME Electry.ReleaseMetadata
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Tests/ReleaseMetadataTests.py")
     endif()
 endif()

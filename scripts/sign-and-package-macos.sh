@@ -6,20 +6,15 @@ PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${PROJECT_DIR}/build-macos}"
 CONFIG="${CONFIG:-Release}"
 VERSION_OVERRIDE="${VERSION:-}"
-BUILD_NUMBER="${BUILD_NUMBER-${GITHUB_RUN_NUMBER-0}}"
 APP_SIGN_IDENTITY="${APP_SIGN_IDENTITY:--}"
 INSTALLER_SIGN_IDENTITY="${INSTALLER_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
 ARTIFACT_DIR="${BUILD_DIR}/Electry_artefacts/${CONFIG}"
-DIST_DIR="${BUILD_DIR}/dist"
+RELEASE_METADATA="${SCRIPT_DIR}/release_metadata.py"
+BUILD_NUMBER="$(python3 "${RELEASE_METADATA}" --build-dir "${BUILD_DIR}" --field build_number)"
 PACKAGE_ROOT="${BUILD_DIR}/package-root"
 
-case "${BUILD_NUMBER}" in
-    ""|*[!0123456789]*)
-        echo "error: BUILD_NUMBER must contain only ASCII digits" >&2
-        exit 1
-        ;;
-esac
+
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "error: this script requires macOS" >&2
@@ -96,7 +91,12 @@ if [[ "${APP_ARCHS}" == *arm64* && "${APP_ARCHS}" == *x86_64* ]]; then
     ARTIFACT_ARCH="universal"
 else
     ARTIFACT_ARCH="${APP_ARCHS// /-}"
+    [[ "${ARTIFACT_ARCH}" != "x86_64" ]] || ARTIFACT_ARCH="x64"
 fi
+
+python3 "${RELEASE_METADATA}" --build-dir "${BUILD_DIR}" --config "${CONFIG}" \
+    --platform macOS --arch "${ARTIFACT_ARCH}" --verify --require-empty >/dev/null
+DIST_DIR="$(python3 "${RELEASE_METADATA}" --build-dir "${BUILD_DIR}" --platform macOS --arch "${ARTIFACT_ARCH}" --dist)"
 
 case "${PACKAGE_ROOT}" in
     "${BUILD_DIR}"/*) ;;
@@ -173,15 +173,10 @@ sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/Components/Electry.component
 sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/CLAP/Electry.clap"
 sign_bundle "${PACKAGE_ROOT}/Applications/Electry.app"
 
-ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
-PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-unsigned.pkg"
-PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"
+ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
+PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-unsigned.pkg"
+PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"
 
-# Leave exactly one Electry release set in dist, avoiding stale version or
-# architecture names in wildcard-driven CI publication.
-rm -f "${DIST_DIR}/Electry-"*-macOS-*.zip
-rm -f "${DIST_DIR}/Electry-"*-macOS-*.pkg
-rm -f "${DIST_DIR}/Electry-"*-unsigned.pkg
 
 COPYFILE_DISABLE=1 pkgbuild \
     --root "${PACKAGE_ROOT}" \
@@ -222,3 +217,6 @@ echo
 echo "Packaging complete:"
 echo "  ${ZIP_PATH}"
 echo "  ${PKG_FINAL}"
+
+python3 "${RELEASE_METADATA}" --build-dir "${BUILD_DIR}" --config "${CONFIG}" \
+    --platform macOS --arch "${ARTIFACT_ARCH}" --finalize "${PKG_FINAL}" "${ZIP_PATH}"

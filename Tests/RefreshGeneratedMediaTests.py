@@ -141,6 +141,14 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertIn("unchanged", self.publish(build_number=3, artifact_url=ARTIFACT_URL).stdout)
         self.assertEqual(self.tip(), published)
 
+    def test_run_attempts_preserve_numeric_order(self):
+        self.publish(build_number="12.2", artifact_url=ARTIFACT_URL)
+        previous = self.tip()
+        self.assertIn("outdated build", self.publish(build_number="12.1", artifact_url=ARTIFACT_URL).stdout)
+        self.assertEqual(self.tip(), previous)
+        self.publish(build_number="12.10", artifact_url=ARTIFACT_URL)
+        self.assertNotEqual(self.tip(), previous)
+
     def test_same_build_rerun_updates_artifact_url(self):
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
         rerun_url = ARTIFACT_URL.replace("/456", "/789")
@@ -203,7 +211,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
     def test_invalid_or_unpaired_download_arguments_do_not_write_repository(self):
         invalid = [
             ("2", None), (None, ARTIFACT_URL), ("0", ARTIFACT_URL),
-            ("-1", ARTIFACT_URL), ("1.5", ARTIFACT_URL), ("１", ARTIFACT_URL),
+            ("-1", ARTIFACT_URL), ("1.0", ARTIFACT_URL), ("１", ARTIFACT_URL),
             ("2\n", ARTIFACT_URL), ("2", "http://github.com/example/electry/actions/runs/1/artifacts/2"),
             ("2", "https://github.com.evil.example/example/electry/actions/runs/1/artifacts/2"),
             ("2", "https://github.com/example/electry/actions/runs/1"),

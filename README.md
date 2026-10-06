@@ -20,7 +20,7 @@ palm muting, hammer-ons, slides, harmonics and vibrato.
 This link downloads the complete binary package set, including the plug-ins and
 standalone applications below. GitHub requires sign-in to download workflow
 artifacts. Successful builds refresh this link automatically. You can also find
-`electry-main-build-<build number>` in the **Artifacts** section of
+`Electry-<version>-build.<run.attempt>-All-platforms` in the **Artifacts** section of
 **[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
 (older runs use `electry-main-build`).
 
@@ -34,7 +34,7 @@ Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
 demos. Each download includes that complete set, source revision and SHA-256
 checksums, and remains available for 14 days. Builds also refresh daily.
 New package filenames include the workflow run number, for example
-`Electry-1.2.0-build-16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
+`Electry-1.2.0-build.16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
 macOS ZIP use the same version and build number. `BUILD_NUMBER.txt` records it
 inside the combined download.
 
@@ -5266,9 +5266,9 @@ keeps its downloads but skips the repository update if relevant source changes
 or a newer build link have already landed on `main`.
 
 Use the [direct binary download](#downloads), or download
-`electry-main-build-<build number>` from the completed run's **Artifacts** section
+`Electry-<version>-build.<run.attempt>-All-platforms` from the completed run's **Artifacts** section
 in GitHub Actions. It includes packages named
-`Electry-<version>-build-<build number>-<platform>-<architecture>`, the screenshot
+`Electry-<version>-build.<build number>-<platform>-<architecture>`, the screenshot
 and audio demos under `media/`, SHA-256 checksums, the build number and the source
 commit, retained for 14 days.
 Each merge gets its own run, including when other builds are still in progress.
@@ -5277,9 +5277,43 @@ manually. Manual branch builds keep their outputs as artifacts; only builds of
 `main` update the committed media.
 For a local Windows Release build, `./scripts/package-windows.ps1 -BuildDir
 build-win` packages the built products and dependency notices.
-Local macOS and Windows packaging uses `BUILD_NUMBER`, then `GITHUB_RUN_NUMBER`,
-and defaults to build `0` when neither is set. Set `BUILD_NUMBER=123` for macOS
-packaging or pass `-BuildNumber 123` to the Windows script to label a local build.
+Configure the build number before compiling, as described below. Packaging validates the compiled identity and rejects a different `BUILD_NUMBER` or `VERSION`.
+
+### Versioned distributable builds
+
+The compiled version and build number determine every distributable name:
+`Electry-<version>-build.<number>-<Platform>-<arch>`. The local build number
+is `1` by default. Set `-DELECTRY_BUILD_NUMBER=42` when configuring another
+build, or supply `BUILD_NUMBER` on the first configure. CI uses the positive
+`GITHUB_RUN_ID.GITHUB_RUN_ATTEMPT` pair. The value is frozen in the CMake cache,
+JUCE bundle build version, and an identity compiled into every plugin. Packaging
+reads `build-release.json`, verifies that identity and the binary architecture,
+and rejects a mismatched build/version override; changing a label requires a rebuild.
+
+Build and package local macOS build 1 without rendering demos:
+
+```sh
+cmake -S . -B build-macos -DCMAKE_BUILD_TYPE=Release -DELECTRY_BUILD_NUMBER=1
+cmake --build build-macos --config Release --parallel 3 --target Electry_VST3 Electry_AU Electry_CLAP Electry_Standalone
+BUILD_DIR=build-macos ./scripts/sign-and-package-macos.sh
+```
+
+Outputs are kept in `dist/<version>/build.<number>/<Platform>-<arch>/`. For the
+current universal macOS build 1, this is `dist/1.2.0/build.1/macOS-universal/`,
+containing `Electry-1.2.0-build.1-macOS-universal.pkg`, the matching `.zip`,
+`.manifest.json`, and `.sha256` checksum file. The manifest records the source
+revision, dirty-source flag, compiled identity, architectures, and hashes.
+Older versions/builds are retained; packaging refuses a populated destination, so a new package requires an unused build number. `DIST_ROOT` can override the distribution root.
+A linked Git worktree resolves `dist` beside the primary checkout (including the
+project's relative directory in a monorepo); a source export uses its own `dist`.
+
+Linux: `BUILD_DIR=build-linux bash scripts/package-linux.sh`. Windows:
+`python scripts/package-windows.py --build-dir build-win`. Both consume an already
+compiled Release build and use the same layout and identity checks. CI uploads
+only the selected version/build/platform directory and names its artifact with
+that version and build. The `*_artefacts` directories are compiler intermediates;
+installed plugin filenames and plugin IDs stay unchanged so existing sessions
+continue to resolve them.
 
 ## September 11: ordinary-playing realism
 
