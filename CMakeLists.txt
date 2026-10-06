@@ -256,6 +256,10 @@ if(ELECTRY_BUILD_PLUGIN)
         clap_juce_extensions_plugin(TARGET Electry
             CLAP_ID "audio.electry.synth"
             CLAP_FEATURES instrument synthesizer stereo)
+        if(APPLE)
+            set_target_properties(Electry_CLAP PROPERTIES
+                MACOSX_BUNDLE_BUNDLE_VERSION "${PROTOCODUS_BUILD_NUMBER}")
+        endif()
     endif()
 endif()
 

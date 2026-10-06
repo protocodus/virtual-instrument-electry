@@ -22,7 +22,7 @@ standalone applications below. GitHub requires sign-in to download workflow
 artifacts. Successful builds refresh this link automatically. You can also find
 `Electry-<version>-build.<run.attempt>-All-platforms` in the **Artifacts** section of
 **[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
-(older runs use `electry-main-build`).
+(older runs retain their original `electry-main-build` or numbered artifact names).
 
 | Platform | Formats | Package |
 | --- | --- | --- |
@@ -33,10 +33,11 @@ artifacts. Successful builds refresh this link automatically. You can also find
 Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
 demos. Each download includes that complete set, source revision and SHA-256
 checksums, and remains available for 14 days. Builds also refresh daily.
-New package filenames include the workflow run number, for example
-`Electry-1.2.0-build.16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
-macOS ZIP use the same version and build number. `BUILD_NUMBER.txt` records it
-inside the combined download.
+New package filenames use the frozen CI run ID and attempt, for example
+`Electry-1.2.0-build.34269431642.2-macOS-universal.pkg`; the Windows ZIP, Linux
+tarball and macOS ZIP share that version and build identity. `BUILD_NUMBER.txt`
+records the same `run ID.attempt` inside the combined download. The existing
+download link above keeps its historical naming until a new workflow publishes it.
 
 macOS bundles are ad-hoc signed; the PKG installer is unsigned and the builds
 are not notarized. Audio Unit is available only on macOS.
