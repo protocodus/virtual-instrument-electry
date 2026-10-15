@@ -5979,8 +5979,13 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
                                       && ! retainedAudibleSympatheticRing;
 #endif
 
-    // The fretting hand stops a sympathetically ringing open string before the
-    // pick reaches it, so a coupled ring never survives into the played note.
+    // A newly fretted note stops the sympathetically ringing open string
+    // before its pick arrives. Picking that same open string has no fretting
+    // contact: retain its residual motion for the existing plectrum model.
+    // Pluta et al., Applied Sciences 12 (2022), 1659, distinguish re-exciting
+    // a moving string from a fresh pluck; they do not identify this model's
+    // fretting attenuation:
+    // https://doi.org/10.3390/app12031659
     // A coupled string that has already fallen below audibility needs no work.
     if (! wasRinging && voice.sympatheticReady
         && voice.sympatheticEnergy > 1.0e-11f)
@@ -5989,7 +5994,8 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         // all of it by the same amount before the played/fretted fit takes
         // ownership, rather than letting a full-level filter memory survive
         // the fretting contact or resetting it into a filter-start transient.
-        voice.vertical.scaleState(0.22f);
+        if (fret > 0)
+            voice.vertical.scaleState(0.22f);
         voice.sympatheticEnergy = 0.0f;
     }
     voice.sympatheticReady = false;

@@ -20809,12 +20809,6 @@ void testPickupGeometryFollowsLiveWaveSpeed()
         coupled.noteOn(ElectryEngine::lowestPlayableNote, 0.9f);
         const auto filtersAfterHandoff = TestAccess::loopFilterState(
             coupled, idleString);
-        bool filtersChokedTogether = true;
-        for (std::size_t i = 0; i < filtersBeforeHandoff.size(); ++i)
-        {
-            filtersChokedTogether = filtersChokedTogether
-                && filtersAfterHandoff[i] == 0.22f * filtersBeforeHandoff[i];
-        }
         expect(neckBeforeHandoff == populated
                    && bridgeBeforeHandoff == populated
                    && ! TestAccess::snapshot(coupled, idleString)
@@ -20824,9 +20818,9 @@ void testPickupGeometryFollowsLiveWaveSpeed()
                    && TestAccess::pickupHistory(coupled, idleString, false)
                        == bridgeBeforeHandoff,
                "the sympathetic-to-played handoff cleared pickup history");
-        expect(filtersChokedTogether,
-               "the sympathetic-to-played handoff left loop-filter memory "
-               "outside the physical choke");
+        expect(filtersAfterHandoff == filtersBeforeHandoff,
+               "picking the same open string applied a nonexistent fretting "
+               "contact to its loop-filter memories");
     }
 
 }
