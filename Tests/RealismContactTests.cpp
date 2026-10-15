@@ -106,6 +106,59 @@ void releaseMotion(double rate)
            "unplayed note-off remains exactly silent");
 }
 
+void stopDuringPalmMotion(double rate)
+{
+    using Style = electry::PlayStyle;
+    for (bool pressureOnly : {false, true})
+    for (bool lifting : {false, true})
+    for (double waitSeconds : {0.002, 0.20})
+    {
+        auto moving = makeEngine(rate), settled = makeEngine(rate);
+        const Style target = lifting ? Style::Sustain : Style::PalmMute;
+        const Style origin = lifting ? Style::PalmMute : Style::Sustain;
+        for (auto* e : {moving.get(), settled.get()})
+        {
+            const Style initial = e == moving.get() ? origin : target;
+            e->noteOn(Engine::firstPlayStyleKeyswitchNote
+                          + static_cast<int>(pressureOnly ? Style::Sustain : initial), 1.0f);
+            if (pressureOnly)
+                e->setPalmMutePressure(initial == Style::PalmMute ? 1.0f : 0.0f);
+            e->noteOn(33, 0.9f);
+            render(*e, static_cast<int>(0.15 * rate));
+            if (pressureOnly)
+            {
+                // No new pluck: the release-only correction must be audible
+                // independently of the attack path's contact treatment.
+                e->setPalmMutePressure(target == Style::PalmMute ? 1.0f : 0.0f);
+            }
+            else
+            {
+                e->noteOn(Engine::firstPlayStyleKeyswitchNote
+                              + static_cast<int>(target), 1.0f);
+                e->noteOn(Engine::firstRepickNote, 0.9f);
+            }
+            render(*e, static_cast<int>(waitSeconds * rate));
+            e->noteOff(33);
+        }
+        const auto m = Access::contact(*moving), s = Access::contact(*settled);
+        if (waitSeconds < 0.01)
+        {
+            expect(lifting ? m.closureSeconds > s.closureSeconds
+                           : m.closureSeconds < s.closureSeconds,
+                   "stopped finger follows the actual heel during landing/lift");
+            expect(lifting ? m.noiseCorner < s.noiseCorner : m.noiseCorner > s.noiseCorner,
+                   "release scrape retains the actual broad-hand darkness during motion");
+        }
+        else
+        {
+            expect(m.closureSeconds == s.closureSeconds && m.noiseCorner == s.noiseCorner,
+                   "settled stop closure and spectrum preserve their existing endpoints");
+        }
+        render(*moving, static_cast<int>(0.15 * rate));
+        render(*settled, static_cast<int>(0.15 * rate));
+    }
+}
+
 void stopHands(double rate)
 {
     auto open = makeEngine(rate), finger = makeEngine(rate), palm = makeEngine(rate, 1);
@@ -230,6 +283,7 @@ int main()
     for (double rate : {44100.0, 48000.0, 96000.0, 192000.0})
     {
         releaseMotion(rate); stopHands(rate); hammerGeometry(rate);
+        stopDuringPalmMotion(rate);
         movingHammerGeometry(rate);
     }
     blockInvariant();
