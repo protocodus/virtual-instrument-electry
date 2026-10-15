@@ -37,6 +37,17 @@ struct ElectryEngineTestAccess
         e.configureVoicePitch(e.voices_[0], false);
     }
     static void retire(ElectryEngine& e) { e.silenceVoice(e.voices_[0]); }
+
+    static std::vector<float> sympatheticState(const ElectryEngine& e)
+    {
+        const auto& v = e.voices_[0];
+        return {v.vertical.line.begin(), v.vertical.line.end()};
+    }
+    static bool isAudibleSympatheticString(const ElectryEngine& e)
+    {
+        const auto& v = e.voices_[0];
+        return !v.active && v.sympatheticReady && v.sympatheticEnergy > 1.0e-11f;
+    }
 };
 }
 
@@ -90,6 +101,45 @@ void beginSlide(Engine& e, int from, int to, double rate)
     render(e, static_cast<int>(0.12 * rate));
     style(e, electry::PlayStyle::Slide);
     e.noteOn(28 + to, 0.8f);
+}
+
+void sympatheticOpenRepick(double rate)
+{
+    for (int fret : {0, 5})
+    {
+        auto e = std::make_unique<Engine>();
+        electry::EngineParameters p;
+        p.sympatheticAmount = 1.0f;
+        p.pickNoise = p.fingerNoise = p.releaseNoise = p.artifactAmount = 0.0f;
+        p.strumSpreadSeconds = 0.0f;
+        e->setParameters(p);
+        e->prepare(rate, 256);
+        e->setSoloStringMask(1u << 2);
+        e->noteOn(40, 0.95f); // E2 drives the unplayed octave below through the bridge
+        render(*e, static_cast<int>(0.30 * rate));
+        expect(Access::isAudibleSympatheticString(*e),
+               "open E1 fixture has measurable bridge-driven motion before picking");
+        const auto before = Access::sympatheticState(*e);
+        e->setSoloStringMask(1);
+        e->noteOn(28 + fret, 0.15f);
+        const auto after = Access::sympatheticState(*e);
+        double error = 0.0, energy = 0.0;
+        for (std::size_t n = 0; n < before.size(); ++n)
+        {
+            const float expected = before[n] * (fret == 0 ? 1.0f : 0.22f);
+            error += std::abs(after[n] - expected);
+            energy += static_cast<double>(before[n]) * before[n];
+        }
+        expect(energy > 1.0e-10, "sympathetic handoff assertion contains actual stored energy");
+        expect(error == 0.0, fret == 0
+            ? "open-string pick preserves every residual rail sample before plectrum contact"
+            : "new stopped fret retains the established finger attenuation");
+        render(*e, static_cast<int>(0.30 * rate));
+        e->reset();
+        const auto silent = render(*e, 512);
+        expect(std::all_of(silent.begin(), silent.end(), [](float x) { return x == 0; }),
+               "sympathetic-to-played handoff resets to exact silence");
+    }
 }
 
 void physicalSlides(double rate)
@@ -239,6 +289,7 @@ int main()
     {
         physicalSlides(rate);
         frettingOwnership(rate);
+        sympatheticOpenRepick(rate);
         callbackInvariance(rate);
     }
     if (failures) std::cerr << failures << " gesture checks failed\n";
