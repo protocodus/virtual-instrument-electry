@@ -84,14 +84,19 @@ Score makeScore(const std::string& probe, bool amp)
             s.note(t + 0.8, 40, 0.12f + 0.06f * n, 1.8);
         }
     }
-    else if (probe == "dispersion")
+    else if (probe == "release")
     {
         p.sympatheticAmount = 0;
-        p.pickupType = 1;
-        p.pickupSelector = electry::PickupSelector::Bridge;
+        p.releaseNoise = 1;
         s.event(0, Kind::mask, 1);
-        for (int n = 0; n < 3; ++n)
-            s.note(0.2 + 3.0 * n, 40 + 5 * n, 1.0f, 2.5);
+        for (int n = 0; n < 8; ++n)
+        {
+            const double t = 0.25 + 1.1 * n;
+            s.style(t, n % 2 ? electry::PlayStyle::Sustain : electry::PlayStyle::PalmMute);
+            s.note(t, 45 + 7 * (n % 2), 0.95f, 0.152);
+            s.style(t + 0.15, n % 2 ? electry::PlayStyle::PalmMute : electry::PlayStyle::Sustain);
+            s.event(t + 0.15, Kind::on, 100, 0.7f);
+        }
     }
     else if (probe == "material" || probe == "sustain" || probe == "balance")
     {
