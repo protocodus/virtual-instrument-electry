@@ -823,17 +823,18 @@ private:
         }
     };
 
-    // The humbucker's two coils. A pickup that sums two sensors a distance d
-    // apart along the string adds the string's motion to itself delayed by the
-    // time the wave takes to cross that gap, d/c, so its magnitude response is
-    // |1 + b e^(-j 2 pi f d / c)| / (1 + b), dipping at c/2d. Normalised so the
-    // pair has unit gain at DC, and exact identity at zero spacing, which is
-    // what the single coil is.
-    //
-    // The second coil's weight b is below one for the same reason
-    // `pickupCombDepth` is: the null of a real pickup is a dip and not a zero.
-    // The screw coil sits further from the string than the slug coil and reads
-    // correspondingly quieter, so the two contributions cannot cancel.
+    // Two spatial sensors need opposite coil weights on the two travelling
+    // directions. Write the centre pickup as D(t)-R(t), including the chosen
+    // reflection depth in R, and let q=d/c. At one common causal time the
+    // far coil reads D(t)-R(t-q), the near coil D(t-q)-R(t). Their weighted
+    // sum is [D-b*R + delay_q(b*D-R)]/(1+b). To preserve the original centre
+    // arithmetic, accept C=D-R and store b*C+(b-1)*R in the one delay ring.
+    // Delaying the already combined centre signal is equivalent only at b=1;
+    // unequal coils also change the position-dependent standing-wave nodes.
+    // This follows the spatial pickup construction in Paiva et al., JAES 2012,
+    // sections 1-2: https://aes.org/publications/elibrary-page/?id=16551 .
+    // The existing weight is a voicing parameter, not a newly measured coil
+    // imbalance. Zero spacing is exactly the single-coil centre observation.
     struct CoilPairSum
     {
         std::array<float, apertureHistorySize> history {};
@@ -869,14 +870,15 @@ private:
 
         // Defined here for the same reason as the aperture above: it runs once
         // per pickup per string per sample.
-        float process(float input) noexcept
+        float process(float centre, float reflected) noexcept
         {
             constexpr int mask = apertureHistorySize - 1;
-            history[static_cast<std::size_t>(writeIndex)] = input;
+            history[static_cast<std::size_t>(writeIndex)] =
+                balance * centre + (balance - 1.0f) * reflected;
             if (! paired)
             {
                 writeIndex = (writeIndex + 1) & mask;
-                return input;
+                return centre;
             }
             const int recentIndex = (writeIndex - spacingWhole) & mask;
             const int olderIndex = (recentIndex - 1) & mask;
@@ -884,7 +886,7 @@ private:
             const float older = history[static_cast<std::size_t>(olderIndex)];
             const float delayed = recent + spacingFraction * (older - recent);
             writeIndex = (writeIndex + 1) & mask;
-            return (input + balance * delayed) * normalise;
+            return (centre + (1.0f - balance) * reflected + delayed) * normalise;
         }
     };
 

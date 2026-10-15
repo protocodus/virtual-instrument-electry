@@ -26,7 +26,7 @@ constexpr float narrowCoilNeckPickupMetres = 0.163f;
 // Both pickups sense the string through the same narrow per-bobbin window -
 // a magnet or slug of about this diameter - and what separates them is that a
 // humbucker sums two of those windows at two different distances from the
-// bridge. The sum of two sensors separated by d has magnitude
+// bridge. For equal weights, their common spatial factor has magnitude
 // |cos(pi f d / c)| and first nulls at c/2d, where c = 2 L f_open is the
 // string's transverse wave speed. A single window of width W nulls at c/W
 // instead, most of an octave too high: modelling the humbucker as one 21 mm
@@ -35,23 +35,18 @@ constexpr float narrowCoilNeckPickupMetres = 0.163f;
 // notches Lemme reports:
 // https://buildyourguitar.com/resources/lemme/
 //
-// The two coils also sit at two different distances from the bridge, so each
-// sees its own position comb. Writing the pair out shows that this needs no
-// second comb tap: with the position comb evaluated at the pickup's centre,
-// the sum of the two coils factors exactly into that comb times the two-point
-// sum above, so one extra fractional read per pickup buys both.
+// The cosine factor above applies to equal coil weights. With unequal weights
+// the spatial sum also contains a position-dependent term; CoilPairSum keeps
+// the direct and reflected rails separate until their opposite coil weights
+// have been applied, using one causal fractional delay for both positions.
 constexpr float coilApertureMetres = 0.0048f;
 constexpr float humbuckerCoilSpacingMetres = 0.0190f;
 
-// Weight on the second coil, which sets how deep the pair's dip goes:
-// (1-b)/(1+b), 12 dB here. It is below one for the reason `pickupCombDepth`
-// below is, and on the same reading - measured pickup responses notch by
-// something like 6 to 15 dB rather than vanishing, because no real pickup is
-// a pair of point sensors reading one plane of motion. The screw coil sits
-// further from the string than the slug coil and reads quieter for it, so the
-// two contributions cannot cancel however well the geometry lines up. Same
-// value as `pickupCombDepth` and the same evidence behind it, kept a separate
-// constant because the two nulls are different mechanisms.
+// Existing voicing weight on the second coil; this is not a measured coil
+// imbalance. Each travelling component has a spacing dip of (1-b)/(1+b),
+// 12 dB here, but the complete pickup combines their opposite coil weights
+// and also depends on pickup position. Keep it separate from pickupCombDepth:
+// the two weights describe different spatial contributions.
 constexpr float humbuckerCoilBalance = 0.60f;
 
 // Weight on the delayed tap of the pickup position comb.
@@ -702,29 +697,28 @@ void ElectryEngine::primeReleasedPickupHistory(
                              + aperture.windowWhole + 4;
     for (int sample = -historySamples; sample < 0; ++sample)
     {
-        const auto component = [&] (const DelayTap& loopTap,
+        const auto component = [&] (const DelayTap& spatialTap,
                                     const ReleasedRail& shape)
         {
-            const auto read = [&] (const DelayTap& spatialTap)
+            const float cell = static_cast<float>(spatialTap.offset - sample);
+            const auto sampleRail = [&] (float offset)
             {
-                const float cell = static_cast<float>(spatialTap.offset
-                                                      - sample);
-                const auto sampleRail = [&] (float offset)
-                {
-                    return releasedRailAtCell(cell + offset, shape);
-                };
-                return spatialTap.c0 * sampleRail(0.0f)
-                     + spatialTap.c1 * sampleRail(-1.0f)
-                     + spatialTap.c2 * sampleRail(-2.0f)
-                     + spatialTap.c3 * sampleRail(-3.0f);
+                return releasedRailAtCell(cell + offset, shape);
             };
-            return read(loopTap) - pickupCombDepth * read(tap);
+            return spatialTap.c0 * sampleRail(0.0f)
+                 + spatialTap.c1 * sampleRail(-1.0f)
+                 + spatialTap.c2 * sampleRail(-2.0f)
+                 + spatialTap.c3 * sampleRail(-3.0f);
         };
-        const float tapInput = 0.85f * component(
-                                       verticalLoopTap, verticalRail)
-                             + 0.35f * component(
-                                       horizontalLoopTap, horizontalRail);
-        (void) aperture.process(coilPair.process(tapInput));
+        const float verticalTap = component(tap, verticalRail);
+        const float horizontalTap = component(tap, horizontalRail);
+        const float centre = 0.85f * (component(verticalLoopTap, verticalRail)
+                                      - pickupCombDepth * verticalTap)
+                           + 0.35f * (component(horizontalLoopTap, horizontalRail)
+                                      - pickupCombDepth * horizontalTap);
+        const float reflected = pickupCombDepth
+            * (0.85f * verticalTap + 0.35f * horizontalTap);
+        (void) aperture.process(coilPair.process(centre, reflected));
     }
 }
 #endif
@@ -4319,11 +4313,10 @@ void ElectryEngine::configurePickupGeometry(Voice& voice,
     voice.apertureNeck.setWindow(apertureLength);
     voice.apertureBridge.setWindow(apertureLength);
 
-    // The coil pair, which the type control closes up until the humbucker is
-    // a single coil. The position comb above is evaluated at the pickup's
-    // centre, which is where the factorisation puts it: two coils at
-    // centre +- d/2 read (1 + b z^-d/c) times one comb anchored at the
-    // centre, so the pair costs one delayed read rather than a second comb.
+    // The type control closes the coil separation until the humbucker is a
+    // single coil. The tap above stays at the pickup centre; CoilPairSum
+    // applies the two sensor weights separately to both travelling directions
+    // so centre +- d/2 share one causal time even for unequal coil weights.
     const float coilSpacing = lerp(humbuckerCoilSpacingMetres, 0.0f,
                                    parameters.pickupType);
     const float coilDelay = clampf(
@@ -7870,12 +7863,16 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                  OnePole& emfLowpass, float& previousFlux,
                                  float artifactWeight, float noiseWeight)
     {
-        float tap = 0.85f * (verticalTotal
-                             - pickupCombDepth * vertical.readTap(delayTap))
-                  + 0.35f * (horizontalTotal
-                             - pickupCombDepth * horizontal.readTap(delayTap))
-                  + artifactWeight * artifactPickup;
-        tap = aperture.process(coilPair.process(tap));
+        const float verticalTap = vertical.readTap(delayTap);
+        const float horizontalTap = horizontal.readTap(delayTap);
+        const float centre = 0.85f * (verticalTotal
+                                      - pickupCombDepth * verticalTap)
+                           + 0.35f * (horizontalTotal
+                                      - pickupCombDepth * horizontalTap)
+                           + artifactWeight * artifactPickup;
+        const float reflected = pickupCombDepth
+            * (0.85f * verticalTap + 0.35f * horizontalTap);
+        const float tap = aperture.process(coilPair.process(centre, reflected));
         const float flux = voice.fluxScale
             * magneticTransfer(tap, drive, driveInverse);
 #if ELECTRY_ANALYTIC_RELEASE_IC
@@ -8069,8 +8066,9 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
                                  CoilPairSum& coilPair,
                                  float& previousFlux, OnePole& emfLowpass)
     {
-        float tap = total - pickupCombDepth * loop.readTap(pickupTap);
-        tap = aperture.process(coilPair.process(tap));
+        const float reflected = pickupCombDepth * loop.readTap(pickupTap);
+        const float tap = aperture.process(
+            coilPair.process(total - reflected, reflected));
         const float flux = voice.fluxScale * tap;
         const float emf = emfLowpass.process(
             (flux - previousFlux) * emfScale_, emfLowpassCoefficient_);
