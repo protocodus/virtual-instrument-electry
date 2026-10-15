@@ -338,13 +338,13 @@ const std::array<MeasuredPickupFluxSample, measuredPickupFluxTableSize>
 
 float boundPickupDisplacement(float displacement) noexcept
 {
-    if (! std::isfinite(displacement))
+    if (! isFinite(displacement))
         return 0.0f;
 
     const double ratio = static_cast<double>(displacement)
                        * static_cast<double>(waveguideDisplacementMetresPerUnit)
                        / maximumPickupDisplacementMetres;
-    const double magnitude = std::abs(ratio);
+    const double magnitude = scalarAbs(ratio);
     double boundedRatio = 0.0;
     if (magnitude <= 1.0)
     {
@@ -355,7 +355,7 @@ float boundPickupDisplacement(float displacement) noexcept
     {
         const double inverse = 1.0 / magnitude;
         const double squared = inverse * inverse;
-        boundedRatio = std::copysign(
+        boundedRatio = copySign(
             1.0 / std::sqrt(std::sqrt(1.0 + squared * squared)), ratio);
     }
     return static_cast<float>(maximumPickupDisplacementMetres * boundedRatio);
@@ -393,7 +393,7 @@ constexpr float hardFretClearanceMetres = 0.00096f;
 // clampf lives in DspMath.h, included via ElectryEngine.h; every call site in
 // this file already resolved to it unqualified through that header.
 
-bool finitef(float value) noexcept { return std::isfinite(value); }
+bool finitef(float value) noexcept { return isFinite(value); }
 
 float rateAdjustedCoefficient(float coefficientAt48k, float sampleRate) noexcept
 {
@@ -630,7 +630,7 @@ float ElectryEngine::releasedRailAtCell(float cell,
                                         const ReleasedRail& rail) noexcept
 {
     float phase = (cell + 0.5f) / rail.delay;
-    phase -= std::floor(phase);
+    phase -= scalarFloor(phase);
     const float position = 2.0f * std::min(phase, 1.0f - phase);
     float triangle = 0.0f;
     constexpr std::array<float, 3> contactWeights { 0.25f, 0.5f, 0.25f };
@@ -766,7 +766,7 @@ void applyGuitarBuild(EngineParameters& parameters, float build) noexcept
     }};
 #endif
 
-    if (! std::isfinite(build))
+    if (! isFinite(build))
         build = defaultGuitarBuild;
     build = clampf(build, 0.0f, 1.0f);
 
@@ -781,14 +781,14 @@ void applyGuitarBuild(EngineParameters& parameters, float build) noexcept
         parameters.stringGauge = values[5];
     };
     const int nearest = static_cast<int>(std::round(position));
-    if (std::abs(position - static_cast<float>(nearest)) < 1.0e-6f)
+    if (scalarAbs(position - static_cast<float>(nearest)) < 1.0e-6f)
     {
         assign(anchors[static_cast<std::size_t>(nearest)]);
         return;
     }
 
     const int lower = std::min(static_cast<int>(anchors.size()) - 2,
-                               static_cast<int>(std::floor(position)));
+                               static_cast<int>(scalarFloor(position)));
     const float local = position - static_cast<float>(lower);
     const float smooth = local * local * (3.0f - 2.0f * local);
     const auto coordinate = [&] (std::size_t index)
@@ -839,7 +839,7 @@ EngineParameters ElectryEngine::sanitise(const EngineParameters& parameters) noe
     EngineParameters result = parameters;
     const auto clampUnit = [] (float value, float fallback)
     {
-        if (! std::isfinite(value))
+        if (! isFinite(value))
             return fallback;
         return clampf(value, 0.0f, 1.0f);
     };
@@ -867,13 +867,13 @@ EngineParameters ElectryEngine::sanitise(const EngineParameters& parameters) noe
                                          defaults.sympatheticAmount);
     result.palmMute = clampUnit(parameters.palmMute, defaults.palmMute);
 
-    if (! std::isfinite(parameters.strumSpreadSeconds))
+    if (! isFinite(parameters.strumSpreadSeconds))
         result.strumSpreadSeconds = defaults.strumSpreadSeconds;
     else
         result.strumSpreadSeconds = clampf(parameters.strumSpreadSeconds,
                                            0.0f, 0.040f);
 
-    if (! std::isfinite(parameters.tremoloRateHz))
+    if (! isFinite(parameters.tremoloRateHz))
         result.tremoloRateHz = defaults.tremoloRateHz;
     else
         result.tremoloRateHz = clampf(parameters.tremoloRateHz, 4.0f, 20.0f);
@@ -883,12 +883,12 @@ EngineParameters ElectryEngine::sanitise(const EngineParameters& parameters) noe
     result.vibratoDepth = clampUnit(parameters.vibratoDepth,
                                     defaults.vibratoDepth);
 
-    if (! std::isfinite(parameters.bendTimeSeconds))
+    if (! isFinite(parameters.bendTimeSeconds))
         result.bendTimeSeconds = defaults.bendTimeSeconds;
     else
         result.bendTimeSeconds = clampf(parameters.bendTimeSeconds, 0.04f, 2.0f);
 
-    if (! std::isfinite(parameters.outputGain))
+    if (! isFinite(parameters.outputGain))
         result.outputGain = defaults.outputGain;
     else
         result.outputGain = clampf(parameters.outputGain, 0.0f, 2.0f);
@@ -1157,7 +1157,7 @@ void ElectryEngine::handDipCoefficients(float depth, const HandLossShape& shape,
 
     const double sumB = nb0 + nb1 + nb2;
     const double sumA = 1.0 + na1 + na2;
-    if (std::fabs(sumB) > 1.0e-30 && sumA > 0.0)
+    if (scalarAbs(sumB) > 1.0e-30 && sumA > 0.0)
     {
         const double correction = sumA / sumB;
         nb0 *= correction;
@@ -1319,7 +1319,7 @@ ElectryEngine::ElectryEngine() noexcept
 void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
 {
     (void) maxBlockSize;
-    if (! std::isfinite(sampleRate))
+    if (! isFinite(sampleRate))
         sampleRate = 48000.0;
     hostSampleRate_ = std::clamp(sampleRate, minimumSupportedSampleRate,
                                  maximumSupportedSampleRate);
@@ -1589,9 +1589,15 @@ void ElectryEngine::setParameters(const EngineParameters& parameters)
 
 void ElectryEngine::setPitchBend(float normalisedBipolar) noexcept
 {
-    if (! std::isfinite(normalisedBipolar))
+    if (! isFinite(normalisedBipolar))
         normalisedBipolar = 0.0f;
-    pitchBendTarget_ = 2.0f * clampf(normalisedBipolar, -1.0f, 1.0f);
+    setPitchBendSemitones(2.0f * clampf(normalisedBipolar, -1.0f, 1.0f));
+}
+
+void ElectryEngine::setPitchBendSemitones(float semitones) noexcept
+{
+    pitchBendTarget_ = clampf(isFinite(semitones) ? semitones : 0.0f,
+                             -192.0f, 192.0f);
 }
 
 void ElectryEngine::setExpressionPitchBend(ExpressionId expressionId,
@@ -1601,7 +1607,7 @@ void ElectryEngine::setExpressionPitchBend(ExpressionId expressionId,
         || expressionId > maximumExpressionId)
         return;
     expressionPitchBendTargets_[static_cast<std::size_t>(expressionId)] =
-        clampf(std::isfinite(semitones) ? semitones : 0.0f, -192.0f, 192.0f);
+        clampf(isFinite(semitones) ? semitones : 0.0f, -192.0f, 192.0f);
 }
 
 void ElectryEngine::setExpressionMasterPitchBend(ExpressionId expressionId,
@@ -1613,7 +1619,7 @@ void ElectryEngine::setExpressionMasterPitchBend(ExpressionId expressionId,
 
     const auto index = static_cast<std::size_t>(expressionId);
     const float target = clampf(
-        std::isfinite(semitones) ? semitones : 0.0f, -192.0f, 192.0f);
+        isFinite(semitones) ? semitones : 0.0f, -192.0f, 192.0f);
     expressionMasterPitchBendTargets_[index] = target;
 
     // With no old string to move, cached master data is the starting pitch of
@@ -1641,13 +1647,13 @@ void ElectryEngine::snapExpressionPitchBendToTarget(
 
 void ElectryEngine::setResonance(float normalised) noexcept
 {
-    resonanceTarget_ = std::isfinite(normalised)
+    resonanceTarget_ = isFinite(normalised)
         ? clampf(normalised, 0.0f, 1.0f) : 0.0f;
 }
 
 void ElectryEngine::setAcousticReturnLevel(float normalised) noexcept
 {
-    returnLevelTarget_ = std::isfinite(normalised)
+    returnLevelTarget_ = isFinite(normalised)
         ? clampf(normalised, 0.0f, 1.0f) : 0.0f;
 }
 
@@ -1667,12 +1673,12 @@ void ElectryEngine::pushAcousticReturn(const float* left, const float* right,
     for (int sample = 0; sample < numSamples; ++sample)
     {
         float value = 0.5f * (left[sample] + right[sample]);
-        if (! std::isfinite(value))
+        if (! isFinite(value))
         {
             // A pair of finite full-range floats can overflow the sum even
             // though its average is representable. Preserve its polarity;
             // only a genuinely non-finite input is silence.
-            value = std::isfinite(left[sample]) && std::isfinite(right[sample])
+            value = isFinite(left[sample]) && isFinite(right[sample])
                 ? 0.5f * left[sample] + 0.5f * right[sample] : 0.0f;
         }
         // Leave room for midpoint interpolation and the acoustic limiter's
@@ -1693,14 +1699,14 @@ void ElectryEngine::pushAcousticReturn(const float* left, const float* right,
 
 void ElectryEngine::setVibrato(float normalised) noexcept
 {
-    vibratoTarget_ = clampf(std::isfinite(normalised) ? normalised : 0.0f,
+    vibratoTarget_ = clampf(isFinite(normalised) ? normalised : 0.0f,
                             0.0f, 1.0f);
 }
 
 void ElectryEngine::beginTremoloPicking(float velocity) noexcept
 {
     tremoloPickingVelocity_ = clampf(
-        std::isfinite(velocity) ? velocity : 0.0f, 0.0f, 1.0f);
+        isFinite(velocity) ? velocity : 0.0f, 0.0f, 1.0f);
     // A gesture is a contact, not a delayed modulation. Arming one whole
     // stroke here lets the next rendered sample apply it after every event at
     // this MIDI timestamp has established the final articulation and fretting.
@@ -1716,7 +1722,7 @@ void ElectryEngine::endTremoloPicking() noexcept
 void ElectryEngine::setPalmMutePressure(float normalised) noexcept
 {
     const float previousBlend = palmMuteBlend_;
-    palmMutePressure_ = std::isfinite(normalised)
+    palmMutePressure_ = isFinite(normalised)
         ? clampf(normalised, 0.0f, 1.0f) : 0.0f;
     // CC2 and a note-on commonly share one MIDI sample. Note setup reads this
     // cached blend before the render loop gets a control tick, so refresh it
@@ -1759,9 +1765,9 @@ void ElectryEngine::noteOn(int midiNote, float velocity,
                    expressionId);
 }
 
-void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
+void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
 {
-    if (! prepared_)
+    if (! prepared_ || events == nullptr)
         return;
 
     // Keep a bounded attack group in canonical pitch/velocity order. Eight
@@ -1769,10 +1775,11 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
     // owners and physical restrikes of the one assigned string.
     std::array<NoteOnEvent, maximumChordEvents> sorted {};
     int eventCount = 0;
-    for (const auto& event : events)
+    for (std::size_t index = 0; index < count; ++index)
     {
+        const auto& event = events[index];
         const float velocity = clampf(
-            std::isfinite(event.velocity) ? event.velocity : 0.0f,
+            isFinite(event.velocity) ? event.velocity : 0.0f,
             0.0f, 1.0f);
         const ExpressionId expressionId = event.expressionId <= maximumExpressionId
             ? event.expressionId : legacyExpressionId;
@@ -1974,7 +1981,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
                 || candidateVoice.expressionId != expressionId
                 || (playStyle_ == PlayStyle::Slide && fret < 1))
                 continue;
-            const float distance = std::abs(
+            const float distance = scalarAbs(
                 static_cast<float>(fret) - performedFrets[candidate]);
             const bool reachable = playStyle_ == PlayStyle::Slide
                                 || distance < 10;
@@ -2116,7 +2123,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
                 score.totalSpanViolation += violation;
             }
         }
-        score.handMovement = std::abs(
+        score.handMovement = scalarAbs(
             score.handPosition - frettingHandPosition_);
 
         for (int noteIndex = 0; noteIndex < noteCount; ++noteIndex)
@@ -2130,7 +2137,7 @@ void ElectryEngine::noteOnChord(std::span<const NoteOnEvent> events)
             const int previous = assignment[static_cast<std::size_t>(noteIndex - 1)];
             if (stringIndex < previous)
                 score.crossings += stringCount * stringCount;
-            score.crossings += std::abs(stringIndex - previous);
+            score.crossings += scalarAbs(stringIndex - previous);
         }
 
         if (! found || better(score, bestScore))
@@ -2360,7 +2367,7 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
     if (expressionId > maximumExpressionId)
         expressionId = legacyExpressionId;
 
-    velocity = clampf(std::isfinite(velocity) ? velocity : 0.0f, 0.0f, 1.0f);
+    velocity = clampf(isFinite(velocity) ? velocity : 0.0f, 0.0f, 1.0f);
 
     if (isSoloClearKeyswitchNote(midiNote))
     {
@@ -2781,7 +2788,7 @@ int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
                         || heldExpressionIds_[index] != expressionId))
                 || (playStyle == PlayStyle::Slide && targetFret < 1))
                 continue;
-            const float distance = std::abs(
+            const float distance = scalarAbs(
                 static_cast<float>(targetFret) - performedFret(voice));
             if (distance < bestDistance)
             {
@@ -3642,10 +3649,10 @@ void ElectryEngine::configureVoiceDispersion(
     // phase-delay error at both reference partials. This runs only at
     // note/control setup, never in the sample loop.
     const float highPartial = clampf(
-        std::floor(0.30f * static_cast<float>(sampleRate_) / configuredF0),
+        scalarFloor(0.30f * static_cast<float>(sampleRate_) / configuredF0),
         4.0f, 16.0f);
     const float lowPartial = std::min(
-        4.0f, std::max(2.0f, std::floor(0.5f * highPartial)));
+        4.0f, std::max(2.0f, scalarFloor(0.5f * highPartial)));
     float lowCoefficient = 0.0f;
     float highCoefficient = 0.0f;
 
@@ -3777,7 +3784,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
         unclampedF0, 20.0f, 0.24f * static_cast<float>(sampleRate_));
 #if ELECTRY_ENERGY_ATTACK_PITCH
     float attackPitchTensionRatio = voice.attackPitchTensionRatio;
-    if (! std::isfinite(attackPitchTensionRatio))
+    if (! isFinite(attackPitchTensionRatio))
         attackPitchTensionRatio = 0.0f;
     attackPitchTensionRatio = clampf(
         attackPitchTensionRatio, 0.0f, maximumAttackPitchTensionRatio);
@@ -3798,9 +3805,9 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // out of step while a finger slides. Keep every geometric refit together;
     // tension-only movement still updates loss/phase without the stiffness fit.
     const bool fitMoved = forceDelayJump
-        || std::abs(semitones - voice.lastConfiguredSemitones) > 0.06f
-        || std::abs(liveFret - voice.lastConfiguredLiveFret) > 0.06f
-        || std::abs(configuredF0 - voice.lastConfiguredFrequency)
+        || scalarAbs(semitones - voice.lastConfiguredSemitones) > 0.06f
+        || scalarAbs(liveFret - voice.lastConfiguredLiveFret) > 0.06f
+        || scalarAbs(configuredF0 - voice.lastConfiguredFrequency)
                > 3.5e-3f * std::max(configuredF0, 20.0f);
     // Loop loss is applied once per round trip, so its coefficients must be
     // solved at the pitch and fret the string is performing now. Reusing the
@@ -3814,9 +3821,9 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // control-rate work on the ticks that already pay for a stiffness refit,
     // never sample-loop work.
     const bool dampingCoordinateMoved = fitMoved
-        || std::abs(f0 - voice.lastDampedFrequency)
+        || scalarAbs(f0 - voice.lastDampedFrequency)
             > 3.5e-3f * std::max(f0, 20.0f)
-        || std::abs(liveFret - voice.lastDampedLiveFret) > 0.06f;
+        || scalarAbs(liveFret - voice.lastDampedLiveFret) > 0.06f;
     if (dampingCoordinateMoved)
         configureVoiceDamping(voice, voice.dampingStyle, f0, liveFret);
 
@@ -3851,9 +3858,9 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
             && (voice.vertical.fittedLossDipActive
                 || voice.horizontal.fittedLossDipActive);
         const bool fittedLossMoved = exactBypassNeeded
-            || std::abs(voice.vertical.fittedLossShape.dipFullDepthDb
+            || scalarAbs(voice.vertical.fittedLossShape.dipFullDepthDb
                          - targetPeakDb) > 1.0e-8f
-            || std::abs(voice.horizontal.fittedLossShape.dipFullDepthDb
+            || scalarAbs(voice.horizontal.fittedLossShape.dipFullDepthDb
                             - targetPeakDb) > 1.0e-8f;
         if (fittedLossMoved)
         {
@@ -3905,7 +3912,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // the high-frequency floor. Track every representable tension factor;
     // this analytic solve never invokes the expensive stiffness grid fit.
     const bool pitchMoved =
-        std::abs(semitones - voice.lastCompensatedSemitones) > 8.0e-4f
+        scalarAbs(semitones - voice.lastCompensatedSemitones) > 8.0e-4f
 #if ELECTRY_ENERGY_ATTACK_PITCH
         || voice.attackPitchFrequencyFactor != voice.lastAttackPitchFrequencyFactor
 #endif
@@ -3913,7 +3920,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
 
     const float pickupTensionSemitones = bend + vibrato;
     const bool pickupTensionMoved = forceDelayJump
-        || std::abs(pickupTensionSemitones
+        || scalarAbs(pickupTensionSemitones
                     - voice.pickupTensionSemitones) > 8.0e-4f
 #if ELECTRY_ENERGY_ATTACK_PITCH
         || voice.attackPitchFrequencyFactor != voice.pickupAttackPitchFrequencyFactor
@@ -3955,7 +3962,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
         voice.pickupAttackPitchFrequencyFactor =
             voice.attackPitchFrequencyFactor;
 #endif
-        if (std::abs(pickupWaveSpeedRatio - voice.pickupWaveSpeedRatio)
+        if (scalarAbs(pickupWaveSpeedRatio - voice.pickupWaveSpeedRatio)
                 > 1.0e-7f)
         {
             voice.pickupWaveSpeedRatio = pickupWaveSpeedRatio;
@@ -4193,7 +4200,7 @@ void ElectryEngine::refreshVoicingIfNeeded() noexcept
     const auto& a = appliedVoicingParameters_;
     const auto moved = [] (float current, float applied)
     {
-        return std::abs(current - applied) > 2.0e-3f;
+        return scalarAbs(current - applied) > 2.0e-3f;
     };
 
     // Splitting the refresh by what each control actually changes is a large
@@ -4362,9 +4369,9 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     // control quantum as a played voice while compensating its phase at every
     // smaller tuning move.
     const bool fitMoved = ! voice.sympatheticReady
-        || std::abs(pitchBendSemitones_ - voice.lastConfiguredSemitones) > 0.06f
-        || std::abs(voice.lastConfiguredLiveFret) > 0.06f
-        || std::abs(f0 - voice.lastConfiguredFrequency)
+        || scalarAbs(pitchBendSemitones_ - voice.lastConfiguredSemitones) > 0.06f
+        || scalarAbs(voice.lastConfiguredLiveFret) > 0.06f
+        || scalarAbs(f0 - voice.lastConfiguredFrequency)
                > 3.5e-3f * std::max(f0, 20.0f);
     float previousDampingPhaseDelay = 0.0f;
     float previousDispersionPhaseDelay = 0.0f;
@@ -5488,7 +5495,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             / voice.stringTensionNewtons;
         const float peakUnits = peakMetres
                               / waveguideDisplacementMetresPerUnit;
-        if (std::isfinite(peakUnits) && peakUnits > 0.0f)
+        if (isFinite(peakUnits) && peakUnits > 0.0f)
         {
             voice.analyticReleaseAmplitude = peakUnits;
             voice.analyticReleasePluckFraction = combFraction;
@@ -5631,7 +5638,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         const double windingMetres = 0.001 * (0.100
             + 0.130 * spec.plainDiameterMm * gaugeScale);
         voice.pickRidgePhase = (combFraction * soundingMetres) / windingMetres;
-        voice.pickRidgePhase -= std::floor(voice.pickRidgePhase);
+        voice.pickRidgePhase -= scalarFloor(voice.pickRidgePhase);
     }
     voice.noiseBandCoefficient = std::exp(
         -twoPi * clampf(noiseCutoff, 250.0f, 0.45f * sampleRate) * inverseSampleRate_);
@@ -5744,8 +5751,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
                               * axialDiameter * axialDiameter;
         const float elasticScale = steelYoungModulus * axialArea
             / std::max(2.0f * soundingMetres * tension * tension, 1.0e-12f);
-        if (std::isfinite(energy) && energy > 0.0f
-            && std::isfinite(elasticScale) && elasticScale > 0.0f)
+        if (isFinite(energy) && energy > 0.0f
+            && isFinite(elasticScale) && elasticScale > 0.0f)
         {
             voice.pendingAttackPitchEnergyJoules = energy;
             voice.pendingAttackPitchElasticScalePerJoule = elasticScale;
@@ -6108,7 +6115,7 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     // fresh grip would.
     if (wasRinging)
     {
-        const float relativeJump = std::abs(voice.vertical.targetDelay
+        const float relativeJump = scalarAbs(voice.vertical.targetDelay
                                             - voice.vertical.currentDelay)
                                  / std::max(voice.vertical.currentDelay, 1.0f);
         if (relativeJump > 0.25f)
@@ -6248,12 +6255,12 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
     // the bridge, so the same interval is quicker higher up the neck. Retain
     // the established 44.8 ms default two-fret travel near the nut on the
     // default 27.625-inch scale; Bend Time still scales the hand's speed.
-    const float frets = std::abs(static_cast<float>(voice.fret) - fromFret);
+    const float frets = scalarAbs(static_cast<float>(voice.fret) - fromFret);
     const float openLength = scaleLengthMetres();
     const float fromPosition = openLength * (1.0f - std::exp2(-fromFret / 12.0f));
     const float toPosition = openLength
         * (1.0f - std::exp2(-static_cast<float>(voice.fret) / 12.0f));
-    const float travelMetres = std::abs(toPosition - fromPosition);
+    const float travelMetres = scalarAbs(toPosition - fromPosition);
     float glideSeconds = 0.010f;
     if (playStyle == PlayStyle::Slide)
     {
@@ -6918,7 +6925,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
         const float coefficient = target > position
             ? palmLandingCoefficient_ : palmLiftCoefficient_;
         position += coefficient * (target - position);
-        if (std::abs(position - target) < 1.0e-4f)
+        if (scalarAbs(position - target) < 1.0e-4f)
             position = target;
         return true;
     };
@@ -6948,7 +6955,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
     // staircase modulation; the expensive stiffness fit stays geometric.
     voice.attackPitchTensionRatio *= attackPitchTensionRatioRetention_
                                   * voice.attackPitchHandRetention;
-    if (! std::isfinite(voice.attackPitchTensionRatio)
+    if (! isFinite(voice.attackPitchTensionRatio)
         || voice.attackPitchTensionRatio < 1.0e-12f)
         voice.attackPitchTensionRatio = 0.0f;
 #endif
@@ -6986,7 +6993,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
             // Re-flagged only on real movement so a settled tail stops paying.
             const float previousDepth = loop.handLossDepth;
             applyDipDepth(loop, loop.handLossSolvedDepth * relaxFactor);
-            if (std::fabs(loop.handLossDepth - previousDepth) > 1.0e-4f)
+            if (scalarAbs(loop.handLossDepth - previousDepth) > 1.0e-4f)
                 voice.compensationDirty = true;
         };
         modulate(voice.vertical);
@@ -7127,7 +7134,7 @@ float ElectryEngine::renderSlideFriction(Voice& voice) noexcept
     // Their phase advances with signed finger distance / winding pitch,
     // rather than restarting an unrelated noise waveform each control tick.
     voice.slideRidgePhase += static_cast<double>(voice.slideRidgeCyclesPerSample);
-    voice.slideRidgePhase -= std::floor(voice.slideRidgePhase);
+    voice.slideRidgePhase -= scalarFloor(voice.slideRidgePhase);
     voice.slideFrictionEnergy += slideFrictionEnergyCoefficient_
         * (friction * friction - voice.slideFrictionEnergy);
     const float ridge = std::sqrt(2.0f * std::max(voice.slideFrictionEnergy, 0.0f))
@@ -7159,9 +7166,9 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         const float pendingTensionRatio =
             voice.pendingAttackPitchElasticScalePerJoule
                 * voice.pendingAttackPitchEnergyJoules;
-        if (! std::isfinite(liveTensionRatio))
+        if (! isFinite(liveTensionRatio))
             liveTensionRatio = 0.0f;
-        if (std::isfinite(pendingTensionRatio)
+        if (isFinite(pendingTensionRatio)
             && pendingTensionRatio > std::max(liveTensionRatio, 0.0f))
         {
             voice.attackPitchTensionRatio = std::min(
@@ -7300,7 +7307,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             // span symmetrically before either guarded cubic read.
             const float width = std::min(
                 std::round(0.000125f * static_cast<float>(sampleRate_)),
-                std::floor(std::max(0.0f, std::min(loop.currentDelay - 4.0f,
+                scalarFloor(std::max(0.0f, std::min(loop.currentDelay - 4.0f,
                     static_cast<float>(delayLineSize - 8) - loop.currentDelay))));
             const float spread = 0.5f * sample + 0.25f * (
                 loop.readFractional(loop.currentDelay - width)
@@ -7453,7 +7460,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
               / voice.artifactCollisionLengthDenominator;
         const float clearance = voice.artifactClearance
                               * (1.0f + 3.5f * progress);
-        artifactExcess = std::max(std::abs(verticalSample) - clearance, 0.0f);
+        artifactExcess = std::max(scalarAbs(verticalSample) - clearance, 0.0f);
         if (artifactExcess > 0.0f)
         {
             const float contact = artifactContactShape_
@@ -7503,7 +7510,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
               / voice.artifactCollisionLengthDenominator;
         const float clearance = voice.artifactClearance
                               * (1.0f + 3.5f * progress);
-        artifactExcess = std::max(std::abs(verticalSample) - clearance, 0.0f);
+        artifactExcess = std::max(scalarAbs(verticalSample) - clearance, 0.0f);
         if (artifactExcess > 0.0f)
         {
             const float contact = artifactContactShape_
@@ -7546,7 +7553,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         if (voice.pickRidgeCyclesPerSample != 0.0f)
         {
             voice.pickRidgePhase += voice.pickRidgeCyclesPerSample;
-            voice.pickRidgePhase -= std::floor(voice.pickRidgePhase);
+            voice.pickRidgePhase -= scalarFloor(voice.pickRidgePhase);
             const float ridge = 0.816496581f * static_cast<float>(
                 std::sin(2.0 * 3.14159265358979323846 * voice.pickRidgePhase));
             // Equal-variance mixing avoids turning the idea into a scrape
@@ -7785,7 +7792,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     voice.articulationMakeupCurrent = voice.articulationMakeup
         + articulationMakeupRetention_
             * (voice.articulationMakeupCurrent - voice.articulationMakeup);
-    if (std::abs(voice.articulationMakeupCurrent - voice.articulationMakeup) < 1.0e-6f)
+    if (scalarAbs(voice.articulationMakeupCurrent - voice.articulationMakeup) < 1.0e-6f)
         voice.articulationMakeupCurrent = voice.articulationMakeup;
 
     // Neck and bridge run the identical tap/aperture/coil/flux/EMF chain over
@@ -7888,7 +7895,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     sums.body += bridgeMotion + 1.6f * noiseSample;
     constexpr float palmImpactVelocityFloor = 1.0e-4f;
     constexpr float palmImpactStateFloor = 1.0e-7f;
-    if (voice.palmImpactVel > 0.0f || std::abs(voice.palmImpactState) > 0.0f)
+    if (voice.palmImpactVel > 0.0f || scalarAbs(voice.palmImpactState) > 0.0f)
     {
         const float impactDrive = voice.palmImpactVel > palmImpactVelocityFloor
             ? voice.palmImpactVel : 0.0f;
@@ -7899,7 +7906,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         if (voice.palmImpactVel <= palmImpactVelocityFloor)
             voice.palmImpactVel = 0.0f;
         if (voice.palmImpactVel == 0.0f
-            && std::abs(voice.palmImpactState) <= palmImpactStateFloor)
+            && scalarAbs(voice.palmImpactState) <= palmImpactStateFloor)
         {
             voice.palmImpactState = 0.0f;
         }
@@ -7969,7 +7976,7 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     // A bounded rational saturation. The loop is already contractive, so this
     // never engages in normal use; it exists so that a pathological drive
     // landing exactly on a coupled mode still cannot exceed a fixed ceiling.
-    const float magnitude = std::abs(sample);
+    const float magnitude = scalarAbs(sample);
     if (magnitude > 1.0f)
     {
         const float excess = magnitude - 1.0f;
@@ -8096,14 +8103,14 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         const auto& t = targetParameters_;
         bool pickupDirty =
             s.pickupSelector != t.pickupSelector
-            || std::abs(s.pickupType - t.pickupType) > 1.0e-4f
-            || std::abs(s.toneKnob - t.toneKnob) > 1.0e-4f;
+            || scalarAbs(s.pickupType - t.pickupType) > 1.0e-4f
+            || scalarAbs(s.toneKnob - t.toneKnob) > 1.0e-4f;
         const bool bodyDirty =
-            std::abs(s.bodyWood - t.bodyWood) > 1.0e-4f
+            scalarAbs(s.bodyWood - t.bodyWood) > 1.0e-4f
 #if ! ELECTRY_MEASURED_BODY_RESPONSE
-            || std::abs(s.bodySize - t.bodySize) > 1.0e-4f
-            || std::abs(s.bodyShape - t.bodyShape) > 1.0e-4f
-            || std::abs(s.construction - t.construction) > 1.0e-4f
+            || scalarAbs(s.bodySize - t.bodySize) > 1.0e-4f
+            || scalarAbs(s.bodyShape - t.bodyShape) > 1.0e-4f
+            || scalarAbs(s.construction - t.construction) > 1.0e-4f
 #endif
             ;
 
@@ -8118,7 +8125,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         // pickup deadband is reached, then solve every dependent stage once.
         if (s.pickupType != t.pickupType
             && (t.pickupType == 0.0f || t.pickupType == 1.0f)
-            && std::abs(s.pickupType - t.pickupType) < 1.0e-4f)
+            && scalarAbs(s.pickupType - t.pickupType) < 1.0e-4f)
         {
             s.pickupType = t.pickupType;
             pickupDirty = true;
@@ -8260,7 +8267,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
                     ? palmLandingCoefficient_ : palmLiftCoefficient_;
                 sympatheticHandLossRate_ += coefficient
                     * (sympatheticHandLossRateTarget_ - sympatheticHandLossRate_);
-                if (std::abs(sympatheticHandLossRate_
+                if (scalarAbs(sympatheticHandLossRate_
                              - sympatheticHandLossRateTarget_)
                     < 1.0e-4f * std::max(1.0f, sympatheticHandLossRateTarget_))
                     sympatheticHandLossRate_ = sympatheticHandLossRateTarget_;
@@ -8330,7 +8337,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         // finger bends it used to drive, so the wheel bends like a hand on
         // the bar. Settling exactly on the target stops the glide from
         // re-flagging every voice's pitch solve forever.
-        if (std::abs(s.bendTimeSeconds - appliedBendGlideSeconds_) > 1.0e-4f)
+        if (scalarAbs(s.bendTimeSeconds - appliedBendGlideSeconds_) > 1.0e-4f)
         {
             appliedBendGlideSeconds_ = s.bendTimeSeconds;
             bendGlideCoefficient_ = 1.0f - std::exp(
@@ -8421,7 +8428,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
 
         pitchBendSemitones_ += bendGlideCoefficient_
                              * (pitchBendTarget_ - pitchBendSemitones_);
-        if (std::abs(pitchBendSemitones_ - pitchBendTarget_) < 5.0e-4f)
+        if (scalarAbs(pitchBendSemitones_ - pitchBendTarget_) < 5.0e-4f)
             pitchBendSemitones_ = pitchBendTarget_;
         for (std::size_t expressionIndex = 1;
              expressionIndex < expressionPitchBendCount; ++expressionIndex)
@@ -8429,7 +8436,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
             auto& current = expressionPitchBendSemitones_[expressionIndex];
             const float target = expressionPitchBendTargets_[expressionIndex];
             current += bendGlideCoefficient_ * (target - current);
-            if (std::abs(current - target) < 5.0e-4f)
+            if (scalarAbs(current - target) < 5.0e-4f)
                 current = target;
 
             auto& master =
@@ -8437,13 +8444,13 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
             const float masterTarget =
                 expressionMasterPitchBendTargets_[expressionIndex];
             master += bendGlideCoefficient_ * (masterTarget - master);
-            if (std::abs(master - masterTarget) < 5.0e-4f)
+            if (scalarAbs(master - masterTarget) < 5.0e-4f)
                 master = masterTarget;
         }
 
         // Retune ringing coupled strings in place whenever the wheel moves.
         if (sympatheticActive_
-            && std::abs(pitchBendSemitones_ - sympatheticAppliedBend_) > 1.0e-3f)
+            && scalarAbs(pitchBendSemitones_ - sympatheticAppliedBend_) > 1.0e-3f)
         {
             sympatheticAppliedBend_ = pitchBendSemitones_;
             for (auto& voice : voices_)
@@ -8596,8 +8603,8 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         }
         else if (heldNoteCounts_[index] == 0 && sympatheticActive_
                  && (voice.sympatheticEnergy > 1.0e-11f
-                     || std::abs(sympatheticDrive) > 1.0e-6f
-                     || std::abs(feedbackDrive_) > 1.0e-9f))
+                     || scalarAbs(sympatheticDrive) > 1.0e-6f
+                     || scalarAbs(feedbackDrive_) > 1.0e-9f))
         {
             renderSympatheticString(voice, sums, sympatheticDrive);
             rendered = true;
@@ -8677,7 +8684,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
 
     // One linked guard gain preserves the physical stereo field. In Mono the
     // channels are equal and this is the original scalar soft-limit law.
-    const float guardInput = std::max(std::abs(raw[0]), std::abs(raw[1]));
+    const float guardInput = std::max(scalarAbs(raw[0]), scalarAbs(raw[1]));
     const float guardGain = 1.0f
         / std::sqrt(1.0f + 0.4356f * guardInput * guardInput);
     output.left = raw[0] * guardGain * smoothedOutputGain_;

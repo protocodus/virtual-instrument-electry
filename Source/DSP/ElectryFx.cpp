@@ -5,7 +5,6 @@
 #endif
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -21,7 +20,7 @@ constexpr double pi = 3.14159265358979323846;
 
 float sanitiseMix(float value) noexcept
 {
-    if (! std::isfinite(value))
+    if (! isFinite(value))
         return 0.0f;
     return clampf(value, 0.0f, 1.0f);
 }
@@ -34,7 +33,7 @@ float sanitiseAudio(float value) noexcept
     // above full scale while keeping every internal multiply/sum well inside
     // float range. Ordinary audio is unchanged, including the dry bypass.
     constexpr float maximumInput = 1.0e6f;
-    return std::isfinite(value)
+    return isFinite(value)
         ? clampf(value, -maximumInput, maximumInput) : 0.0f;
 }
 
@@ -189,6 +188,7 @@ struct PhaseMathCubic
     }
 };
 
+#if !defined(ELECTRY_EMBEDDED_TARGET)
 PhaseMathCubic phaseMathCubic(double left, double right,
                             double leftSlope, double rightSlope,
                             double step) noexcept
@@ -199,6 +199,7 @@ PhaseMathCubic phaseMathCubic(double left, double right,
     return { left, b, 3.0 * change - 2.0 * b - end,
              -2.0 * change + b + end };
 }
+#endif
 
 struct PhaseMathTables
 {
@@ -217,10 +218,11 @@ struct PhaseMathTables
     };
     std::array<Power, 2> powers {};
 
+#if !defined(ELECTRY_EMBEDDED_TARGET)
     PhaseMathTables()
     {
         const auto exactSoft = [] (double x) {
-            const double e = std::exp(-std::abs(x));
+            const double e = std::exp(-scalarAbs(x));
             return PhaseMathValue { std::max(x, 0.0) + std::log1p(e),
                 x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
         };
@@ -255,11 +257,18 @@ struct PhaseMathTables
             }
         }
     }
+#endif
 };
 
 const PhaseMathTables& phaseMathTables() noexcept
 {
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr PhaseMathTables tables =
+#include "DSP/FrozenTables/PhaseMath.inc"
+    ;
+#else
     static const PhaseMathTables tables;
+#endif
     return tables;
 }
 
@@ -269,7 +278,7 @@ PhaseMathValue phaseSoftplus(double x) noexcept
                             * PhaseMathTables::softInverseStep;
     if (!(position >= 0.0 && position < PhaseMathTables::softCount))
     {
-        const double e = std::exp(-std::abs(x));
+        const double e = std::exp(-scalarAbs(x));
         return { std::max(x, 0.0) + std::log1p(e),
                  x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
     }
@@ -280,7 +289,7 @@ PhaseMathValue phaseSoftplus(double x) noexcept
 
 PhaseMathValue phasePower(double x, AmpModel model) noexcept
 {
-    const auto bits = std::bit_cast<std::uint64_t>(x);
+    const auto bits = bitCast<std::uint64_t>(x);
     const int exponent = static_cast<int>((bits >> 52) & 0x7ff) - 1023;
     if (!(x > 0.0) || exponent < PhaseMathTables::minimumExponent
         || exponent > PhaseMathTables::maximumExponent)
@@ -289,7 +298,7 @@ PhaseMathValue phasePower(double x, AmpModel model) noexcept
         const double value = std::pow(x, p);
         return { value, p * value / x };
     }
-    const double mantissa = std::bit_cast<double>(
+    const double mantissa = bitCast<double>(
         (bits & 0x000fffffffffffffull) | 0x3ff0000000000000ull);
     const double position = (mantissa - 1.0) * PhaseMathTables::powerCount;
     const auto index = static_cast<std::size_t>(position);
@@ -352,7 +361,7 @@ PhaseInverterCurrent exactPhaseInverterCurrentAndSlopes(
     // The current and its Newton slope share the same exponential. Keeping
     // it non-positive preserves the stable softplus/sigmoid evaluation even
     // when a bounded solver candidate is far from the operating point.
-    const double exponential = std::exp(-std::abs(drive));
+    const double exponential = std::exp(-scalarAbs(drive));
     const double softened = std::max(drive, 0.0) + std::log1p(exponential);
     const double e1 = plate / tube.kneeSoftness * softened;
     if (e1 <= 1.0e-18 || plate <= 0.0)
@@ -490,6 +499,14 @@ struct PhaseInverterCalibration
 const PhaseInverterCalibration& phaseInverterCalibration(
     AmpModel model) noexcept
 {
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr PhaseInverterCalibration ecc81 =
+#include "DSP/FrozenTables/PhaseCalibrationEcc81.inc"
+    ;
+    static constexpr PhaseInverterCalibration ecc83 =
+#include "DSP/FrozenTables/PhaseCalibrationEcc83.inc"
+    ;
+#else
     const auto make = [] (AmpModel inverterModel)
     {
         const auto idle = solvePhaseInverterRaw(
@@ -499,7 +516,7 @@ const PhaseInverterCalibration& phaseInverterCalibration(
             inverterModel, derivativeStep, &idle);
         const auto negative = solvePhaseInverterRaw(
             inverterModel, -derivativeStep, &idle);
-        const double powerGridSwing = 2.0 * std::abs(
+        const double powerGridSwing = 2.0 * scalarAbs(
             phaseInverterParameters(inverterModel).powerGridBias);
         const auto output = [&] (const RawPhaseInverter& point)
         {
@@ -517,6 +534,7 @@ const PhaseInverterCalibration& phaseInverterCalibration(
         AmpModel::AmericanClean);
     static const PhaseInverterCalibration ecc83 = make(
         AmpModel::BritishCrunch);
+#endif
     return model == AmpModel::BritishCrunch ? ecc83 : ecc81;
 }
 
@@ -604,7 +622,7 @@ const PowerTubeParameters& powerTubeParameters(AmpModel model) noexcept
 
 double softplus(double value) noexcept
 {
-    return std::max(value, 0.0) + std::log1p(std::exp(-std::abs(value)));
+    return std::max(value, 0.0) + std::log1p(std::exp(-scalarAbs(value)));
 }
 
 double sigmoid(double value) noexcept
@@ -722,7 +740,7 @@ ScreenLoadedPowerTube solveScreenLoadedPowerTube(
     double upper = supply;
     double voltage = initialScreenVoltage;
     PowerTubeCurrents currents {};
-    if (! std::isfinite(voltage))
+    if (! isFinite(voltage))
     {
         currents = measuredPowerTubeCurrents(
             model, plateVoltage, gridVoltage, supply);
@@ -741,7 +759,7 @@ ScreenLoadedPowerTube solveScreenLoadedPowerTube(
             upper = voltage;
         else
             lower = voltage;
-        if (std::abs(residual) < 1.0e-10)
+        if (scalarAbs(residual) < 1.0e-10)
         {
             converged = true;
             break;
@@ -803,8 +821,8 @@ ScreenLoadedPowerPair solveScreenLoadedPowerPair(
             one.currents, two.currents,
             one.screenVoltage, two.screenVoltage,
             one.currents.plateSlope + two.currents.plateSlope,
-            std::max(std::abs(one.residual),
-                     std::abs(two.residual)) };
+            std::max(scalarAbs(one.residual),
+                     scalarAbs(two.residual)) };
         if (screenVoltageWarmStart != nullptr)
             *screenVoltageWarmStart = {
                 result.screenVoltageOne, result.screenVoltageTwo };
@@ -817,7 +835,7 @@ ScreenLoadedPowerPair solveScreenLoadedPowerPair(
     double voltage = initialOne;
     PowerTubeCurrents one {};
     PowerTubeCurrents two {};
-    if (! std::isfinite(voltage))
+    if (! isFinite(voltage))
     {
         one = measuredPowerTubeCurrents(
             model, plateVoltageOne, gridVoltageOne, supply);
@@ -841,7 +859,7 @@ ScreenLoadedPowerPair solveScreenLoadedPowerPair(
             upper = voltage;
         else
             lower = voltage;
-        if (std::abs(residual) < 1.0e-10)
+        if (scalarAbs(residual) < 1.0e-10)
         {
             converged = true;
             break;
@@ -875,7 +893,7 @@ ScreenLoadedPowerPair solveScreenLoadedPowerPair(
             * screenSwingSlope;
     const ScreenLoadedPowerPair result {
         one, two, voltage, voltage,
-        plateSlopeSum, std::abs(residual) };
+        plateSlopeSum, scalarAbs(residual) };
     if (screenVoltageWarmStart != nullptr)
         *screenVoltageWarmStart = { voltage, voltage };
     return result;
@@ -908,7 +926,7 @@ RawPowerTubePair solvePowerTubePairRaw(
     const double screenSupply = tube.screenSupply * rail;
     const double gridScale = -tube.gridBias;
     const double commonGrid = commonDrive * gridScale;
-    const double differentialGrid = std::abs(differentialDrive) * gridScale;
+    const double differentialGrid = scalarAbs(differentialDrive) * gridScale;
     const double gridOne = tube.gridBias + commonGrid + differentialGrid;
     const double gridTwo = tube.gridBias + commonGrid - differentialGrid;
     std::array<double, 2> screenVoltageWarmStart =
@@ -948,7 +966,7 @@ RawPowerTubePair solvePowerTubePairRaw(
             upper = swing;
         else
             lower = swing;
-        if (std::abs(point[0]) < 1.0e-12)
+        if (scalarAbs(point[0]) < 1.0e-12)
             break;
         const double newton = swing - point[0]
             / std::max(point[1], 1.0e-12);
@@ -985,6 +1003,14 @@ struct PowerTubeCalibration
 
 const PowerTubeCalibration& powerTubeCalibration(AmpModel model) noexcept
 {
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr PowerTubeCalibration sixL6 =
+#include "DSP/FrozenTables/PowerCalibration6L6.inc"
+    ;
+    static constexpr PowerTubeCalibration el34 =
+#include "DSP/FrozenTables/PowerCalibrationEl34.inc"
+    ;
+#else
     const auto make = [] (AmpModel tubeModel)
     {
         constexpr double derivativeStep = 1.0e-5;
@@ -1008,6 +1034,7 @@ const PowerTubeCalibration& powerTubeCalibration(AmpModel model) noexcept
         AmpModel::AmericanClean);
     static const PowerTubeCalibration el34 = make(
         AmpModel::BritishCrunch);
+#endif
     return model == AmpModel::BritishCrunch ? el34 : sixL6;
 }
 
@@ -1017,14 +1044,19 @@ struct PowerTubeLookupPoint
     float supplyDemand { 0.0f };
 };
 
-struct PowerTubeTable
-{
-    std::vector<PowerTubeLookupPoint> points;
-    double idleDemandError { 0.0 };
-};
-
 constexpr std::size_t powerTubeGridTrianglePoints =
     powerTubeGridPoints * (powerTubeGridPoints + 1) / 2;
+
+struct PowerTubeTable
+{
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    std::array<PowerTubeLookupPoint,
+               powerTubeGridTrianglePoints * powerTubeRailPoints> points;
+#else
+    std::vector<PowerTubeLookupPoint> points;
+#endif
+    double idleDemandError { 0.0 };
+};
 
 std::size_t powerTubeTableIndex(std::size_t highGridIndex,
                                 std::size_t lowGridIndex,
@@ -1034,6 +1066,7 @@ std::size_t powerTubeTableIndex(std::size_t highGridIndex,
          + highGridIndex * (highGridIndex + 1) / 2 + lowGridIndex;
 }
 
+#if !defined(ELECTRY_EMBEDDED_TARGET)
 PowerTubeTable makePowerTubeTable(AmpModel model)
 {
     PowerTubeTable table;
@@ -1098,7 +1131,7 @@ PowerTubeTable makePowerTubeTable(AmpModel model)
         -1.0 / minimumNormalisedPowerGrid))
         * static_cast<double>(powerTubeGridPoints - 1);
     const auto idleLower = std::min(
-        static_cast<std::size_t>(std::floor(idlePosition)),
+        static_cast<std::size_t>(scalarFloor(idlePosition)),
         powerTubeGridPoints - 2);
     const double idleFraction = idlePosition
         - static_cast<double>(idleLower);
@@ -1107,18 +1140,36 @@ PowerTubeTable makePowerTubeTable(AmpModel model)
         return static_cast<double>(table.points[powerTubeTableIndex(
             high, low, powerTubeRailPoints - 1)].supplyDemand);
     };
-    table.idleDemandError = std::lerp(
-        std::lerp(demand(idleLower, idleLower),
+    table.idleDemandError = monotonicLerp(
+        monotonicLerp(demand(idleLower, idleLower),
                   demand(idleLower + 1, idleLower), idleFraction),
-        std::lerp(demand(idleLower + 1, idleLower),
+        monotonicLerp(demand(idleLower + 1, idleLower),
                   demand(idleLower + 1, idleLower + 1), idleFraction),
         idleFraction);
     return table;
 }
 
+#endif
+
+const PowerTubeTable& powerTubeTable(AmpModel model) noexcept
+{
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr PowerTubeTable sixL6 =
+#include "DSP/FrozenTables/PowerTable6L6.inc"
+    ;
+    static constexpr PowerTubeTable el34 =
+#include "DSP/FrozenTables/PowerTableEl34.inc"
+    ;
+#else
+    static const PowerTubeTable sixL6 = makePowerTubeTable(AmpModel::AmericanClean);
+    static const PowerTubeTable el34 = makePowerTubeTable(AmpModel::BritishCrunch);
+#endif
+    return model == AmpModel::BritishCrunch ? el34 : sixL6;
+}
+
 double solvePowerGridCurrent(double gridVoltage) noexcept
 {
-    if (! std::isfinite(gridVoltage) || gridVoltage <= 0.0)
+    if (! isFinite(gridVoltage) || gridVoltage <= 0.0)
         return 0.0;
     const auto residual = [gridVoltage] (double current)
     {
@@ -1140,9 +1191,15 @@ double solvePowerGridCurrent(double gridVoltage) noexcept
     return 0.5 * (lower + upper);
 }
 
-double lookupPowerGridCurrent(double gridVoltage) noexcept
+constexpr std::size_t powerGridTablePoints = 4097;
+const std::array<float, powerGridTablePoints>& powerGridCurrentTable() noexcept
 {
-    constexpr std::size_t points = 4097;
+    constexpr std::size_t points = powerGridTablePoints;
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr std::array<float, points> table =
+#include "DSP/FrozenTables/PowerGrid.inc"
+    ;
+#else
     static const std::array<float, points> table = []
     {
         std::array<float, points> result {};
@@ -1155,7 +1212,15 @@ double lookupPowerGridCurrent(double gridVoltage) noexcept
         }
         return result;
     }();
-    if (! std::isfinite(gridVoltage) || gridVoltage <= 0.0)
+#endif
+    return table;
+}
+
+double lookupPowerGridCurrent(double gridVoltage) noexcept
+{
+    constexpr std::size_t points = powerGridTablePoints;
+    const auto& table = powerGridCurrentTable();
+    if (! isFinite(gridVoltage) || gridVoltage <= 0.0)
         return 0.0;
     if (gridVoltage >= maximumGridCurrentTableVoltage)
     {
@@ -1170,9 +1235,9 @@ double lookupPowerGridCurrent(double gridVoltage) noexcept
         gridVoltage / maximumGridCurrentTableVoltage)
         * static_cast<double>(points - 1);
     const auto lower = std::min(
-        static_cast<std::size_t>(std::floor(position)), points - 2);
+        static_cast<std::size_t>(scalarFloor(position)), points - 2);
     const double fraction = position - static_cast<double>(lower);
-    return std::lerp(static_cast<double>(table[lower]),
+    return monotonicLerp(static_cast<double>(table[lower]),
                      static_cast<double>(table[lower + 1]), fraction);
 }
 
@@ -1583,7 +1648,7 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
     const double sourceRate = static_cast<double>(
         assets::modernCabinetIrSourceSampleRate);
     const double rate = std::clamp(
-        std::isfinite(internalSampleRate)
+        isFinite(internalSampleRate)
             ? static_cast<double>(internalSampleRate) : sourceRate,
         sourceRate, 8.0 * sourceRate);
     const double ratio = rate / sourceRate;
@@ -1603,11 +1668,11 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
     const double windowNormaliser = besselI0(beta);
     const auto interpolationWeight = [&] (double distance)
     {
-        const double absolute = std::abs(distance);
+        const double absolute = scalarAbs(distance);
         if (absolute >= static_cast<double>(halfWidth))
             return 0.0;
         const double nearestInteger = std::round(distance);
-        const double sinc = std::abs(distance - nearestInteger) < 1.0e-12
+        const double sinc = scalarAbs(distance - nearestInteger) < 1.0e-12
             ? (nearestInteger == 0.0 ? 1.0 : 0.0)
             : std::sin(pi * distance) / (pi * distance);
         const double position = distance / static_cast<double>(halfWidth);
@@ -1621,7 +1686,7 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
     for (int outputIndex = 0; outputIndex < tapCount; ++outputIndex)
     {
         const double sourcePosition = static_cast<double>(outputIndex) / ratio;
-        const int centre = static_cast<int>(std::floor(sourcePosition));
+        const int centre = static_cast<int>(scalarFloor(sourcePosition));
         double value = 0.0;
         double weightSum = 0.0;
         for (int sourceIndex = centre - halfWidth + 1;
@@ -1639,7 +1704,7 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
                         static_cast<std::size_t>(sourceIndex)]);
             }
         }
-        if (std::abs(weightSum) > 1.0e-12)
+        if (scalarAbs(weightSum) > 1.0e-12)
             value /= weightSum;
         impulse[static_cast<std::size_t>(outputIndex)] =
             static_cast<float>(value * pcmScale * inverseRatio);
@@ -1657,7 +1722,7 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
         imaginary -= value * std::sin(angle);
     }
     const double measuredMagnitude = std::hypot(real, imaginary);
-    const double wantedMagnitude = std::isfinite(referenceMagnitude)
+    const double wantedMagnitude = isFinite(referenceMagnitude)
         && referenceMagnitude > 0.0f
         ? static_cast<double>(referenceMagnitude) : 1.0;
     normalisationGain = static_cast<float>(
@@ -1847,7 +1912,7 @@ void ElectryFx::prepare(double sampleRate)
     // allocation fails after one channel grows, process() must not use a
     // half-prepared bank with the old channel's shorter storage.
     prepared_ = false;
-    if (! std::isfinite(sampleRate))
+    if (! isFinite(sampleRate))
         sampleRate = 48000.0;
     sampleRate_ = std::clamp(sampleRate, minimumSampleRate, maximumSampleRate);
 
@@ -1858,10 +1923,9 @@ void ElectryFx::prepare(double sampleRate)
            && sampleRate_ * static_cast<double>(1 << highStages) < 384000.0)
         ++highStages;
 
-    // The measured-tube calibrations and tables are generated once from the
-    // exact circuit/load-line solves below. Prime every function static during
-    // prepare rather than allowing first use to initialise it on the audio
-    // thread.
+    // Native builds cache the exact circuit/load-line solves below; embedded
+    // builds use the same tables frozen as immutable canonical source data.
+    // Prime the native caches during preparation, never on the audio thread.
     static_cast<void>(triodeStageLookup(0.0));
     static_cast<void>(phaseMathTables()); // no first-use table construction in process()
     static_cast<void>(phaseInverterDirect(
@@ -2288,7 +2352,7 @@ void ElectryFx::prepareDiodeInverse(GainBank& bank)
                 v / diodeThermalVoltage);
             const double correction = residual / slope;
             v -= correction;
-            if (std::abs(correction) < 1.0e-16)
+            if (scalarAbs(correction) < 1.0e-16)
                 break;
         }
         const double slope = a + b / diodeThermalVoltage * std::cosh(
@@ -2300,17 +2364,17 @@ void ElectryFx::prepareDiodeInverse(GainBank& bank)
 float ElectryFx::diodePairLookup(const GainBank& bank, double inputVolts, double& outputVolts,
                                 double& previousDerivative) const noexcept
 {
-    inputVolts = std::isfinite(inputVolts)
+    inputVolts = isFinite(inputVolts)
         ? std::clamp(inputVolts, -12.0, 12.0) : 0.0;
-    if (! std::isfinite(outputVolts)
-        || ! std::isfinite(previousDerivative))
+    if (! isFinite(outputVolts)
+        || ! isFinite(previousDerivative))
     {
         outputVolts = 0.0;
         previousDerivative = 0.0;
     }
     const double rhs = outputVolts + bank.diodeHalfStep_ * previousDerivative
         + bank.diodeInputCoefficient_ * inputVolts;
-    const double magnitude = std::abs(rhs);
+    const double magnitude = scalarAbs(rhs);
     if (magnitude >= bank.diodeInverseMaximum_)
         return diodePairStep(inputVolts, bank.oversampledRate_, outputVolts,
                              previousDerivative);
@@ -2321,7 +2385,7 @@ float ElectryFx::diodePairLookup(const GainBank& bank, double inputVolts, double
     const auto& lo = bank.diodeInverse_[lower];
     const auto& hi = bank.diodeInverse_[lower + 1];
     const double delta = hi.voltage - lo.voltage;
-    const double v = std::copysign(lo.voltage + t * (lo.slope + t * (
+    const double v = copySign(lo.voltage + t * (lo.slope + t * (
         3.0 * delta - 2.0 * lo.slope - hi.slope
         + t * (lo.slope + hi.slope - 2.0 * delta))), rhs);
     // The solved trapezoidal identity supplies the capacitor derivative;
@@ -2340,10 +2404,10 @@ float ElectryFx::diodePairStep(double inputVolts, double sampleRate,
     // integration makes the capacitor's memory stable even at the lowest
     // supported host rate; four bounded Newton steps solve the diode current
     // without a table or a memoryless approximation.
-    inputVolts = std::isfinite(inputVolts)
+    inputVolts = isFinite(inputVolts)
         ? std::clamp(inputVolts, -12.0, 12.0) : 0.0;
-    if (! std::isfinite(outputVolts)
-        || ! std::isfinite(previousDerivative))
+    if (! isFinite(outputVolts)
+        || ! isFinite(previousDerivative))
     {
         outputVolts = 0.0;
         previousDerivative = 0.0;
@@ -2381,14 +2445,14 @@ float ElectryFx::diodePairStep(double inputVolts, double sampleRate,
     const double linearEstimate = rightHandSide / linearCoefficient;
     const double diodeEstimate = diodeThermalVoltage * std::asinh(
         rightHandSide / nonlinearCoefficient);
-    double voltage = std::copysign(
-        std::min(std::abs(linearEstimate), std::abs(diodeEstimate)),
+    double voltage = copySign(
+        std::min(scalarAbs(linearEstimate), scalarAbs(diodeEstimate)),
         rightHandSide);
     voltage = std::clamp(voltage, lower, upper);
     for (int iteration = 0; iteration < 4; ++iteration)
     {
         const double error = residual(voltage);
-        if (std::abs(error) < 1.0e-12)
+        if (scalarAbs(error) < 1.0e-12)
             break;
         if (error > 0.0)
             upper = voltage;
@@ -2399,7 +2463,7 @@ float ElectryFx::diodePairStep(double inputVolts, double sampleRate,
             + nonlinearCoefficient / diodeThermalVoltage
                 * std::cosh(voltage / diodeThermalVoltage);
         double candidate = voltage - error / slope;
-        if (! std::isfinite(candidate)
+        if (! isFinite(candidate)
             || candidate <= lower || candidate >= upper)
             candidate = 0.5 * (lower + upper);
         voltage = candidate;
@@ -2434,10 +2498,10 @@ double ElectryFx::solveTriodePlate(double gridToCathodeVoltage,
                                    double supplyVoltage,
                                    double& warmStart) noexcept
 {
-    gridToCathodeVoltage = std::isfinite(gridToCathodeVoltage)
+    gridToCathodeVoltage = isFinite(gridToCathodeVoltage)
         ? std::clamp(gridToCathodeVoltage, -20.0, 20.0)
         : -triodeCathodeBias;
-    supplyVoltage = std::isfinite(supplyVoltage)
+    supplyVoltage = isFinite(supplyVoltage)
         ? std::clamp(supplyVoltage, 1.0, 500.0)
         : triodeSupplyVoltage;
 
@@ -2463,13 +2527,13 @@ double ElectryFx::solveTriodePlate(double gridToCathodeVoltage,
         return upper;
     }
 
-    double plateVoltage = std::isfinite(warmStart)
+    double plateVoltage = isFinite(warmStart)
         ? std::clamp(warmStart, lower, upper)
         : std::clamp(triodeQuiescentPlate, lower, upper);
     for (int iteration = 0; iteration < 8; ++iteration)
     {
         const double error = residual(plateVoltage, slope);
-        if (std::abs(error) < 1.0e-9)
+        if (scalarAbs(error) < 1.0e-9)
             break;
         if (error > 0.0)
             upper = plateVoltage;
@@ -2478,7 +2542,7 @@ double ElectryFx::solveTriodePlate(double gridToCathodeVoltage,
 
         const double jacobian = 1.0 + triodePlateResistance * slope;
         double candidate = plateVoltage - error / jacobian;
-        if (! std::isfinite(candidate)
+        if (! isFinite(candidate)
             || candidate < lower || candidate > upper
             || candidate == plateVoltage)
             candidate = 0.5 * (lower + upper);
@@ -2490,13 +2554,13 @@ double ElectryFx::solveTriodePlate(double gridToCathodeVoltage,
     // this cold-path bisection supplies an actual residual guarantee for any
     // hostile warm start instead of returning the last iteration blindly.
     double finalError = residual(plateVoltage, slope);
-    if (std::abs(finalError) >= 1.0e-9)
+    if (scalarAbs(finalError) >= 1.0e-9)
     {
         for (int iteration = 0; iteration < 48; ++iteration)
         {
             plateVoltage = 0.5 * (lower + upper);
             finalError = residual(plateVoltage, slope);
-            if (std::abs(finalError) < 1.0e-9)
+            if (scalarAbs(finalError) < 1.0e-9)
                 break;
             if (finalError > 0.0)
                 upper = plateVoltage;
@@ -2518,7 +2582,7 @@ float ElectryFx::triodeStage(double gridVoltage,
         (triodeQuiescentPlate - solved) / triodePlateGain);
 }
 
-float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
+const std::array<float, 16385>& ElectryFx::triodeTransferTable() noexcept
 {
     // Plate loading and cathode bias are fixed, so the tube's plate solve is a
     // memoryless monotonic transfer. A dense table retains that solved circuit
@@ -2526,6 +2590,11 @@ float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
     // oversampled frame. Linear interpolation over 2.44 mV grid steps is kept
     // below the independently tested transfer-error and alias floors.
     constexpr std::size_t tableSize = 16385;
+#if defined(ELECTRY_EMBEDDED_TARGET)
+    static constexpr std::array<float, tableSize> transfer =
+#include "DSP/FrozenTables/TriodeTransfer.inc"
+    ;
+#else
     constexpr double minimumGridVoltage = -20.0 + triodeCathodeBias;
     constexpr double maximumGridVoltage = 20.0 + triodeCathodeBias;
     static const std::array<float, tableSize> transfer = []
@@ -2544,14 +2613,24 @@ float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
         return result;
     }();
 
-    if (! std::isfinite(gridVoltage))
+#endif
+    return transfer;
+}
+
+float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
+{
+    constexpr std::size_t tableSize = 16385;
+    constexpr double minimumGridVoltage = -20.0 + triodeCathodeBias;
+    constexpr double maximumGridVoltage = 20.0 + triodeCathodeBias;
+    const auto& transfer = triodeTransferTable();
+    if (! isFinite(gridVoltage))
         gridVoltage = 0.0;
     const double clamped = std::clamp(
         gridVoltage, minimumGridVoltage, maximumGridVoltage);
     const double position = (clamped - minimumGridVoltage)
                           / (maximumGridVoltage - minimumGridVoltage)
                           * static_cast<double>(tableSize - 1);
-    const auto lower = static_cast<std::size_t>(std::floor(position));
+    const auto lower = static_cast<std::size_t>(scalarFloor(position));
     if (lower >= tableSize - 1)
         return transfer.back();
     const float fraction = static_cast<float>(
@@ -2582,7 +2661,7 @@ ElectryFx::PhaseInverterResult ElectryFx::phaseInverterDirect(
 {
     if (model == AmpModel::ModernHighGain)
         return {};
-    if (! std::isfinite(drive))
+    if (! isFinite(drive))
         drive = 0.0;
     const double clampedDrive = std::clamp(
         drive, minimumPhaseInverterDrive, maximumPhaseInverterDrive);
@@ -2590,7 +2669,7 @@ ElectryFx::PhaseInverterResult ElectryFx::phaseInverterDirect(
     const auto point = solvePhaseInverterRaw(
         model, clampedDrive * calibration.inputVoltsPerDrive,
         &calibration.idle);
-    const double powerGridSwing = 2.0 * std::abs(
+    const double powerGridSwing = 2.0 * scalarAbs(
         phaseInverterParameters(model).powerGridBias);
     return {
         ((point.plateTwo - calibration.idle.plateTwo)
@@ -2619,9 +2698,9 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
 {
     if (model == AmpModel::ModernHighGain)
         return {};
-    if (! std::isfinite(drive))
+    if (! isFinite(drive))
         drive = 0.0;
-    if (! std::isfinite(sampleRate))
+    if (! isFinite(sampleRate))
         sampleRate = 192000.0;
 
     const auto& circuit = phaseInverterParameters(model);
@@ -2636,15 +2715,15 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
     const double totalResistance = circuit.tailResistance
                                  + circuit.cathodeResistance;
     const double maximumCurrent = circuit.supply / totalResistance;
-    const double gridScale = std::abs(circuit.powerGridBias);
+    const double gridScale = scalarAbs(circuit.powerGridBias);
     const double minimumGridOffset = -6.0 * gridScale;
     const double maximumGridOffset = 2.0 * gridScale;
     const double inputVoltage = std::clamp(
         drive, minimumPhaseInverterDrive, maximumPhaseInverterDrive)
         * calibration.inputVoltsPerDrive;
-    const double historyOne = std::isfinite(channel.couplingHistoryOne)
+    const double historyOne = isFinite(channel.couplingHistoryOne)
         ? channel.couplingHistoryOne : 0.0;
-    const double historyTwo = std::isfinite(channel.couplingHistoryTwo)
+    const double historyTwo = isFinite(channel.couplingHistoryTwo)
         ? channel.couplingHistoryTwo : 0.0;
 
     struct Evaluation
@@ -2673,9 +2752,9 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
 
         [[nodiscard]] double maximumResidual() const noexcept
         {
-            return std::max({ std::abs(residualCurrent),
-                              std::abs(residualPlateOne),
-                              std::abs(residualPlateTwo) });
+            return std::max({ scalarAbs(residualCurrent),
+                              scalarAbs(residualPlateOne),
+                              scalarAbs(residualPlateTwo) });
         }
     };
 
@@ -2784,15 +2863,15 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
 
     double totalCurrent = std::clamp(
         calibration.idle.totalCurrent
-            + (std::isfinite(channel.phaseCurrentDelta)
+            + (isFinite(channel.phaseCurrentDelta)
                 ? channel.phaseCurrentDelta : 0.0),
         0.0, maximumCurrent);
     double gridOffsetOne = std::clamp(
-        std::isfinite(channel.powerGridOffsetOne)
+        isFinite(channel.powerGridOffsetOne)
             ? channel.powerGridOffsetOne : 0.0,
         minimumGridOffset, maximumGridOffset);
     double gridOffsetTwo = std::clamp(
-        std::isfinite(channel.powerGridOffsetTwo)
+        isFinite(channel.powerGridOffsetTwo)
             ? channel.powerGridOffsetTwo : 0.0,
         minimumGridOffset, maximumGridOffset);
     Evaluation best = evaluate(
@@ -2809,10 +2888,10 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
             - best.currentGridDerivativeTwo
                 * best.plateCurrentDerivativeTwo
                 / best.plateGridDerivativeTwo;
-        if (! std::isfinite(denominator)
-            || std::abs(denominator) < 1.0e-12
-            || std::abs(best.plateGridDerivativeOne) < 1.0e-12
-            || std::abs(best.plateGridDerivativeTwo) < 1.0e-12)
+        if (! isFinite(denominator)
+            || scalarAbs(denominator) < 1.0e-12
+            || scalarAbs(best.plateGridDerivativeOne) < 1.0e-12
+            || scalarAbs(best.plateGridDerivativeTwo) < 1.0e-12)
             break;
         double currentStep = (
             -best.residualCurrent
@@ -2830,11 +2909,11 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
             / best.plateGridDerivativeTwo;
         double damping = 1.0;
         damping = std::min(damping, 0.25 * maximumCurrent
-            / std::max(std::abs(currentStep), 1.0e-18));
+            / std::max(scalarAbs(currentStep), 1.0e-18));
         damping = std::min(damping, 24.0
-            / std::max(std::abs(gridStepOne), 1.0e-18));
+            / std::max(scalarAbs(gridStepOne), 1.0e-18));
         damping = std::min(damping, 24.0
-            / std::max(std::abs(gridStepTwo), 1.0e-18));
+            / std::max(scalarAbs(gridStepTwo), 1.0e-18));
         currentStep *= damping;
         gridStepOne *= damping;
         gridStepTwo *= damping;
@@ -2848,7 +2927,7 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
             minimumGridOffset, maximumGridOffset);
         auto candidate = evaluate(
             candidateCurrent, candidateGridOne, candidateGridTwo);
-        if (! std::isfinite(candidate.maximumResidual()))
+        if (! isFinite(candidate.maximumResidual()))
             break;
         totalCurrent = candidateCurrent;
         gridOffsetOne = candidateGridOne;
@@ -2860,8 +2939,8 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
     // bounded solve reaches much tighter residuals in normal operation; this
     // guard exists for corrupted state and hostile non-finite hosts.
     if (best.maximumResidual() <= 1.0e-7
-        && std::isfinite(best.plateOne)
-        && std::isfinite(best.plateTwo))
+        && isFinite(best.plateOne)
+        && isFinite(best.plateTwo))
     {
         channel.phaseCurrentDelta = best.totalCurrent
             - calibration.idle.totalCurrent;
@@ -2904,11 +2983,11 @@ ElectryFx::PowerTubeDirectResult ElectryFx::powerTubePairDirect(
 {
     if (model == AmpModel::ModernHighGain)
         return {};
-    if (! std::isfinite(commonDrive))
+    if (! isFinite(commonDrive))
         commonDrive = 0.0;
-    if (! std::isfinite(differentialDrive))
+    if (! isFinite(differentialDrive))
         differentialDrive = 0.0;
-    if (! std::isfinite(railScale))
+    if (! isFinite(railScale))
         railScale = 1.0;
     const double rail = std::clamp(
         railScale, minimumPowerTubeRail, maximumPowerTubeRail);
@@ -2943,23 +3022,19 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
     // while push-pull swap symmetry packs the square grid plane as a triangle.
     // Blocking's shared negative shift is therefore preserved instead of
     // disappearing in a scalar opposed drive.
-    static const PowerTubeTable sixL6 = makePowerTubeTable(
-        AmpModel::AmericanClean);
-    static const PowerTubeTable el34 = makePowerTubeTable(
-        AmpModel::BritishCrunch);
     if (model == AmpModel::ModernHighGain)
         return {};
-    if (! std::isfinite(commonDrive))
+    if (! isFinite(commonDrive))
         commonDrive = 0.0f;
-    if (! std::isfinite(differentialDrive))
+    if (! isFinite(differentialDrive))
         differentialDrive = 0.0f;
-    if (! std::isfinite(railScale))
+    if (! isFinite(railScale))
         railScale = 1.0f;
     const double common = std::clamp(
         static_cast<double>(commonDrive), minimumPowerTubeCommonDrive,
         maximumPowerTubeCommonDrive);
     const double differential = std::clamp(
-        std::abs(static_cast<double>(differentialDrive)), 0.0,
+        scalarAbs(static_cast<double>(differentialDrive)), 0.0,
         maximumPowerTubeDifferentialDrive);
     const double clampedRail = std::clamp(
         static_cast<double>(railScale),
@@ -2983,13 +3058,13 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         / (maximumPowerTubeRail - minimumPowerTubeRail)
         * static_cast<double>(powerTubeRailPoints - 1);
     const auto highGridLower = std::min(
-        static_cast<std::size_t>(std::floor(highGridPosition)),
+        static_cast<std::size_t>(scalarFloor(highGridPosition)),
         powerTubeGridPoints - 2);
     const auto lowGridLower = std::min(
-        static_cast<std::size_t>(std::floor(lowGridPosition)),
+        static_cast<std::size_t>(scalarFloor(lowGridPosition)),
         powerTubeGridPoints - 2);
     const auto railLower = std::min(
-        static_cast<std::size_t>(std::floor(railPosition)),
+        static_cast<std::size_t>(scalarFloor(railPosition)),
         powerTubeRailPoints - 2);
     const double highGridFraction = highGridPosition
         - static_cast<double>(highGridLower);
@@ -2997,7 +3072,7 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         - static_cast<double>(lowGridLower);
     const double railFraction =
         railPosition - static_cast<double>(railLower);
-    const auto& table = model == AmpModel::BritishCrunch ? el34 : sixL6;
+    const auto& table = powerTubeTable(model);
     const auto tablePoint = [&] (std::size_t highIndex,
                                  std::size_t lowIndex,
                                  std::size_t railIndex)
@@ -3015,9 +3090,9 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
                                       double fraction)
     {
         return PowerTubeResult {
-            std::lerp(static_cast<double>(lower.output),
+            monotonicLerp(static_cast<double>(lower.output),
                       static_cast<double>(upper.output), fraction),
-            std::lerp(static_cast<double>(lower.supplyDemand),
+            monotonicLerp(static_cast<double>(lower.supplyDemand),
                       static_cast<double>(upper.supplyDemand), fraction)
         };
     };
@@ -3026,8 +3101,8 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
                                        double fraction)
     {
         return PowerTubeResult {
-            std::lerp(lower.output, upper.output, fraction),
-            std::lerp(lower.supplyDemand, upper.supplyDemand, fraction)
+            monotonicLerp(lower.output, upper.output, fraction),
+            monotonicLerp(lower.supplyDemand, upper.supplyDemand, fraction)
         };
     };
     const auto alongLowGrid = [&] (std::size_t highIndex,
@@ -3134,7 +3209,7 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
         float sample = channel.inputHighpass.process(input);
         sample = channel.inputVoice.process(sample);
 
-        channel.bias += bank.biasCoefficient_ * (std::abs(sample) - channel.bias);
+        channel.bias += bank.biasCoefficient_ * (scalarAbs(sample) - channel.bias);
         const float bias = -0.22f - 1.10f * channel.bias;
         const float biasTriode = triodeStageLookup(bias);
 
@@ -3171,7 +3246,7 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
     // dense table generated from the measured 12AX7 plate-load circuit solve;
     // subtracting the bias point keeps the stage centred instead of pumping DC
     // into the cabinet.
-    channel.bias += bank.biasCoefficient_ * (std::abs(sample) - channel.bias);
+    channel.bias += bank.biasCoefficient_ * (scalarAbs(sample) - channel.bias);
     const float bias = (american ? -0.12f : -0.18f)
         - (american ? 0.40f : 0.78f) * channel.bias;
     const float biasTriode = triodeStageLookup(bias);
@@ -3211,7 +3286,7 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
         - feedbackAmount * channel.negativeFeedback.state;
     const auto phaseInverter = phaseInverterCoupledStep(
         channel, model, inverterInput, bank.oversampledRate_);
-    const double gridScale = std::abs(
+    const double gridScale = scalarAbs(
         phaseInverterParameters(model).powerGridBias);
     const float powerCommon = static_cast<float>(
         (0.5 * (phaseInverter.gridOne + phaseInverter.gridTwo)
@@ -3539,8 +3614,8 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
                     updateAmpModelSelection(bank);
                 std::array<float, 2> result {};
                 if (ReuseIdenticalChannels && bank.gainChannelsEqual_
-                    && std::bit_cast<std::uint32_t>(samples[0])
-                        == std::bit_cast<std::uint32_t>(samples[1]))
+                    && bitCast<std::uint32_t>(samples[0])
+                        == bitCast<std::uint32_t>(samples[1]))
                 {
                     const float wet = renderGainStage(bank, bank.gain_[0], samples[0]);
                     result[0] = lerp(samples[0], wet, gainEngagement_);
@@ -3586,8 +3661,8 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
         // Rhythm compressor: a soft knee easing into roughly 3.5:1 above
         // -20 dBFS. The knee is what lets a palm-muted part sit still instead
         // of the level grabbing at every pick attack.
-        const float detector = std::max(std::abs(samples[0]),
-                                        std::abs(samples[1]));
+        const float detector = std::max(scalarAbs(samples[0]),
+                                        scalarAbs(samples[1]));
         const float ballistic = detector > compressorEnvelope_
             ? compressorAttack_ : compressorRelease_;
         compressorEnvelope_ = ballistic * compressorEnvelope_
@@ -3655,7 +3730,7 @@ void ElectryFx::processInternal(float* left, float* right, int numSamples) noexc
         // sample where the failure occurs. A last-sample-only block check can
         // miss a transient fault or erase valid audio earlier in the block;
         // recovering here gives identical results for every host block size.
-        if (! std::isfinite(samples[0]) || ! std::isfinite(samples[1]))
+        if (! isFinite(samples[0]) || ! isFinite(samples[1]))
         {
             reset();
             samples = {};

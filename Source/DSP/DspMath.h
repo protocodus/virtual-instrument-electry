@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DspCompatibility.h"
+
 // A handful of scalar primitives shared by the string engine, the amplifier
 // chain and the fretboard visuals. All three JUCE-free DSP translation units
 // used to carry their own byte-identical copy of `clampf`, `lerp` and

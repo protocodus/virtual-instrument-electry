@@ -2,8 +2,7 @@
 
 #include <JuceHeader.h>
 
-#include "DSP/ElectryEngine.h"
-#include "DSP/ElectryFx.h"
+#include "DSP/ElectryPerformer.h"
 #include "DSP/ElectryVisuals.h"
 
 #include <array>
@@ -247,10 +246,6 @@ private:
                                 bool selectsBaseArticulation,
                                 NoteOnBatch& batch) noexcept;
     void flushNoteOnBatch (NoteOnBatch& batch) noexcept;
-    void applyVibratoGesture (float amount) noexcept;
-    void clearVibratoGesture() noexcept;
-    void applyTremoloGesture (float velocity) noexcept;
-    void clearTremoloGesture() noexcept;
     void dispatchNoteOn (int note, float velocity,
                          bool selectsBaseArticulation) noexcept;
     void dispatchNoteOff (int note) noexcept;
@@ -272,40 +267,21 @@ private:
     void resetRemainingControllers() noexcept;
     void releasePerformanceKeys() noexcept;
     void releasePlayableNotes() noexcept;
-    void applyPlayStyle (int styleIndex) noexcept;
-    int latestHeldPlayStyle() const noexcept;
-    void clearHeldPlayStyles() noexcept;
-    void applySoloStringMask (std::uint8_t mask) noexcept;
-    std::uint8_t computeHeldSoloStringMask() const noexcept;
-    void clearHeldSoloStrings() noexcept;
     void synchronisePlayStyleKeyMode() noexcept;
     void dispatchMidiData (const juce::uint8* data, int numBytes) noexcept;
-    void resetEngineWithArticulations (int pickStyle, int playStyle) noexcept;
-    void renderEngines (float* left, float* right, int numSamples) noexcept;
     void updateEngineParameters() noexcept;
     void updateEffectParameters() noexcept;
-    void processEffects (float* left, float* right, int numSamples) noexcept;
     void publishStringVisualState() noexcept;
+    void publishPerformanceState() noexcept;
 
-    electry::ElectryEngine engine;
-    // DOUBLE is two performances, not a delayed or widened copy. The second
-    // engine receives the same score with its own deterministic player draws.
-    std::unique_ptr<electry::ElectryEngine> doubleEngine {
-        std::make_unique<electry::ElectryEngine>()
-    };
-    // The amplifier, cabinet and time effects live in the JUCE-free DSP
-    // library alongside the string model, so the complete signal path is
-    // regression tested on every platform rather than only inside a host.
-    electry::ElectryFx effects;
-    // One shared stereo ramp and fixed scratch keep bypass transitions bounded
-    // and allocation-free even when a host exceeds its prepared block size.
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> fxWetMix { 0.0f };
-    std::array<std::array<float, 256>, 2> fxDryScratch {};
+    electry::ElectryPerformer performer;
+    // JUCE owns MPE zone/channel routing; both hosts share the instrument.
+    electry::ElectryEngine& engine = performer.getEngine();
+    electry::ElectryEngine* doubleEngine = &performer.getDoubleEngine();
     std::array<electry::StringVisualState,
                electry::ElectryEngine::stringCount> visualScratch {};
     std::atomic<bool> panicRequested { false };
     std::atomic<bool> engineReady { false };
-    bool doubleModeActive = false;
     std::atomic<int> activeVoiceCount { 0 };
     std::atomic<int> sympatheticStringCount { 0 };
     std::atomic<int> currentProgram { 0 };
@@ -316,23 +292,7 @@ private:
     std::atomic<int> playStyleIndex { 0 };
     std::atomic<int> effectivePlayStyleIndex { 0 };
     std::atomic<bool> playStyleKeysHold { false };
-    bool appliedPlayStyleKeysHold = false;
-    int appliedBasePlayStyleIndex = 0;
-    std::array<std::uint16_t,
-               electry::ElectryEngine::playStyleKeyswitchCount>
-        heldPlayStyleCounts {};
-    std::array<std::uint64_t,
-               electry::ElectryEngine::playStyleKeyswitchCount>
-        heldPlayStyleOrder {};
-    std::uint64_t heldPlayStyleSequence = 0;
     std::atomic<std::uint8_t> soloStringMaskForDisplay { 0 };
-    std::atomic<std::uint8_t> latchedSoloStringMask { 0 };
-    std::array<std::uint16_t,
-               electry::ElectryEngine::stringCount>
-        heldSoloStringCounts {};
-    std::uint16_t vibratoGestureOwners = 0;
-    std::uint16_t tremoloGestureOwners = 0;
-    bool sustainPedalDown = false;
     juce::MPEZoneLayout mpeZoneLayout;
     juce::MidiRPNDetector mpeRpnDetector;
     // JUCE keeps these four routing ranges as integers. RPN 0's Data Entry

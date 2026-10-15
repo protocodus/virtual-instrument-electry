@@ -106,6 +106,17 @@ jobs:
           cmake --build build-dsp --parallel
           ctest --test-dir build-dsp --output-on-failure
 
+      - name: Validate C++17 embedded instrument
+        run: |
+          cmake -S . -B build-embedded -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DELECTRY_BUILD_PLUGIN=OFF -DELECTRY_BUILD_TOOLS=OFF \
+            -DELECTRY_EMBEDDED_TARGET=ON
+          cmake --build build-embedded --parallel \
+            --target ElectryPerformerTests ElectryFxTests
+          ctest --test-dir build-embedded --output-on-failure \
+            -R '^Electry\.(Performer|ElectryFx)$'
+
       # The count is the point of the check: it is what turns "the renderer ran"
       # into "the renderer rendered the whole set", so a take that silently
       # stopped being written fails CI instead of leaving a stale WAV committed

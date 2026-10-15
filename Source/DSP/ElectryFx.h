@@ -526,6 +526,8 @@ private:
         double& warmStart) noexcept;
     [[nodiscard]] static float triodeStage(double gridVoltage,
                                            double& plateVoltage) noexcept;
+    [[nodiscard]] static const std::array<float, 16385>&
+        triodeTransferTable() noexcept;
     [[nodiscard]] static float triodeStageLookup(double gridVoltage) noexcept;
     struct PhaseInverterResult
     {

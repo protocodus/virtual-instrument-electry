@@ -91,11 +91,7 @@ constexpr auto playStyleKeysHoldProperty = "playStyleKeysHold";
 
 bool isAttackConditioningNote (int note) noexcept
 {
-    return electry::ElectryEngine::isKeyswitchNote (note)
-        || electry::ElectryEngine::isVibratoGestureNote (note)
-        || electry::ElectryEngine::isTremoloGestureNote (note)
-        || electry::ElectryEngine::isMidiSoloStringNote (note)
-        || electry::ElectryEngine::isMidiSoloClearNote (note);
+    return electry::ElectryPerformer::isAttackConditioningNote(note);
 }
 
 // Channel messages must contain complete 7-bit data bytes. Masking a status
@@ -282,10 +278,6 @@ ElectryAudioProcessor::ElectryAudioProcessor()
       parameters (*this, nullptr, "ELECTRY_STATE", createParameterLayout())
 {
     using namespace electry::parameters;
-
-    // Fixed, distinct player stream: repeatable contact and performance
-    // timing, but not a phase-identical copy of the primary engine in DOUBLE.
-    doubleEngine->setVariationSeed (0x9e3779b9u);
 
     parameterPointers.pickupSelector = parameters.getRawParameterValue (pickupSelector);
     parameterPointers.pickupType     = parameters.getRawParameterValue (pickupType);
@@ -533,90 +525,46 @@ ElectryAudioProcessor::createParameterLayout()
 
 void ElectryAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // This is the prepare boundary: forget only an older request. Any Panic
-    // click from here onward either reaches the still-running old block or
-    // survives the preparation work for the first new block.
-    panicRequested.store (false, std::memory_order_release);
-    engineReady.store (false, std::memory_order_release);
-    sampleRate = juce::jlimit (8000.0, 384000.0,
-        std::isfinite (sampleRate) ? sampleRate : 44100.0);
-    samplesPerBlock = std::max (0, samplesPerBlock);
-    engine.prepare (sampleRate, samplesPerBlock);
-    doubleEngine->prepare (sampleRate, samplesPerBlock);
+    panicRequested.store(false, std::memory_order_release);
+    engineReady.store(false, std::memory_order_release);
+    sampleRate = juce::jlimit(8000.0, 384000.0,
+        std::isfinite(sampleRate) ? sampleRate : 44100.0);
+    performer.prepare(sampleRate, std::max(0, samplesPerBlock));
     updateEngineParameters();
-    sustainPedalDown = false;
-    // Drop stale on-screen note events before reading the producer-side
-    // latches. A style click published after this boundary remains queued for
-    // the first block, so it can never be discarded after changing the UI.
+    updateEffectParameters();
+    // Snapshot UI latches only after retiring older queued gestures.
     discardUiMidiEvents();
-    clearHeldPlayStyles();
-    clearHeldSoloStrings();
-    applySoloStringMask (0);
-    appliedPlayStyleKeysHold = playStyleKeysHold.load (std::memory_order_relaxed);
-    appliedBasePlayStyleIndex = juce::jlimit (
-        0, electry::ElectryEngine::playStyleKeyswitchCount - 1,
-        playStyleIndex.load (std::memory_order_relaxed));
-    resetEngineWithArticulations (
-        pickStyleIndex.load (std::memory_order_relaxed),
-        appliedBasePlayStyleIndex);
+    performer.setPlayStyleKeysHold(playStyleKeysHold.load(std::memory_order_relaxed));
+    performer.reset(pickStyleIndex.load(std::memory_order_relaxed),
+                    playStyleIndex.load(std::memory_order_relaxed));
     mpeRpnDetector.reset();
     clearMpeNoteOwnership();
-    clearVibratoGesture();
-    clearTremoloGesture();
     resetPitchBends();
-    engine.setResonance (0.0f);
-    doubleEngine->setResonance (0.0f);
-    engine.setPalmMutePressure (0.0f);
-    doubleEngine->setPalmMutePressure (0.0f);
-    midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
-    effects.prepare (sampleRate);
-    fxWetMix.reset (juce::jlimit (8000.0, 384000.0,
-        std::isfinite (sampleRate) ? sampleRate : 44100.0), 0.005);
-    fxWetMix.setCurrentAndTargetValue (
-        valueOf (parameterPointers.fxEnabled) >= 0.5f ? 1.0f : 0.0f);
-    updateEffectParameters();
-    effects.reset();
-    displaySampleRate.store (sampleRate, std::memory_order_relaxed);
-    activeVoiceCount.store (0, std::memory_order_relaxed);
-    sympatheticStringCount.store (0, std::memory_order_relaxed);
+    midiMutePressureForDisplay.store(0, std::memory_order_relaxed);
+    publishPerformanceState();
+    displaySampleRate.store(sampleRate, std::memory_order_relaxed);
+    activeVoiceCount.store(0, std::memory_order_relaxed);
+    sympatheticStringCount.store(0, std::memory_order_relaxed);
     publishStringVisualState();
-    engineReady.store (true, std::memory_order_release);
+    engineReady.store(true, std::memory_order_release);
 }
 
 void ElectryAudioProcessor::releaseResources()
 {
-    engineReady.store (false, std::memory_order_release);
+    engineReady.store(false, std::memory_order_release);
     mpeRpnDetector.reset();
     resetPitchBends();
     clearMpeNoteOwnership();
-    sustainPedalDown = false;
-    engine.setSustainPedal (false);
-    doubleEngine->setSustainPedal (false);
-    engine.setResonance (0.0f);
-    doubleEngine->setResonance (0.0f);
-    engine.setPalmMutePressure (0.0f);
-    doubleEngine->setPalmMutePressure (0.0f);
-    midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
-    clearVibratoGesture();
-    clearTremoloGesture();
-    engine.allNotesOff();
-    doubleEngine->allNotesOff();
-    engine.reset();
-    doubleEngine->reset();
-    effects.reset();
+    performer.resetControllers();
+    performer.reset(pickStyleIndex.load(std::memory_order_relaxed),
+                    playStyleIndex.load(std::memory_order_relaxed));
+    midiMutePressureForDisplay.store(0, std::memory_order_relaxed);
+    publishPerformanceState();
     discardUiMidiEvents();
-    clearHeldPlayStyles();
-    clearHeldSoloStrings();
-    applySoloStringMask (0);
-    appliedBasePlayStyleIndex = juce::jlimit (
-        0, electry::ElectryEngine::playStyleKeyswitchCount - 1,
-        playStyleIndex.load (std::memory_order_relaxed));
-    effectivePlayStyleIndex.store (appliedBasePlayStyleIndex,
-                                   std::memory_order_relaxed);
-    panicRequested.store (false, std::memory_order_release);
-    activeVoiceCount.store (0, std::memory_order_relaxed);
-    sympatheticStringCount.store (0, std::memory_order_relaxed);
-    displaySampleRate.store (0.0, std::memory_order_relaxed);
+    panicRequested.store(false, std::memory_order_release);
+    activeVoiceCount.store(0, std::memory_order_relaxed);
+    sympatheticStringCount.store(0, std::memory_order_relaxed);
+    displaySampleRate.store(0.0, std::memory_order_relaxed);
     publishStringVisualState();
 }
 
@@ -650,28 +598,11 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     if (panicRequested.exchange (false, std::memory_order_acq_rel))
     {
-        sustainPedalDown = false;
-        // Preserve an already-clicked style while discarding queued playable
-        // notes. Discard first: a later click remains queued, instead of being
-        // lost after its immediate display latch has changed.
         discardUiMidiEvents();
-        clearHeldPlayStyles();
-        clearHeldSoloStrings();
-        applySoloStringMask (0);
-        clearVibratoGesture();
-        clearTremoloGesture();
-        appliedBasePlayStyleIndex = juce::jlimit (
-            0, electry::ElectryEngine::playStyleKeyswitchCount - 1,
-            playStyleIndex.load (std::memory_order_relaxed));
-        resetEngineWithArticulations (
-            pickStyleIndex.load (std::memory_order_relaxed),
-            appliedBasePlayStyleIndex);
+        performer.reset(pickStyleIndex.load(std::memory_order_relaxed),
+                        playStyleIndex.load(std::memory_order_relaxed));
         clearMpeNoteOwnership();
-        effects.reset();
-        // Panic/state restoration already retires every sounding string.
-        // Start the next note in the restored state, without an obsolete ramp.
-        fxWetMix.setCurrentAndTargetValue (
-            valueOf (parameterPointers.fxEnabled) >= 0.5f ? 1.0f : 0.0f);
+        publishPerformanceState();
     }
 
     // GUI notes and articulation clicks enter through a bounded lock-free
@@ -699,34 +630,10 @@ void ElectryAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const auto numSamples = buffer.getNumSamples();
     int renderedTo = 0;
 
-    // The nominal acoustic delay is fixed in time by the engine, not by the
-    // host's callback size. Render, amplify and return audio in causal chunks
-    // no longer than that delay; event boundaries may make a chunk shorter,
-    // but the engine's FIFO keeps the acoustic latency unchanged.
-    const int feedbackChunkSize = engine.getAcousticReturnDelaySamples();
     const auto renderFeedbackPath = [&] (int startSample, int sampleCount)
     {
-        while (sampleCount > 0)
-        {
-            const int chunk = std::min(feedbackChunkSize, sampleCount);
-            auto* left = buffer.getWritePointer (0, startSample);
-            auto* right = buffer.getWritePointer (1, startSample);
-            renderEngines (left, right, chunk);
-            processEffects (left, right, chunk);
-
-            if (doubleModeActive)
-            {
-                engine.pushAcousticReturn (left, nullptr, chunk);
-                doubleEngine->pushAcousticReturn (right, nullptr, chunk);
-            }
-            else
-            {
-                engine.pushAcousticReturn (left, right, chunk);
-            }
-
-            startSample += chunk;
-            sampleCount -= chunk;
-        }
+        performer.render(buffer.getWritePointer(0, startSample),
+                         buffer.getWritePointer(1, startSample), sampleCount);
     };
 
     for (auto event = midiMessages.begin(); event != midiMessages.end();)
@@ -894,18 +801,14 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
         const auto controllerValue = data[2] & 0x7fu;
         if (controller == 64u)
         {
-            sustainPedalDown = controllerValue >= 64u;
-            engine.setSustainPedal (sustainPedalDown);
-            doubleEngine->setSustainPedal (sustainPedalDown);
+            performer.setSustainPedal(controllerValue >= 64u);
         }
         else if (controller == 1u)
         {
             // The modulation wheel is the performance resonance: it lifts the
             // sympathetic coupling toward total and opens the acoustic
             // feedback path, so a distorted tone can be played into a howl.
-            engine.setResonance (static_cast<float> (controllerValue) / 127.0f);
-            doubleEngine->setResonance (
-                static_cast<float> (controllerValue) / 127.0f);
+            performer.setResonance(static_cast<float>(controllerValue) / 127.0f);
         }
         else if (controller == 2u)
         {
@@ -913,10 +816,7 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
             // it adds bridge-hand pressure without needing automation.
             midiMutePressureForDisplay.store (
                 static_cast<int> (controllerValue), std::memory_order_relaxed);
-            engine.setPalmMutePressure (
-                static_cast<float> (controllerValue) / 127.0f);
-            doubleEngine->setPalmMutePressure (
-                static_cast<float> (controllerValue) / 127.0f);
+            performer.setPalmMutePressure(static_cast<float>(controllerValue) / 127.0f);
         }
         else if (controller == 121u)
         {
@@ -925,23 +825,10 @@ void ElectryAudioProcessor::dispatchMidiData (const juce::uint8* data, int numBy
         }
         else if (controller == 120u)
         {
-            // MIDI All Sound Off is an immediate audio mute. Unlike the
-            // front-panel Panic, it preserves controller/key state: parameter
-            // targets, selected latches and a physically held play-style key
-            // survive; Alternate deliberately restarts on Down.
-            // Producer/display latches can already describe a GUI event beyond
-            // this callback's queue snapshot. Preserve only styles that the
-            // audio thread has actually applied at the CC120 boundary.
-            const int appliedPickStyle = static_cast<int> (
-                engine.getCurrentPickStyle());
-            const int appliedPlayStyle = static_cast<int> (
-                engine.getCurrentPlayStyle());
-            resetEngineWithArticulations (appliedPickStyle, appliedPlayStyle);
+            performer.allSoundOff();
             clearMpeNoteOwnership();
             refreshMpePitchBends();
-            engine.setSustainPedal (sustainPedalDown);
-            doubleEngine->setSustainPedal (sustainPedalDown);
-            effects.reset();
+            publishPerformanceState();
         }
         else if (controller == 123u)
         {
@@ -996,11 +883,9 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
         return;
     const auto expressionId =
         static_cast<electry::ElectryEngine::ExpressionId> (recordedOwner);
-    const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
     if (expressionId != electry::ElectryEngine::legacyExpressionId)
     {
-        engine.noteOff (engineNote, expressionId);
-        doubleEngine->noteOff (engineNote, expressionId);
+        performer.noteOff(note, expressionId);
         if (expressionId <= electry::ElectryEngine::maximumExpressionId)
         {
             auto& total = outstandingMpeChannelNotes[
@@ -1011,8 +896,7 @@ void ElectryAudioProcessor::dispatchHostNoteOff (int note,
         }
         return;
     }
-    engine.noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
-    doubleEngine->noteOff (engineNote, electry::ElectryEngine::legacyExpressionId);
+    performer.noteOff(note, electry::ElectryEngine::legacyExpressionId);
 }
 
 bool ElectryAudioProcessor::processMpeController (const juce::uint8* data,
@@ -1152,8 +1036,7 @@ void ElectryAudioProcessor::dispatchPitchWheel (int midiChannel,
         }
     }
 
-    engine.setPitchBend (bend);
-    doubleEngine->setPitchBend (bend);
+    performer.setPitchBend(bend);
 }
 
 void ElectryAudioProcessor::refreshMpePitchBend (int midiChannel) noexcept
@@ -1286,349 +1169,70 @@ int ElectryAudioProcessor::takeNoteOwnership (int note, int midiChannel,
 void ElectryAudioProcessor::resetPitchBends() noexcept
 {
     midiPitchBends.fill (0.0f);
-    engine.setPitchBend (0.0f);
-    doubleEngine->setPitchBend (0.0f);
+    performer.setPitchBend(0.0f);
     refreshMpePitchBends();
 }
 
 void ElectryAudioProcessor::resetAttackConditioningControllers() noexcept
 {
     mpeRpnDetector.reset();
-    engine.setPalmMutePressure (0.0f);
-    doubleEngine->setPalmMutePressure (0.0f);
-    midiMutePressureForDisplay.store (0, std::memory_order_relaxed);
+    performer.setPalmMutePressure(0.0f);
+    midiMutePressureForDisplay.store(0, std::memory_order_relaxed);
 }
 
 void ElectryAudioProcessor::resetRemainingControllers() noexcept
 {
-    sustainPedalDown = false;
     resetPitchBends();
-    engine.setResonance (0.0f);
-    doubleEngine->setResonance (0.0f);
-    engine.setSustainPedal (false);
-    doubleEngine->setSustainPedal (false);
+    performer.setResonance(0.0f);
+    performer.setSustainPedal(false);
 }
 
 void ElectryAudioProcessor::releasePerformanceKeys() noexcept
 {
-    clearHeldPlayStyles();
-    if (appliedPlayStyleKeysHold)
-    {
-        clearHeldSoloStrings();
-        applySoloStringMask (0);
-    }
-    clearVibratoGesture();
-    clearTremoloGesture();
-    applyPlayStyle (appliedBasePlayStyleIndex);
+    performer.releasePerformanceKeys();
+    publishPerformanceState();
 }
 
 void ElectryAudioProcessor::releasePlayableNotes() noexcept
 {
-    engine.allNotesOff();
-    doubleEngine->allNotesOff();
+    performer.releasePlayableNotes();
     clearMpeNoteOwnership();
 }
 
 void ElectryAudioProcessor::dispatchNoteOn (
     int note, float velocity, bool selectsBaseArticulation) noexcept
 {
-    if (electry::ElectryEngine::isVibratoGestureNote (note))
-    {
-        if (velocity <= 0.0f)
-        {
-            dispatchNoteOff (note);
-            return;
-        }
-        if (vibratoGestureOwners < std::numeric_limits<std::uint16_t>::max())
-            ++vibratoGestureOwners;
-        applyVibratoGesture (velocity);
-        return;
-    }
-
-    if (electry::ElectryEngine::isTremoloGestureNote (note))
-    {
-        if (velocity <= 0.0f)
-        {
-            dispatchNoteOff (note);
-            return;
-        }
-        if (tremoloGestureOwners < std::numeric_limits<std::uint16_t>::max())
-            ++tremoloGestureOwners;
-        applyTremoloGesture (velocity);
-        return;
-    }
-
-    if (electry::ElectryEngine::isMidiSoloClearNote (note))
-    {
-        clearHeldSoloStrings();
-        applySoloStringMask (0);
-        return;
-    }
-
-    if (electry::ElectryEngine::isMidiSoloStringNote (note))
-    {
-        const int stringIndex = note - electry::ElectryEngine::firstMidiSoloStringNote;
-        if (appliedPlayStyleKeysHold)
-        {
-            auto& count = heldSoloStringCounts[static_cast<std::size_t> (stringIndex)];
-            if (count < std::numeric_limits<std::uint16_t>::max())
-                ++count;
-            applySoloStringMask (computeHeldSoloStringMask());
-        }
-        else
-        {
-            const auto toggleBit = static_cast<std::uint8_t> (1u << stringIndex);
-            const std::uint8_t nextMask = latchedSoloStringMask.load (std::memory_order_relaxed) ^ toggleBit;
-            latchedSoloStringMask.store (nextMask, std::memory_order_relaxed);
-            applySoloStringMask (nextMask);
-        }
-        return;
-    }
-
+    performer.noteOn(note, velocity, selectsBaseArticulation);
     const int articulation = note - electry::ElectryEngine::firstKeyswitchNote;
-    if (articulation < 0
-        || articulation >= electry::ElectryEngine::keyswitchCount)
-    {
-        if (electry::ElectryEngine::isMidiPlayableNote (note)
-            || electry::ElectryEngine::isMidiRepickNote (note))
-        {
-            const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
-            engine.noteOn (engineNote, velocity);
-            if (doubleModeActive)
-                doubleEngine->noteOn (engineNote, velocity);
-        }
-        return;
-    }
-
-    if (articulation < electry::ElectryEngine::pickStyleKeyswitchCount)
-    {
-        if (! selectsBaseArticulation)
-            latchArticulation (articulation);
-        engine.noteOn (note, velocity);
-        doubleEngine->noteOn (note, velocity);
-        return;
-    }
-
-    const int style = articulation
-                    - electry::ElectryEngine::pickStyleKeyswitchCount;
-    if (selectsBaseArticulation)
-    {
-        appliedBasePlayStyleIndex = style;
-        if (! appliedPlayStyleKeysHold || latestHeldPlayStyle() < 0)
-            applyPlayStyle (style);
-        return;
-    }
-
-    if (! appliedPlayStyleKeysHold)
-    {
-        playStyleIndex.store (style, std::memory_order_relaxed);
-        appliedBasePlayStyleIndex = style;
-        applyPlayStyle (style);
-        return;
-    }
-
-    auto& count = heldPlayStyleCounts[static_cast<std::size_t> (style)];
-    if (count < std::numeric_limits<std::uint16_t>::max())
-        ++count;
-    heldPlayStyleOrder[static_cast<std::size_t> (style)] = ++heldPlayStyleSequence;
-    applyPlayStyle (style);
+    if (velocity > 0.0f && ! selectsBaseArticulation
+        && articulation >= 0 && articulation < electry::ElectryEngine::keyswitchCount
+        && (articulation < electry::ElectryEngine::pickStyleKeyswitchCount
+            || !performer.getPlayStyleKeysHold()))
+        latchArticulation(articulation);
+    publishPerformanceState();
 }
 
 void ElectryAudioProcessor::dispatchNoteOff (int note) noexcept
 {
-    if (electry::ElectryEngine::isVibratoGestureNote (note))
-    {
-        if (vibratoGestureOwners == 0)
-            return;
-        if (--vibratoGestureOwners == 0)
-            applyVibratoGesture (0.0f);
+    if (electry::ElectryEngine::isMidiPlayableNote(note)
+        && takeNoteOwnership(note, 0, true) < 0)
         return;
-    }
-
-    if (electry::ElectryEngine::isTremoloGestureNote (note))
-    {
-        if (tremoloGestureOwners == 0)
-            return;
-        if (--tremoloGestureOwners == 0)
-            applyTremoloGesture (0.0f);
-        return;
-    }
-
-    if (electry::ElectryEngine::isMidiSoloClearNote (note))
-        return;
-
-    if (electry::ElectryEngine::isMidiSoloStringNote (note))
-    {
-        if (appliedPlayStyleKeysHold)
-        {
-            const int stringIndex = note - electry::ElectryEngine::firstMidiSoloStringNote;
-            auto& count = heldSoloStringCounts[static_cast<std::size_t> (stringIndex)];
-            if (count > 0)
-            {
-                --count;
-                applySoloStringMask (computeHeldSoloStringMask());
-            }
-        }
-        return;
-    }
-
-    if (electry::ElectryEngine::isMidiPlayableNote (note)
-        && takeNoteOwnership (note, 0, true) < 0)
-        return;
-
-    const int style = note - electry::ElectryEngine::firstPlayStyleKeyswitchNote;
-    if (! appliedPlayStyleKeysHold || style < 0
-        || style >= electry::ElectryEngine::playStyleKeyswitchCount)
-    {
-        const int engineNote = electry::ElectryEngine::isMidiPlayableNote (note)
-            ? note - electry::ElectryEngine::octaveShiftSemitones
-            : note;
-        engine.noteOff (engineNote);
-        doubleEngine->noteOff (engineNote);
-        return;
-    }
-
-    auto& count = heldPlayStyleCounts[static_cast<std::size_t> (style)];
-    if (count == 0)
-        return;
-    --count;
-    if (count == 0)
-        heldPlayStyleOrder[static_cast<std::size_t> (style)] = 0;
-
-    const int held = latestHeldPlayStyle();
-    applyPlayStyle (held >= 0 ? held : appliedBasePlayStyleIndex);
-}
-
-void ElectryAudioProcessor::applyPlayStyle (int styleIndex) noexcept
-{
-    styleIndex = juce::jlimit (
-        0, electry::ElectryEngine::playStyleKeyswitchCount - 1, styleIndex);
-    engine.noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
-                       + styleIndex, 1.0f);
-    doubleEngine->noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
-                              + styleIndex, 1.0f);
-    effectivePlayStyleIndex.store (styleIndex, std::memory_order_relaxed);
-}
-
-int ElectryAudioProcessor::latestHeldPlayStyle() const noexcept
-{
-    int latest = -1;
-    std::uint64_t latestOrder = 0;
-    for (int style = 0;
-         style < electry::ElectryEngine::playStyleKeyswitchCount; ++style)
-    {
-        const auto index = static_cast<std::size_t> (style);
-        if (heldPlayStyleCounts[index] != 0
-            && heldPlayStyleOrder[index] > latestOrder)
-        {
-            latest = style;
-            latestOrder = heldPlayStyleOrder[index];
-        }
-    }
-    return latest;
-}
-
-void ElectryAudioProcessor::clearHeldPlayStyles() noexcept
-{
-    heldPlayStyleCounts.fill (0);
-    heldPlayStyleOrder.fill (0);
-    heldPlayStyleSequence = 0;
-}
-
-void ElectryAudioProcessor::applySoloStringMask (std::uint8_t mask) noexcept
-{
-    engine.setSoloStringMask (mask);
-    if (doubleModeActive)
-        doubleEngine->setSoloStringMask (mask);
-    soloStringMaskForDisplay.store (mask, std::memory_order_relaxed);
-}
-
-std::uint8_t ElectryAudioProcessor::computeHeldSoloStringMask() const noexcept
-{
-    std::uint8_t mask = 0;
-    for (int s = 0; s < electry::ElectryEngine::stringCount; ++s)
-    {
-        if (heldSoloStringCounts[static_cast<std::size_t> (s)] > 0)
-            mask |= static_cast<std::uint8_t> (1u << s);
-    }
-    return mask;
-}
-
-void ElectryAudioProcessor::clearHeldSoloStrings() noexcept
-{
-    heldSoloStringCounts.fill (0);
-    latchedSoloStringMask.store (0, std::memory_order_relaxed);
-}
-
-void ElectryAudioProcessor::applyVibratoGesture (float amount) noexcept
-{
-    amount = juce::jlimit (0.0f, 1.0f, std::isfinite (amount) ? amount : 0.0f);
-    engine.setVibrato (amount);
-    doubleEngine->setVibrato (amount);
-    vibratoGestureForDisplay.store (
-        juce::roundToInt (127.0f * amount), std::memory_order_relaxed);
-}
-
-void ElectryAudioProcessor::clearVibratoGesture() noexcept
-{
-    vibratoGestureOwners = 0;
-    applyVibratoGesture (0.0f);
-}
-
-void ElectryAudioProcessor::applyTremoloGesture (float velocity) noexcept
-{
-    velocity = juce::jlimit (0.0f, 1.0f,
-                             std::isfinite (velocity) ? velocity : 0.0f);
-    if (velocity > 0.0f)
-    {
-        engine.beginTremoloPicking (velocity);
-        doubleEngine->beginTremoloPicking (velocity);
-    }
-    else
-    {
-        engine.endTremoloPicking();
-        doubleEngine->endTremoloPicking();
-    }
-    tremoloGestureForDisplay.store (
-        juce::roundToInt (127.0f * velocity), std::memory_order_relaxed);
-}
-
-void ElectryAudioProcessor::clearTremoloGesture() noexcept
-{
-    tremoloGestureOwners = 0;
-    applyTremoloGesture (0.0f);
+    performer.noteOff(note);
+    publishPerformanceState();
 }
 
 void ElectryAudioProcessor::synchronisePlayStyleKeyMode() noexcept
 {
-    const bool requested = playStyleKeysHold.load (std::memory_order_relaxed);
-    if (requested == appliedPlayStyleKeysHold)
-        return;
-
-    appliedPlayStyleKeysHold = requested;
-    clearHeldPlayStyles();
-    clearHeldSoloStrings();
-    applySoloStringMask (0);
-    applyPlayStyle (appliedBasePlayStyleIndex);
+    performer.setPlayStyleKeysHold(playStyleKeysHold.load(std::memory_order_relaxed));
+    publishPerformanceState();
 }
 
-void ElectryAudioProcessor::resetEngineWithArticulations (int pickStyle,
-                                                          int playStyle) noexcept
+void ElectryAudioProcessor::publishPerformanceState() noexcept
 {
-    engine.reset();
-    doubleEngine->reset();
-    engine.noteOn (electry::ElectryEngine::firstKeyswitchNote
-                       + pickStyle, 1.0f);
-    doubleEngine->noteOn (electry::ElectryEngine::firstKeyswitchNote
-                              + pickStyle, 1.0f);
-    engine.noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
-                       + playStyle, 1.0f);
-    doubleEngine->noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
-                              + playStyle, 1.0f);
-    effectivePlayStyleIndex.store (playStyle, std::memory_order_relaxed);
-    const auto mask = soloStringMaskForDisplay.load (std::memory_order_relaxed);
-    engine.setSoloStringMask (mask);
-    doubleEngine->setSoloStringMask (mask);
+    effectivePlayStyleIndex.store(performer.getEffectivePlayStyle(), std::memory_order_relaxed);
+    soloStringMaskForDisplay.store(performer.getSoloStringMask(), std::memory_order_relaxed);
+    vibratoGestureForDisplay.store(performer.getVibratoGesture(), std::memory_order_relaxed);
+    tremoloGestureForDisplay.store(performer.getTremoloGesture(), std::memory_order_relaxed);
 }
 
 float ElectryAudioProcessor::decodePitchBend14 (juce::uint8 data1, juce::uint8 data2) noexcept
@@ -1639,14 +1243,6 @@ float ElectryAudioProcessor::decodePitchBend14 (juce::uint8 data1, juce::uint8 d
         ? static_cast<float> (value14 - 8192) / 8192.0f
         : static_cast<float> (value14 - 8192) / 8191.0f;
     return juce::jlimit (-1.0f, 1.0f, bend);
-}
-
-void ElectryAudioProcessor::renderEngines (float* left, float* right,
-                                           int numSamples) noexcept
-{
-    engine.process (left, right, numSamples);
-    if (doubleModeActive)
-        doubleEngine->process (right, right, numSamples);
 }
 
 void ElectryAudioProcessor::updateEngineParameters() noexcept
@@ -1681,32 +1277,7 @@ void ElectryAudioProcessor::updateEngineParameters() noexcept
         parameterPointers.resonanceDepth, 0.0f, 100.0f, 35.0f);
     const auto mode = juce::roundToInt (valueOf (
         parameterPointers.outputMode, 0.0f, 2.0f));
-    const bool requestedDouble = mode == 2;
-    next.outputMode = mode == 1 ? electry::OutputMode::Stereo
-                                : electry::OutputMode::Mono;
-    engine.setParameters (next);
-
-    // A Double lane is a complete mono guitar, not the divided-pickup field.
-    // Refresh it when Double is entered: dormant strings cannot resume and
-    // parameter targets changed while it slept become the new engine's exact
-    // starting state before the next note. Controller targets keep mirroring
-    // while dormant; reset() deliberately preserves them, except for sustain,
-    // which is restored explicitly below.
-    next.outputMode = electry::OutputMode::Mono;
-    doubleEngine->setParameters (next);
-    if (! doubleModeActive && requestedDouble)
-    {
-        const int pickStyle = static_cast<int> (engine.getCurrentPickStyle());
-        const int playStyle = static_cast<int> (engine.getCurrentPlayStyle());
-        doubleEngine->reset();
-        doubleEngine->noteOn (electry::ElectryEngine::firstKeyswitchNote
-                                  + pickStyle, 1.0f);
-        doubleEngine->noteOn (electry::ElectryEngine::firstPlayStyleKeyswitchNote
-                                  + playStyle, 1.0f);
-        doubleEngine->setSustainPedal (sustainPedalDown);
-        doubleEngine->setSoloStringMask (engine.getSoloStringMask());
-    }
-    doubleModeActive = requestedDouble;
+    performer.setEngineParameters(next, mode);
 }
 
 void ElectryAudioProcessor::updateEffectParameters() noexcept
@@ -1721,70 +1292,8 @@ void ElectryAudioProcessor::updateEffectParameters() noexcept
     next.room = valueOf (parameterPointers.room);
     next.oversampling = static_cast<electry::FxOversampling> (juce::roundToInt (
         valueOf (parameterPointers.fxOversampling)));
-    effects.setParameters (next);
-
-    const bool enabled = valueOf (parameterPointers.fxEnabled) >= 0.5f;
-    if (enabled && fxWetMix.getCurrentValue() == 0.0f
-        && fxWetMix.getTargetValue() == 0.0f)
-        effects.reset(); // Cold enable uses any settings edited while bypassed.
-    fxWetMix.setTargetValue (enabled ? 1.0f : 0.0f);
-
-    // How loud the rig actually is in the room. The chain manages its own
-    // listening level, but acoustically a cranked amplifier is deafening
-    // while a clean DI is not in the room at all - and that level is what
-    // decides whether the resonance wheel can push the strings into feedback.
-    engine.setAcousticReturnLevel (
-        enabled ? juce::jmin (1.0f, next.amp + 0.6f * next.distortion) : 0.0f);
-    doubleEngine->setAcousticReturnLevel (
-        enabled ? juce::jmin (1.0f, next.amp + 0.6f * next.distortion) : 0.0f);
-}
-
-void ElectryAudioProcessor::processEffects (float* left, float* right,
-                                           int numSamples) noexcept
-{
-    if (! fxWetMix.isSmoothing())
-    {
-        if (fxWetMix.getCurrentValue() == 1.0f)
-            effects.process (left, right, numSamples);
-        return; // The off endpoint is untouched dry audio, with no FX work.
-    }
-
-    while (numSamples > 0)
-    {
-        const int count = std::min (numSamples,
-            static_cast<int> (fxDryScratch[0].size()));
-        std::copy_n (left, count, fxDryScratch[0].begin());
-        std::copy_n (right, count, fxDryScratch[1].begin());
-        effects.process (left, right, count);
-        for (int i = 0; i < count; ++i)
-        {
-            const float wet = fxWetMix.getNextValue();
-            const auto index = static_cast<std::size_t> (i);
-            if (wet == 0.0f)
-            {
-                left[i] = fxDryScratch[0][index];
-                right[i] = fxDryScratch[1][index];
-            }
-            else if (wet < 1.0f)
-            {
-                left[i] = fxDryScratch[0][index]
-                    + wet * (left[i] - fxDryScratch[0][index]);
-                right[i] = fxDryScratch[1][index]
-                    + wet * (right[i] - fxDryScratch[1][index]);
-            }
-        }
-        left += count;
-        right += count;
-        numSamples -= count;
-        if (! fxWetMix.isSmoothing())
-        {
-            if (fxWetMix.getCurrentValue() == 0.0f)
-                effects.reset(); // Discard time-effect tails once, while inaudible.
-            else if (numSamples > 0)
-                effects.process (left, right, numSamples);
-            return;
-        }
-    }
+    performer.setEffectParameters(next,
+        valueOf(parameterPointers.fxEnabled) >= 0.5f);
 }
 
 void ElectryAudioProcessor::publishStringVisualState() noexcept
@@ -1949,20 +1458,13 @@ void ElectryAudioProcessor::batchOrDispatchNoteOn (
     // than create an owner that no later Note Off can address.
     if (! recordNoteOwnership (note, midiChannel, expressionId))
         return;
-    const int engineNote = note - electry::ElectryEngine::octaveShiftSemitones;
-    batch.events[batch.size++] = { engineNote, velocity, expressionId };
+    batch.events[batch.size++] = { note, velocity, expressionId };
 }
 
 void ElectryAudioProcessor::flushNoteOnBatch (NoteOnBatch& batch) noexcept
 {
     if (batch.size != 0)
-    {
-        const std::span<const electry::ElectryEngine::NoteOnEvent> notes (
-            batch.events.data(), batch.size);
-        engine.noteOnChord (notes);
-        if (doubleModeActive)
-            doubleEngine->noteOnChord (notes);
-    }
+        performer.noteOnChord(batch.events.data(), batch.size);
     batch.size = 0;
 }
 

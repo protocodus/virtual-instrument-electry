@@ -5103,6 +5103,10 @@ Standalone:
 
 ## Build
 
+For other plugin hosts and the separate Reason Rack Extension, use the shared
+JUCE-free `ElectryPerformer`; see [the embedding contract](Docs/embedding.md)
+for the C++17 API, source ownership, and immutable embedded lookup tables.
+
 The JUCE-free DSP core, tests and demo renderer:
 
 ```bash

@@ -115,7 +115,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#if (__cplusplus >= 202002L || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)) \
+    && __has_include(<span>)
 #include <span>
+#endif
 
 #ifndef ELECTRY_ANALYTIC_RELEASE_IC
 #define ELECTRY_ANALYTIC_RELEASE_IC 0
@@ -405,7 +408,13 @@ public:
     // stream. Because the edge is known up front, a non-zero Strum Spread
     // delays only the strings the pick has not reached; it does not add the
     // scalar note path's causal re-anchor pre-roll to the leading string.
-    void noteOnChord(std::span<const NoteOnEvent> events);
+    void noteOnChord(const NoteOnEvent* events, std::size_t count);
+#if defined(__cpp_lib_span)
+    void noteOnChord(std::span<const NoteOnEvent> events)
+    {
+        noteOnChord(events.data(), events.size());
+    }
+#endif
     void noteOff(int midiNote,
                  ExpressionId expressionId = legacyExpressionId);
     void allNotesOff();
@@ -413,6 +422,9 @@ public:
     // ringing string by the same nominal -2..+2 semitone interval. Bend Time
     // controls how long the strings take to reach the target.
     void setPitchBend(float normalisedBipolar) noexcept;
+    // Host-independent global interval for a wheel plus master tuning. The
+    // normalised legacy wheel above retains its original +/-2 semitone range.
+    void setPitchBendSemitones(float semitones) noexcept;
     // Per-note expression is supplied as a semitone interval for one MIDI
     // member channel. ID 0 is reserved for the legacy global wheel above;
     // member bends glide with the same Bend Time but never add to it.

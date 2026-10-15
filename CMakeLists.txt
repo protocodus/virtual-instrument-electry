@@ -31,6 +31,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ELECTRY_BUILD_PLUGIN "Build the JUCE plug-in and standalone app" ON)
+option(ELECTRY_EMBEDDED_TARGET
+    "Use immutable DSP lookup tables for C++17 embedded hosts" OFF)
 option(ELECTRY_BUILD_CLAP "Build the CLAP plug-in alongside the JUCE formats" ON)
 option(ELECTRY_ENABLE_SANITIZERS
     "Instrument tests and DSP with address/undefined-behaviour sanitizers" OFF)
@@ -71,11 +73,13 @@ include(CTest)
 set(ELECTRY_DSP_SOURCES
     Source/DSP/ElectryEngine.cpp
     Source/DSP/ElectryFx.cpp
+    Source/DSP/ElectryPerformer.cpp
     Source/DSP/ElectryVisuals.cpp)
 set(ELECTRY_DSP_HEADERS
     Source/DSP/DspMath.h
     Source/DSP/ElectryEngine.h
     Source/DSP/ElectryFx.h
+    Source/DSP/ElectryPerformer.h
     Source/DSP/ModernCabinetIR.h
     Source/DSP/ElectryVisuals.h)
 
@@ -85,8 +89,17 @@ add_library(ElectryDSP STATIC
 
 target_include_directories(ElectryDSP
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
-target_compile_features(ElectryDSP PUBLIC cxx_std_20)
-set_target_properties(ElectryDSP PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_features(ElectryDSP PUBLIC cxx_std_17)
+set_target_properties(ElectryDSP PROPERTIES
+    CXX_STANDARD 17 POSITION_INDEPENDENT_CODE ON)
+
+if(ELECTRY_EMBEDDED_TARGET)
+    target_compile_definitions(ElectryDSP PUBLIC ELECTRY_EMBEDDED_TARGET=1)
+    if(NOT MSVC)
+        target_compile_options(ElectryDSP PRIVATE
+            -fno-exceptions -fno-rtti -fno-builtin)
+    endif()
+endif()
 
 if(ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2)
     target_compile_definitions(ElectryDSP PUBLIC
@@ -387,6 +400,20 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME Electry.ElectryFx COMMAND ElectryFxTests)
+
+    add_executable(ElectryPerformerTests Tests/ElectryPerformerTests.cpp)
+    target_link_libraries(ElectryPerformerTests PRIVATE ElectryDSP)
+    set_target_properties(ElectryPerformerTests PROPERTIES CXX_STANDARD 17)
+    add_test(NAME Electry.Performer COMMAND ElectryPerformerTests)
+    set_tests_properties(Electry.Performer PROPERTIES TIMEOUT 120)
+
+    add_executable(ElectryDspCompatibilityTests Tests/DspCompatibilityTests.cpp)
+    target_include_directories(ElectryDspCompatibilityTests PRIVATE Source)
+    target_compile_features(ElectryDspCompatibilityTests PRIVATE cxx_std_20)
+    if(NOT MSVC)
+        target_compile_options(ElectryDspCompatibilityTests PRIVATE -fno-builtin)
+    endif()
+    add_test(NAME Electry.DspCompatibility COMMAND ElectryDspCompatibilityTests)
     # This suite renders about 140 seconds of stereo audio across the normal
     # rate matrix and every nonlinear oversampling boundary. Debug and
     # instrumented builds need the wider guard; optimised builds still retain
