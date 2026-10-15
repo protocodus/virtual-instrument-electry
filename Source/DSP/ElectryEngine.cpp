@@ -8026,8 +8026,15 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     loop.currentDelay = loop.targetDelay
         + loop.delayRetention * (loop.currentDelay - loop.targetDelay);
 
+    // Pickup sensitivity depends on geometry/flux, not on whether MIDI owns
+    // the string. Both observations already include their distinct positions,
+    // so use the same electrical summing gains as the played-string path.
+    // The old 0.28 neck weight imposed an extra 5.04 dB neck-only attenuation
+    // on sympathetic motion, changing the selector's colour without moving
+    // either pickup. Paiva et al., JAES 60(10), pickup-position model:
+    // https://aaltodoc.aalto.fi/bitstreams/92759095-3b64-4a0f-bf29-8a3617b9d92c/download
     accumulateStereoContribution(sums, voice.stereoLateral,
-                                 0.28f, neckSignal, 0.5f, bridgeSignal);
+                                 0.5f, neckSignal, 0.5f, bridgeSignal);
     sums.body += 0.35f * total;
 
     voice.sympatheticEnergy += sympatheticEnergyCoefficient_
