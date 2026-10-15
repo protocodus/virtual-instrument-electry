@@ -21589,9 +21589,9 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
         const std::string at = " at " + std::to_string(static_cast<int>(rate))
                              + " Hz";
 
-        // Worn strings. The wound coupled strings' targets are still seconds
-        // long here - 8.97, 8.52 and 8.07 s on the bottom three - and the
-        // clamp realised 0.099, 0.79 and 1.48.
+        // Worn strings must retain multi-second fundamental decay. The old
+        // gain clamp realised only 0.099, 0.79 and 1.48 s on the bottom three;
+        // their intrinsic targets now match the same played-open strings.
         {
             auto engineHeapFixture = std::make_unique<ElectryEngine>();
             auto& engine = *engineHeapFixture;
@@ -21629,8 +21629,8 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
             }
         }
 
-        // Half pressure, where the targets run from 1.11 to 1.28 s and the
-        // clamp realised 16 to 99 ms.
+        // Half pressure must still retain a body. The old gain clamp
+        // realised 16 to 99 ms instead of the requested decay.
         {
             auto engineHeapFixture = std::make_unique<ElectryEngine>();
             auto& engine = *engineHeapFixture;

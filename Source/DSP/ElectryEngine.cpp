@@ -2970,6 +2970,38 @@ float ElectryEngine::deadSpotFactor(int stringIndex, float fret) const noexcept
     return 1.0f / (1.0f + depth * gaussian);
 }
 
+float ElectryEngine::intrinsicStringT60(int stringIndex, float liveFret) const noexcept
+{
+    // A string's internal loss and static termination do not depend on which
+    // excitation woke it. Share the established played-string construction
+    // target with the idle bank; contacts remain in their separate solves.
+    // Pate et al., section 2.2, add intrinsic and termination loss factors:
+    // https://www.lam.jussieu.fr/Membres/LeCarrou/Articles/A8_Pate_PredictingDecayTime.pdf
+    // These multipliers are the existing voicing, not new measured constants.
+    const auto& parameters = smoothedParameters_;
+    const auto& spec = stringSpecs()[static_cast<std::size_t>(stringIndex)];
+    float t60 = spec.t60Seconds;
+    t60 *= lerp(1.08f, 0.38f, parameters.stringAge);
+#if ! ELECTRY_MEASURED_BODY_RESPONSE
+    t60 *= lerp(1.16f, 0.86f, parameters.construction);
+#else
+    // Retain the intrinsic shipping string while removing the old
+    // Construction/Body laws. This avoids mistaking a baseline retune for
+    // material sound; the Ray path adds no termination loss.
+    t60 *= 1.16f;
+#endif
+    t60 *= lerp(0.88f, 1.18f, parameters.stringGauge);
+#if ! ELECTRY_MEASURED_BODY_RESPONSE
+    t60 *= lerp(1.05f, 0.95f, parameters.bodyWood);
+    t60 *= lerp(1.04f, 0.96f, parameters.bodySize);
+#else
+    t60 *= 1.05f * 1.04f;
+#endif
+    t60 *= deadSpotFactor(stringIndex, liveFret);
+
+    return t60;
+}
+
 void ElectryEngine::configureVoiceDamping(Voice& voice,
                                           PlayStyle dampingStyle) noexcept
 {
@@ -3025,24 +3057,7 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
     const auto& parameters = smoothedParameters_;
     const auto& spec = stringSpecs()[static_cast<std::size_t>(voice.stringIndex)];
 
-    float t60 = spec.t60Seconds;
-    t60 *= lerp(1.08f, 0.38f, parameters.stringAge);
-#if ! ELECTRY_MEASURED_BODY_RESPONSE
-    t60 *= lerp(1.16f, 0.86f, parameters.construction);
-#else
-    // Retain the intrinsic shipping string while removing the old
-    // Construction/Body laws. This avoids mistaking a baseline retune for
-    // material sound; the Ray path adds no termination loss.
-    t60 *= 1.16f;
-#endif
-    t60 *= lerp(0.88f, 1.18f, parameters.stringGauge);
-#if ! ELECTRY_MEASURED_BODY_RESPONSE
-    t60 *= lerp(1.05f, 0.95f, parameters.bodyWood);
-    t60 *= lerp(1.04f, 0.96f, parameters.bodySize);
-#else
-    t60 *= 1.05f * 1.04f;
-#endif
-    t60 *= deadSpotFactor(voice.stringIndex, liveFret);
+    float t60 = intrinsicStringT60(voice.stringIndex, liveFret);
 
 #if ! ELECTRY_MEASURED_BODY_RESPONSE
     // The body modes are not merely a parallel EQ. Modal bridge admittance
@@ -4355,7 +4370,6 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     // polarisation is enough for a bridge-coupled ring, so this solves a
     // single loop while the ordinary neck/bridge pickup geometry observes it.
     const auto& spec = stringSpecs()[static_cast<std::size_t>(voice.stringIndex)];
-    const auto& parameters = smoothedParameters_;
     const float sampleRate = static_cast<float>(sampleRate_);
     // Unowned sympathetic strings follow the legacy global wheel.
     const float openFrequency = midiToHz(static_cast<float>(spec.openMidiNote));
@@ -4396,18 +4410,19 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
         }
     }
 
-    // An open string that nobody is touching rings longer than a fretted one,
-    // but it still follows the string set, its age, and the bridge hand.
-    float t60 = spec.t60Seconds
-              * lerp(1.08f, 0.38f, parameters.stringAge)
-              * lerp(0.88f, 1.18f, parameters.stringGauge);
-    const float intrinsicT60 = clampf(t60, 0.03f, 9.5f);
+    // The untouched open string has the played-open intrinsic target. The
+    // former 9.5-second idle cap and omitted construction factors shortened
+    // the default E1 from 26 seconds without a separate physical loss source.
+    // Apply the existing hand law after the same 26-second intrinsic ceiling;
+    // full pressure still reaches its established 80 ms endpoint.
+    float t60 = clampf(intrinsicStringT60(voice.stringIndex, 0.0f), 0.03f, 26.0f);
+    const float intrinsicT60 = t60;
     const float intrinsicT60High = clampf(
         intrinsicT60 * highFrequencyDecayRatio(voice.stringIndex),
         0.008f, intrinsicT60);
     if (palmMuteBlend_ > 0.0f)
         t60 = std::exp(lerp(std::log(t60), std::log(0.080f), palmMuteBlend_));
-    t60 = clampf(t60, 0.03f, 9.5f);
+    t60 = clampf(t60, 0.03f, 26.0f);
 
     // A coupled string is the same piece of steel as a played one, so its loop
     // loss is solved from the same two decay targets rather than from a fixed
@@ -4433,11 +4448,10 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     const float fHigh = std::min(3600.0f, 0.32f * sampleRate);
     const float omegaHigh = twoPi * std::max(fHigh, f0 * 1.5f)
                           * inverseSampleRate_;
-    // The pair is solved together rather than one after the other. A coupled
-    // string asks for a far steeper tilt than a played one at the same age -
-    // the mute shortens its fundamental target directly instead of in parallel
-    // with a relief - so above about String Age 0.8, and under any palm mute at
-    // all, the requested pair does not fit inside a loop gain of one. Solving
+    // The pair is solved together rather than one after the other. Under
+    // pressure, the idle mute shortens its fundamental target directly instead
+    // of in parallel with a relief. The requested tilt can then exceed what
+    // fits inside a loop gain of one, especially on old strings. Solving
     // the tilt and clamping the gain threw the fundamental's target away with
     // it: the open low E realised 0.099 s against an 8.97 s target, and the
     // sympathetic ring simply vanished. Backing the high target off instead
