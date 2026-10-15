@@ -60,9 +60,15 @@ bool checkType()
         if (electry::bitCast<UInt>(electry::bitCast<T>(bits)) != bits
             || !checkValue(value, sign)) return false;
         if (!std::isfinite(value) || !std::isfinite(sign)) continue;
+        // std::lerp's rounding is implementation-defined: libstdc++ and libc++
+        // use the P0811 reference a + t * (b - a), which monotonicLerp
+        // reproduces so the DSP renders alike everywhere, while MSVC's STL
+        // rounds once with std::fma and is no bit-exact oracle.
+#if !defined(_MSVC_STL_VERSION)
         for (const T fraction : { T(-1), T(0), T(0.1), T(0.5), T(1), T(2) })
             if (!same(electry::monotonicLerp(value, sign, fraction),
                       std::lerp(value, sign, fraction))) return false;
+#endif
     }
     return true;
 }
