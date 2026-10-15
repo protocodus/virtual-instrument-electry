@@ -4772,13 +4772,17 @@ void testFxEditorToggle()
                 && toggle->isEnabled() && toggle->isToggleable()
                 && toggle->getWantsKeyboardFocus() && toggle->hasFocusOutline(),
             "new editor did not open with a reachable, visibly off FX switch");
-    // This offscreen editor has no native window for JUCE's cached handler.
-    // Dispatch through Component's public factory to inspect the real handler.
-    auto accessibility = static_cast<juce::Component&> (*toggle).createAccessibilityHandler();
-    expect (accessibility != nullptr && accessibility->getTitle() == "FX enabled"
-                && toggle->getTooltip().containsIgnoreCase ("dry")
-                && toggle->getHelpText() == toggle->getTooltip(),
-            "FX switch lost its canonical accessibility name or dry-bypass explanation");
+    {
+        // This offscreen editor has no native window for JUCE's cached handler.
+        // Dispatch through Component's public factory to inspect the real handler.
+        // It refers to the switch, so it must not outlive the editor: on Windows
+        // its destructor reaches the switch's parent to notify UI Automation.
+        auto accessibility = static_cast<juce::Component&> (*toggle).createAccessibilityHandler();
+        expect (accessibility != nullptr && accessibility->getTitle() == "FX enabled"
+                    && toggle->getTooltip().containsIgnoreCase ("dry")
+                    && toggle->getHelpText() == toggle->getTooltip(),
+                "FX switch lost its canonical accessibility name or dry-bypass explanation");
+    }
     expect (toggle->getWidth() >= 72 && toggle->getHeight() >= 28,
             "FX switch lost practical target size/padding");
     auto* quality = findControl (electry::parameters::fxOversampling);
@@ -6245,14 +6249,13 @@ void testStateValidationAndHostParameterFuzz()
     // JUCE's recursive parser. Keep the old parameter state on rejection.
     const auto wrapXml = [&] (const std::string& body)
     {
-        juce::MemoryBlock chunk;
-        juce::MemoryOutputStream stream (chunk, false);
+        juce::MemoryOutputStream stream;
         stream.write (data.getData(), 4); // JUCE's verified XML magic.
         stream.writeInt (static_cast<int> (body.size()));
         stream.write (body.data(), body.size());
         stream.writeByte (0);
-        processor.setStateInformation (chunk.getData(),
-                                       static_cast<int> (chunk.getSize()));
+        processor.setStateInformation (stream.getData(),
+                                       static_cast<int> (stream.getDataSize()));
     };
     std::string nested = "<ELECTRY_STATE>";
     for (int depth = 0; depth < 512; ++depth)

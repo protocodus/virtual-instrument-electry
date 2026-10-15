@@ -492,8 +492,12 @@ if(BUILD_TESTING)
             Tests/VST3ArtifactSmokeTests.cpp)
         target_link_libraries(ElectryVST3ArtifactSmokeTests PRIVATE
             juce::juce_audio_processors_headless)
+        # A plain executable gets none of the definitions juce_add_plugin
+        # injects, and JUCE otherwise enables curl on Linux, which would need
+        # libcurl headers and linking for networking this test never does.
         target_compile_definitions(ElectryVST3ArtifactSmokeTests PRIVATE
             JUCE_PLUGINHOST_VST3=1
+            JUCE_USE_CURL=0
             ELECTRY_EXPECTED_VERSION="${PROJECT_VERSION}")
         target_compile_features(ElectryVST3ArtifactSmokeTests PRIVATE cxx_std_20)
         add_dependencies(ElectryVST3ArtifactSmokeTests Electry_VST3)
@@ -586,8 +590,11 @@ if(BUILD_TESTING)
         add_test(NAME Electry.FitDispersion
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/FitDispersionTests.py")
+        # Each case builds, commits and pushes throwaway Git repositories: about
+        # 800 git processes in all, which take a minute on Windows runners,
+        # where process creation is slow.
+        set_tests_properties(Electry.RefreshGeneratedMedia PROPERTIES TIMEOUT 300)
         set_tests_properties(
-            Electry.RefreshGeneratedMedia
             Electry.PrepareBlindListening Electry.ScoreBlindListening
             Electry.ValidateReferenceFixture Electry.CompareReferenceFixture
             Electry.FitDispersion
