@@ -6249,14 +6249,13 @@ void testStateValidationAndHostParameterFuzz()
     // JUCE's recursive parser. Keep the old parameter state on rejection.
     const auto wrapXml = [&] (const std::string& body)
     {
-        juce::MemoryBlock chunk;
-        juce::MemoryOutputStream stream (chunk, false);
+        juce::MemoryOutputStream stream;
         stream.write (data.getData(), 4); // JUCE's verified XML magic.
         stream.writeInt (static_cast<int> (body.size()));
         stream.write (body.data(), body.size());
         stream.writeByte (0);
-        processor.setStateInformation (chunk.getData(),
-                                       static_cast<int> (chunk.getSize()));
+        processor.setStateInformation (stream.getData(),
+                                       static_cast<int> (stream.getDataSize()));
     };
     std::string nested = "<ELECTRY_STATE>";
     for (int depth = 0; depth < 512; ++depth)
