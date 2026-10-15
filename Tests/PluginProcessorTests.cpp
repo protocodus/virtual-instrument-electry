@@ -18,9 +18,6 @@
 #include <utility>
 #include <vector>
 
-// TEMPORARY DIAGNOSTIC (not for merge): read by Tests/DiagCrashHandler.cpp.
-const char* volatile electryDiagCurrentTest = nullptr;
-
 namespace
 {
 constexpr double sampleRate = 48000.0;
@@ -6546,54 +6543,53 @@ void runRealtimeDeadlineBenchmarkIfRequested()
 int main()
 {
     juce::ScopedJuceInitialiser_GUI guiInitialiser;
-    electryDiagCurrentTest = "testParameterLayoutAndDefaults"; testParameterLayoutAndDefaults();
-    electryDiagCurrentTest = "testFactoryPrograms"; testFactoryPrograms();
-    electryDiagCurrentTest = "testParameterTextFormatting"; testParameterTextFormatting();
-    electryDiagCurrentTest = "testParameterTextParsing"; testParameterTextParsing();
-    electryDiagCurrentTest = "testStateRoundTrip"; testStateRoundTrip();
-    electryDiagCurrentTest = "testBusAndPluginContract"; testBusAndPluginContract();
-    electryDiagCurrentTest = "testSampleAccurateNoteAndSound"; testSampleAccurateNoteAndSound();
-    electryDiagCurrentTest = "testSameSampleChordAllocationIsCanonical"; testSameSampleChordAllocationIsCanonical();
-    electryDiagCurrentTest = "testKeyswitchContract"; testKeyswitchContract();
-    electryDiagCurrentTest = "testPlayStyleHoldContract"; testPlayStyleHoldContract();
-    electryDiagCurrentTest = "testSoloStringProcessorKeyswitches"; testSoloStringProcessorKeyswitches();
-    electryDiagCurrentTest = "testSameSampleMuteKeyswitchOrder"; testSameSampleMuteKeyswitchOrder();
-    electryDiagCurrentTest = "testMidiControllersAndVoiceLifecycle"; testMidiControllersAndVoiceLifecycle();
-    electryDiagCurrentTest = "testSameSamplePalmMutePressureAttack"; testSameSamplePalmMutePressureAttack();
-    electryDiagCurrentTest = "testRepickMidiContract"; testRepickMidiContract();
-    electryDiagCurrentTest = "testPitchWheelByteReconstruction"; testPitchWheelByteReconstruction();
-    electryDiagCurrentTest = "testPitchWheelMidiDispatch"; testPitchWheelMidiDispatch();
-    electryDiagCurrentTest = "testMpeRouting"; testMpeRouting();
-    electryDiagCurrentTest = "testMpeIdlePitchPreservesReleaseTail"; testMpeIdlePitchPreservesReleaseTail();
-    electryDiagCurrentTest = "testMpeFractionalRangeAndLiveMasterTail"; testMpeFractionalRangeAndLiveMasterTail();
-    electryDiagCurrentTest = "testMpeSamePitchOwnershipAcrossLayoutChange"; testMpeSamePitchOwnershipAcrossLayoutChange();
-    electryDiagCurrentTest = "testMpeOwnershipCapacityIsClosed"; testMpeOwnershipCapacityIsClosed();
-    electryDiagCurrentTest = "testMpeOwnershipLifecycleBoundaries"; testMpeOwnershipLifecycleBoundaries();
-    electryDiagCurrentTest = "testResonanceWheelFeedback"; testResonanceWheelFeedback();
-    electryDiagCurrentTest = "testResonanceFeedbackIsBlockSizeInvariant"; testResonanceFeedbackIsBlockSizeInvariant();
-    electryDiagCurrentTest = "testMidiPressureLeavesChordUnchanged"; testMidiPressureLeavesChordUnchanged();
-    electryDiagCurrentTest = "testResetAllControllersDispatch"; testResetAllControllersDispatch();
-    electryDiagCurrentTest = "testMutePressureDisplayFeedback"; testMutePressureDisplayFeedback();
-    electryDiagCurrentTest = "testVibratoGestureMidiAndLifecycle"; testVibratoGestureMidiAndLifecycle();
-    electryDiagCurrentTest = "testTremoloPickingMidiAndLifecycle"; testTremoloPickingMidiAndLifecycle();
-    electryDiagCurrentTest = "testUiArticulationTriggerAndPanic"; testUiArticulationTriggerAndPanic();
-    electryDiagCurrentTest = "testOutputGainImpact"; testOutputGainImpact();
-    electryDiagCurrentTest = "testPerformanceControls"; testPerformanceControls();
-    electryDiagCurrentTest = "testFxOversamplingInLiveFeedbackPath"; testFxOversamplingInLiveFeedbackPath();
-    electryDiagCurrentTest = "testFxEnabledAudioAndLifecycle"; testFxEnabledAudioAndLifecycle();
-    electryDiagCurrentTest = "testOutputModeAudioField"; testOutputModeAudioField();
-    electryDiagCurrentTest = "testTextButtonKeyboardActivation"; testTextButtonKeyboardActivation();
-    electryDiagCurrentTest = "testFxEditorToggle"; testFxEditorToggle();
-    electryDiagCurrentTest = "testEditorRendering"; testEditorRendering();
-    electryDiagCurrentTest = "testPrepareReleaseCycles"; testPrepareReleaseCycles();
-    electryDiagCurrentTest = "testMalformedHostInputAndUiReleases"; testMalformedHostInputAndUiReleases();
-    electryDiagCurrentTest = "testUnmatchedMpeReleasePreservesHeldBend"; testUnmatchedMpeReleasePreservesHeldBend();
-    electryDiagCurrentTest = "testSameSampleResetControllerOrdering"; testSameSampleResetControllerOrdering();
-    electryDiagCurrentTest = "testSameSampleAllNotesOffOrdering"; testSameSampleAllNotesOffOrdering();
-    electryDiagCurrentTest = "testStateValidationAndHostParameterFuzz"; testStateValidationAndHostParameterFuzz();
-    electryDiagCurrentTest = "runRealtimeDeadlineBenchmarkIfRequested"; runRealtimeDeadlineBenchmarkIfRequested();
+    testParameterLayoutAndDefaults();
+    testFactoryPrograms();
+    testParameterTextFormatting();
+    testParameterTextParsing();
+    testStateRoundTrip();
+    testBusAndPluginContract();
+    testSampleAccurateNoteAndSound();
+    testSameSampleChordAllocationIsCanonical();
+    testKeyswitchContract();
+    testPlayStyleHoldContract();
+    testSoloStringProcessorKeyswitches();
+    testSameSampleMuteKeyswitchOrder();
+    testMidiControllersAndVoiceLifecycle();
+    testSameSamplePalmMutePressureAttack();
+    testRepickMidiContract();
+    testPitchWheelByteReconstruction();
+    testPitchWheelMidiDispatch();
+    testMpeRouting();
+    testMpeIdlePitchPreservesReleaseTail();
+    testMpeFractionalRangeAndLiveMasterTail();
+    testMpeSamePitchOwnershipAcrossLayoutChange();
+    testMpeOwnershipCapacityIsClosed();
+    testMpeOwnershipLifecycleBoundaries();
+    testResonanceWheelFeedback();
+    testResonanceFeedbackIsBlockSizeInvariant();
+    testMidiPressureLeavesChordUnchanged();
+    testResetAllControllersDispatch();
+    testMutePressureDisplayFeedback();
+    testVibratoGestureMidiAndLifecycle();
+    testTremoloPickingMidiAndLifecycle();
+    testUiArticulationTriggerAndPanic();
+    testOutputGainImpact();
+    testPerformanceControls();
+    testFxOversamplingInLiveFeedbackPath();
+    testFxEnabledAudioAndLifecycle();
+    testOutputModeAudioField();
+    testTextButtonKeyboardActivation();
+    testFxEditorToggle();
+    testEditorRendering();
+    testPrepareReleaseCycles();
+    testMalformedHostInputAndUiReleases();
+    testUnmatchedMpeReleasePreservesHeldBend();
+    testSameSampleResetControllerOrdering();
+    testSameSampleAllNotesOffOrdering();
+    testStateValidationAndHostParameterFuzz();
+    runRealtimeDeadlineBenchmarkIfRequested();
 
-    electryDiagCurrentTest = "after the last test (JUCE shutdown or static destruction)";
     if (failureCount != 0)
     {
         std::cerr << failureCount << " Electry processor contract test(s) failed\n";

@@ -433,9 +433,6 @@ if(BUILD_TESTING)
 
     if(ELECTRY_BUILD_PLUGIN)
         add_executable(ElectryPluginProcessorTests Tests/PluginProcessorTests.cpp)
-        if(WIN32) # TEMPORARY DIAGNOSTIC (not for merge)
-            target_sources(ElectryPluginProcessorTests PRIVATE Tests/DiagCrashHandler.cpp)
-        endif()
         target_link_libraries(ElectryPluginProcessorTests PRIVATE Electry)
         target_include_directories(ElectryPluginProcessorTests PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/Source"
