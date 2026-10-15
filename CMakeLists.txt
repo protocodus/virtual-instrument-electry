@@ -563,8 +563,11 @@ if(BUILD_TESTING)
         add_test(NAME Electry.FitDispersion
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/FitDispersionTests.py")
+        # Each case builds, commits and pushes throwaway Git repositories: about
+        # 800 git processes in all, which take a minute on Windows runners,
+        # where process creation is slow.
+        set_tests_properties(Electry.RefreshGeneratedMedia PROPERTIES TIMEOUT 300)
         set_tests_properties(
-            Electry.RefreshGeneratedMedia
             Electry.PrepareBlindListening Electry.ScoreBlindListening
             Electry.ValidateReferenceFixture Electry.CompareReferenceFixture
             Electry.FitDispersion
