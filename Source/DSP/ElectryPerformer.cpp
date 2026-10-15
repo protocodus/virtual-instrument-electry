@@ -461,9 +461,12 @@ void ElectryPerformer::noteOff (int note) noexcept
     if (! appliedPlayStyleKeysHold || style < 0
         || style >= ElectryEngine::playStyleKeyswitchCount)
     {
-        const int engineNote = ElectryEngine::isMidiPlayableNote (note)
-            ? note - ElectryEngine::octaveShiftSemitones
-            : note;
+        // Unassigned written keys do not own sounding notes. Passing a key
+        // in the 33..39 gap through unchanged would release written 45..51,
+        // whose sounding engine pitches happen to have those numbers.
+        if (! ElectryEngine::isMidiPlayableNote(note))
+            return;
+        const int engineNote = note - ElectryEngine::octaveShiftSemitones;
         engine.noteOff (engineNote);
         doubleEngine->noteOff (engineNote);
         return;

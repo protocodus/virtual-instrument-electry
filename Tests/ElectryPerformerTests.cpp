@@ -133,6 +133,30 @@ void performanceKeysAndDoubleRig()
            "reset clears the complete guitar and effect tail");
     allocationForbidden = false;
 }
+
+void ignoredKeysCannotReleasePlayableNotes()
+{
+    auto actual = std::make_unique<electry::ElectryPerformer>();
+    auto reference = std::make_unique<electry::ElectryPerformer>();
+    const auto parameters = defaultParameters();
+    for (auto* performer : {actual.get(), reference.get()})
+    {
+        performer->prepare(48000.0, 64);
+        performer->setParameters(parameters);
+        performer->noteOn(47, 0.9f); // written B2, sounding MIDI 35
+    }
+    Buffer left {}, right {}, referenceLeft {}, referenceRight {};
+    allocationForbidden = true;
+    actual->render(left.data(), right.data(), left.size());
+    reference->render(referenceLeft.data(), referenceRight.data(), referenceLeft.size());
+    actual->noteOn(35, 0.9f); // unassigned gap below written playable range
+    actual->noteOff(35);
+    actual->render(left.data(), right.data(), left.size());
+    reference->render(referenceLeft.data(), referenceRight.data(), referenceLeft.size());
+    allocationForbidden = false;
+    expect(left == referenceLeft && right == referenceRight,
+           "an ignored written key cannot release a different sounding note");
+}
 }
 
 void* operator new(std::size_t size)
@@ -156,6 +180,7 @@ int main()
     for (const double rate : {44100.0, 48000.0, 96000.0, 192000.0})
         writtenNotesMatchCanonicalEngine(rate);
     performanceKeysAndDoubleRig();
+    ignoredKeysCannotReleasePlayableNotes();
     if (failures == 0) std::puts("Electry performer contracts passed");
     return failures == 0 ? 0 : 1;
 }
