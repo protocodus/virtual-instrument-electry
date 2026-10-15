@@ -4375,10 +4375,17 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
                > 3.5e-3f * std::max(f0, 20.0f);
     float previousDampingPhaseDelay = 0.0f;
     float previousDispersionPhaseDelay = 0.0f;
+    const auto materialPhaseDelay = [&] ()
+    {
+        float magnitude = 1.0f, phase = 0.0f;
+        handLossResponse(loop.materialLossDepth, loop.materialLossShape,
+                         omega, magnitude, phase);
+        return -phase / omega;
+    };
     if (voice.sympatheticReady)
     {
         previousDampingPhaseDelay = onePolePhaseDelay(
-            loop.loopDampingCoefficient, omega);
+            loop.loopDampingCoefficient, omega) + materialPhaseDelay();
         if (fitMoved)
         {
             previousDispersionPhaseDelay =
@@ -4394,6 +4401,10 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     float t60 = spec.t60Seconds
               * lerp(1.08f, 0.38f, parameters.stringAge)
               * lerp(0.88f, 1.18f, parameters.stringGauge);
+    const float intrinsicT60 = clampf(t60, 0.03f, 9.5f);
+    const float intrinsicT60High = clampf(
+        intrinsicT60 * highFrequencyDecayRatio(voice.stringIndex),
+        0.008f, intrinsicT60);
     if (palmMuteBlend_ > 0.0f)
         t60 = std::exp(lerp(std::log(t60), std::log(0.080f), palmMuteBlend_));
     t60 = clampf(t60, 0.03f, 9.5f);
@@ -4439,15 +4450,32 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     loop.loopDampingCoefficient = coefficient;
     loop.loopGain = clampf(gain, 0.0f, coupledGainCeiling);
 
-    // Preserve the separately calibrated idle-string loss. A retired played
-    // voice can later be repicked; neither polarisation may wake stale state
-    // from the material section that the sympathetic renderer bypasses.
-    for (auto* playedLoop : { &voice.vertical, &voice.horizontal })
-    {
-        playedLoop->materialLossDip.reset();
-        playedLoop->materialLossShape = {};
-        playedLoop->materialLossDepth = 0.0f;
-    }
+    // Internal friction belongs to the string, independently of whether a
+    // pick or the bridge excited it. Preserve this idle loop's two targets,
+    // but use the same passive wound-string curvature as a played string.
+    // Pate et al., section 2.2 (material/winding loss factors):
+    // https://www.lam.jussieu.fr/Membres/LeCarrou/Articles/A8_Pate_PredictingDecayTime.pdf
+    // The amount remains the existing construction approximation, not an
+    // additional calibration. Idle hand attenuation is a separate scalar;
+    // stale played-hand filters must not enter this intrinsic-loss solve.
+    loop.handLossDepth = 0.0f;
+    loop.handLossShape = {};
+    loop.handDipActive = false;
+    if (! voice.sympatheticReady)
+        loop.materialLossDip.reset();
+    loop.materialLossDepth = 0.0f;
+    loop.materialLossShape = {};
+    if (voice.stringIndex < 2 && spec.wound)
+        configureBassMaterialLoss(loop, f0, fHigh, intrinsicT60,
+                                  intrinsicT60High, 1.0f);
+    if (! (loop.materialLossDepth > 0.0f))
+        loop.materialLossDip.reset();
+    // The unused polarisation must not retain a played filter's history for
+    // a later repick. The running vertical section retains its own history
+    // across wheel, age and pressure refits.
+    voice.horizontal.materialLossDip.reset();
+    voice.horizontal.materialLossShape = {};
+    voice.horizontal.materialLossDepth = 0.0f;
 
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     // The fit covers fretted F#1--F#2 takes. Every sympathetic string is open,
@@ -4463,7 +4491,7 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
         + 4.0f * allpassPhaseDelay(
             loop.dispersionHighCoefficient, omega);
     const float dampingPhaseDelay = onePolePhaseDelay(
-        loop.loopDampingCoefficient, omega);
+        loop.loopDampingCoefficient, omega) + materialPhaseDelay();
     const float loopPhaseDelay = dampingPhaseDelay + dispersionPhaseDelay;
     const float compensatedPeriod = clampf(
         period - loopPhaseDelay,
@@ -7993,6 +8021,8 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
     sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
     sample = loop.damping.process(sample, loop.loopDampingCoefficient);
+    if (loop.materialLossDepth > 0.0f)
+        sample = loop.materialLossDip.process(sample);
     sample *= loop.loopGain * voice.sympatheticHandLoopGain;
 
     // A bounded rational saturation. The loop is already contractive, so this

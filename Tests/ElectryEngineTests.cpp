@@ -21552,18 +21552,17 @@ void testCoupledStringKeepsItsFundamentalDecayTarget()
     // Realised round-trip T60 of a coupled loop at its own fundamental.
     const auto realisedT60 = [] (const ElectryEngine& engine, int stringIndex)
     {
-        const auto snapshot = TestAccess::snapshot(engine, stringIndex);
         const double rate = TestAccess::internalSampleRate(engine);
         const double f0 = TestAccess::sympatheticFrequency(engine, stringIndex);
-        const double omega = 2.0 * 3.14159265358979323846 * f0 / rate;
-        const double a = snapshot.loopDampingCoefficient;
-        const double magnitude = (1.0 - a)
-            / std::sqrt(std::max(1.0 + a * a - 2.0 * a * std::cos(omega),
-                                 1.0e-30));
         const double period = rate / f0;
         const double handGain = TestAccess::sympatheticHandLoopGain(
             engine, stringIndex);
-        const double perRoundTrip = snapshot.loopGain * magnitude * handGain;
+        // Observe the whole loss cascade: the idle bass strings carry the
+        // same material section as a played string, not only its one-pole.
+        const double intrinsicT60 = TestAccess::realisedVoiceFundamentalT60(
+            engine, stringIndex);
+        const double perRoundTrip = std::pow(10.0, -3.0 / (f0 * intrinsicT60))
+                                 * handGain;
         if (perRoundTrip <= 0.0 || perRoundTrip >= 1.0)
             return 1.0e9;
         return -3.0 * period / (rate * std::log10(perRoundTrip));

@@ -362,6 +362,10 @@ if(BUILD_TESTING)
     target_link_libraries(ElectryRealismLossTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismLoss COMMAND ElectryRealismLossTests)
 
+    add_executable(ElectryRealismSympatheticLossTests Tests/RealismSympatheticLossTests.cpp)
+    target_link_libraries(ElectryRealismSympatheticLossTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismSympatheticLoss COMMAND ElectryRealismSympatheticLossTests)
+
     add_executable(ElectryRealismDecayTests Tests/RealismDecayTests.cpp)
     target_link_libraries(ElectryRealismDecayTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismDecay COMMAND ElectryRealismDecayTests)

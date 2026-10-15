@@ -24,9 +24,12 @@ struct ElectryEngineTestAccess
             loop->materialLossDip.z2 = -0.0625;
         }
         engine.configureSympatheticString(voice);
+        if (! (voice.vertical.materialLossDepth > 0)
+            || voice.horizontal.materialLossDepth != 0
+            || voice.horizontal.materialLossShape.dipOmega != 0)
+            return false;
         for (const auto* loop : { &voice.vertical, &voice.horizontal })
-            if (loop->materialLossDepth != 0 || loop->materialLossShape.dipOmega != 0
-                || loop->materialLossDip.z1 != 0 || loop->materialLossDip.z2 != 0)
+            if (loop->materialLossDip.z1 != 0 || loop->materialLossDip.z2 != 0)
                 return false;
         // Reconfiguring the played string must not revive the old section's
         // memory when a subsequent stroke enables it again.
