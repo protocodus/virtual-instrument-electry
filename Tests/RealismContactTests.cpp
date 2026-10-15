@@ -18,6 +18,7 @@ struct ElectryEngineTestAccess
         float imageDelay, imageWidth, period;
         int midi;
         bool active;
+        float spectralDepth;
     };
     static Contact contact(const ElectryEngine& engine)
     {
@@ -30,7 +31,7 @@ struct ElectryEngineTestAccess
                                   * static_cast<float>(engine.sampleRate_)) : 0.0f,
                  v.releaseMotionPeak, v.excitationCombDelay,
                  v.excitationCombWidth, v.lastCompensatedPeriod,
-                 v.midiNote, v.active };
+                 v.midiNote, v.active, v.releaseSpectralTarget };
     }
 };
 }
@@ -148,10 +149,14 @@ void stopDuringPalmMotion(double rate)
                    "stopped finger follows the actual heel during landing/lift");
             expect(lifting ? m.noiseCorner < s.noiseCorner : m.noiseCorner > s.noiseCorner,
                    "release scrape retains the actual broad-hand darkness during motion");
+            expect(lifting ? m.spectralDepth < s.spectralDepth
+                           : m.spectralDepth > s.spectralDepth,
+                   "finger stop and palm spectral loss exchange roles as the heel moves");
         }
         else
         {
-            expect(m.closureSeconds == s.closureSeconds && m.noiseCorner == s.noiseCorner,
+            expect(m.closureSeconds == s.closureSeconds && m.noiseCorner == s.noiseCorner
+                       && m.spectralDepth == s.spectralDepth,
                    "settled stop closure and spectrum preserve their existing endpoints");
         }
         render(*moving, static_cast<int>(0.15 * rate));

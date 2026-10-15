@@ -6548,20 +6548,20 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     const float stoppingFret = performedFret(voice);
     const bool broadHandStop = stoppingFret <= 0.0f
                               || voice.dampingStyle == PlayStyle::Dead;
-    const float liveBridgeHandDepth = palmDepth > 0.0f
-                                      && voice.livePalmPressure > 0.0f
-        ? 1.0f - (1.0f - palmDepth) * (1.0f - voice.livePalmPressure)
-        : std::max(palmDepth, voice.livePalmPressure);
     const float handStop = broadHandStop ? 1.0f
         : 1.0f - (1.0f - palmDepth) * (1.0f - voice.livePalmPressure);
     const float closureSeconds = lerp(0.010f, 0.022f, handStop);
     // An ordinary note stop damps upper modes before its low body disappears.
-    // Dead/Palm already carry their calibrated frequency-dependent contact.
+    // A fully planted Palm already carries its calibrated spectral contact.
+    // Blend that endpoint with the ordinary finger stop as the heel moves;
+    // the requested style alone cannot identify which hand is present yet.
     // 0.75 is a conservative voicing depth; the positive-weight spatial
     // average is contractive at every frequency and introduces no phase lag.
     voice.releaseSpectralDepth = 0.0f;
-    voice.releaseSpectralTarget = voice.dampingStyle == PlayStyle::Sustain
-        ? 0.75f * (1.0f - liveBridgeHandDepth) : 0.0f;
+    voice.releaseSpectralTarget = (voice.dampingStyle == PlayStyle::Sustain
+                                   || voice.dampingStyle == PlayStyle::PalmMute)
+        ? 0.75f * (1.0f - voice.livePalmContact)
+            * (1.0f - voice.livePalmPressure) : 0.0f;
     voice.pickRidgeCyclesPerSample = 0.0f;
     voice.releaseGainCoefficient =
         1.0f - std::exp(-1.0f / (closureSeconds * sampleRate));
