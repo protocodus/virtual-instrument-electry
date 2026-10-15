@@ -1598,6 +1598,7 @@ private:
     // fundamental, for the current string set and build. Shared for the same
     // reason: a coupled string is the same piece of steel as a played one.
     [[nodiscard]] float highFrequencyDecayRatio(int stringIndex) const noexcept;
+    [[nodiscard]] float intrinsicStringT60(int stringIndex, float liveFret) const noexcept;
     void configureBassMaterialLoss(PolarisationLoop& loop, float f0, float fHigh,
                                    float intrinsicT60, float intrinsicT60High,
                                    float polarisationScale) noexcept;
