@@ -465,8 +465,12 @@ if(BUILD_TESTING)
             Tests/VST3ArtifactSmokeTests.cpp)
         target_link_libraries(ElectryVST3ArtifactSmokeTests PRIVATE
             juce::juce_audio_processors_headless)
+        # A plain executable gets none of the definitions juce_add_plugin
+        # injects, and JUCE otherwise enables curl on Linux, which would need
+        # libcurl headers and linking for networking this test never does.
         target_compile_definitions(ElectryVST3ArtifactSmokeTests PRIVATE
             JUCE_PLUGINHOST_VST3=1
+            JUCE_USE_CURL=0
             ELECTRY_EXPECTED_VERSION="${PROJECT_VERSION}")
         target_compile_features(ElectryVST3ArtifactSmokeTests PRIVATE cxx_std_20)
         add_dependencies(ElectryVST3ArtifactSmokeTests Electry_VST3)
