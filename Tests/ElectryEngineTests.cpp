@@ -17441,11 +17441,14 @@ void testRetainedPalmColoursFingerExcitation()
             engine->noteOn(ElectryEngine::firstSoloStringKeyswitchNote + 7, 1.0f);
             engine->noteOn(styleKeyswitch(retainPalm
                 ? PlayStyle::PalmMute : PlayStyle::Sustain), 1.0f);
+            // Compare established contacts. Applying CC2 only at the finger
+            // event would compare a hand that has not landed yet against a
+            // palm planted for 40 ms, which have different physical positions.
+            engine->setPalmMutePressure(pressure);
             engine->noteOn(76, 0.90f);
             StereoBuffer establish(static_cast<int>(0.040 * rate));
             renderInto(*engine, establish);
             const float impactBefore = TestAccess::palmImpactVelocity(*engine, 7);
-            engine->setPalmMutePressure(pressure);
             engine->noteOn(styleKeyswitch(style), 1.0f);
             engine->noteOn(destination, 0.90f);
             const auto state = TestAccess::snapshot(*engine, 7);

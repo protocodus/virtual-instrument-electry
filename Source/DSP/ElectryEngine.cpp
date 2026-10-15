@@ -4890,15 +4890,23 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // phantom impact. Hammer and legato Slide have no picking-hand collision.
     // A fretting gesture retains this absorber even though its attack style
     // is Hammer or Slide. It still colours the finger's released string below.
-    const float palmStyleDepth = (voice.playStyle == PlayStyle::PalmMute
-                                 || retainsExistingPalm)
-        ? 0.55f + 0.45f * parameters.muteDamping : 0.0f;
+    // The excitation meets the heel at its present position, just as the
+    // ringing loop does. The requested style/CC2 target can already be open
+    // while the hand is still lifting, or muted before it has landed.
+    // Biral et al., ICMC/SMC 2014, section 3.3, measured time-varying pressure
+    // through a stroke, not an instantaneous binary hand:
+    // https://www.icmc14-smc14.net/images/proceedings/PS4-B10-TowardsaDynamicModel.pdf
+    // Reuse the existing finite-contact coordinates and endpoint voicing;
+    // this does not infer a new pressure coefficient from that experiment.
+    const float palmStyleDepth = voice.livePalmContact
+        * (0.55f + 0.45f * parameters.muteDamping);
+    const float palmPressure = voice.livePalmPressure;
     // Palm style and the continuous bridge hand are parallel contacts: each
     // can absorb only what the other leaves. Keep either one alone bit-exact.
     const float bridgeHandDepth = palmStyleDepth > 0.0f
-                                  && palmMuteBlend_ > 0.0f
-        ? 1.0f - (1.0f - palmStyleDepth) * (1.0f - palmMuteBlend_)
-        : std::max(palmStyleDepth, palmMuteBlend_);
+                                  && palmPressure > 0.0f
+        ? 1.0f - (1.0f - palmStyleDepth) * (1.0f - palmPressure)
+        : std::max(palmStyleDepth, palmPressure);
     if (plectrumContact)
     {
         if (bridgeHandDepth > 0.0f)
@@ -6494,16 +6502,20 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     // requires a damping hand. An already planted palm likewise remains the
     // dominant contact. Use the same 10 ms finger landing time as legato and
     // the established 22 ms broad-hand closure; neither changes final T60.
-    const float palmDepth = voice.dampingStyle == PlayStyle::PalmMute
-        ? 0.55f + 0.45f * smoothedParameters_.muteDamping : 0.0f;
+    const float palmDepth = voice.livePalmContact
+        * (0.55f + 0.45f * smoothedParameters_.muteDamping);
     // A pull-off or slide toward the open string may be interrupted before
     // arriving. The written destination is already fret zero, but the finger
     // is still stopping the performed length when this Note Off lands.
     const float stoppingFret = performedFret(voice);
     const bool broadHandStop = stoppingFret <= 0.0f
                               || voice.dampingStyle == PlayStyle::Dead;
+    const float liveBridgeHandDepth = palmDepth > 0.0f
+                                      && voice.livePalmPressure > 0.0f
+        ? 1.0f - (1.0f - palmDepth) * (1.0f - voice.livePalmPressure)
+        : std::max(palmDepth, voice.livePalmPressure);
     const float handStop = broadHandStop ? 1.0f
-        : 1.0f - (1.0f - palmDepth) * (1.0f - palmMuteBlend_);
+        : 1.0f - (1.0f - palmDepth) * (1.0f - voice.livePalmPressure);
     const float closureSeconds = lerp(0.010f, 0.022f, handStop);
     // An ordinary note stop damps upper modes before its low body disappears.
     // Dead/Palm already carry their calibrated frequency-dependent contact.
@@ -6511,7 +6523,7 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     // average is contractive at every frequency and introduces no phase lag.
     voice.releaseSpectralDepth = 0.0f;
     voice.releaseSpectralTarget = voice.dampingStyle == PlayStyle::Sustain
-        ? 0.75f * (1.0f - palmMuteBlend_) : 0.0f;
+        ? 0.75f * (1.0f - liveBridgeHandDepth) : 0.0f;
     voice.pickRidgeCyclesPerSample = 0.0f;
     voice.releaseGainCoefficient =
         1.0f - std::exp(-1.0f / (closureSeconds * sampleRate));

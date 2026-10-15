@@ -11,6 +11,20 @@ namespace electry
 {
 struct ElectryEngineTestAccess
 {
+    static std::array<float, 4> attackHandState(const ElectryEngine& engine)
+    {
+        const auto& voice = engine.voices_[0];
+        return { voice.livePalmContact, voice.livePalmPressure,
+                 voice.excitationReleaseCoefficient, voice.noiseBandCoefficient };
+    }
+
+    static std::array<float, 3> stopHandState(const ElectryEngine& engine)
+    {
+        const auto& voice = engine.voices_[0];
+        return { voice.releaseGainCoefficient, voice.noiseBandCoefficient,
+                 voice.releaseSpectralTarget };
+    }
+
     static bool handIsOpen(const ElectryEngine& engine)
     {
         const auto& voice = engine.voices_[2];
@@ -152,11 +166,95 @@ void testStyleChangesUnderHeldPressure()
         }
     }
 }
+
+void testExcitationFollowsMovingHand()
+{
+    using Engine = electry::ElectryEngine;
+    using Access = electry::ElectryEngineTestAccess;
+    using Style = electry::PlayStyle;
+    for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+      for (bool pressureOnly : { false, true })
+      {
+        for (bool lifting : { false, true })
+        {
+            auto moving = std::make_unique<Engine>();
+            auto settled = std::make_unique<Engine>();
+            electry::EngineParameters p;
+            p.sympatheticAmount = p.artifactAmount = 0.0f;
+            p.strumSpreadSeconds = 0.0f;
+            const Style target = lifting ? Style::Sustain : Style::PalmMute;
+            const Style origin = lifting ? Style::PalmMute : Style::Sustain;
+            for (auto* e : {moving.get(), settled.get()})
+            {
+                e->setParameters(p);
+                e->prepare(rate, 127);
+                e->setSoloStringMask(1);
+                const Style initial = e == moving.get() ? origin : target;
+                e->noteOn(Engine::firstPlayStyleKeyswitchNote
+                              + static_cast<int>(pressureOnly ? Style::Sustain : initial), 1.0f);
+                if (pressureOnly)
+                    e->setPalmMutePressure(initial == Style::PalmMute ? 1.0f : 0.0f);
+                e->noteOn(33, 0.85f); // fret 5, so a stopping finger can also be tested
+                render(*e, rate, 0.15);
+                e->noteOn(Engine::firstPlayStyleKeyswitchNote
+                              + static_cast<int>(pressureOnly ? Style::Sustain : target), 1.0f);
+                if (pressureOnly)
+                    e->setPalmMutePressure(target == Style::PalmMute ? 1.0f : 0.0f);
+                e->noteOn(Engine::firstRepickNote, 0.85f);
+            }
+            const auto m = Access::attackHandState(*moving);
+            const auto s = Access::attackHandState(*settled);
+            expect(m[pressureOnly ? 1 : 0] == (lifting ? 1.0f : 0.0f),
+                   "style request preserves heel position at physical contact");
+            expect(lifting ? m[2] > s[2] : m[2] < s[2],
+                   "release spectrum follows the present heel while it moves");
+            expect(lifting ? m[3] > s[3] : m[3] < s[3],
+                   "scrape spectrum follows the same present heel");
+            for (auto* e : {moving.get(), settled.get()})
+            {
+                render(*e, rate, 0.002);
+                e->noteOn(Engine::firstRepickNote, 0.85f);
+            }
+            const auto mid = Access::attackHandState(*moving);
+            expect(mid[pressureOnly ? 1 : 0] > 0.0f
+                       && mid[pressureOnly ? 1 : 0] < 1.0f,
+                   "second pick actually meets an intermediate heel position");
+            expect(mid[2] > std::min(m[2], s[2])
+                       && mid[2] < std::max(m[2], s[2]),
+                   "intermediate heel gives an intermediate release spectrum");
+            // A stop during the same move must use the hand that is present,
+            // rather than jumping to the requested articulation's endpoint.
+            moving->noteOff(33);
+            settled->noteOff(33);
+            const auto mr = Access::stopHandState(*moving);
+            const auto sr = Access::stopHandState(*settled);
+            expect(lifting ? mr[0] < sr[0] : mr[0] > sr[0],
+                   "stop closure retains the live broad hand during motion");
+            expect(lifting ? mr[1] > sr[1] : mr[1] < sr[1],
+                   "stop contact colour retains the live broad hand");
+
+            // Restore matching held owners and allow the established physical
+            // follower to settle. No permanent articulation retuning is allowed.
+            for (auto* e : {moving.get(), settled.get()})
+            {
+                e->noteOn(33, 0.85f);
+                render(*e, rate, 0.20);
+                e->noteOn(Engine::firstRepickNote, 0.85f);
+            }
+            const auto me = Access::attackHandState(*moving);
+            const auto se = Access::attackHandState(*settled);
+            expect(me == se, "settled attack endpoint is independent of hand history");
+        }
+      }
+    }
+}
 }
 
 int main()
 {
     testStyleChangesUnderHeldPressure();
+    testExcitationFollowsMovingHand();
     for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
         for (bool pressureBeforeNote : { false, true })
