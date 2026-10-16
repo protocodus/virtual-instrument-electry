@@ -14,7 +14,7 @@ palm muting, hammer-ons, slides, harmonics and vibrato.
 ## Downloads
 
 <!-- build-download-begin: updated by the Main build workflow -->
-**[Download distributable binaries — build 61](https://github.com/protocodus/virtual-instrument-electry/actions/runs/38858374587/artifacts/12028911749)**
+**[Download distributable binaries — build 62](https://github.com/protocodus/virtual-instrument-electry/actions/runs/38870496587/artifacts/12033584421)**
 <!-- build-download-end -->
 
 This link downloads the complete binary package set, including the plug-ins and
