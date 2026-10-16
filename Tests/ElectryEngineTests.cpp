@@ -20969,12 +20969,15 @@ void testHumbuckerTwoCoilNotch()
         return buffer;
     };
     const auto renderSingle = [&] (float pickupType, int midiNote,
-                                   float velocity, double seconds)
+                                   float velocity, double seconds,
+                                   bool includeSympathy = true)
     {
         auto engine = std::make_unique<ElectryEngine>();
         engine->prepare(sampleRate, 512);
         auto parameters = pickupReference();
         parameters.pickupType = pickupType;
+        if (! includeSympathy)
+            parameters.sympatheticAmount = 0.0f;
         engine->setParameters(parameters);
         engine->reset();
         engine->noteOn(pickKeyswitch(PickStyle::Down), 1.0f);
@@ -21098,17 +21101,20 @@ void testHumbuckerTwoCoilNotch()
             { 22, -81.4120 }, { 24, -59.2493 }, { 26, -61.5400 },
             { 28, -73.2640 },
 #else
-            // Updated source snapshots for the stronger wound-string pick
-            // edge; per-partial tolerances and pickup contrast stay unchanged.
-            { 1, 16.6907 }, { 2, 22.5653 }, { 3, 24.7606 },
-            { 4, 24.8363 }, { 6, 22.3542 }, { 8, 14.024952 },
-            { 10, 1.861108 }, { 12, -1.267255 }, { 14, -5.87426 },
-            { 16, -11.025131 }, { 18, -29.7126 }, { 20, -37.577097 },
-            { 22, -50.013974 }, { 24, -53.818142 }, { 26, -57.720892 },
-            { 28, -66.514793 },
+            // Uncoupled fixed-pitch snapshot from independently built 18e0d46.
+            // Per-partial tolerances and pickup contrast stay unchanged.
+            { 1, 16.670948 }, { 2, 22.512652 }, { 3, 24.361207 },
+            { 4, 24.580175 }, { 6, 21.833095 }, { 8, 13.930271 },
+            { 10, 2.007936 }, { 12, -1.874592 }, { 14, -5.055629 },
+            { 16, -12.673101 }, { 18, -26.335504 }, { 20, -36.576981 },
+            { 22, -64.103977 }, { 24, -52.821381 }, { 26, -55.987956 },
+            { 28, -67.211388 },
 #endif
         }};
-        const auto render = renderSingle(1.0f, 45, 0.70f, 1.0);
+        // Pin the picked source and pickup response here. The idle bank has
+        // dedicated sympathetic tests; its changing partial interference must
+        // not masquerade as a pickup regression in this source snapshot.
+        const auto render = renderSingle(1.0f, 45, 0.70f, 1.0, false);
         const int start = static_cast<int>(0.05 * sampleRate);
         const int window = static_cast<int>(0.4 * sampleRate);
         const double f0 = midiHz(45);
