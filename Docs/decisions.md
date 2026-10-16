@@ -4,6 +4,29 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-16 — promote the combined realism candidate B
+
+The comparison used A = unchanged upstream `18e0d467` and B = the combined
+eight-correction DSP at `90501de` (final source, tests and audition tools at
+`3fd0100`). Pairs 01–08 isolated each correction; 09 and 09-amp combined them
+in dry and amplified performances. Every pair used identical events, controls,
+sample rate, block size and random seed, with whole-file RMS matching and a
+shared peak-headroom reduction where needed. The WAVs and separate key remain
+working listening artefacts rather than new repository audio assets.
+
+After receiving the comparisons, the user chose: “take candidate B and push to
+main”. Decision: promote all eight corrections together: live-palm pick attacks,
+live-palm finger stops, open-string repick continuity, sympathetic bass material
+loss, shared played-open and idle sustain targets, common-time unequal-coil
+pickup geometry, consistent idle neck-pickup sensitivity, and fundamental
+sustain preservation when old-string loss targets are infeasible.
+
+This records the user's selection without inventing a comparative listening
+description or treating preference as a physical measurement. It licenses the
+tested combined candidate on `main`, with its existing constants; it does not
+license further tuning or the deferred dispersion, pickup-circuit, reciprocal
+idle-coupling or magnetic back-action proposals.
+
 ## 2026-08-29 — measure ringing repicks before adding another mechanism
 
 The new plectrum-contact search converged on the same passive reciprocal

@@ -60,15 +60,16 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
-- **2026-10-16 — Realism corrections (local candidate):** picked attacks and
+- **2026-10-16 — Realism corrections:** picked attacks and
   finger stops follow the moving palm; open-string repicks retain sympathetic
   motion. Idle bass strings use the played string's material-loss curvature
   and intrinsic sustain targets, with consistent neck-pickup sensitivity.
   Unequal humbucker coils observe both wave directions at a common time.
   Infeasible old-string loss fits preserve low-note sustain instead of
   clipping the loop gain. Matched isolated and combined listening renders
-  are produced by `Tools/BuildRealismComparisons.py`; no listening preference
-  or named-instrument calibration is implied.
+  are produced by `Tools/BuildRealismComparisons.py`. The user selected the
+  combined B candidate for `main`; [the decision](Docs/decisions.md) records
+  that choice without implying named-instrument calibration.
 
 - **2026-09-14 — Release hardening:** malformed host MIDI, parameter values,
   state chunks and output buffers are handled safely; duplicate note releases
@@ -1353,7 +1354,8 @@ inside the existing model. They do not establish perceptual parity with a
 recorded eight-string guitar. The listening pack keeps the unchanged upstream
 engine as A and each isolated correction as B, with identical events and one
 whole-file RMS trim per take; the separate key records the trims and source
-revisions. Preference remains a listening decision.
+revisions. The user selected the combined B candidate for `main`; the choice
+is recorded in `Docs/decisions.md` as a user selection, not a calibration result.
 
 Research also identified two deferred dispersion questions: attack-induced
 tension is absent from the stiffness fit, and the coarse allpass fit scores
