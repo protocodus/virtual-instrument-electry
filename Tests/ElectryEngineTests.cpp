@@ -2454,6 +2454,10 @@ void testSpatialCoilStandingModes()
     constexpr double period = 512.0;
     constexpr int warmup = 256;
     constexpr int samples = 1024;
+    // Input rounding and the weighted float sums may contract differently on
+    // arm64 and x86_64. Keep that allowance separate from interpolation error.
+    constexpr double roundingAllowance =
+        8.0 * std::numeric_limits<float>::epsilon();
     double maximumExactError = 0.0;
     double maximumFractionalError = 0.0;
     double centreNodeRms = 0.0;
@@ -2511,7 +2515,7 @@ void testSpatialCoilStandingModes()
             maximumError = std::max(maximumError, std::abs(output - expected));
             squaredOutput += output * output;
         }
-        expect(maximumError <= interpolationBound + 3.0e-7,
+        expect(maximumError <= interpolationBound + roundingAllowance,
                "weighted coils diverged from common-time spatial sensors: mode "
                    + std::to_string(mode) + ", centre " + std::to_string(centre)
                    + ", spacing " + std::to_string(spacing) + ", balance "
