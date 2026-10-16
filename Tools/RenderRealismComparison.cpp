@@ -113,12 +113,18 @@ Score makeScore(const std::string& probe, bool amp)
     else if (probe == "pickup")
     {
         p.pickupType = 0;
-        p.pickupSelector = electry::PickupSelector::Both;
+        p.pickupSelector = electry::PickupSelector::Neck;
         p.sympatheticAmount = 0;
-        p.pickPosition = 0.7f;
-        const std::array<int, 6> notes {40, 47, 52, 64, 71, 76};
+        p.pickPosition = 0;
+        p.pickHardness = p.toneKnob = 1;
+        p.stringAge = 0;
+        s.event(0, Kind::mask, 1);
+        // High frets on the same thick low string keep the coil-spacing
+        // response in the audible low-mid band. Automatic allocation onto
+        // thinner strings would move it above the loaded coil's passband.
+        const std::array<int, 4> notes {52, 57, 59, 62};
         for (std::size_t n = 0; n < notes.size(); ++n)
-            s.note(0.2 + 1.5 * n, notes[n], 0.85f, 1.3);
+            s.note(0.2 + 2.4 * n, notes[n], 0.85f, 2.1);
     }
     else if (probe == "aged")
     {
