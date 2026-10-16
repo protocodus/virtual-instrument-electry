@@ -17,6 +17,7 @@ struct ElectryEngineTestAccess
     {
         double fundamental, high, horizontal, deadSpot;
         float gain, coefficient;
+        double maximumMagnitude;
     };
 
     static Loss at(ElectryEngine& engine, int stringIndex, float fret,
@@ -24,7 +25,7 @@ struct ElectryEngineTestAccess
     {
         auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
         engine.configureVoiceDamping(voice, PlayStyle::Sustain, frequency, fret);
-        const auto t60 = [&] (const auto& loop, double observedFrequency)
+        const auto magnitude = [&] (const auto& loop, double observedFrequency)
         {
             // Independently evaluate the realised one-pole response, including
             // the scalar gain. Its traversal count is the string fundamental,
@@ -37,15 +38,24 @@ struct ElectryEngineTestAccess
             const double material = loop.materialLossDepth > 0.0f
                 ? std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
                          / (1.0 + b.a1 * z + b.a2 * z * z)) : 1.0;
-            const double magnitude = material * loop.loopGain * (1.0 - a)
+            return material * loop.loopGain * (1.0 - a)
                 / std::sqrt(1.0 + a * a - 2.0 * a * std::cos(omega));
-            return -3.0 / (frequency * std::log10(magnitude));
         };
+        const auto t60 = [&] (const auto& loop, double observedFrequency)
+        {
+            return -3.0 / (frequency * std::log10(
+                magnitude(loop, observedFrequency)));
+        };
+        double maximumMagnitude = 0.0;
+        for (int bin = 0; bin <= 64; ++bin)
+            for (const auto* loop : { &voice.vertical, &voice.horizontal })
+                maximumMagnitude = std::max(maximumMagnitude,
+                    magnitude(*loop, 0.5 * engine.sampleRate_ * bin / 64.0));
         return { t60(voice.vertical, frequency), t60(voice.vertical, 3600.0),
                  t60(voice.horizontal, frequency),
                  engine.deadSpotFactor(stringIndex, fret),
                  voice.vertical.loopGain,
-                 voice.vertical.loopDampingCoefficient };
+                 voice.vertical.loopDampingCoefficient, maximumMagnitude };
     }
 
     static std::array<float, 3> live(const ElectryEngine& engine)
@@ -134,6 +144,62 @@ void lengthAndUpperAnchor(double rate)
     }
 }
 
+void oldStringFeasibility(double rate)
+{
+    // These are the existing open-string fundamental targets before Age,
+    // Gauge and the local neck contribution. Test the realised transfer, not
+    // the solver's requested gain: a gain clamp used to pass a nominal target
+    // while producing only 1.16 s instead of 11.36 s on old heavy E1 at 48 kHz.
+    constexpr std::array<double, 8> nominalT60 {
+        20.0, 19.0, 18.0, 16.5, 15.0, 12.0, 10.0, 8.5
+    };
+    for (int stringIndex = 0; stringIndex < 8; ++stringIndex)
+    {
+        auto e = makeEngine(rate, stringIndex);
+        const float frequency = static_cast<float>(440.0 * std::exp2(
+            (openNotes[static_cast<std::size_t>(stringIndex)] - 69.0) / 12.0));
+        electry::EngineParameters p;
+        p.sympatheticAmount = p.artifactAmount = p.bodyResonance = 0.0f;
+        p.pickNoise = p.fingerNoise = p.releaseNoise = p.palmMute = 0.0f;
+        p.construction = p.bodyWood = p.bodySize = 0.0f;
+        p.stringGauge = 1.0f;
+        double previousFundamental = 0.0, previousHigh = 0.0;
+        for (int step = 0; step <= 100; ++step)
+        {
+            p.stringAge = static_cast<float>(step) / 100.0f;
+            e->setParameters(p);
+            e->reset();
+            e->setSoloStringMask(static_cast<std::uint8_t>(1u << stringIndex));
+            e->noteOn(openNotes[static_cast<std::size_t>(stringIndex)], 0.8f);
+            const auto loss = Access::at(*e, stringIndex, 0.0f, frequency);
+            const double target = std::clamp(nominalT60[stringIndex]
+                * (1.08 - 0.70 * p.stringAge) * 1.16 * 1.18 * 1.05 * 1.04
+                * loss.deadSpot, 0.02, 26.0);
+            expect(std::abs(loss.fundamental / target - 1.0) < 0.003,
+                   "all ages retain the existing fundamental target at physical open pitch");
+            expect(std::abs(loss.horizontal / (1.7 * target) - 1.0) < 0.005,
+                   "both polarisations preserve their fundamental under infeasible tilt");
+            expect(loss.maximumMagnitude <= 1.000002
+                       && loss.gain > 0.0f && loss.gain <= 0.99999f
+                       && loss.fundamental > 0.0 && loss.high > 0.0,
+                   "old-string loss stays passive across the frequency range");
+            if (step > 0)
+            {
+                // Adjacent Age steps change the prescribed fundamental by at
+                // most 1.85%. Crossing the feasibility boundary must not add a
+                // jump or reverse it. The upper target may relax continuously.
+                expect(loss.fundamental <= 1.003 * previousFundamental
+                           && loss.fundamental >= 0.975 * previousFundamental,
+                       "fundamental remains continuous and nonincreasing through Age");
+                expect(std::abs(std::log(loss.high / previousHigh)) < 0.15,
+                       "upper decay has no discontinuity at the passive-solve boundary");
+            }
+            previousFundamental = loss.fundamental;
+            previousHigh = loss.high;
+        }
+    }
+}
+
 std::vector<float> performance(double rate, int block)
 {
     auto e = makeEngine(rate);
@@ -194,6 +260,7 @@ int main()
     for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
         lengthAndUpperAnchor(rate);
+        oldStringFeasibility(rate);
         expect(performance(rate, 1) == performance(rate, 257),
                "live length-dependent decay is sample-identical across callback sizes");
     }

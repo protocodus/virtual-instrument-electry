@@ -3454,10 +3454,17 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
         float depth = dipRequestedDepth;
         if (depth <= 0.0f)
         {
-            // Preserve the exact no-hand path. Its historical upper-target
-            // clamp is part of the calibrated open string; the discontinuity
-            // below can only occur while a hand depth is being swept.
-            solveFor(0.0f, coefficient, gain, dipF0);
+            // Retain the exact calibrated solve whenever it is passive. Old,
+            // heavy wound strings can ask for more tilt than one pole can
+            // supply without gain above unity. Clamping that gain shortened
+            // open E1's 11.36 s fundamental target to 1.16 s at Age/Gauge 1.
+            // As for a hand-constrained solve below, preserve the fundamental
+            // and relax only the infeasible upper target through the existing
+            // bounded solver. This is a feasibility correction, not a new
+            // decay target or an extra loss section.
+            if (! solveFor(0.0f, coefficient, gain, dipF0))
+                solveLoopLoss(t60Fundamental, t60HighTarget, period, sampleRate,
+                              omega0, omegaHigh, 0.99999f, coefficient, gain);
         }
         else if (! solveFor(depth, coefficient, gain, dipF0))
         {
