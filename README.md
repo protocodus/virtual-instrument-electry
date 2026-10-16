@@ -60,6 +60,14 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-10-16 — String voicing:** ordinary notes prefer unused strings,
+  then the lowest playable fret; chord batches minimize occupied strings,
+  then total fret height. Repeated-note ownership, MPE bindings, string locks
+  and explicit Hammer/Slide continuation retain their priorities. Release
+  tails, sustained notes, pending contacts and silent held keys reserve their
+  strings; exhausted allocation also takes the lowest fret before stealing
+  history.
+
 - **2026-10-16 — Realism corrections:** picked attacks and
   finger stops follow the moving palm; open-string repicks retain sympathetic
   motion. Idle bass strings use the played string's material-loss curvature
@@ -450,20 +458,19 @@ the next grid contact is skipped rather than replacing a pick that has not yet
 reached its string. The free-running 4..20 strokes/s control avoids inventing
 host-transport or pattern-editor state; DAW users can still sequence E6..B6 for
 arbitrary synced rhythms.
-Each playable note is
-allocated to one of the eight physical strings by a fretting hand that has a
-position and a reach: a repick of a sounding note grabs the same string,
-hammer-on continues the nearest sounding string, otherwise the free string
-that puts the note nearest the fingers wins, and when everything sounds, the
-oldest string is stolen. The hand's index finger covers four further frets,
-open strings need no finger and are free at the nut, and the hand moves only
-when the note it is asked for lies outside its span - and then only on the
-first note of a chord, because a chord is one hand shape. It relaxes back to
-the nut when the phrase ends. That is what lets a phrase played up the neck
-stay up the neck: the rule this replaced always chose the lowest fret that
-could produce the note, so an open string won every contest and most of the
-fretboard - and the sounding length, inharmonicity and pickup-comb geometry
-that come with it - was unreachable.
+Each playable note is allocated to one of eight physical strings. Repeated
+notes keep their string and balanced MIDI ownership, MPE members retain their
+physical binding, and Hammer/Slide continues an eligible sounding string.
+Otherwise unused strings come first, followed by the lowest playable fret.
+Release tails, sustain-held notes, pending contacts and silent held-key owners
+still reserve their strings. If every playable string is reserved, the lowest
+fret wins before release status and age break ties. A complete chord batch
+preserves the same ownership and legato priorities, then minimizes occupied
+strings and total fret height before considering hand reach and movement.
+String-solo keyswitches constrain every choice to the selected strings.
+The fretting hand still tracks the selected shape for gestures and
+articulations: its index finger covers four further frets, it moves when the
+shape lies outside its span, and it relaxes to the nut when the phrase ends.
 
 Before a valid MPE zone is declared, pitch wheels retain the original
 channel-agnostic contract: the latest wheel applies the same standard ±2

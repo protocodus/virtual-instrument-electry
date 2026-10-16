@@ -1746,6 +1746,8 @@ private:
     void stopLegatoTravel(Voice& voice) noexcept;
     void beginVoiceRelease(Voice& voice) noexcept;
     void silenceVoice(Voice& voice) noexcept;
+    // Preserve identity and explicit legato first; ordinary notes prefer
+    // unused strings, then the lowest fret even when every string is reserved.
     int chooseString(int midiNote, PlayStyle playStyle,
                      ExpressionId expressionId) const noexcept;
     // `Voice::fret` is the written destination during a glide; allocation
@@ -1754,10 +1756,8 @@ private:
         const Voice& voice) noexcept;
     [[nodiscard]] static float legatoPitchOffset(
         const Voice& voice) noexcept;
-    // What it costs the fretting hand to take this note on this string, in
-    // fret-distance units. Lower wins; ties resolve toward the thicker string,
-    // as they did when the rule was simply the lowest fret.
-    [[nodiscard]] float frettingCost(int fret) const noexcept;
+    // Secondary chord-shape cost in fret-distance units, considered only
+    // after identity, legato, unused-string and total raw-fret priorities.
     [[nodiscard]] static float frettingCost(int fret,
                                             float handPosition) noexcept;
     void returnFrettingHandIfIdle(bool newChord) noexcept;
@@ -1905,11 +1905,9 @@ private:
     // first note of a chord, because a chord is one hand shape. It returns to
     // the nut when the phrase ends.
     //
-    // Without this the allocator played every note at the lowest fret that
-    // could produce it, which is a good model of first position and of nothing
-    // else: it can never be up the neck, so the sounding length, inharmonicity
-    // and pickup comb geometry that the fret drives were unreachable for most
-    // of the range.
+    // Track the chosen shape for gestures and articulations. Ordinary string
+    // allocation prefers unused strings and the lowest frets independently
+    // of this position; the chord solver uses hand reach only to break ties.
     float frettingHandPosition_ { 0.0f };
     int handReturnSamples_ { 72000 };
     // MIDI-key ownership outlives audible waveguide state: a held Mute or Dead

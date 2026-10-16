@@ -1861,6 +1861,7 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
         int legatoMisses { 0 };
         float legatoDistance { 0.0f };
         int occupiedStrings { 0 };
+        int totalRawFrets { 0 };
         int heldSteals { 0 };
         int nonReleasingSteals { 0 };
         std::array<std::uint64_t, stringCount> stealOrders {};
@@ -1888,14 +1889,18 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
             return candidate.legatoMisses < incumbent.legatoMisses;
         if (candidate.legatoDistance != incumbent.legatoDistance)
             return candidate.legatoDistance < incumbent.legatoDistance;
+        // Preserve sounding strings first, then take the lowest frets. Hand
+        // reach and stealing history only distinguish otherwise equal shapes.
+        if (candidate.occupiedStrings != incumbent.occupiedStrings)
+            return candidate.occupiedStrings < incumbent.occupiedStrings;
+        if (candidate.totalRawFrets != incumbent.totalRawFrets)
+            return candidate.totalRawFrets < incumbent.totalRawFrets;
         if (candidate.maximumSpanViolation != incumbent.maximumSpanViolation)
             return candidate.maximumSpanViolation
                  < incumbent.maximumSpanViolation;
         if (candidate.totalSpanViolation != incumbent.totalSpanViolation)
             return candidate.totalSpanViolation
                  < incumbent.totalSpanViolation;
-        if (candidate.occupiedStrings != incumbent.occupiedStrings)
-            return candidate.occupiedStrings < incumbent.occupiedStrings;
         if (candidate.heldSteals != incumbent.heldSteals)
             return candidate.heldSteals < incumbent.heldSteals;
         if (candidate.nonReleasingSteals != incumbent.nonReleasingSteals)
@@ -2010,6 +2015,7 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
             const auto& voice = voices_[index];
             usedStrings[index] = true;
             score.strings[static_cast<std::size_t>(noteIndex)] = stringIndex;
+            score.totalRawFrets += midiNote - specs[index].openMidiNote;
 
             const bool expressionMatch = expressionId != legacyExpressionId
                 && ((heldNoteCounts_[index] > 0
@@ -2040,7 +2046,8 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
                     score.legatoDistance += continuationDistances[note][index];
             }
 
-            const bool occupied = voice.active || heldNoteCounts_[index] > 0;
+            const bool occupied = voice.active || heldNoteCounts_[index] > 0
+                               || voice.pendingRepick.active;
             score.occupiedStrings += occupied;
             score.heldSteals += heldNoteCounts_[index] > 0
                              && ! heldMatch && ! expressionMatch;
@@ -2812,34 +2819,32 @@ int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
     if (releasedTargetTail >= 0)
         return releasedTargetTail;
 
-    // Otherwise the fretting hand chooses: the free string that puts the note
-    // nearest the fingers, with open strings always available because they
-    // need no finger. Ties resolve toward the thicker string, exactly as they
-    // did under the lowest-fret rule this replaces.
+    // Otherwise prefer an unused string, then the lowest playable fret.
+    // Release tails, sustain-held notes, pending contacts and silent held-key
+    // owners still reserve their strings. Exact ties keep the thicker string.
     int best = -1;
-    float bestCost = 1.0e30f;
+    int bestFret = fretCount + 1;
     for (int s = 0; s < stringCount; ++s)
     {
-        if (! playable(s) || voices_[static_cast<std::size_t>(s)].active
-            || heldNoteCounts_[static_cast<std::size_t>(s)] > 0)
+        const auto index = static_cast<std::size_t>(s);
+        if (! playable(s) || voices_[index].active
+            || heldNoteCounts_[index] > 0 || voices_[index].pendingRepick.active)
             continue;
-        const float cost = frettingCost(fretOn(s));
-        if (cost < bestCost)
+        const int fret = fretOn(s);
+        if (fret < bestFret)
         {
-            bestCost = cost;
+            bestFret = fret;
             best = s;
         }
     }
     if (best >= 0)
         return best;
 
-    // All candidate strings are sounding: steal the oldest releasing string
-    // first, then the oldest held string.
-    const auto stealScore = [this, &playable] (int stringIndex) -> std::uint64_t
+    // All playable strings are reserved: take the lowest fret here as well.
+    // Release status and age remain tie-breakers after that fret choice.
+    const auto stealScore = [this] (int stringIndex) -> std::uint64_t
     {
         const auto& voice = voices_[static_cast<std::size_t>(stringIndex)];
-        if (! playable(stringIndex))
-            return 0;
         // Older starts win; releasing voices win over held voices. A pending
         // same-string repick has already reserved its event order even though
         // its audible attack state is deliberately not committed until contact.
@@ -2855,9 +2860,14 @@ int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
     std::uint64_t bestScore = 0;
     for (int s = 0; s < stringCount; ++s)
     {
+        if (! playable(s))
+            continue;
+        const int fret = fretOn(s);
         const auto score = stealScore(s);
-        if (score > bestScore)
+        if (best < 0 || fret < bestFret
+            || (fret == bestFret && score > bestScore))
         {
+            bestFret = fret;
             bestScore = score;
             best = s;
         }
@@ -2865,18 +2875,11 @@ int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
     return best;
 }
 
-float ElectryEngine::frettingCost(int fret) const noexcept
-{
-    return frettingCost(fret, frettingHandPosition_);
-}
-
 float ElectryEngine::frettingCost(int fret, float handPosition) noexcept
 {
-    // An open string costs no finger at all, so in first position it is free -
-    // which is why the open-position chord shapes come out unchanged. Up the
-    // neck it is a decision rather than a convenience: taking it abandons the
-    // hand's position and changes the note's timbre, decay and damping, so its
-    // cost grows with how far the hand has travelled.
+    // Secondary chord-shape cost after unused-string and raw-fret priorities.
+    // An open string needs no finger; its cost only reflects leaving an
+    // established hand position when the primary voicing scores are equal.
     if (fret <= 0)
         return 0.25f * handPosition;
 

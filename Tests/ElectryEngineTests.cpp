@@ -10515,10 +10515,10 @@ void testChordAssignmentIsPermutationInvariant()
         while (std::next_permutation(order.begin(), order.end()));
     };
 
-    check("fifth-fret barre", std::array { 33, 40, 45 },
-          std::array { 0, 1, 2 }, std::array { 5, 5, 5 }, 3.0f);
+    check("lowest-fret low chord", std::array { 33, 40, 45 },
+          std::array { 0, 2, 3 }, std::array { 5, 0, 0 }, 3.0f);
     check("high-register dyad", std::array { 64, 82 },
-          std::array { 4, 7 }, std::array { 14, 18 }, 14.0f);
+          std::array { 6, 7 }, std::array { 5, 18 }, 9.5f);
     check("open low chord", std::array { 28, 35, 69 },
           std::array { 0, 1, 7 }, std::array { 0, 0, 5 }, 3.0f);
     check("open C major", std::array { 48, 52, 55, 60, 64 },
@@ -10582,7 +10582,7 @@ void testChordAssignmentIsPermutationInvariant()
     revoiced->noteOnChord(revoicedChord);
     const int movedString = TestAccess::stringForNote(*revoiced, 64);
     const int constrainedString = TestAccess::stringForNote(*revoiced, 82);
-    expect(movedString == 4 && constrainedString == 7,
+    expect(movedString == 6 && constrainedString == 7,
            "a constrained dyad did not re-finger its repeated held pitch ("
                + std::to_string(movedString) + ", "
                + std::to_string(constrainedString) + ")");
@@ -10593,8 +10593,8 @@ void testChordAssignmentIsPermutationInvariant()
     expect(! TestAccess::snapshot(*revoiced, movedString).keyDown,
            "re-fingered overlap survived both matching Note Offs");
 
-    // A free but impossible stretch is not preferable to taking a string that
-    // is already releasing. This shape fits exactly under the four-fret hand.
+    // Unused strings outrank a compact hand shape: leave the release tail
+    // sounding and choose the lowest-fret complete assignment on free strings.
     auto releasedObstacle = std::make_unique<ElectryEngine>();
     releasedObstacle->prepare(sampleRate, 512);
     releasedObstacle->setParameters(EngineParameters {});
@@ -10605,18 +10605,16 @@ void testChordAssignmentIsPermutationInvariant()
         ElectryEngine::NoteOnEvent { 42, 0.8f }
     };
     releasedObstacle->noteOnChord(reachableChord);
-    expect(TestAccess::stringForNote(*releasedObstacle, 41) == 1
-               && TestAccess::snapshot(*releasedObstacle, 1).fret == 6
+    expect(TestAccess::stringForNote(*releasedObstacle, 41) == 0
+               && TestAccess::snapshot(*releasedObstacle, 0).fret == 13
                && TestAccess::stringForNote(*releasedObstacle, 42) == 2
-               && TestAccess::snapshot(*releasedObstacle, 2).fret == 2,
-           "allocator preferred an eleven-fret stretch over a releasing string");
+               && TestAccess::snapshot(*releasedObstacle, 2).fret == 2
+               && TestAccess::stringForNote(*releasedObstacle, 35) == 1,
+           "chord allocation displaced a ringing tail despite unused strings");
 }
 
-// chooseString()'s steal branch (all eight strings already sounding) was
-// only ever exercised for the voice count staying at eight; the tie-break
-// policy itself - a releasing voice always outranks a held one, and among
-// voices of equal status the one that has been sounding the longest goes
-// first - had no direct coverage.
+// With no unused playable string, the second priority still chooses the
+// lowest fret. Release status and age must not override that choice.
 void testVoiceStealingPriority()
 {
     constexpr double sampleRate = 48000.0;
@@ -10633,22 +10631,20 @@ void testVoiceStealingPriority()
         28, 35, 40, 45, 50, 55, 59, 64
     };
 
-    // With every string held and none releasing, the steal must fall to the
-    // oldest of the reachable strings.
+    // The B string's third fret is lower than the oldest candidate's fret22.
     engine.reset();
     for (const int note : openNotes)
         engine.noteOn(note, 0.8f);
     engine.noteOn(62, 0.8f);
     expect(engine.getActiveVoiceCount() == ElectryEngine::stringCount,
            "stealing a held voice changed the active voice count");
-    expect(TestAccess::stringForNote(engine, 62) == 2,
-           "steal did not choose the oldest of the reachable held strings");
-    expect(TestAccess::stringForNote(engine, 40) == -1,
+    expect(TestAccess::stringForNote(engine, 62) == 6,
+           "exhausted allocation did not choose the lowest reachable fret");
+    expect(TestAccess::stringForNote(engine, 59) == -1,
            "the stolen string still reports its original note as active");
 
-    // Releasing a younger reachable string (5, not the oldest) must steal
-    // that one instead: a releasing voice outranks every held voice
-    // regardless of how long either has been sounding.
+    // A releasing G string still sounds. It cannot outrank the lower fret
+    // on the B string once every playable string is occupied.
     engine.reset();
     for (const int note : openNotes)
         engine.noteOn(note, 0.8f);
@@ -10656,8 +10652,39 @@ void testVoiceStealingPriority()
     engine.noteOn(62, 0.8f);
     expect(engine.getActiveVoiceCount() == ElectryEngine::stringCount,
            "stealing a releasing voice changed the active voice count");
-    expect(TestAccess::stringForNote(engine, 62) == 5,
-           "steal preferred an older held string over a releasing one");
+    expect(TestAccess::stringForNote(engine, 62) == 6
+               && TestAccess::stringForNote(engine, 55) == 5,
+           "a ringing release tail overrode lowest-fret exhausted allocation");
+}
+
+void testUnusedStringsBeforeLowestFret()
+{
+    auto fixture = std::make_unique<ElectryEngine>();
+    auto& engine = *fixture;
+    engine.prepare(48000.0, 512);
+    engine.setParameters(EngineParameters {});
+    // Held, releasing and pedal-sustained E4 all occupy the top string.
+    // G4 must use the free B string at fret8, not steal top-string fret3.
+    for (int state = 0; state < 3; ++state)
+    {
+        engine.reset();
+        engine.noteOn(64, 0.8f);
+        if (state == 2)
+            engine.setSustainPedal(true);
+        if (state != 0)
+            engine.noteOff(64);
+        engine.noteOn(67, 0.8f);
+        expect(TestAccess::stringForNote(engine, 67) == 6
+                   && TestAccess::snapshot(engine, 6).fret == 8
+                   && TestAccess::stringForNote(engine, 64) == 7,
+               "unused-first allocation displaced an occupied lower-fret string (state "
+                   + std::to_string(state) + ")");
+    }
+    engine.reset();
+    engine.noteOn(67, 0.8f);
+    expect(TestAccess::stringForNote(engine, 67) == 7
+               && TestAccess::snapshot(engine, 7).fret == 3,
+           "free strings were not ranked by their actual fret numbers");
 }
 
 // noteOn()'s velocity guard - `clampf(std::isfinite(velocity) ? velocity :
@@ -12562,6 +12589,9 @@ void testSlideArticulation()
         auto& engine = *engineHeapFixture;
         engine.prepare(scoreSampleRate, 256);
         engine.reset();
+        // This score measures the wound E2 string's slide, independently of
+        // the ordinary allocator's unused-string / lowest-fret preference.
+        engine.noteOn(ElectryEngine::firstSoloStringKeyswitchNote + 2, 1.0f);
         const auto trigger = [&] (int note, float velocity)
         {
             const std::array<ElectryEngine::NoteOnEvent, 1> event {{
@@ -13808,12 +13838,8 @@ void testPinchHarmonic()
            "a far-side pinch rendered as a mirrored midpoint clamp");
 }
 
-// The fretting hand has a position and a reach, so the same pitch is not
-// always fingered at the lowest fret that can produce it. The lead phrase
-// below is the whole point of the change: under the lowest-fret rule its
-// fourth note fell onto an open string in the middle of a line played at the
-// fifth position, which is a different string, a different decay and a note
-// the fretting hand is not touching at all.
+// The fretting hand still tracks the selected notes for gestures, but its
+// previous position must not override the requested lowest-fret allocation.
 void testFrettingHandPosition()
 {
     constexpr double sampleRate = 48000.0;
@@ -13840,7 +13866,7 @@ void testFrettingHandPosition()
 
     // A descending lead phrase. Each note is picked, released, and given time
     // to retire, so every string is free when the next note arrives and the
-    // only thing choosing between them is the hand.
+    // every new allocation must choose the lowest fret independently of hand history.
     engine.reset();
     struct Placement
     {
@@ -13882,22 +13908,19 @@ void testFrettingHandPosition()
     expect(a4.string == 7 && a4.fret == 5,
            "A4 left the position the hand had just taken");
 
-    // From here the lowest-fret rule and the hand disagree. G4 at the fifth
-    // position is the eighth fret of the B string, not the third fret of the
-    // top string, which is behind the index finger.
+    // The existing fifth-position hand no longer forces the B string.
     const auto g4 = playAndRelease(67);
-    expect(g4.string == 6 && g4.fret == 8,
-           "G4 was fingered behind the hand instead of inside it");
+    expect(g4.string == 7 && g4.fret == 3,
+           "hand history overrode the lowest free fret for G4");
 
-    // The one that matters: E4 is an open string, and the old rule always took
-    // it. In the fifth position it is the fifth fret of the B string.
+    // An unused open string wins even in the middle of a fretted phrase.
     const auto e4 = playAndRelease(64);
-    expect(e4.string == 6 && e4.fret == 5,
-           "E4 fell back to the open string in the middle of a fretted phrase");
+    expect(e4.string == 7 && e4.fret == 0,
+           "E4 did not choose its unused open string");
 
     const auto d4 = playAndRelease(62);
-    expect(d4.string == 5 && d4.fret == 7,
-           "D4 left the hand's position");
+    expect(d4.string == 6 && d4.fret == 3,
+           "D4 did not choose the lowest free fret");
 
     // The phrase ends: nothing is held, and after a second and a half the hand
     // relaxes to the nut, so the same E4 is an open string again.
@@ -22419,6 +22442,18 @@ void testCpuGuardrail()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--allocation-only")
+    {
+        testStringAllocationAndPolyphony();
+        testChordAssignmentIsPermutationInvariant();
+        testVoiceStealingPriority();
+        testUnusedStringsBeforeLowestFret();
+        testFrettingHandPosition();
+        testSoloStringKeyswitches();
+        testHeldLegatoSourceOutranksPlainReleaseTails();
+        testSlideArticulation();
+        return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     testSpatialCoilStandingModes();
     if (argc == 2 && std::string(argv[1]) == "--pickup-spatial-only")
     {
@@ -22515,6 +22550,7 @@ int main(int argc, char** argv)
     testStringAllocationAndPolyphony();
     testChordAssignmentIsPermutationInvariant();
     testVoiceStealingPriority();
+    testUnusedStringsBeforeLowestFret();
     testNoteOnVelocitySanitisation();
     testSetVibratoSanitisation();
     testSetPitchBendSanitisation();
