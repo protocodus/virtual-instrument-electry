@@ -60,6 +60,16 @@ instructions and [demo notes](#audio-demos) for the full listening guide.
 Current distributions are development builds from `main`; no tagged releases
 have been published yet.
 
+- **2026-10-16 — Realism corrections (local candidate):** picked attacks and
+  finger stops follow the moving palm; open-string repicks retain sympathetic
+  motion. Idle bass strings use the played string's material-loss curvature
+  and intrinsic sustain targets, with consistent neck-pickup sensitivity.
+  Unequal humbucker coils observe both wave directions at a common time.
+  Infeasible old-string loss fits preserve low-note sustain instead of
+  clipping the loop gain. Matched isolated and combined listening renders
+  are produced by `Tools/BuildRealismComparisons.py`; no listening preference
+  or named-instrument calibration is implied.
+
 - **2026-09-14 — Release hardening:** malformed host MIDI, parameter values,
   state chunks and output buffers are handled safely; duplicate note releases
   preserve MPE ownership, and controller resets respect event order. Extreme
@@ -717,49 +727,33 @@ behind a 0% knob. CC 120/123 behave as All Sound Off and All Notes Off.
   equal player effort does not lose tens of decibels on the much longer E1
   loop. At 0% response every velocity renders bit-identically; at 100% the
   response spans soft finger-light notes through aggressive metal attacks.
-- **Pickups and coils:** per-string position combs at morphing
-  bridge/neck distances, whose delayed tap is weighted below unity so the
-  notch is about 12 dB deep rather than infinite - a real pickup senses through
-  an aperture, sums two coils at two distances and sits in a three-dimensional
-  field, so its taps never cancel exactly, and making them cancel exactly was
-  costing the fundamental most. Correcting it recovered nearly 5 dB in the
-  60-85 Hz band and is what removed the last of the hollowness. Then the coil
-  pair: a humbucker is two coils, so each pickup sums a second tap 19 mm further
-  along the string, weighted at 0.60 so the pair dips by `(1-b)/(1+b)` = 12 dB
-  rather than nulling infinitely — the screw coil sits further from the string
-  than the slug coil and reads quieter for it, and no real pickup is a pair of
-  point sensors reading one plane of motion. The dip lands at `c / 2d` with the
-  string's own transverse wave speed `c = 2 L f`: 3043 Hz on the unbent E2
-  string and 4062 Hz on the A2 string, against Lemme's approximate 3000 Hz and
-  4000 Hz, where the single wide rectangular window this replaced first nulled
-  at 5507 Hz and 7351 Hz — most of an octave too high, because a rectangle of
-  width `W` nulls at `c / W` and a two-point sum at `c / 2d`. The two coils need
-  only one position comb: for coils at `centre ± d/2` the sum factors exactly
-  into the centre-anchored comb above times the two-point sum, so the pair costs
-  one extra fractional read per pickup rather than a second comb. Pickup type
-  closes the spacing to exactly zero, at which point the stage reports itself
-  unpaired and returns its input untouched, so the single coil is structurally
-  one coil and not a cancelled pair — its measured partials move by at most
-  0.008 dB. The magnetic aperture is then the same wave-speed-scaled 4.8 mm
-  rectangular-window FIR for both types, because it is one bobbin either way.
-  Wheel/MPE bend and fretting vibrato now move the position tap, representable
-  aperture and coil spacing together through their live `1/c` delays; the
-  implementation clamps an aperture shorter than one internal sample to its
-  one-sample identity floor. A pure fret or slide remains neutral because `L`
-  shortens by the reciprocal of its unbent frequency rise, while a tension
-  gesture changes `c`. Putting the notch where it belongs also rebalances
-  the humbucker across the string set, since the wide window was throwing away
-  top octave on the wound strings and keeping it on the plain ones; on a full
-  chord the corrected pickup comes out 0.86 dB darker overall, so it stays the
-  dark pickup of the pair. After the aperture come a bounded
-  second-order-dominant flux nonlinearity,
-  induced-EMF differentiation with an oversampled ultrasonic guard, and one
-  loaded resonant coil filter per pickup (2.0 kHz / Q 1.0 humbucker anchor to 6.0 kHz /
-  Q 2.4 single-coil anchor). A bounded string-mass/pole-balance calibration
-  keeps the thick low strings at practical guitar-pickup levels. The selector
-  fades Neck, Both (with the
-  paired-coil resonance shift), or Bridge; the passive tone control moves
-  the loaded resonance down and damps it.
+- **Moving bridge hand:** pick-release spectrum, scrape and impact use the
+  same live heel coordinates as loop damping, including the existing 4 ms
+  landing and 8 ms lifting motion. Finger-stop closure and upper-mode loss
+  likewise follow actual contact while a style or CC2 target is changing.
+  Settled endpoint voicing remains unchanged; no new pressure coefficient is
+  fitted from the palm-mute literature.
+- **Pickups and coils:** each string has separate neck/bridge observations
+  at physical positions. The reflected travelling-wave tap retains the
+  existing 0.60 weight, a voiced finite-depth position comb. A humbucker has
+  two observation points 19 mm apart and a 0.60 coil balance. Both direct and
+  reflected waves are summed at a common causal time: unequal coils cannot be
+  reduced to a centre-position comb followed by the same temporal sum in both
+  directions. The correction retains one short history per pickup and reduces
+  to the existing centre observation at zero spacing. Pickup Type closes the
+  spacing continuously to a single coil. A fractional moving average models
+  each coil's 4.8 mm rectangular aperture.
+  Wheel/MPE bend and vibrato move the position, aperture and spacing delays
+  together with transverse wave speed; changing fret alone preserves the
+  physical distances. Apertures below one internal sample retain the existing
+  one-sample identity floor. Played strings pass through a bounded flux
+  nonlinearity; quiet one-polarisation sympathetic strings retain the linear
+  approximation. Both use the same neck/bridge summing sensitivity, Faraday
+  differentiation and ultrasonic guard. The loaded-coil filter retains its
+  voiced 2.0 kHz / Q 1.0 humbucker and 6.0 kHz / Q 2.4 single-coil anchors,
+  selector loading and tone control. Public schematics establish circuit
+  topology but do not identify a replacement for these loaded responses;
+  the exact-eight pickup-circuit gate below still applies.
 - **Body:** three pickup-observed modes from Ray, Kaljun and Straže's controlled
   one-walnut/one-ash comparison receive bridge motion and contact noise. Each
   frequency and loss factor remains paired only with its measured mate and each
@@ -778,24 +772,18 @@ behind a 0% knob. CC 120/123 behave as All Sound Off and All Notes Off.
   matched-material model, not a general tonewood taxonomy. This is the default
   `ELECTRY_MEASURED_BODY_RESPONSE=ON` shipping path; `OFF` retains the former
   four-mode geometry-informed voicing only for explicit legacy comparisons.
-- **Bridge coupling:** every string you are not fingering is a
-  real waveguide, not a resonator bank. A bounded displacement-domain proxy for
-  each played string's bridge motion is summed into a one-sample-delayed bus
-  that drives the idle strings' own loops
-  at their open pitch, with their own bridge pickup tap and with their loop
-  filter solved from the same two decay targets a played string of the same
-  steel gets - its fundamental's T60 and the same wound/plain high-frequency
-  ratio. That last part is what makes the bank read as strings rather than as a
-  bright plate: a fixed loss coefficient left the wound strings' top end -
-  which a played low E loses inside a tenth of a second - ringing for over three
-  seconds, and the coupled ring's 1.5-6 kHz band sat 37.8 dB under its
-  60-700 Hz band where it now sits 87.1 dB under. The two targets are not always
-  both reachable: a one-pole steep enough to hit the high one costs gain at the
-  fundamental, and the loop gain cannot exceed one. Where they collide - which
-  is most of the range above String Age 0.8 and anywhere the bridge hand is on
-  the strings - the high-frequency target is bisected back toward the
-  fundamental's until the pair fits, so a coupled string always decays at the
-  rate its steel says and only the top of the tilt is given up.
+- **Bridge coupling:** each idle string has an open-string waveguide driven
+  by the played strings' bounded bridge-motion proxy, published one sample
+  late. The string uses the same intrinsic fundamental and fixed-Hz upper
+  decay targets as its played-open counterpart. The two lowest wound strings
+  also retain the same passive material-loss curvature between those anchors,
+  including its phase in the tuning compensation. A quiet string does not
+  become different steel because the bridge rather than the plectrum excited
+  it. Hand attenuation remains separate. When a passive one-pole cannot reach
+  both decay targets, the high-frequency target backs off until the loop gain
+  is feasible, preserving the low body. Picking an already ringing open string
+  retains its vibration; the existing fretting attenuation applies only when
+  a fret is actually pressed. The idle path remains one-way and one-polarisation.
   The strings you *are* fingering terminate on that same saddle, so they read
   the bus as well - each one minus its own contribution to it, which is what
   reciprocity of a passive junction requires and what stops a string driving its
@@ -1359,6 +1347,21 @@ this field migrate to on; factory rig selection preserves its current value.
 | Amplifier and speaker/cabinet | [Yeh and Smith's exact passive tone-stack derivation](https://dafx.de/paper-archive/2006/papers/p_001.pdf); [Dempwolf and Zölzer's measured 12AX7 model](https://dafx.de/paper-archive/2011/Papers/76_e.pdf); Reefman's measured [uTracer TubeLib ECC81/ECC83/6L6GC/EL34 fits](https://www.dos4ever.com/uTracer3/TubeLib.inc) and [model derivation](https://www.dos4ever.com/uTracer3/Theory.pdf); [Fender Twin Reverb AB763](https://schematicheaven.net/fenderamps/twin_reverb_ab763_schem.pdf), [Marshall 1959](https://www.prowessamplifiers.com/schematics/Marshall/1959_superlead.pdf) and [Macak/Schimmel](https://www.dafx.de/paper-archive/2010/DAFx10/MacakSchimmel_DAFx10_P12.pdf) phase-splitter and grid-coupling circuits; [RCA 6L6GC](https://frank.pocnet.net/sheets/049/6/6L6GC.pdf) and [Mullard EL34](https://frank.pocnet.net/sheets/129/e/EL34.pdf) push-pull operating points; official [Fender amplifier](https://www.fmicassets.com/Damroot/Original/10001/021730_gamp_manual_all_revE.pdf), [Marshall 1959](https://www.marshall.com/us/en/product/1959-handwired-head?pid=1007086) and [Peavey 6505](https://assets.peavey.com/literature/manuals/00575680.pdf) architecture references; official [Jensen C12K](https://www.jensentone.com/vintage-ceramic/c12k), [Celestion G12M](https://celestion.com/product/g12m-greenback/) and [Vintage 30](https://celestion.com/product/vintage-30/) response boundaries | Three complete paths share a residual-checked measured-current 12AX7 preamp table. American and British add exact unloaded third-order passive RC stacks; nonlinear ECC81/ECC83 long-tailed pairs use derivative-consistent scalar tables inside the unchanged coupled Newton solve for two source-valued output capacitors, 220 kOhm bias returns, factory grid stoppers and TubeLib overload-grid conduction; common/differential-sensitive 6L6GC or EL34 load-line tables retain the resulting blocking shift. The American 6L6GC pair solves individual AB763-derived 470 Ohm screen branches around the RCA operating family; the British EL34 pair solves Mullard's common 800 Ohm resistor from its matching pair condition. These screen equations are coupled to the plate load-line solve and baked into the preparation-time tables. Voiced negative feedback, plate-plus-screen-current-driven sag and independent transformer state follow; Modern preserves the established cascaded path. Six biquads per path supply distinct zero-latency speaker/cabinet response voices, and all nonlinear work stays inside the up-to-8× oversampled block | Exact passive RC transfers, translated measured-current preamp/phase-inverter/power-tube formulae, residual-bounded coupled LTP/grid solves and bounded ideal push-pull load-line/screen-resistor solves inside three deliberately voiced paths. Terminal grid conduction and blocking recovery are modeled while positive-grid plate transfer remains explicitly AB1-bounded. The American screen components are a documented-source hybrid, not a complete Twin DC stage; the upstream 1 kOhm / 20 uF dynamic screen node, Marshall quartet/choke supply, reactive transformer/speaker load, full positive-grid plate data, complete named schematic, component-tolerance or specimen fit, cabinet IR, loudspeaker mechanics, microphone and room capture remain outside the claim |
 
 ## Known gaps
+
+The October 2026 corrections enforce consistency and analytical invariants
+inside the existing model. They do not establish perceptual parity with a
+recorded eight-string guitar. The listening pack keeps the unchanged upstream
+engine as A and each isolated correction as B, with identical events and one
+whole-file RMS trim per take; the separate key records the trims and source
+revisions. Preference remains a listening decision.
+
+Research also identified two deferred dispersion questions: attack-induced
+tension is absent from the stiffness fit, and the coarse allpass fit scores
+phase at harmonic rather than stretched modal frequencies. A direct fitter
+change improved some low modes but worsened a higher one, while an attack-time
+refit risks realtime cost. Neither is silently promoted. Passive pickup-circuit
+retuning, reciprocal idle-string bridge coupling and calibrated magnetic
+back-action retain the evidence requirements below.
 
 ### What the automated tests do and do not establish
 

@@ -28,8 +28,7 @@
 //   Energy-derived tension modulation (bounded ordinary-pick relaxation)
 //     Bank, "Physics-Based Sound Synthesis of the Piano",
 //     https://dafx.de/paper-archive/2009/papers/paper_76.pdf
-//     Lee et al., "Analysis of the Nonlinear Tension Modulation in Guitar
-//     Strings", https://www.dafx.de/paper-archive/2009/papers/paper_86.pdf
+//     Lee et al., "Pitch Glide Analysis and Synthesis from Recorded Tones", https://www.dafx.de/paper-archive/2009/papers/paper_86.pdf
 //     Kemp et al., "A Method for Determining the Material Properties of
 //     String Windings", https://doi.org/10.1371/journal.pone.0184803
 //

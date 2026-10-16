@@ -120,6 +120,17 @@ Score makeScore(const std::string& probe, bool amp)
         for (std::size_t n = 0; n < notes.size(); ++n)
             s.note(0.2 + 1.5 * n, notes[n], 0.85f, 1.3);
     }
+    else if (probe == "aged")
+    {
+        p.stringAge = 1;
+        p.sympatheticAmount = 0;
+        s.seconds = 15;
+        for (int n = 0; n < 3; ++n)
+        {
+            s.event(0.2 + 4.8 * n, Kind::mask, 1 << n);
+            s.note(0.2 + 4.8 * n, std::array<int, 3>{40, 47, 52}[n], 0.9f, 4.5);
+        }
+    }
     else if (probe == "combined")
     {
         s.seconds = 22;
@@ -179,9 +190,9 @@ int main(int argc, char** argv)
         std::filesystem::create_directories(out);
         auto performer = std::make_unique<electry::ElectryPerformer>();
         performer->setParameters(score.parameters);
-        performer->prepare(rate, block);
         performer->getEngine().setVariationSeed(seed);
         performer->getDoubleEngine().setVariationSeed(seed ^ 0x9e3779b9u);
+        performer->prepare(rate, block);
         std::vector<float> audio(static_cast<std::size_t>(score.seconds * rate) * 2);
         std::array<float, block> l {}, r {};
         std::size_t next = 0;
@@ -191,6 +202,23 @@ int main(int argc, char** argv)
         {
             while (next < score.events.size() && score.events[next].frame == at)
             {
+                if (score.events[next].kind == Kind::on
+                    && Engine::isMidiPlayableNote(score.events[next].note))
+                {
+                    std::array<Engine::NoteOnEvent, Engine::maximumChordEvents> chord {};
+                    std::size_t count = 0;
+                    while (next < score.events.size() && score.events[next].frame == at
+                           && score.events[next].kind == Kind::on
+                           && Engine::isMidiPlayableNote(score.events[next].note)
+                           && count < chord.size())
+                    {
+                        const auto& e = score.events[next++];
+                        chord[count++] = {e.note, e.value};
+                    }
+                    if (count == 1) performer->noteOn(chord[0].midiNote, chord[0].velocity);
+                    else performer->noteOnChord(chord.data(), count);
+                    continue;
+                }
                 const auto& e = score.events[next++];
                 switch (e.kind)
                 {
