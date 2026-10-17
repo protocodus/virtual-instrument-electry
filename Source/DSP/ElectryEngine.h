@@ -1676,7 +1676,8 @@ private:
                                   float liveFret,
                                   float liveUnbentFrequency,
                                   float dispersionOmega,
-                                  float dispersionPeriod) noexcept;
+                                  float dispersionPeriod,
+                                  bool continuesRingingFit) noexcept;
     void configurePickupGeometry(Voice& voice, float soundingLength,
                                  float period, float waveSpeed) noexcept;
     void configureVoicePickups(Voice& voice) noexcept;

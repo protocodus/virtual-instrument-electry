@@ -39,14 +39,14 @@ real-recording boundaries and blind-study plan live in the
 | File | Rendered peak | Normalisation applied |
 | --- | --- | --- |
 | `01-range-open-strings.wav` | −13.3 dBFS | +10.3 dB |
-| `02-range-full-fretboard.wav` | −14.0 dBFS | +11.0 dB |
-| `03-play-styles.wav` | −12.4 dBFS | +9.4 dB |
+| `02-range-full-fretboard.wav` | −17.2 dBFS | +14.2 dB |
+| `03-play-styles.wav` | −17.4 dBFS | +14.4 dB |
 | `04-drop-e-rhythm-dry.wav` | −10.7 dBFS | +7.7 dB |
 | `05-drop-e-rhythm-amp.wav` | −12.7 dBFS | +9.7 dB |
 | `06-lead-amp-delay-room.wav` | −11.9 dBFS | +8.9 dB |
-| `07-pickups-and-tone.wav` | −12.7 dBFS | +9.7 dB |
+| `07-pickups-and-tone.wav` | −13.6 dBFS | +10.6 dB |
 | `08-sympathetic-strum-stereo.wav` | −15.7 dBFS | +12.7 dB |
-| `09-guitar-build-contrasts.wav` | −9.2 dBFS | +6.2 dB |
+| `09-guitar-build-contrasts.wav` | −10.0 dBFS | +7.0 dB |
 | `10-velocity-dynamics.wav` | −13.5 dBFS | +10.5 dB |
 | `11-power-chords-dry.wav` | −9.0 dBFS | +6.0 dB |
 | `12-power-chords-amp.wav` | −12.6 dBFS | +9.6 dB |
@@ -54,10 +54,10 @@ real-recording boundaries and blind-study plan live in the
 | `14-whammy-and-feedback.wav` | −12.9 dBFS | +9.9 dB |
 | `15-mute-and-dead-audition.wav` | −13.5 dBFS | +10.5 dB |
 | `16-mute-and-dead-metal.wav` | −13.6 dBFS | +10.6 dB |
-| `17-extended-technique-solo.wav` | −12.6 dBFS | +9.6 dB |
+| `17-extended-technique-solo.wav` | −12.2 dBFS | +9.2 dB |
 | `18-syncopated-djent-study.wav` | −12.4 dBFS | +9.4 dB |
-| `19-modern-metalcore-study.wav` | −12.7 dBFS | +9.7 dB |
-| `20-odd-meter-prog-study.wav` | −5.0 dBFS | +2.0 dB |
+| `19-modern-metalcore-study.wav` | −12.2 dBFS | +9.2 dB |
+| `20-odd-meter-prog-study.wav` | −5.7 dBFS | +2.7 dB |
 | `21-blues-rock-lead-study.wav` | −9.9 dBFS | +6.9 dB |
 | `22-tremolo-picking-study.wav` | −13.4 dBFS | +10.4 dB |
 | `23-amp-voices.wav` | −13.6 dBFS | +10.6 dB |
@@ -123,13 +123,25 @@ capture- and listening-calibrated physical mapping.
 ## Version history
 
 No tagged release has been published yet: every build so far is a development
-build of 1.2.0 from `main`. Per-change notes are in the
+build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
+
+### 1.2.1 — 2026-10-17 — Click-free bends and slides
+
+- **Bends, vibrato and slides:** a ringing string now refines its stiffness
+  (dispersion) fit locally as its pitch moves, instead of re-solving it from
+  scratch every six cents. The global fit could jump between equally good
+  answers from one step to the next, and switching the string's filters that
+  far injected a short 3–4 kHz squeal, up to 7 dB above the note and louder at
+  high sample rates. Bends now peak no higher than the note's own attack at
+  every rate and block size; 14 of the 23 demos change, and the play-styles and
+  full-fretboard demos lose 3–5 dB of burst peak. Fresh notes and repicks are
+  unchanged.
+- **About box:** the editor's **ABOUT** button shows the version and build
+  (`1.2.1-build.<run>`), the same identity as the package names.
 
 ### 1.2.0 — 2026-10-16 — String voicing, realism corrections and release hardening
 
-- **2026-10-17 — About box:** the editor's **ABOUT** button shows the version
-  and build (`1.2.0-build.<run>`), the same identity as the package names.
 - **2026-10-16 — String voicing:** ordinary notes prefer unused strings,
   then the lowest playable fret; chord batches minimize occupied strings,
   then total fret height. Repeated-note ownership, MPE bindings, string locks
@@ -216,7 +228,7 @@ Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
 demos. Each download includes that complete set, source revision and SHA-256
 checksums, and remains available for 30 days. Builds also refresh daily.
 Package filenames include the workflow run number, for example
-`Electry-1.2.0-build.16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
+`Electry-1.2.1-build.70-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
 macOS ZIP use the same version and build number. `BUILD.txt` records the build
 number and source commit inside the combined download.
 

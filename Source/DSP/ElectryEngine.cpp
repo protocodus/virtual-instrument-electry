@@ -3618,7 +3618,7 @@ void ElectryEngine::configureBassMaterialLoss(
 void ElectryEngine::configureVoiceDispersion(
     Voice& voice, float configuredF0, float liveFret,
     float liveUnbentFrequency, float dispersionOmega,
-    float dispersionPeriod) noexcept
+    float dispersionPeriod, bool continuesRingingFit) noexcept
 {
     // Stiffness inharmonicity from the string's physical make-up. Wound
     // strings use an empirical effective flexural diameter rather than the
@@ -3705,6 +3705,27 @@ void ElectryEngine::configureVoiceDispersion(
         float lowMaximum = 0.0f;
         float highMinimum = -0.995f;
         float highMaximum = 0.0f;
+        // The two bands trade against each other along a shallow valley, so
+        // the global grid's best pair can leap across it between neighbouring
+        // six-cent refits (one wheel bend moved a high coefficient from 0 to
+        // -0.69 in one tick). Switching a running allpass cascade that far
+        // injects a 3-4 kHz burst into the loop, up to 7 dB above the string
+        // and worse at high rates. A string that is already ringing instead
+        // refines locally around its current pair: its target moves only a
+        // few hundredths per refit, and the local fit stays within about 0.001
+        // of the global grid's normalised error (often better, since the
+        // window is finer). Fresh notes and discrete changes keep the global
+        // search.
+        constexpr float continuingFitWindow = 0.02f;
+        if (continuesRingingFit)
+        {
+            const float currentLow = voice.vertical.dispersionLowCoefficient;
+            const float currentHigh = voice.vertical.dispersionHighCoefficient;
+            lowMinimum = std::max(-0.995f, currentLow - continuingFitWindow);
+            lowMaximum = std::min(0.0f, currentLow + continuingFitWindow);
+            highMinimum = std::max(-0.995f, currentHigh - continuingFitWindow);
+            highMaximum = std::min(0.0f, currentHigh + continuingFitWindow);
+        }
 
         for (int pass = 0; pass < 2; ++pass)
         {
@@ -4086,6 +4107,12 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // tick per string.
     if (fitMoved)
     {
+        // Bends, vibrato and slide glides move in small control-rate steps;
+        // a repick at another fret, a geometry change (-999 sentinel) or a
+        // forced jump is a new fit.
+        const bool continuesRingingFit = ! forceDelayJump
+            && scalarAbs(semitones - voice.lastConfiguredSemitones) < 0.5f
+            && scalarAbs(liveFret - voice.lastConfiguredLiveFret) < 0.5f;
         voice.lastConfiguredSemitones = semitones;
         voice.lastConfiguredFrequency = configuredF0;
         voice.lastConfiguredLiveFret = liveFret;
@@ -4093,7 +4120,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
             * std::exp2(legatoOffset / 12.0f);
         configureVoiceDispersion(
             voice, configuredF0, liveFret, liveUnbentFrequency,
-            dispersionOmega, dispersionPeriod);
+            dispersionOmega, dispersionPeriod, continuesRingingFit);
         voice.compensationDirty = true;
     }
 
@@ -4437,11 +4464,16 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     // bank was reading as one.
     if (fitMoved)
     {
+        // A ringing coupled string follows the wheel in small steps like a
+        // played one; see configureVoiceDispersion().
+        const bool continuesRingingFit = voice.sympatheticReady
+            && scalarAbs(pitchBendSemitones_ - voice.lastConfiguredSemitones) < 0.5f
+            && voice.lastConfiguredLiveFret == 0.0f;
         voice.lastConfiguredSemitones = pitchBendSemitones_;
         voice.lastConfiguredFrequency = f0;
         voice.lastConfiguredLiveFret = 0.0f;
         configureVoiceDispersion(
-            voice, f0, 0.0f, openFrequency, omega, period);
+            voice, f0, 0.0f, openFrequency, omega, period, continuesRingingFit);
     }
     const float highRatio = clampf(
         highFrequencyDecayRatio(voice.stringIndex)
