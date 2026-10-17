@@ -39,6 +39,6 @@ Open `build-realism-20260911/comparison/listening.html`. All 38 dry/Modern
 comparisons have raw measurements and checksums in `comparison.json`.
 
 [Contact](Contact/README.md) and [Rhythm](Rhythm/README.md) retain the independent
-ablation/prototype comparisons. The [real DI study](../../Docs/realism-reference-pass5-2026-09-11.md)
+ablation/prototype comparisons. The [real DI study](../../Docs/research/realism-reference-pass5-2026-09-11.md)
 keeps recording evidence separate from the model's voicing choices. No real
 performance audio is bundled in the instrument.

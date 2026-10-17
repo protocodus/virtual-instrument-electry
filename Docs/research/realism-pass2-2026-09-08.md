@@ -72,13 +72,13 @@ All **15 DSP/tooling CTest targets pass**. Native arm64 VST3, AU, CLAP and
 Standalone builds succeed; all **four plugin processor/artifact checks pass**.
 The three new suites cover:
 
-- [Decay](../Tests/RealismDecayTests.cpp): independently measured solved-filter
+- [Decay](../../Tests/RealismDecayTests.cpp): independently measured solved-filter
   T60, both polarisations, all eight strings, fractional frets, fixed-Hz upper
   decay, plain bypass, pitch bends, live refretting and hand-loss passivity.
-- [Gestures](../Tests/RealismGestureTests.cpp): physical distance and scale,
+- [Gestures](../../Tests/RealismGestureTests.cpp): physical distance and scale,
   moving pitch/fret consistency, redirected slides, retained repick trajectory,
   note-off freeze, new/held/retired/delayed finger contacts and callback identity.
-- [Texture and gain](../Tests/RealismTextureTests.cpp): spectral detection of
+- [Texture and gain](../../Tests/RealismTextureTests.cpp): spectral detection of
   winding periodicity, energy preservation, exact plain-string bypass,
   phase reversal/reset, fresh-note gain and bidirectional gain continuity.
 
@@ -101,12 +101,12 @@ are refreshed to −6.886/−13.261/−21.334 dB; contextual RMSE improves from
 4.767 to 4.298 dB. No Dead damping coefficient was retuned. See the corresponding
 context in [evaluation.md](evaluation.md).
 
-The new [renderer](../Experiments/Realism20260908Pass2/RenderRealism.cpp) contains
+The new [renderer](../../Experiments/Realism20260908Pass2/RenderRealism.cpp) contains
 39 scores, including the previous 24 plus physical slides across the neck,
 reversals, repicks during slides, a plain-string control, finger replacement,
 rapid articulation switches and sustained frets 0/6/12/22. Each produces dry
 DI and the same Modern high-gain chain. The
-[analyzer](../Experiments/Realism20260908Pass2/AnalyzeRealism.py) reuses the
+[analyzer](../../Experiments/Realism20260908Pass2/AnalyzeRealism.py) reuses the
 unchanged first-pass measurements and level-matching code.
 
 `build-realism-20260908-pass2/comparison/listening.html` contains **156 audio

@@ -49,7 +49,7 @@ def _qc(frames, hits):
 
 
 def build_valid_study(root, prepare, study_id="self-test", presentation_seed=None):
-    template = (ROOT / "Docs" / "capture" / "electry-mute-capture-v1"
+    template = (ROOT / "Docs" / "research" / "capture" / "electry-mute-capture-v1"
                 / "comparison-manifest.template.json")
     comparison = json.loads(template.read_text(encoding="utf-8"))
     presentation_seed = presentation_seed or digest(study_id + "-presentation-seed")

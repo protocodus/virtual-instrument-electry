@@ -29,13 +29,13 @@ force and finger termination are unmatched; F#1/C2 onsets are censored. F#2's
 H11 tracker approaches its bracket boundary. No eight-string contact constant
 or general perceptual score can be identified from these three takes.
 
-[The original analyzer](../Experiments/RealismReference20260908/analyze.py)
+[The original analyzer](../../Experiments/RealismReference20260908/analyze.py)
 gives the unchanged descriptors:
 first crossing of 25% of maximum centered 2 ms RMS; local H1–H12 peaks tracked
 in nonoverlapping +/-0.4 f0 windows; nine 160 ms Hann windows beginning at
-50–850 ms. The [fourth-pass analyzer](../Experiments/RealismReferencePass4_20260908/analyze_sustain.py)
+50–850 ms. The [fourth-pass analyzer](../../Experiments/RealismReferencePass4_20260908/analyze_sustain.py)
 adds whole-window envelope and Modern band measurements. Its
-[summary receipt](../Experiments/RealismReferencePass4_20260908/sustain-summary.json)
+[summary receipt](../../Experiments/RealismReferencePass4_20260908/sustain-summary.json)
 hashes both analyzers, isolated source files, manifests, previews and wet/dry
 WAVs. It retains twelve-partial decay estimates, fit residuals and bracket
 alarms, plus the full median pitch and upper/low ratio traces. All audio stays

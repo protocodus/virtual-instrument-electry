@@ -1429,7 +1429,7 @@ the smoother from 12-40 ms keeps both annotations within 13 ms.
 
 The comparison below uses the safe 0-30 and 30-80 ms windows common to the
 real phrase and the new 83.31 ms-IOI
-[`16-mute-and-dead-metal.wav`](audio/16-mute-and-dead-metal.wav), SHA-256
+[`16-mute-and-dead-metal.wav`](../audio/16-mute-and-dead-metal.wav), SHA-256
 `4ebe4cecde49d744ddfc9bb820ec66237602cabf0caf8911ead69f9b6ef20228`.
 The model rows are medians of their first twelve E1-only hits. Mute windows
 start at frame `22,050 + 3,674 n`; Dead windows start at the renderer's actual
@@ -2521,7 +2521,7 @@ one 60 ms loop-decay target through a 22 ms smoother and one procedural burst:
 level scale. It distinguished string construction, but not whether a fretting
 finger relaxed or the bridge hand stopped the note. This end-stop boundary is
 separate from the [attack-time plectrum-scrape
-gate](../README.md#angle-conditioned-plectrum-scrape-research).
+gate](../../README.md#angle-conditioned-plectrum-scrape-research).
 
 The [8 September contact update](realism-2026-09-08.md) adds a remaining-motion
 release level and uses the performed fret and planted-hand state to distinguish
@@ -3103,7 +3103,7 @@ headphone-screen failures, not post-hoc disagreement with the expected answer.
 
 The runnable task is deliberately blinded **A/B**, not ABX: a labelled physical
 or model `X` would disclose the class the first question asks the listener to
-identify. [`PrepareBlindListening.py`](../Tools/PrepareBlindListening.py) and
+identify. [`PrepareBlindListening.py`](../../Tools/PrepareBlindListening.py) and
 its dependency-free browser runner turn already finalized stimuli into the
 frozen presentation pack. Copy and fill
 [`comparison-manifest.template.json`](capture/electry-mute-capture-v1/comparison-manifest.template.json)

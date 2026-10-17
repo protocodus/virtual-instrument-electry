@@ -889,7 +889,7 @@ At that superseded checkpoint, the finite-width contact produced monotonically i
 Palm-versus-Open upper-band loss across sliding 30 ms F2 windows. That is the
 expected accumulated action of a fixed loss inside the feedback loop; the
 exact P1, P2 and Electry trajectories are recorded in
-[the evaluation](evaluation.md#retired-finite-width-palm-experiment-and-current-body-checkpoint).
+[the evaluation](research/evaluation.md#retired-finite-width-palm-experiment-and-current-body-checkpoint).
 
 [Biral, d'Alessandro and Freed](https://www.icmc14-smc14.net/images/proceedings/PS4-B10-TowardsaDynamicModel.pdf)
 measured pressure dips around picks, not the simultaneous acoustic loss or a

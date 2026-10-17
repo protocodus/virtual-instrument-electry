@@ -56,7 +56,7 @@
     "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
     "ELECTRY_MEASURED_BODY_RESPONSE": 1
   },
-  "reference_provenance": "../RealismReference20260908/reference-{30,36,42}.json and ../../Docs/realism-reference-2026-09-08.md",
+  "reference_provenance": "../RealismReference20260908/reference-{30,36,42}.json and ../../Docs/research/realism-reference-2026-09-08.md",
   "candidate_difference": "After float t60High = t60 * highRatio: if (spec.wound) t60 *= std::exp2(-liveFret / 12.0f); production explicitly bypasses liveFret=0, mathematically identical.",
   "artifacts": {
     "Experiments/Realism20260908/RenderRealism.cpp": "9aaa21c56bf1b33d1d92feba16d46e72c4f42d9ea28cdc3155f46708ae7697ef",

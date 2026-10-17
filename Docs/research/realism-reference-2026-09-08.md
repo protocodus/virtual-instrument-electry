@@ -36,7 +36,7 @@ did not establish a new exact-eight contact corpus.
 
 ## New measurements
 
-The [analyzer](../Experiments/RealismReference20260908/analyze.py) records its
+The [analyzer](../../Experiments/RealismReference20260908/analyze.py) records its
 own SHA-256 and the input WAV hash in each JSON result. It uses NumPy 1.26.4
 and SciPy 1.14.1. Audio onset is the first crossing of 25% of the first
 second's maximum centred 2 ms RMS envelope, with zero padding at boundaries.
@@ -59,9 +59,9 @@ non-overlapping ±0.4-fundamental brackets for each harmonic, with log-magnitude
 quadratic interpolation. This avoids confusing moderate pitch drift with
 harmonic-energy loss. Full partial traces, linear slope residuals and bracket
 edge alarms are retained in
-[F#1](../Experiments/RealismReference20260908/reference-30.json),
-[C2](../Experiments/RealismReference20260908/reference-36.json) and
-[F#2](../Experiments/RealismReference20260908/reference-42.json).
+[F#1](../../Experiments/RealismReference20260908/reference-30.json),
+[C2](../../Experiments/RealismReference20260908/reference-36.json) and
+[F#2](../../Experiments/RealismReference20260908/reference-42.json).
 They are exploratory spectral descriptors, not uncertainty-qualified physical
 loss estimates; weak partials, beating and preview compression remain confounds.
 F#2's eleventh partial approaches its search-bracket edge; do not interpret
@@ -107,9 +107,9 @@ changes by less than 0.002 dB. The five contact changes therefore do **not**
 solve this source's faster decay. Their release/hammer mechanisms are exercised
 by the separate engineering regressions and audition phrases, not by these
 held sustain windows. Exact per-note candidate measurements and input hashes
-are in [F#1](../Experiments/RealismReference20260908/candidate-30.json),
-[C2](../Experiments/RealismReference20260908/candidate-36.json) and
-[F#2](../Experiments/RealismReference20260908/candidate-42.json).
+are in [F#1](../../Experiments/RealismReference20260908/candidate-30.json),
+[C2](../../Experiments/RealismReference20260908/candidate-36.json) and
+[F#2](../../Experiments/RealismReference20260908/candidate-42.json).
 
 ## Physical basis for the five changes
 

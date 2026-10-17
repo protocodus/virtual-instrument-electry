@@ -37,9 +37,9 @@ The final 80 ms note-release RMS changes by only −0.15/−0.12 dB in the E1
 dry/Modern phrase and −0.12/−0.11 dB in F#1. The difference is concentrated in
 the attack, rather than a large increase in sustained level. These are signal
 descriptors, not listening scores. The
-[isolated auditions](../build-realism-20260908-pass4/research-palm/edge25-comparison/listening.html)
+[isolated auditions](../../build-realism-20260908-pass4/research-palm/edge25-comparison/listening.html)
 use one constant whole-file RMS-matching gain per version. The saved
-[probe summary](../Experiments/Realism20260908Pass4/pick-attack-probes.json)
+[probe summary](../../Experiments/Realism20260908Pass4/pick-attack-probes.json)
 records the comparison and waveform hashes.
 
 The uncensored clean F#2 preview remains a useful limit on claims. Its 0–30 ms
@@ -66,7 +66,7 @@ spectral snapshots changed with the intended excitation change; their pickup
 topology checks still passed. Integration refreshes those deterministic source
 snapshots separately from the unchanged pickup and sound-behavior guards.
 
-[RealismPickAttackTests](../Tests/RealismPickAttackTests.cpp) removes only the
+[RealismPickAttackTests](../../Tests/RealismPickAttackTests.cpp) removes only the
 edge through a test seam and observes actual dry and Modern output. It checks
 a distinct wound-string onset, bounded late-body contribution, hardness
 contrast, the absence of a Hammer plectrum edge, finite output/headroom, and

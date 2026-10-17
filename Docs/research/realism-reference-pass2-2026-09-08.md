@@ -68,10 +68,10 @@ Seven open-E1 dry audition scores remain byte-identical in this isolated
 comparison.
 
 Complete descriptors are retained for
-[F#1](../Experiments/RealismReferencePass2_20260908/length-only-30.json),
-[C2](../Experiments/RealismReferencePass2_20260908/length-only-36.json) and
-[F#2](../Experiments/RealismReferencePass2_20260908/length-only-42.json).
-The [provenance manifest](../Experiments/RealismReferencePass2_20260908/provenance.json)
+[F#1](../../Experiments/RealismReferencePass2_20260908/length-only-30.json),
+[C2](../../Experiments/RealismReferencePass2_20260908/length-only-36.json) and
+[F#2](../../Experiments/RealismReferencePass2_20260908/length-only-42.json).
+The [provenance manifest](../../Experiments/RealismReferencePass2_20260908/provenance.json)
 records compiler/flags, frozen source hashes, renderer/analyzer hashes and raw
 WAV hashes. Ignored raw audio remains in
 `build-realism-20260908-pass2/reference/length-audio/`.
@@ -80,7 +80,7 @@ the complete second-pass audition contains the other four changes too.
 
 ## Engineering checks
 
-[RealismDecayTests.cpp](../Tests/RealismDecayTests.cpp) independently evaluates
+[RealismDecayTests.cpp](../../Tests/RealismDecayTests.cpp) independently evaluates
 the realised loop-filter magnitude. Across 44.1, 48, 96 and 192 kHz it checks
 fundamental decay versus fractional length on all eight strings, both
 polarisations, the fixed-Hz upper anchor, plain-string bypass, passivity and

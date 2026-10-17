@@ -708,7 +708,7 @@ class PrepareBlindListeningTests(unittest.TestCase):
                              expected_sha256)
 
     def test_repository_template_cannot_claim_a_completed_study(self):
-        template_directory = (ROOT / "Docs" / "capture"
+        template_directory = (ROOT / "Docs" / "research" / "capture"
                               / "electry-mute-capture-v1")
         for template_file in template_directory.glob("*.template.json"):
             TOOL._parse_json_bytes(

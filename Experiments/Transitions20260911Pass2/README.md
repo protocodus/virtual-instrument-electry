@@ -5,7 +5,7 @@ The baseline is the first transition candidate, reconstructed from commit
 `baseline-from-aa1f7e0.patch`. The final combined candidate fixes idle-string
 hand-loss time units and a reopened pick's hand-follower reset.
 
-See [the implementation and validation record](../../Docs/transition-refinement-2026-09-11.md)
+See [the implementation and validation record](../../Docs/research/transition-refinement-2026-09-11.md)
 and [the final receipt](validation-results.json). `Attack/`, `Ring/` and
 `Review/` contain the independent probes and measurements. The isolated
 source changes are preserved as `Attack/source.patch` and `Ring/source.patch`.

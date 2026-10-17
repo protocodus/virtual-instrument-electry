@@ -69,14 +69,14 @@ these measurements do not certify perceptual realism.
 The three focused suites observe actual rendered waveforms at 44.1, 48, 96 and
 192 kHz:
 
-- [Pick attack](../Tests/RealismPickAttackTests.cpp): short-edge contribution,
+- [Pick attack](../../Tests/RealismPickAttackTests.cpp): short-edge contribution,
   hardness contrast, retained late body, Hammer separation, dry/Modern
   headroom and callback identity. Reverting only the new boost fails four
   assertions across the four rates.
-- [Natural-harmonic attack](../Tests/RealismHarmonicAttackTests.cpp): attack/body
+- [Natural-harmonic attack](../../Tests/RealismHarmonicAttackTests.cpp): attack/body
   balance, peak, dynamics, surviving even modes and callback identity.
   The old harmonic excitation fails 100 assertions.
-- [Loss](../Tests/RealismLossTests.cpp): rendered cooling on both bass strings,
+- [Loss](../../Tests/RealismLossTests.cpp): rendered cooling on both bass strings,
   retained low-frequency body, and the previous full-filter passivity,
   preserved anchors, bypass and moving-control checks. Reverting only the
   blend to 25% fails all 16 new cooling assertions.
@@ -106,8 +106,8 @@ blocked the local file page.
 
 Source snapshots, hashes, raw renders, manifests, validation logs and the
 comparison JSON/CSV remain under `build-realism-20260908-pass4/`. The reusable
-[renderer](../Experiments/Realism20260908Pass4/RenderRealism.cpp) and
-[analyzer](../Experiments/Realism20260908Pass4/AnalyzeRealism.py) generate the
+[renderer](../../Experiments/Realism20260908Pass4/RenderRealism.cpp) and
+[analyzer](../../Experiments/Realism20260908Pass4/AnalyzeRealism.py) generate the
 same score against either snapshot.
 
 ```sh

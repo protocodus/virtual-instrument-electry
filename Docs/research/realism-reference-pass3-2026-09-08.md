@@ -71,10 +71,10 @@ upper-partial sustain differences remain and these percentages are not a
 perceptual realism score.
 
 Per-note measurements are retained for
-[F#1](../Experiments/RealismReferencePass3_20260908/loss-only-30.json),
-[C2](../Experiments/RealismReferencePass3_20260908/loss-only-36.json) and
-[F#2](../Experiments/RealismReferencePass3_20260908/loss-only-42.json).
-The [provenance receipt](../Experiments/RealismReferencePass3_20260908/provenance.json)
+[F#1](../../Experiments/RealismReferencePass3_20260908/loss-only-30.json),
+[C2](../../Experiments/RealismReferencePass3_20260908/loss-only-36.json) and
+[F#2](../../Experiments/RealismReferencePass3_20260908/loss-only-42.json).
+The [provenance receipt](../../Experiments/RealismReferencePass3_20260908/provenance.json)
 records the isolated source, analyzer and renderer hashes, production flags,
 raw audio hashes, exact descriptors and engineering probe receipts. Raw audio
 and source snapshots remain under the ignored
@@ -82,7 +82,7 @@ and source snapshots remain under the ignored
 
 ## Engineering checks
 
-[RealismLossTests.cpp](../Tests/RealismLossTests.cpp) independently evaluates
+[RealismLossTests.cpp](../../Tests/RealismLossTests.cpp) independently evaluates
 the actual pole and biquad magnitudes, reconstructs an equivalent two-anchor
 one-pole in double precision, and verifies that only the middle loses energy
 faster. A separate 960-condition grid spans eight strings, five frets, both

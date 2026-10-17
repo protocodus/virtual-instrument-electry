@@ -48,7 +48,7 @@
 //     Schafer, Frenstatsky and Rabenstein, "A Physical String Model with
 //     Adjustable Boundary Conditions",
 //     https://dafx.de/paper-archive/2016/dafxpapers/23-DAFx-16_paper_24-PN.pdf
-//     Exact corpus comparisons and their limits: Docs/evaluation.md.
+//     Exact corpus comparisons and their limits: Docs/research/evaluation.md.
 //
 //   Fret collisions
 //     Bilbao and Torin, "Numerical modeling and sound synthesis for

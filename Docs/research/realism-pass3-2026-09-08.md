@@ -79,13 +79,13 @@ All **18 core DSP/tooling tests** and **four native arm64 plugin checks** pass.
 VST3, AU, CLAP and Standalone builds succeed. The three new suites also pass
 AddressSanitizer and UndefinedBehaviorSanitizer at 44.1, 48, 96 and 192 kHz:
 
-- [Timing](../Tests/RealismTimingTests.cpp): slide arrival, continuous movement,
+- [Timing](../../Tests/RealismTimingTests.cpp): slide arrival, continuous movement,
   output-pitch estimation, redirected/re-picked slides, MPE clamps, ordinary
   bends, thumb timing and cancellation, callback identity and reset.
-- [Harmonics](../Tests/RealismHarmonicTests.cpp): independent pick/pad geometry,
+- [Harmonics](../../Tests/RealismHarmonicTests.cpp): independent pick/pad geometry,
   frets 0/6/12/22, live bends and String Age, actual cubic-operator gain, predicted
   node-adjacent mode loss, rendered differences and callback identity.
-- [Loss](../Tests/RealismLossTests.cpp): complete pole/biquad response, preserved
+- [Loss](../../Tests/RealismLossTests.cpp): complete pole/biquad response, preserved
   endpoints, extra middle loss, both polarisations, bypass scope, live motion,
   passivity and poisoned filter-state clearing at sympathetic handoff.
 
@@ -101,10 +101,10 @@ Two affected low-E1 single-coil octave-band snapshots were updated, with
 their tolerances and humbucker contrast unchanged. The second-pass decay
 observer now measures the complete filter, including its new biquad.
 
-The [renderer](../Experiments/Realism20260908Pass3/RenderRealism.cpp) retains
+The [renderer](../../Experiments/Realism20260908Pass3/RenderRealism.cpp) retains
 the previous 39 phrases and adds eight harmonic-position, interrupted-contact
 and fast-slide phrases. Every phrase has matched dry and Modern high-gain
-versions. The [analyzer](../Experiments/Realism20260908Pass3/AnalyzeRealism.py)
+versions. The [analyzer](../../Experiments/Realism20260908Pass3/AnalyzeRealism.py)
 uses the unchanged first-pass signal measurements and constant-gain RMS
 matching, and presents the new phrases first.
 
