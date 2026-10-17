@@ -537,6 +537,33 @@ if(BUILD_TESTING)
             set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 60)
         endif()
 
+        # U4 parameter-extremes matrix; the sanitizer job runs it under ASan.
+        add_executable(ElectryParameterMatrixTests Tests/ParameterMatrixTests.cpp)
+        target_link_libraries(ElectryParameterMatrixTests PRIVATE Electry)
+        target_include_directories(ElectryParameterMatrixTests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Tests"
+            "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
+            "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
+        target_compile_features(ElectryParameterMatrixTests PRIVATE cxx_std_20)
+        add_test(NAME Electry.ParameterMatrix COMMAND ElectryParameterMatrixTests)
+        set_tests_properties(Electry.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 1800)
+
+        # One demo per factory rig (G3), played through the processor itself.
+        find_package(Threads REQUIRED)
+        add_executable(RenderElectryPresetDemos Tools/RenderPresetDemos.cpp)
+        target_link_libraries(RenderElectryPresetDemos PRIVATE Electry Threads::Threads)
+        target_include_directories(RenderElectryPresetDemos PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Tools"
+            "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
+            "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
+        target_compile_features(RenderElectryPresetDemos PRIVATE cxx_std_20)
+        add_test(NAME Electry.AudioDemos
+                 COMMAND RenderElectryPresetDemos --check
+                         "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
+        set_tests_properties(Electry.AudioDemos PROPERTIES LABELS audio TIMEOUT 600)
+
         # The README screenshot is the processor suite's own editor render;
         # this test writes it to the build tree and checks the finished PNG.
         set(ELECTRY_SCREENSHOT "${CMAKE_CURRENT_BINARY_DIR}/screenshots/electry.png")

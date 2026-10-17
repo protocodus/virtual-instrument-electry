@@ -15,6 +15,23 @@ UPDATER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(UPDATER)
 PNG = b"\x89PNG\r\n\x1a\nfixtureIEND\xaeB`\x82"
 ARTIFACT_URL = "https://github.com/example/electry/actions/runs/123/artifacts/456"
+MP3 = b"\xff\xfb" + bytes(4096)
+MANIFEST = (
+    b'{"demos": [{"number": 1, "preset": "Factory Default", "file": "01-factory-default.mp3",'
+    b' "seconds": 12.0, "peak_dbfs": -9.0}]}'
+)
+
+
+def rendered_demo_table():
+    with tempfile.TemporaryDirectory() as directory:
+        (Path(directory) / "01-factory-default.mp3").write_bytes(MP3)
+        (Path(directory) / "demos.json").write_bytes(MANIFEST)
+        return UPDATER.update_readme_blocks.demo_table(Path(directory) / "demos.json").encode()
+
+
+# The fixture's demo block already holds what the fixture manifest renders, so
+# tests about other blocks see it unchanged; one test starts from a stale one.
+DEMO_TABLE = rendered_demo_table()
 
 
 def download(build_number, artifact_url=ARTIFACT_URL, source=None):
@@ -31,7 +48,8 @@ def download(build_number, artifact_url=ARTIFACT_URL, source=None):
 
 
 README = (
-    b"Human introduction\n" + UPDATER.DOWNLOAD_BEGIN + download(1) + UPDATER.DOWNLOAD_END
+    b"Human introduction\n" + UPDATER.DEMOS_BEGIN + DEMO_TABLE + UPDATER.DEMOS_END
+    + b"\nHuman demos\n" + UPDATER.DOWNLOAD_BEGIN + download(1) + UPDATER.DOWNLOAD_END
     + b"\nHuman middle\n" + UPDATER.PEAKS_BEGIN + b"\nold table\n"
     + UPDATER.PEAKS_END + b"\nHuman footer\n"
 )
@@ -69,6 +87,8 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.put(self.media, UPDATER.SCREENSHOT, PNG.replace(b"fixture", b"new screenshot"))
         for index in range(1, 24):
             self.put(self.media, f"Docs/audio/{index:02d}-demo.wav", f"RIFF demo {index}".encode())
+        self.put(self.media, "Docs/audio/01-factory-default.mp3", MP3)
+        self.put(self.media, UPDATER.DEMO_MANIFEST, MANIFEST)
 
     def git(self, repo, *args):
         result = subprocess.run(["git", *args], cwd=repo, env=self.env,
@@ -117,7 +137,9 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertEqual(self.remote_show("Docs/audio/listening-tests/frozen.wav"), b"frozen evidence")
         names = self.git(self.remote, "ls-tree", "-r", "--name-only", "main").decode().splitlines()
         self.assertNotIn("Docs/audio/00-retired.wav", names)
-        self.assertEqual(sum(UPDATER.root_wav(name) for name in names), 23)
+        self.assertEqual(sum(UPDATER.root_demo(name) and name.endswith(".wav") for name in names), 23)
+        self.assertEqual(self.remote_show("Docs/audio/01-factory-default.mp3"), MP3)
+        self.assertNotIn(UPDATER.DEMO_MANIFEST, names)
 
     def test_combined_update_and_unchanged_noop(self):
         self.publish()
@@ -126,6 +148,17 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertIn("unchanged", self.publish().stdout)
         self.assertEqual(self.tip(), published)
         self.assertEqual(self.git(self.remote, "rev-list", "--count", "main").strip(), b"2")
+
+    def test_stale_demo_table_is_rewritten_from_the_manifest(self):
+        stale = README.replace(DEMO_TABLE, b"\nold demos\n")
+        self.upstream("README.md", stale)
+        self.publish()
+        self.assert_published()
+
+    def test_missing_preset_demo_does_not_write_repository(self):
+        (self.media / "Docs/audio/01-factory-default.mp3").unlink()
+        self.assertIn("preset demos", self.publish(success=False).stderr)
+        self.assertEqual(self.tip().decode(), self.source)
 
     def test_download_and_media_update_preserves_authored_readme(self):
         # Authored content in the renderer's README is not part of its payload.

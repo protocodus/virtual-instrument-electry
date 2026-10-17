@@ -1544,9 +1544,12 @@ void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInByt
         // duplicate/unknown trees cannot override a parameter a second time.
         juce::ValueTree validatedState { parameters.state.getType() };
         validatedState.copyPropertiesFrom (restoredState, nullptr);
-        for (auto* hostParameter : getParameters())
+        // Follow the live tree's child order (JUCE keeps it sorted by ID), so
+        // saving a restored state reproduces the host's chunk byte for byte.
+        for (const auto& liveChild : parameters.state)
         {
-            auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (hostParameter);
+            auto* parameter = parameters.getParameter (
+                liveChild.getProperty ("id").toString());
             if (parameter == nullptr)
                 continue;
             const float defaultValue = parameter->convertFrom0to1 (

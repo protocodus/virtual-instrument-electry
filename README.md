@@ -11,6 +11,23 @@ and vibrato.
 
 ## Audio demos
 
+One phrase per factory rig, played through the plug-in processor from
+[`Docs/audio/midi/`](Docs/audio/midi) with the rig loaded. Drop-E Metal and
+Blues Rock Lead play with **FX** on, the other two as a dry DI.
+
+<!-- audio-demos-begin -->
+
+| # | Preset | Demo | Length | Peak |
+| --- | --- | --- | --- | --- |
+| 1 | Factory Default | [01-factory-default.mp3](Docs/audio/01-factory-default.mp3) | 19.1 s | -16.9 dBFS |
+| 2 | Drop-E Metal | [02-drop-e-metal.mp3](Docs/audio/02-drop-e-metal.mp3) | 13.6 s | -13.4 dBFS |
+| 3 | Mute / Dead DI | [03-mute-dead-di.mp3](Docs/audio/03-mute-dead-di.mp3) | 14.5 s | -6.0 dBFS |
+| 4 | Blues Rock Lead | [04-blues-rock-lead.mp3](Docs/audio/04-blues-rock-lead.mp3) | 13.0 s | -9.5 dBFS |
+
+<!-- audio-demos-end -->
+
+### More demos
+
 [Dry rhythm](Docs/audio/04-drop-e-rhythm-dry.wav)
 · [Amplified rhythm](Docs/audio/05-drop-e-rhythm-amp.wav)
 · [Lead showcase](Docs/audio/17-extended-technique-solo.wav)
