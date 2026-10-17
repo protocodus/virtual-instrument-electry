@@ -6,6 +6,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -1507,6 +1508,80 @@ struct ElectryEngineTestAccess
                 high = mid;
         }
         return 0.5f * (low + high);
+    }
+
+    // Independent frozen-coefficient fundamental for an ordinary untouched
+    // Sustain loop. Evaluate the actual loss biquads, eight allpasses and
+    // four-point cubic read in double; do not reuse the production phase-delay
+    // functions. A raw delay is only one part of the period, and its direction
+    // can reverse when a stiffness-grid refit changes the filters' phase.
+    static double evaluatedSustainLoopFrequency(
+        const ElectryEngine& engine, int stringIndex,
+        bool useTargetDelay = true) noexcept
+    {
+        if (stringIndex < 0 || stringIndex >= ElectryEngine::stringCount)
+            return std::numeric_limits<double>::quiet_NaN();
+        const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        // These fixtures exercise a held Sustain note, without the separate
+        // touch/release spatial operators. An accidental topology change must
+        // fail the finite trace assertion rather than omit those operators.
+        if (voice.touchDepth != 0.0f || voice.releaseSpectralDepth != 0.0f)
+            return std::numeric_limits<double>::quiet_NaN();
+        const auto& loop = voice.vertical;
+        constexpr double pi = 3.1415926535897932384626433832795;
+        const double delay = useTargetDelay ? loop.targetDelay : loop.currentDelay;
+        const double ceiling = std::ceil(delay);
+        const double t = ceiling - delay;
+        const std::array<double, 4> cubic {
+            -t * (t - 1.0) * (t - 2.0) / 6.0,
+            (t + 1.0) * (t - 1.0) * (t - 2.0) / 2.0,
+            -(t + 1.0) * t * (t - 2.0) / 2.0,
+            (t + 1.0) * t * (t - 1.0) / 6.0
+        };
+        const auto phaseError = [&] (double frequency)
+        {
+            const double omega = 2.0 * pi * frequency / engine.sampleRate_;
+            const auto z = std::polar(1.0, -omega);
+            const auto advance = std::conj(z);
+            const auto interpolator = cubic[0] * z + cubic[1]
+                + cubic[2] * advance + cubic[3] * advance * advance;
+            const double damping = loop.loopDampingCoefficient;
+            double filterPhase = std::arg(interpolator)
+                + std::arg((1.0 - damping) / (1.0 - damping * z));
+            const auto biquadPhase = [&] (const ElectryEngine::DipBiquad& b)
+            {
+                return std::arg((b.b0 + b.b1 * z + b.b2 * z * z)
+                                / (1.0 + b.a1 * z + b.a2 * z * z));
+            };
+            if (loop.materialLossDepth > 0.0f)
+                filterPhase += biquadPhase(loop.materialLossDip);
+            if (loop.handDipActive)
+                filterPhase += biquadPhase(loop.handDip);
+#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
+            if (loop.fittedLossDipActive)
+                filterPhase += biquadPhase(loop.fittedLossDip);
+#endif
+            for (double coefficient : { double(loop.dispersionLowCoefficient),
+                                        double(loop.dispersionHighCoefficient) })
+                filterPhase += 4.0 * std::arg(
+                    (coefficient + z) / (1.0 + coefficient * z));
+            // Leave the integer delay unwrapped; the first complete round
+            // trip is phase -2pi. Wrapping the whole transfer would confuse
+            // the fundamental with later closed-loop modes.
+            return omega * ceiling - filterPhase - 2.0 * pi;
+        };
+        double low = 20.0, high = 0.24 * engine.sampleRate_;
+        if (! (phaseError(low) <= 0.0 && phaseError(high) >= 0.0))
+            return std::numeric_limits<double>::quiet_NaN();
+        for (int iteration = 0; iteration < 48; ++iteration)
+        {
+            const double middle = 0.5 * (low + high);
+            if (phaseError(middle) < 0.0)
+                low = middle;
+            else
+                high = middle;
+        }
+        return 0.5 * (low + high);
     }
 
     static int hostFramesPerControlPeriod(
@@ -7839,7 +7914,12 @@ void testEnergyAttackPitchExperiment()
            * e2.state.tensionNewtons);
     const float fullDiameterScale = expectedScale / (0.28f * 0.28f);
     const float q = tensionRatio(e2.state);
-    const float maximumRatio = std::exp2(maximumCents / 600.0f) - 1.0f;
+    // exp2(0.01f)-1 loses 4.56e-8 through float cancellation, exceeding
+    // the unchanged 2e-8 conversion tolerance when a stroke reaches the cap.
+    // Derive the same exact six-cent bound with cancellation-safe double
+    // arithmetic before rounding to the engine's storage precision.
+    const float maximumRatio = static_cast<float>(std::expm1(
+        std::log(2.0) * static_cast<double>(maximumCents) / 600.0));
     const float expectedQ = std::min(
         e2.seed.pendingEnergyJoules
             * e2.seed.pendingElasticScalePerJoule,
@@ -7874,19 +7954,29 @@ void testEnergyAttackPitchExperiment()
     // Reset-identical strokes isolate MIDI force from deterministic player
     // variation. Growth is strict until the explicit safety clamp is reached;
     // saturation is allowed only at that bound.
+    bool exercisedCappedSeed = false, exercisedUncappedSeed = false;
     for (const int note : { 28, 35, 40 })
     {
         std::array<double, velocities.size()> ratios {};
+        std::array<double, velocities.size()> rawSeeds {};
         std::array<double, velocities.size()> cents {};
         for (std::size_t i = 0; i < velocities.size(); ++i)
         {
             const auto stroke = freshStroke(
-                note, velocities[i], sampleRate).state;
-            ratios[i] = tensionRatio(stroke);
-            cents[i] = pitchCents(stroke);
+                note, velocities[i], sampleRate);
+            ratios[i] = tensionRatio(stroke.state);
+            rawSeeds[i] = static_cast<double>(stroke.seed.pendingEnergyJoules)
+                       * stroke.seed.pendingElasticScalePerJoule;
+            cents[i] = pitchCents(stroke.state);
             expect(std::isfinite(ratios[i]) && ratios[i] >= 0.0
                        && cents[i] <= maximumCents + 1.0e-3,
                    "velocity sweep produced unbounded energy-pitch state");
+            expect(std::isfinite(rawSeeds[i]) && rawSeeds[i] > 0.0
+                       && std::abs(ratios[i] - std::min(
+                           rawSeeds[i], static_cast<double>(maximumRatio))) < 2.0e-8,
+                   "committed pluck tension did not equal the bounded physical seed");
+            exercisedCappedSeed = exercisedCappedSeed || rawSeeds[i] >= maximumRatio;
+            exercisedUncappedSeed = exercisedUncappedSeed || rawSeeds[i] < maximumRatio;
             if (i > 0)
             {
                 const bool rose = ratios[i] > ratios[i - 1];
@@ -7900,18 +7990,23 @@ void testEnergyAttackPitchExperiment()
                "energy-pitch velocity range collapsed at MIDI "
                    + std::to_string(note));
 
-        if (note == 40)
+        // The previous E2 fixture silently assumed velocity=1 was uncapped,
+        // then divided every committed q by that saturated endpoint. A valid
+        // construction change can cross the unchanged cap. Check the force
+        // law on every pending raw seed and the exact min(seed, cap) above;
+        // neither capped nor uncapped cases bypass either physical contract.
+        const double response = EngineParameters {}.velocityAmount;
+        for (std::size_t i = 0; i + 1 < velocities.size(); ++i)
         {
-            const double response = EngineParameters {}.velocityAmount;
-            for (std::size_t i = 0; i + 1 < velocities.size(); ++i)
-            {
-                const double force = 0.05 + 0.95 * velocities[i];
-                const double expected = std::pow(force, 2.0 * response);
-                expect(std::abs(ratios[i] / ratios.back() - expected) < 2.0e-4,
-                       "uncapped E2 energy did not follow squared pluck force");
-            }
+            const double force = 0.05 + 0.95 * velocities[i];
+            const double expected = std::pow(force, 2.0 * response);
+            expect(std::abs(rawSeeds[i] / rawSeeds.back() - expected) < 2.0e-4,
+                   "raw pluck energy did not follow squared pluck force at MIDI "
+                       + std::to_string(note));
         }
     }
+    expect(exercisedCappedSeed && exercisedUncappedSeed,
+           "pluck-force matrix did not exercise both sides of the safety cap");
 
     // A pending seed ignores the control tick's phase. Once released, the
     // stored tension increment is non-increasing, follows the configured
@@ -11692,12 +11787,14 @@ void testFrettingHandVibrato()
 {
     constexpr double sampleRate = 48000.0;
 
-    // Track the sounding delay target, which is what the vibrato actually
-    // drives; the audio follows it, and it is sampled far more cheaply and
-    // precisely than a frequency estimate on a moving tone.
+    // Track the complete target period, independently solving the actual
+    // cubic read, loss filters and allpass cascade at each frozen control
+    // state. A raw target delay alone can grow when a stiffness refit removes
+    // still more filter phase; the old fixture misreported that valid
+    // compensation as a flat vibrato. The physical rails below are unchanged.
     struct Trace
     {
-        std::vector<float> target;
+        std::vector<double> target;
         int stringIndex { -1 };
     };
     const auto traceOf = [&] (float pressure, double seconds)
@@ -11721,11 +11818,11 @@ void testFrettingHandVibrato()
         for (int at = 0; at < total; at += chunk)
         {
             engine.process(scratch.left.data(), scratch.right.data(), chunk);
-            trace.target.push_back(
-                trace.stringIndex >= 0
-                    ? TestAccess::snapshot(engine,
-                                           trace.stringIndex).verticalDelayTarget
-                    : 0.0f);
+            const double frequency = TestAccess::evaluatedSustainLoopFrequency(
+                engine, trace.stringIndex);
+            expect(std::isfinite(frequency) && frequency > 0.0,
+                   "vibrato target-period oracle received an invalid held loop");
+            trace.target.push_back(TestAccess::internalSampleRate(engine) / frequency);
         }
         return trace;
     };
@@ -11773,14 +11870,16 @@ void testFrettingHandVibrato()
             constexpr int chunk = 32;
             const int total = static_cast<int>(1.6 * sampleRate);
             StereoBuffer scratch(chunk);
-            std::vector<float> target;
+            std::vector<double> target;
             for (int at = 0; at < total; at += chunk)
             {
                 engine.process(scratch.left.data(), scratch.right.data(),
                                chunk);
-                target.push_back(
-                    TestAccess::snapshot(engine,
-                                         stringIndex).verticalDelayTarget);
+                const double frequency = TestAccess::evaluatedSustainLoopFrequency(
+                    engine, stringIndex);
+                expect(std::isfinite(frequency) && frequency > 0.0,
+                       "automated-depth oracle received an invalid held loop");
+                target.push_back(TestAccess::internalSampleRate(engine) / frequency);
             }
 
             double highest = 0.0;
