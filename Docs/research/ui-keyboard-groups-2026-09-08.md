@@ -17,7 +17,7 @@ be active together. CLR shares the solo color and lights while pressed.
 Unused keys remain neutral. The pitched keyboard retains its ivory/black
 appearance. The legend adds no keyboard focus stops.
 
-![Electry interface](../screenshots/electry-standalone.png)
+![Electry interface](../screenshots/electry.png)
 
 Performance is 520 pixels wide, with five evenly spaced 92-pixel control
 columns and 10-pixel gaps. Palm Pressure now fits on one line at its existing

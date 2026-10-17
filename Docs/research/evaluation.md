@@ -2521,7 +2521,7 @@ one 60 ms loop-decay target through a 22 ms smoother and one procedural burst:
 level scale. It distinguished string construction, but not whether a fretting
 finger relaxed or the bridge hand stopped the note. This end-stop boundary is
 separate from the [attack-time plectrum-scrape
-gate](../../README.md#angle-conditioned-plectrum-scrape-research).
+gate](known-gaps-experiments.md#angle-conditioned-plectrum-scrape-research).
 
 The [8 September contact update](realism-2026-09-08.md) adds a remaining-motion
 release level and uses the performed fret and planted-hand state to distinguish

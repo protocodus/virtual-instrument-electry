@@ -67,7 +67,7 @@ jobs:
       # run's suite rendered it, so a suite that quietly stopped writing its
       # snapshot fails the build instead of republishing a stale editor.
       - name: Clear the committed screenshot before rendering
-        run: rm -f Docs/screenshots/electry-standalone.png
+        run: rm -f Docs/screenshots/electry.png
 
       # Full arm64 + x86_64 universal build (script default) plus the project's
       # tests. The suite renders the committed editor screenshot while it runs,
@@ -75,13 +75,13 @@ jobs:
       - name: Build and run tests
         run: |
           set -euo pipefail
-          export "ELECTRY_EDITOR_SNAPSHOT=${GITHUB_WORKSPACE}/Docs/screenshots/electry-standalone.png"
+          export "ELECTRY_EDITOR_SNAPSHOT=${GITHUB_WORKSPACE}/Docs/screenshots/electry.png"
           ./scripts/build-macos.sh
 
       - name: Check that the editor screenshot was rendered
         run: |
           set -euo pipefail
-          screenshot="Docs/screenshots/electry-standalone.png"
+          screenshot="Docs/screenshots/electry.png"
           if [[ ! -s "$screenshot" ]]; then
             echo "error: the suite did not render $screenshot" >&2
             echo "The suite must honour ELECTRY_EDITOR_SNAPSHOT." >&2
@@ -115,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: main-build-screenshot
-          path: Docs/screenshots/electry-standalone.png
+          path: Docs/screenshots/electry.png
           if-no-files-found: error
           retention-days: 14
 

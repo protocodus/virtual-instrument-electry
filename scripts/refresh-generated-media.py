@@ -27,7 +27,7 @@ ARTIFACT_URL = re.compile(
 PUBLISHED_BUILD = re.compile(
     rb"\*\*\[Download distributable binaries \xe2\x80\x94 build ([0-9]+)\]\("
 )
-SCREENSHOT = "Docs/screenshots/electry-standalone.png"
+SCREENSHOT = "Docs/screenshots/electry.png"
 WAV_NAME = re.compile(r"(0[1-9]|1[0-9]|2[0-3])-[a-z0-9]+(?:-[a-z0-9]+)*\.wav")
 
 

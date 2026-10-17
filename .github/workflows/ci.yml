@@ -203,7 +203,7 @@ jobs:
       # the build meaningful: the file can only be there afterwards because this
       # run's suite rendered it.
       - name: Clear screenshot before rendering
-        run: rm -f Docs/screenshots/electry-standalone.png
+        run: rm -f Docs/screenshots/electry.png
 
       # Native-arch only keeps CI fast; the distribution workflow builds the
       # full arm64 + x86_64 universal binaries. Uses the same build script
@@ -211,13 +211,13 @@ jobs:
       - name: Build plug-in and run tests
         env:
           BUILD_UNIVERSAL: "OFF"
-          ELECTRY_EDITOR_SNAPSHOT: "${{ github.workspace }}/Docs/screenshots/electry-standalone.png"
+          ELECTRY_EDITOR_SNAPSHOT: "${{ github.workspace }}/Docs/screenshots/electry.png"
         run: ./scripts/build-macos.sh
 
       - name: Check that the editor screenshot was rendered
         run: |
           set -euo pipefail
-          screenshot="Docs/screenshots/electry-standalone.png"
+          screenshot="Docs/screenshots/electry.png"
           if [[ ! -s "$screenshot" ]]; then
             echo "error: the suite did not render $screenshot" >&2
             echo "The suite must honour ELECTRY_EDITOR_SNAPSHOT." >&2

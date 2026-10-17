@@ -59,7 +59,7 @@ fi
 
 cmake "${cmake_args[@]}"
 cmake --build "${BUILD_DIR}" --config "${CONFIG}" --parallel
-ELECTRY_EDITOR_SNAPSHOT="${PROJECT_DIR}/Docs/screenshots/electry-standalone.png" \
+ELECTRY_EDITOR_SNAPSHOT="${PROJECT_DIR}/Docs/screenshots/electry.png" \
     ctest --test-dir "${BUILD_DIR}" -C "${CONFIG}" --output-on-failure
 
 ARTIFACT_DIR="${BUILD_DIR}/Electry_artefacts/${CONFIG}"
