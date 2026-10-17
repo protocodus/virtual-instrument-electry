@@ -1,5 +1,9 @@
 # Ordinary picked-note reference check — 11 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 Real notes continue to change after the pick has left the string. This pass
 isolates one such cue: the fundamental and several harmonics relaxing together
 from a slightly higher initial pitch. It uses original PCM recordings, with
@@ -17,11 +21,11 @@ files with literal note identifier `02`, retaining the previous source cohort.
 The identifier is not a proven fret number. These are separately played takes,
 not simultaneous observations of one stroke through different pickups.
 
-The [range downloader](../../Experiments/RealismReference20260911/download_egipt.py)
+The [range downloader](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/download_egipt.py)
 read 29,763,544 bytes in 16 requests, about 0.1253% of the complete
 23,757,983,313-byte ZIP. It verifies each HTTP Content-Range and ZIP CRC. Exact
 member names, source URLs and hashes are retained in the
-[provenance receipt](../../Experiments/RealismReference20260911/provenance.json).
+[provenance receipt](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/provenance.json).
 No third-party audio is included in the instrument or committed to this repo.
 The local recordings remain in `build-realism-20260911/reference/`.
 
@@ -63,7 +67,7 @@ below requires H1 plus at least three additional measurable partials.
 
 The old August estimator existed only in temporary files that are now absent.
 This pass uses a new, descriptive
-[analyzer](../../Experiments/RealismReference20260911/analyze_pitch.py), not a claim
+[analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/analyze_pitch.py), not a claim
 of rerunning the previous frozen protocol. Its settings were fixed and its
 synthetic controls passed before source or candidate analysis. It resamples to
 2 kHz, locates each of H1–H6 independently, then uses complex demodulation with
@@ -87,7 +91,7 @@ cross-partial median absolute deviation no greater than 1.5 cents. These are
 descriptive quality rules, not perceptual pass/fail criteria or physical
 identification guarantees.
 
-The [synthetic results](../../Experiments/RealismReference20260911/analyzer-self-test.json)
+The [synthetic results](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/analyzer-self-test.json)
 include a stiff six-partial string with unequal amplitude decays but stationary
 frequencies: measured median motion is 0.000008 cents. A known seven-cent
 exponential excursion produces a 2.929371-cent descriptor against an analytic
@@ -108,7 +112,7 @@ correctly insufficient. NumPy 1.26.4 and SciPy 1.14.1 were used.
 | 8ridgelite E2, channel 2 | +7.006 | −16.594 | +11.678 | yes |
 
 Full per-partial traces, quality exclusions and WAV hashes are in
-[reference-pitch.json](../../Experiments/RealismReference20260911/reference-pitch.json).
+[reference-pitch.json](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/reference-pitch.json).
 The second E1 channel fails the cross-partial agreement rule and is not used
 as coherent-pitch evidence. Its large reported median is retained to avoid
 silently selecting favorable data. Even the coherent E1 channel is an
@@ -140,7 +144,7 @@ undocumented physical string identity onto the reference files. The baseline
 is the pass-four DSP with energy-derived pitch disabled; the candidate isolates
 its pitch changes before integration with the other pass-five improvements.
 Exact WAV hashes and every partial trace are in
-[model-pitch.json](../../Experiments/RealismReference20260911/model-pitch.json).
+[model-pitch.json](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/model-pitch.json).
 
 | Ordinary EG-IPT E2 error | Baseline median | Candidate median | Baseline maximum | Candidate maximum |
 | --- | ---: | ---: | ---: | ---: |
@@ -157,7 +161,7 @@ coefficient was optimized against those reductions. The two source families
 remain insufficient to claim market superiority or revive a failed historical
 holdout gate under different thresholds.
 
-![Ordinary E2 partial pitch trajectories](../../Experiments/RealismReference20260911/ordinary-pitch.png)
+![Ordinary E2 partial pitch trajectories](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/ordinary-pitch.png)
 
 The gray windows identify the early descriptor and late reference regions.
 The plot also exposes the mismatch: the real Bridge/Both trajectories continue
@@ -192,10 +196,10 @@ median paired overhead is **1.04% for held chords** and **6.22% for 4 Hz chord
 repicks**, with all eight strings, Both pickups, Stereo and a 96 kHz host
 rate. These are relative increases in processing time, not percentage points
 of available audio time. They are recorded in
-[pitch-cpu.json](../../Experiments/RealismReference20260911/pitch-cpu.json).
+[pitch-cpu.json](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/pitch-cpu.json).
 Concurrent builds introduce noise, and these timings do not establish a
 worst-case realtime bound. In particular, the held result must not be presented
 as the cost of rapid repicking. The
-[benchmark source](../../Experiments/RealismReference20260911/BenchmarkPitch.cpp)
-and [balanced runner](../../Experiments/RealismReference20260911/benchmark_pitch.py)
+[benchmark source](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/BenchmarkPitch.cpp)
+and [balanced runner](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260911/benchmark_pitch.py)
 make the comparison repeatable on a quiet machine.

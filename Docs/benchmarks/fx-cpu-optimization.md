@@ -1,5 +1,9 @@
 # Effects CPU optimization
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 Measured on 2026-09-08 against `bf652d4934f077ddafcdea337fa0aa83923a8fcb`.
 
 The optimization retains the circuit equations, nonlinear solve tolerances,
@@ -45,9 +49,9 @@ their small changes include noise: dry at 44.1 kHz rises from 22.33 to 22.87 ns
 per frame, while dry at 48 kHz falls from 23.04 to 22.24 ns. These data support
 the amp-path savings, rather than a claim that every preset improves equally.
 
-The [complete summary](fx-cpu/summary.csv) includes all 36 cases and outer-run
-minimum/maximum values. [Raw timings](fx-cpu/timings.csv) retain all eight
-runs, and [sample comparisons](fx-cpu/comparison.csv) retain every audio result.
+The [complete summary](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/summary.csv) includes all 36 cases and outer-run
+minimum/maximum values. [Raw timings](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/timings.csv) retain all eight
+runs, and [sample comparisons](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/comparison.csv) retain every audio result.
 
 ## Audio equivalence
 

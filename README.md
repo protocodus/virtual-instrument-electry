@@ -1131,8 +1131,8 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   continues to render both gain channels. A frozen-binary comparison across
   both modes, mono, stereo and channel transitions found **zero changed bits
   in 20,573,280 output samples**; regression tests also cover resets and quality
-  crossfades. [Incremental timings](Docs/benchmarks/fx-cpu/mono-reuse/summary.csv) and
-  [measurement metadata](Docs/benchmarks/fx-cpu/mono-reuse/metadata.json) retain the evidence.
+  crossfades. [Incremental timings](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/mono-reuse/summary.csv) and
+  [measurement metadata](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/mono-reuse/metadata.json) retain the evidence.
 - **Cost.** The pedal inverse and PI scalar tables reduce repeated nonlinear
   math in both modes. Standard additionally retires one oversampling stage;
   changing modes briefly runs both prepared gain banks. Before identical-channel
@@ -1144,8 +1144,8 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   two-second clips and three repeats, in baseline/Standard/High/High/Standard/
   baseline order. Each candidate is compared with the mean bracketing
   baseline; elapsed time corroborates the reductions but varies more under
-  scheduling. [Raw timings and commands](Docs/benchmarks/fx-cpu/selectable-oversampling/metadata.json)
-  and the [summary](Docs/benchmarks/fx-cpu/selectable-oversampling/summary.csv) retain the
+  scheduling. [Raw timings and commands](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/selectable-oversampling/metadata.json)
+  and the [summary](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Docs/benchmarks/fx-cpu/selectable-oversampling/summary.csv) retain the
   evidence. The real live acoustic-return path passes regression checks;
   whole-plugin CPU and continuous quality-switch automation were not timed.
 - **Historical cost reference, before the selector and table optimizations.**

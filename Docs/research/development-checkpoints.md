@@ -1,5 +1,9 @@
 # Electry development checkpoints
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 Per-change checkpoint notes moved out of the README, newest first. The [README](../../README.md) carries the concise version history.
 
 ## 2026-09-08 faster effects and oversampling choice
@@ -1769,7 +1773,7 @@ lift/repick controls, with dry, crunch and high-gain comparisons.
 The model adds finite hand motion on ringing strings, retains residual
 attack tension through muted repicks, and clears cached hand loss at the
 exact open pressure endpoint. See the [transition validation record](../benchmarks/transition-benchmark-2026-09-11.md)
-and [reproduction commands](../../Experiments/Transitions20260911/README.md).
+and [reproduction commands](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Transitions20260911/README.md).
 
 The [second transition refinement](transition-refinement-2026-09-11.md)
 corrects the time scale of palm damping on unplayed strings and preserves

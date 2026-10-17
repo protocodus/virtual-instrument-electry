@@ -1,5 +1,9 @@
 # Five more guitar realism changes — 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The first two passes were committed and pushed to `main` as
 [`809aecc`](https://github.com/protocodus/virtual-instrument-electry/commit/809aecc40c38c08cc5449e4b2c22e9a1f5e282e8).
 This third pass uses that exact commit as its before version. Five further
@@ -101,10 +105,10 @@ Two affected low-E1 single-coil octave-band snapshots were updated, with
 their tolerances and humbucker contrast unchanged. The second-pass decay
 observer now measures the complete filter, including its new biquad.
 
-The [renderer](../../Experiments/Realism20260908Pass3/RenderRealism.cpp) retains
+The [renderer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass3/RenderRealism.cpp) retains
 the previous 39 phrases and adds eight harmonic-position, interrupted-contact
 and fast-slide phrases. Every phrase has matched dry and Modern high-gain
-versions. The [analyzer](../../Experiments/Realism20260908Pass3/AnalyzeRealism.py)
+versions. The [analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass3/AnalyzeRealism.py)
 uses the unchanged first-pass signal measurements and constant-gain RMS
 matching, and presents the new phrases first.
 

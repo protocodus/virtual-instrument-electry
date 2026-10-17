@@ -1,5 +1,9 @@
 # Pass-four sustain experiment: independent reference measurements
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The 0.65 material-loss fraction moves all six existing low-string decay
 descriptors toward the three real previews and retains a more balanced F#2
 upper-partial trajectory than the full 1.00 candidate. It changes the body-normalized
@@ -29,13 +33,13 @@ force and finger termination are unmatched; F#1/C2 onsets are censored. F#2's
 H11 tracker approaches its bracket boundary. No eight-string contact constant
 or general perceptual score can be identified from these three takes.
 
-[The original analyzer](../../Experiments/RealismReference20260908/analyze.py)
+[The original analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReference20260908/analyze.py)
 gives the unchanged descriptors:
 first crossing of 25% of maximum centered 2 ms RMS; local H1–H12 peaks tracked
 in nonoverlapping +/-0.4 f0 windows; nine 160 ms Hann windows beginning at
-50–850 ms. The [fourth-pass analyzer](../../Experiments/RealismReferencePass4_20260908/analyze_sustain.py)
+50–850 ms. The [fourth-pass analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass4_20260908/analyze_sustain.py)
 adds whole-window envelope and Modern band measurements. Its
-[summary receipt](../../Experiments/RealismReferencePass4_20260908/sustain-summary.json)
+[summary receipt](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass4_20260908/sustain-summary.json)
 hashes both analyzers, isolated source files, manifests, previews and wet/dry
 WAVs. It retains twelve-partial decay estimates, fit residuals and bracket
 alarms, plus the full median pitch and upper/low ratio traces. All audio stays

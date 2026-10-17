@@ -1,5 +1,9 @@
 # Audible pick attack and ringing — 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 This fourth pass follows the user's two priorities: a synth-like ringing tone
 and an indistinct pick attack. It makes three audible changes to the shipping
 DSP using the existing controls. The before version is the complete third-pass
@@ -106,8 +110,8 @@ blocked the local file page.
 
 Source snapshots, hashes, raw renders, manifests, validation logs and the
 comparison JSON/CSV remain under `build-realism-20260908-pass4/`. The reusable
-[renderer](../../Experiments/Realism20260908Pass4/RenderRealism.cpp) and
-[analyzer](../../Experiments/Realism20260908Pass4/AnalyzeRealism.py) generate the
+[renderer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass4/RenderRealism.cpp) and
+[analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass4/AnalyzeRealism.py) generate the
 same score against either snapshot.
 
 ```sh

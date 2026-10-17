@@ -1,5 +1,9 @@
 # Open / muted / open benchmark — 11 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The user identified open-to-muted-to-open playing as the next audible weak
 point after the fifth realism pass. This benchmark starts from `aa1f7e0` and
 uses an original rolling picked-chord riff, inspired by the general southern

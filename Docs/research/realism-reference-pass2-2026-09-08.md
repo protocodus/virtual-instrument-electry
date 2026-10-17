@@ -1,5 +1,9 @@
 # Wound-string speaking length and sustain — second pass, 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 One of this pass's five changes makes a higher fretted note on a wound string
 decay faster than the same string played open. Previously its fundamental
 T60 target was essentially constant across all 22 frets, apart from the
@@ -68,10 +72,10 @@ Seven open-E1 dry audition scores remain byte-identical in this isolated
 comparison.
 
 Complete descriptors are retained for
-[F#1](../../Experiments/RealismReferencePass2_20260908/length-only-30.json),
-[C2](../../Experiments/RealismReferencePass2_20260908/length-only-36.json) and
-[F#2](../../Experiments/RealismReferencePass2_20260908/length-only-42.json).
-The [provenance manifest](../../Experiments/RealismReferencePass2_20260908/provenance.json)
+[F#1](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass2_20260908/length-only-30.json),
+[C2](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass2_20260908/length-only-36.json) and
+[F#2](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass2_20260908/length-only-42.json).
+The [provenance manifest](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass2_20260908/provenance.json)
 records compiler/flags, frozen source hashes, renderer/analyzer hashes and raw
 WAV hashes. Ignored raw audio remains in
 `build-realism-20260908-pass2/reference/length-audio/`.

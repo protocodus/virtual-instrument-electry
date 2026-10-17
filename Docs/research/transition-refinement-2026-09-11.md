@@ -1,5 +1,9 @@
 # Transition refinement — second pass, 11 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The user preferred the previous open/muted/open pass but still found it
 imperfect. This follow-up investigates two remaining continuity faults. It
 uses that previous candidate as its baseline; the earlier listening page

@@ -1,5 +1,9 @@
 # Audible plectrum attack — 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The fourth pass strengthens the short released-string edge of a hard pick on
 wound strings. The existing loaded modal displacement still supplies the
 ringing body. Pick Hardness scales the separate edge from its unchanged soft
@@ -39,7 +43,7 @@ the attack, rather than a large increase in sustained level. These are signal
 descriptors, not listening scores. The
 [isolated auditions](../../build-realism-20260908-pass4/research-palm/edge25-comparison/listening.html)
 use one constant whole-file RMS-matching gain per version. The saved
-[probe summary](../../Experiments/Realism20260908Pass4/pick-attack-probes.json)
+[probe summary](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass4/pick-attack-probes.json)
 records the comparison and waveform hashes.
 
 The uncensored clean F#2 preview remains a useful limit on claims. Its 0–30 ms

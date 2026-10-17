@@ -1,5 +1,9 @@
 # Five further guitar realism changes — 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 This continues the [first five contact changes](realism-2026-09-08.md).
 All five additions run in the shipping DSP with the existing controls.
 The before version is the complete first-pass working tree, frozen before
@@ -101,12 +105,12 @@ are refreshed to −6.886/−13.261/−21.334 dB; contextual RMSE improves from
 4.767 to 4.298 dB. No Dead damping coefficient was retuned. See the corresponding
 context in [evaluation.md](evaluation.md).
 
-The new [renderer](../../Experiments/Realism20260908Pass2/RenderRealism.cpp) contains
+The new [renderer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass2/RenderRealism.cpp) contains
 39 scores, including the previous 24 plus physical slides across the neck,
 reversals, repicks during slides, a plain-string control, finger replacement,
 rapid articulation switches and sustained frets 0/6/12/22. Each produces dry
 DI and the same Modern high-gain chain. The
-[analyzer](../../Experiments/Realism20260908Pass2/AnalyzeRealism.py) reuses the
+[analyzer](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/Realism20260908Pass2/AnalyzeRealism.py) reuses the
 unchanged first-pass measurements and level-matching code.
 
 `build-realism-20260908-pass2/comparison/listening.html` contains **156 audio

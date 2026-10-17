@@ -1,5 +1,9 @@
 # Bass-string partial decay — third pass, 8 September 2026
 
+> The experiment code and raw data this record cites were removed as obsolete on
+> 2026-10-17. Paths below refer to revision
+> [`7b60c016a664`](https://github.com/protocodus/virtual-instrument-electry/tree/7b60c016a66449bb99c44be30da2d0bff3d9aadb).
+
 The two extended-range bass strings now shed some intermediate partial energy
 sooner while keeping their previous fundamental and 3.6 kHz decay anchors.
 The other six strings, Dead contact and the separately calibrated sympathetic
@@ -71,10 +75,10 @@ upper-partial sustain differences remain and these percentages are not a
 perceptual realism score.
 
 Per-note measurements are retained for
-[F#1](../../Experiments/RealismReferencePass3_20260908/loss-only-30.json),
-[C2](../../Experiments/RealismReferencePass3_20260908/loss-only-36.json) and
-[F#2](../../Experiments/RealismReferencePass3_20260908/loss-only-42.json).
-The [provenance receipt](../../Experiments/RealismReferencePass3_20260908/provenance.json)
+[F#1](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass3_20260908/loss-only-30.json),
+[C2](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass3_20260908/loss-only-36.json) and
+[F#2](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass3_20260908/loss-only-42.json).
+The [provenance receipt](https://github.com/protocodus/virtual-instrument-electry/blob/7b60c016a66449bb99c44be30da2d0bff3d9aadb/Experiments/RealismReferencePass3_20260908/provenance.json)
 records the isolated source, analyzer and renderer hashes, production flags,
 raw audio hashes, exact descriptors and engineering probe receipts. Raw audio
 and source snapshots remain under the ignored
