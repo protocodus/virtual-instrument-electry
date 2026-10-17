@@ -4815,7 +4815,7 @@ void testFxEditorToggle()
         }
         auto traversal = editor->createKeyboardFocusTraverser();
         const auto stops = traversal->getAllComponents (editor.get());
-        expect (stops.size() == (enabled ? 62u : 50u)
+        expect (stops.size() == (enabled ? 63u : 51u)
                     && std::find (stops.begin(), stops.end(), toggle) != stops.end(),
                 "FX bypass did not remove only its disabled controls from Tab navigation");
     };
@@ -5035,14 +5035,15 @@ void testEditorRendering()
                                       component->getParentComponent()) != nullptr;
                        }));
     // JUCE exposes each editable knob value as a second native stop. Counting
-    // each knob/value pair once leaves 37 logical controls across the editor, including the FX switch.
-    expect (editorTabOrder.size() == 62u
+    // each knob/value pair once leaves 38 logical controls across the editor,
+    // including the FX switch and the ABOUT button.
+    expect (editorTabOrder.size() == 63u
                 && editableKnobValueStops == knobs.size()
-                && editorTabOrder.size() - editableKnobValueStops == 37u,
+                && editorTabOrder.size() - editableKnobValueStops == 38u,
             "editor exposed " + std::to_string (editorTabOrder.size())
                 + " native and "
                 + std::to_string (editorTabOrder.size() - editableKnobValueStops)
-                + " logical Tab stops instead of 62 and 37");
+                + " logical Tab stops instead of 63 and 38");
     const auto expectAccessibleChoiceStrip = [&] (const char* componentId)
     {
         auto* strip = findControl (componentId);
@@ -5181,6 +5182,16 @@ void testEditorRendering()
                 "host-side program change did not reach the editor selector");
         factoryProgramControl->setSelectedId (1, juce::sendNotificationSync);
     }
+
+    auto* aboutControl = dynamic_cast<ElectryTextButton*> (
+        findControl ("about"));
+    expect (aboutControl != nullptr && aboutControl->getButtonText() == "ABOUT"
+                && aboutControl->getWantsKeyboardFocus()
+                && aboutControl->hasFocusOutline(),
+            "editor is missing its keyboard-focusable ABOUT action");
+    expect (juce::String (ELECTRY_BUILD_IDENTITY)
+                .startsWith (JucePlugin_VersionString "-build."),
+            "About identity does not follow X.Y.Z-build.<run>");
 
     auto* panicControl = dynamic_cast<ElectryTextButton*> (
         findControl ("panic"));

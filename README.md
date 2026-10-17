@@ -128,6 +128,8 @@ build of 1.2.0 from `main`. Per-change notes are in the
 
 ### 1.2.0 — 2026-10-16 — String voicing, realism corrections and release hardening
 
+- **2026-10-17 — About box:** the editor's **ABOUT** button shows the version
+  and build (`1.2.0-build.<run>`), the same identity as the package names.
 - **2026-10-16 — String voicing:** ordinary notes prefer unused strings,
   then the lowest playable fret; chord batches minimize occupied strings,
   then total fret height. Repeated-note ownership, MPE bindings, string locks

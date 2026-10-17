@@ -249,6 +249,21 @@ if(ELECTRY_BUILD_PLUGIN)
         set(ELECTRY_PLUGIN_FORMATS VST3 Standalone)
     endif()
 
+    # The About box shows X.Y.Z-build.<run>, the same identity as the package
+    # names; local builds are build 0.
+    if(DEFINED ENV{BUILD_NUMBER})
+        set(electry_default_build_number "$ENV{BUILD_NUMBER}")
+    elseif(DEFINED ENV{GITHUB_RUN_NUMBER})
+        set(electry_default_build_number "$ENV{GITHUB_RUN_NUMBER}")
+    else()
+        set(electry_default_build_number 0)
+    endif()
+    set(ELECTRY_BUILD_NUMBER "${electry_default_build_number}" CACHE STRING
+        "Build number shown in the About box")
+    if(NOT ELECTRY_BUILD_NUMBER MATCHES "^[0-9]+$")
+        message(FATAL_ERROR "ELECTRY_BUILD_NUMBER must be a non-negative integer")
+    endif()
+
     juce_add_plugin(Electry
         VERSION ${PROJECT_VERSION}
         COMPANY_NAME "Electry Audio"
@@ -290,7 +305,8 @@ if(ELECTRY_BUILD_PLUGIN)
         PUBLIC
             JUCE_WEB_BROWSER=0
             JUCE_USE_CURL=0
-            JUCE_VST3_CAN_REPLACE_VST2=0)
+            JUCE_VST3_CAN_REPLACE_VST2=0
+            ELECTRY_BUILD_IDENTITY="${PROJECT_VERSION}-build.${ELECTRY_BUILD_NUMBER}")
 
     if(ELECTRY_BUILD_CLAP)
         clap_juce_extensions_plugin(TARGET Electry

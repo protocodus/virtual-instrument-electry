@@ -1766,6 +1766,23 @@ ElectryAudioProcessorEditor::ElectryAudioProcessorEditor (ElectryAudioProcessor&
     panicButton.onClick = [this] { electryProcessor.requestPanic(); };
     addAndMakeVisible (panicButton);
 
+    aboutButton.setComponentID ("about");
+    aboutButton.setHasFocusOutline (true);
+    aboutButton.setTooltip ("Version and build");
+    aboutButton.onClick = [this]
+    {
+        juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+            .withIconType (juce::MessageBoxIconType::InfoIcon)
+            .withTitle ("About Electry")
+            .withMessage ("Electry " ELECTRY_BUILD_IDENTITY "\n"
+                          "Physically modelled eight-string electric guitar\n"
+                          "Protocodus")
+            .withButton ("OK")
+            .withAssociatedComponent (this),
+            nullptr);
+    };
+    addAndMakeVisible (aboutButton);
+
     pickStyleStrip.onChoice = [this] (int index)
     {
         keyboard.setSelectedKeyswitches (
@@ -2290,6 +2307,8 @@ void ElectryAudioProcessorEditor::resized()
     editionLabel.setBounds (brand.withTrimmedLeft (40).withTrimmedTop (42));
     header.removeFromLeft (20);
     panicButton.setBounds (header.removeFromRight (92).reduced (0, 14));
+    header.removeFromRight (8);
+    aboutButton.setBounds (header.removeFromRight (72).reduced (0, 14));
     header.removeFromRight (16);
     statusDisplay.setBounds (header.removeFromRight (statusDisplayWidth)
                                  .reduced (0, 14));

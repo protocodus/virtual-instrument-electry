@@ -217,6 +217,7 @@ private:
     juce::ComboBox factoryProgramSelector;
     ElectryStatusDisplay statusDisplay;
     ElectryTextButton panicButton { "PANIC" };
+    ElectryTextButton aboutButton { "ABOUT" };
 
     // The two independent keyswitch banks: how the pick moves and what the
     // hands do. Any combination of the two is reachable.
