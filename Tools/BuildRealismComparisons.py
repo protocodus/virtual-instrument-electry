@@ -21,10 +21,6 @@ import subprocess
 import tarfile
 import wave
 
-import numpy as np
-from scipy.io import wavfile
-
-
 def run(args, cwd=None, data=None):
     result = subprocess.run(args, cwd=cwd, input=data,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -35,6 +31,17 @@ def run(args, cwd=None, data=None):
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def apply_dsp_patch(source, patch):
+    # A review output may live under the canonical Git worktree. Without its
+    # own repository, `git apply` inherits that outer root and can silently
+    # skip every Source/DSP path as outside its current subdirectory. Give the
+    # archived source an independent root before applying the immutable diff.
+    if not patch.strip():
+        raise ValueError("Candidate commit contains no Source/DSP change")
+    run(["git", "init", "-q"], source)
+    run(["git", "apply", "-"], source, patch)
 
 
 def build(repo, out, base, commits, driver, defines=None):
@@ -64,7 +71,7 @@ def build(repo, out, base, commits, driver, defines=None):
     patches = []
     for commit in commits:
         patch = run(["git", "diff", commit + "^", commit, "--", "Source/DSP"], repo)
-        run(["git", "apply", "-"], source, patch)
+        apply_dsp_patch(source, patch)
         patches.append({"commit": commit, "patch_sha256": hashlib.sha256(patch).hexdigest()})
     sources = [source / "Source/DSP" / (name + ".cpp") for name in
                ["ElectryEngine", "ElectryFx", "ElectryPerformer", "ElectryVisuals"]]
@@ -81,13 +88,14 @@ def build(repo, out, base, commits, driver, defines=None):
     run(["clang++", "-std=c++20", *common, str(driver), *map(str, objects), "-o", str(exe)])
     facts = {"request": request, "base": base, "patches": patches, "flags": common,
              "source_hashes": {str(p.relative_to(source)): sha(p)
-                               for p in sorted(source.rglob("*")) if p.is_file()},
+                               for p in sorted((source / "Source").rglob("*")) if p.is_file()},
              "driver_sha256": sha(driver), "binary_sha256": sha(exe)}
     (out / "build.json").write_text(json.dumps(facts, indent=2) + "\n")
     return exe
 
 
 def write_pcm24(path, rate, audio):
+    import numpy as np
     integers = np.rint(audio * 8388607).astype(np.int32).reshape(-1)
     packed = np.empty((integers.size, 3), dtype=np.uint8)
     for byte in range(3):
@@ -98,6 +106,8 @@ def write_pcm24(path, rate, audio):
 
 
 def package_pair(a, b, dest, facts):
+    import numpy as np
+    from scipy.io import wavfile
     ra, x = wavfile.read(a / "raw.wav"); rb, y = wavfile.read(b / "raw.wav")
     ma = json.loads((a / "render.json").read_text())
     mb = json.loads((b / "render.json").read_text())

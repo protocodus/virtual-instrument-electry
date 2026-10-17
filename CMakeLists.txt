@@ -674,7 +674,7 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
-        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion)
+        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion BuildRealismComparisons)
             add_test(NAME Electry.${audit}
                 COMMAND "${Python3_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${audit}Tests.py")
