@@ -1,0 +1,161 @@
+{
+  "schema": "electry-realism-investigation/v1",
+  "date": "2026-10-17",
+  "source_base": "45e9a818b0924917aa2fb2b92e88b4a8d1fc7cfa",
+  "candidate_source_commit": "2ef0e1be3dd6de6e46de6de5cf447f1e06f02cf8",
+  "default_switches": "both OFF",
+  "modal_baseline": {
+    "observations": 864,
+    "resolved_upper_modes": 12960,
+    "full_median_absolute_cents": 2.312894208940899,
+    "full_maximum_absolute_cents": 209.38528610093206,
+    "dispersion_only_median_absolute_cents": 1.2193348071739267,
+    "dispersion_only_maximum_absolute_cents": 212.0419525502803,
+    "worst_full_loop": {
+      "host_rate": 44100,
+      "gauge": 1,
+      "scale": 0,
+      "string": 0,
+      "fret": 22,
+      "bend": 2,
+      "B": 0.0022530481219291687,
+      "partial": 16,
+      "target_hz": 3307.580399778514,
+      "actual_hz": 2930.7877428473093,
+      "dispersion_only_hz": 2926.2937494307316,
+      "full_error_cents": -209.38528610093206,
+      "dispersion_only_error_cents": -212.0419525502803,
+      "round_trip_gain_db": -0.9112201483713995,
+      "interpolation_gain_db": -0.0002452174105686335
+    }
+  },
+  "modal_candidate": {
+    "observations": 864,
+    "resolved_upper_modes": 12960,
+    "full_median_absolute_cents": 3.4591342162314946,
+    "full_maximum_absolute_cents": 88.9077722037372,
+    "dispersion_only_median_absolute_cents": 1.8920815025215416,
+    "dispersion_only_maximum_absolute_cents": 92.11959112349346,
+    "worst_full_loop": {
+      "host_rate": 44100,
+      "gauge": 1,
+      "scale": 0,
+      "string": 0,
+      "fret": 22,
+      "bend": -2,
+      "B": 0.003000000026077032,
+      "partial": 16,
+      "target_hz": 2778.822488226171,
+      "actual_hz": 2639.7180957921373,
+      "dispersion_only_hz": 2634.8253796173517,
+      "full_error_cents": -88.9077722037372,
+      "dispersion_only_error_cents": -92.11959112349346,
+      "round_trip_gain_db": -0.97813531098699,
+      "interpolation_gain_db": -0.00020518123658511519
+    }
+  },
+  "cpu": {
+    "baseline": [
+      {
+        "host_rate": 48000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 202.5,
+        "p95_microseconds": 211.875,
+        "maximum_microseconds": 246.5
+      },
+      {
+        "host_rate": 48000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 750.125,
+        "p95_microseconds": 2099.959,
+        "maximum_microseconds": 2211.583
+      },
+      {
+        "host_rate": 96000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 201.959,
+        "p95_microseconds": 207.917,
+        "maximum_microseconds": 232.667
+      },
+      {
+        "host_rate": 96000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 633.208,
+        "p95_microseconds": 1157.5,
+        "maximum_microseconds": 1208.042
+      },
+      {
+        "host_rate": 384000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 201.125,
+        "p95_microseconds": 212.208,
+        "maximum_microseconds": 338.459
+      },
+      {
+        "host_rate": 384000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 255.208,
+        "p95_microseconds": 388.833,
+        "maximum_microseconds": 425.666
+      }
+    ],
+    "candidate": [
+      {
+        "host_rate": 48000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 264.875,
+        "p95_microseconds": 283.625,
+        "maximum_microseconds": 317.5
+      },
+      {
+        "host_rate": 48000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 1047.292,
+        "p95_microseconds": 3222.917,
+        "maximum_microseconds": 3655.791
+      },
+      {
+        "host_rate": 96000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 269.959,
+        "p95_microseconds": 273.083,
+        "maximum_microseconds": 326.5
+      },
+      {
+        "host_rate": 96000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 872.292,
+        "p95_microseconds": 1758.375,
+        "maximum_microseconds": 29567.041
+      },
+      {
+        "host_rate": 384000,
+        "mode": "cold_eight_string_chord_event",
+        "samples": 512,
+        "p50_microseconds": 272.5,
+        "p95_microseconds": 280.292,
+        "maximum_microseconds": 317.375
+      },
+      {
+        "host_rate": 384000,
+        "mode": "eight_string_bend_256_frames",
+        "samples": 512,
+        "p50_microseconds": 333.125,
+        "p95_microseconds": 535.875,
+        "maximum_microseconds": 583.291
+      }
+    ]
+  },
+  "limits": "Native C++17; compiled with Apple clang 21.0.0; see raw provenance. Full loop is real-axis phase resonance, not complex damped pole.",
+  "promotion": "neither candidate promoted; Engine regression suite fails with either experimental flag ON"
+}

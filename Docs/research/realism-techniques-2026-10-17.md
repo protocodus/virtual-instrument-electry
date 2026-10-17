@@ -49,12 +49,30 @@ or a listener's assessment. The full sweep and final candidate results belong
 to the generated audit reports; this note does not convert the initial maximum
 into a final improvement claim.
 
-The first default-off group-delay/minimax prototype reduced the worst case to
-about 110 cents while worsening the median from roughly 2.31 to 3.75 cents;
-many individual modes also worsened. It is therefore not recommended or
-promoted. A revised coefficient search is still an experiment, and its final
-error distribution, continuity and CPU results must be reported before any
-promotion decision.
+The final default-off minimax prototype scores stretched frequencies, normalizes
+by exact group delay, and searches a logarithmic DC-group-delay grid using the
+same pole domain and pair count. Across 864 configurations (12,960 upper
+partials), maximum full-loop phase-resonance error falls from 209.385 to
+88.908 cents, while median absolute error rises from 2.313 to 3.459 cents.
+At the default heavy 27.625-inch E1/48-kHz construction, cell maxima at frets
+12 and 22 fall from 27.833/102.308 to 12.850/46.142 cents. Some individual
+partials get substantially worse: this redistributes approximation error and
+is not a general accuracy win. Full-loop values are real-axis phase resonances;
+only the separate lossless dispersion roots are exact eigenmodes.
+
+Native timing medians rise by 31–35% for a cold eight-string chord event and
+31–40% for moving eight-string bends in 256-frame callbacks. The candidate's
+96-kHz maximum callback was 29.567 ms against a 2.667-ms callback period;
+no thread-CPU measurement explains away that wall-time outlier. These native
+engine diagnostics are not SDK target or Reason-host measurements. Earlier
+and final timing runs are retained with the working evidence.
+
+Both the modal and mass candidates fail the established Engine regression
+suite. The modal candidate also violates transition/tuning rails. Neither is
+recommended for production; hearing a preferred timbre would select a research
+direction, not waive these failures. The [validation record](../validation/realism-2026-10-17.md)
+and [machine-readable summary](../validation/realism-2026-10-17.json) record
+the final results and reproducing commands.
 
 [Kemp's stiff-string analysis](https://research-repository.st-andrews.ac.uk/bitstream/handle/10023/19673/Kemp_2020_SNAS_Inharmonicity_CC.pdf?sequence=1)
 also distinguishes external construction, mass and flexural stiffness. Better
@@ -160,8 +178,9 @@ pressed closures lay between 21.987 and 21.991 ms.
 
 Those short checks do not establish decay fitting, audible preference,
 cross-platform equivalence, complete plugin validation or production
-promotion. The full unit/audio suites, reproducible single-intervention WAVs,
-whole-file RMS matching and the user's by-ear decision remain separate work.
+promotion. The completed full-suite outcomes and reproducible single-intervention WAVs
+are recorded in the validation record. Whole-file RMS matching removes overall
+loudness as a preference cue; no user listening verdict has been recorded.
 
 ## Why the other techniques remain bounded
 
