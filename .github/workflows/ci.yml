@@ -15,66 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sanitizer-fuzz:
-    name: Address/UB sanitizers and stateful input fuzzing
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Install compiler and host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            clang ninja-build pkg-config xvfb xauth \
-            libasound2-dev libfreetype-dev libfontconfig1-dev \
-            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
-            libxinerama-dev libxrandr-dev libxrender-dev
-      - name: Configure instrumented DSP and processor tests
-        run: |
-          cmake -S . -B build-sanitize -G Ninja \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DELECTRY_ENABLE_SANITIZERS=ON -DELECTRY_BUILD_FUZZER=ON \
-            -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
-          cmake --build build-sanitize --parallel 2 --target \
-            ElectryEngineTests ElectryFxTests ElectryPluginProcessorTests ElectryDspFuzz
-      - name: Run regression and hostile-input suites
-        env:
-          UBSAN_OPTIONS: print_stacktrace=1
-        run: |
-          xvfb-run -a ctest --test-dir build-sanitize --output-on-failure \
-            -R '^Electry\.(ElectryEngine|ElectryFx|PluginProcessor)$'
-      - name: Mutate DSP API sequences
-        run: |
-          mkdir -p build-sanitize/corpus build-sanitize/fuzz-artifacts
-          python3 - <<'PY'
-          import pathlib, random
-          corpus = pathlib.Path('build-sanitize/corpus')
-          rng = random.Random(0xE1EC7)
-          for index in range(32):
-              # Seed ordinary notes as well as raw parameter/controller bytes.
-              prefix = bytes([index % 12, 128, 2, 72, 7, 255, 0, 31])
-              (corpus / str(index)).write_bytes(prefix + rng.randbytes(512))
-          PY
-          build-sanitize/ElectryDspFuzz build-sanitize/corpus \
-            -seed=20260914 -max_total_time=120 -max_len=4096 \
-            -timeout=30 -rss_limit_mb=2048 \
-            -artifact_prefix=build-sanitize/fuzz-artifacts/
-      - name: Preserve fuzz reproducers
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sanitizer-fuzz-corpus
-          path: |
-            build-sanitize/corpus
-            build-sanitize/fuzz-artifacts
-            build-sanitize/Testing/Temporary/LastTest.log
-          retention-days: 7
-
   dsp-tests:
-    name: DSP tests (JUCE-free, Linux)
+    name: DSP tests and Linux package
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -91,20 +33,18 @@ jobs:
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
             libxinerama-dev libxrandr-dev libxrender-dev
 
-      - name: Configure
+      - name: Configure DSP build
         run: |
-          cmake \
-            -S . \
-            -B build-dsp \
-            -G Ninja \
+          cmake -S . -B build-dsp -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DELECTRY_BUILD_PLUGIN=OFF \
             -DBUILD_TESTING=ON
 
-      - name: Build and test DSP engine
+      - name: Build and run unit and audio tiers
         run: |
           cmake --build build-dsp --parallel
-          ctest --test-dir build-dsp --output-on-failure
+          ctest --test-dir build-dsp --output-on-failure --no-tests=error -L unit
+          ctest --test-dir build-dsp --output-on-failure --no-tests=error -L audio
 
       - name: Validate C++17 embedded instrument
         run: |
@@ -125,7 +65,6 @@ jobs:
       - name: Render and verify demo audio
         run: |
           set -euo pipefail
-          cmake --build build-dsp --target ElectryRenderDemos --parallel
           ./build-dsp/ElectryRenderDemos Docs/audio
           rendered=$(find Docs/audio -maxdepth 1 -name '*.wav' | wc -l)
           if (( rendered != 23 )); then
@@ -134,11 +73,19 @@ jobs:
           fi
           echo "Electry: rendered all $rendered demo WAVs"
 
+      - name: Upload demo audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-audio-demos
+          path: |
+            README.md
+            Docs/audio/*.wav
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Configure Linux plug-in build
         run: |
-          cmake \
-            -S . \
-            -B build-dsp \
+          cmake -S . -B build-plugin -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DELECTRY_BUILD_PLUGIN=ON \
             -DELECTRY_BUILD_CLAP=ON \
@@ -146,54 +93,30 @@ jobs:
 
       - name: Build Linux VST3, CLAP and standalone
         run: |
-          cmake --build build-dsp --parallel \
+          cmake --build build-plugin --parallel \
             --target Electry_VST3 Electry_CLAP Electry_Standalone \
               ElectryPluginProcessorTests ElectryVST3ArtifactSmokeTests \
               ElectryCLAPArtifactSmokeTests
 
       - name: Validate Linux plug-ins and processor
         run: |
-          xvfb-run -a ctest --test-dir build-dsp --output-on-failure \
-            -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
+          xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
+            --no-tests=error -L unit -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package Linux VST3, CLAP and standalone
-        run: |
-          set -euo pipefail
-          artefacts="build-dsp/Electry_artefacts/Release"
-          test -d "$artefacts/VST3/Electry.vst3"
-          test -s "$artefacts/CLAP/Electry.clap"
-          test -x "$artefacts/Standalone/Electry"
-          dist="build-dsp/dist"
-          mkdir -p "$dist"
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-dsp/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          archive="$dist/Electry-${version}-build-${GITHUB_RUN_NUMBER}-Linux-x64.tar.gz"
-          # Licence and notice files ship inside the binary archive (the MIT
-          # licence requires the notice to accompany binaries).
-          contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
-          for notice in LICENSE THIRD_PARTY_NOTICES.md ThirdParty/*-LICENSE.md; do
-            test -s "$notice"
-            cp "$notice" "$artefacts/$(basename "$notice")"
-            contents+=("$(basename "$notice")")
-          done
-          tar -czf "$archive" -C "$artefacts" "${contents[@]}"
-          test -s "$archive"
-          tar -tzf "$archive" >/dev/null
+        run: python3 scripts/package-linux.py --build-dir build-plugin
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
           name: ci-linux
-          path: build-dsp/dist/Electry-*-build-*-Linux-x64.tar.gz
+          path: build-plugin/dist/Electry-*-build.*-Linux-x64.tar.gz
           if-no-files-found: error
           retention-days: 7
 
   plugin-macos:
-    name: Plug-in build (macOS native arch)
-    runs-on: macos-latest
+    name: Plug-in build and package (macOS universal)
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -205,72 +128,137 @@ jobs:
       - name: Clear screenshot before rendering
         run: rm -f Docs/screenshots/electry.png
 
-      # Native-arch only keeps CI fast; the distribution workflow builds the
-      # full arm64 + x86_64 universal binaries. Uses the same build script
-      # developers run locally, and runs the project's tests.
+      # The same script developers run locally: a universal build plus every
+      # test tier, including the render tier that writes the screenshot.
       - name: Build plug-in and run tests
-        env:
-          BUILD_UNIVERSAL: "OFF"
-          ELECTRY_EDITOR_SNAPSHOT: "${{ github.workspace }}/Docs/screenshots/electry.png"
         run: ./scripts/build-macos.sh
 
       - name: Check that the editor screenshot was rendered
-        run: |
-          set -euo pipefail
-          screenshot="Docs/screenshots/electry.png"
-          if [[ ! -s "$screenshot" ]]; then
-            echo "error: the suite did not render $screenshot" >&2
-            echo "The suite must honour ELECTRY_EDITOR_SNAPSHOT." >&2
-            exit 1
-          fi
-          if [[ "$(head -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]]; then
-            echo "error: $screenshot does not carry the PNG signature" >&2
-            exit 1
-          fi
-          if [[ "$(tail -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "49454e44ae426082" ]]; then
-            echo "error: $screenshot has no terminating IEND chunk, so the write did not finish" >&2
-            exit 1
-          fi
-          echo "Rendered $screenshot ($(wc -c < "$screenshot") bytes)."
+        run: test -s Docs/screenshots/electry.png
+
+      - name: Upload the rendered screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-screenshot
+          path: Docs/screenshots/electry.png
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Package (ad-hoc-signed bundles)
+        run: ./scripts/sign-and-package-macos.sh
+
+      - name: Upload macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-macos
+          path: |
+            build-macos/dist/Electry-*-build.*-macOS-universal.zip
+            build-macos/dist/Electry-*-build.*-macOS-universal.pkg
+          if-no-files-found: error
+          retention-days: 7
 
   dsp-tests-windows:
-    name: DSP tests (JUCE-free, Windows)
+    name: DSP tests and Windows package
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Configure DSP tests
-        # Embed the Release C++ runtime so the ZIP works without a separate
-        # Visual C++ redistributable installation.
+      # Embed the Release C++ runtime so the ZIP works without a separate
+      # Visual C++ redistributable installation.
+      - name: Configure DSP build
         run: |
-          cmake -S . -B build-win -A x64 -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+          cmake -S . -B build-dsp -A x64 -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
 
-      - name: Build and test DSP engine
+      - name: Build and run the unit tier
         run: |
-          cmake --build build-win --config Release --parallel
+          cmake --build build-dsp --config Release --parallel
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir build-win -C Release --output-on-failure
+          ctest --test-dir build-dsp -C Release --output-on-failure --no-tests=error -L unit
 
       - name: Configure Windows plug-in build
         run: |
-          cmake -S . -B build-win -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DBUILD_TESTING=ON
+          cmake -S . -B build-plugin -A x64 -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DELECTRY_BUILD_TOOLS=OFF -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
 
-      - name: Build Windows VST3, CLAP and standalone and run tests
+      - name: Build Windows VST3, CLAP and standalone and run plug-in tests
         run: |
-          cmake --build build-win --config Release --parallel
+          cmake --build build-plugin --config Release --parallel --target Electry_VST3 Electry_CLAP Electry_Standalone ElectryPluginProcessorTests ElectryVST3ArtifactSmokeTests ElectryCLAPArtifactSmokeTests
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir build-win -C Release --output-on-failure -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
+          ctest --test-dir build-plugin -C Release --output-on-failure --no-tests=error -L unit -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
       - name: Package Windows VST3, CLAP and standalone
-        shell: pwsh
-        run: ./scripts/package-windows.ps1 -BuildDir build-win
+        run: python scripts/package-windows.py --build-dir build-plugin
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
           name: ci-windows
-          path: build-win/dist/Electry-*-Windows-x64.zip
+          path: build-plugin/dist/Electry-*-build.*-Windows-x64.zip
           if-no-files-found: error
+          retention-days: 7
+
+  sanitizers:
+    name: Address/UB sanitizers, fuzzing and C++17 Rack build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install compiler and host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang ninja-build pkg-config xvfb xauth \
+            libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev
+      - name: Build the Rack's C++17 sources with its flags
+        run: |
+          cmake -S . -B build-cxx17 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DELECTRY_BUILD_PLUGIN=OFF -DELECTRY_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF
+          cmake --build build-cxx17 --parallel 2 --target ElectryDSPCxx17
+      - name: Configure instrumented DSP and processor tests
+        run: |
+          cmake -S . -B build-sanitize -G Ninja \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DELECTRY_ENABLE_SANITIZERS=ON -DELECTRY_BUILD_FUZZER=ON \
+            -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
+          cmake --build build-sanitize --parallel 2 --target \
+            ElectryEngineTests ElectryFxTests ElectryPluginProcessorTests ElectryDspFuzz
+      - name: Run unit and fuzz tiers under the sanitizers
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          xvfb-run -a ctest --test-dir build-sanitize --output-on-failure \
+            --no-tests=error -L 'unit|fuzz' \
+            -R '^Electry\.(ElectryEngine|ElectryFx|PluginProcessor|DspFuzz)$'
+      - name: Mutate DSP API sequences
+        run: |
+          mkdir -p build-sanitize/corpus build-sanitize/fuzz-artifacts
+          python3 - <<'PY'
+          import pathlib, random
+          corpus = pathlib.Path('build-sanitize/corpus')
+          rng = random.Random(0xE1EC7)
+          for index in range(32):
+              # Seed ordinary notes as well as raw parameter/controller bytes.
+              prefix = bytes([index % 12, 128, 2, 72, 7, 255, 0, 31])
+              (corpus / str(index)).write_bytes(prefix + rng.randbytes(512))
+          PY
+          build-sanitize/ElectryDspFuzz build-sanitize/corpus \
+            -seed=20260914 -max_total_time=120 -max_len=4096 \
+            -timeout=30 -rss_limit_mb=2048 \
+            -artifact_prefix=build-sanitize/fuzz-artifacts/
+      - name: Preserve fuzz reproducers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizers-fuzz-corpus
+          path: |
+            build-sanitize/corpus
+            build-sanitize/fuzz-artifacts
+            build-sanitize/Testing/Temporary/LastTest.log
           retention-days: 7

@@ -201,7 +201,7 @@ This link downloads the complete binary package set, including the plug-ins and
 standalone applications below. GitHub requires sign-in to download workflow
 artifacts. Successful builds refresh this link automatically. You can also find
 `electry-main-build-<build number>` in the **Artifacts** section of
-**[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/nightly.yml?query=branch%3Amain+is%3Asuccess)**
+**[successful Main builds](https://github.com/protocodus/virtual-instrument-electry/actions/workflows/main-build.yml?query=branch%3Amain+is%3Asuccess)**
 (older runs use `electry-main-build`).
 
 | Platform | Formats | Package |
@@ -212,11 +212,11 @@ artifacts. Successful builds refresh this link automatically. You can also find
 
 Every merge to `main` rebuilds the distributions, screenshot and all 23 audio
 demos. Each download includes that complete set, source revision and SHA-256
-checksums, and remains available for 14 days. Builds also refresh daily.
-New package filenames include the workflow run number, for example
-`Electry-1.2.0-build-16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
-macOS ZIP use the same version and build number. `BUILD_NUMBER.txt` records it
-inside the combined download.
+checksums, and remains available for 30 days. Builds also refresh daily.
+Package filenames include the workflow run number, for example
+`Electry-1.2.0-build.16-macOS-universal.pkg`; the Windows ZIP, Linux tarball and
+macOS ZIP use the same version and build number. `BUILD.txt` records the build
+number and source commit inside the combined download.
 
 macOS bundles are ad-hoc signed; the PKG installer is unsigned and the builds
 are not notarized. Audio Unit is available only on macOS.
@@ -1381,7 +1381,8 @@ The JUCE-free DSP core, tests and demo renderer:
 cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release \
   -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
 cmake --build build-dsp --parallel
-ctest --test-dir build-dsp --output-on-failure
+ctest --test-dir build-dsp --output-on-failure -L unit
+ctest --test-dir build-dsp --output-on-failure -L audio
 ./build-dsp/ElectryRenderDemos Docs/audio
 ./build-dsp/ElectryRenderEvaluation build-dsp/evaluation
 ./build-dsp/ElectryRenderEvaluation --metal-benchmark build-dsp/metal-benchmark
@@ -1419,17 +1420,24 @@ commits at configure time; pass `-DELECTRY_JUCE_PATH=/path/to/JUCE` to use a
 local JUCE checkout, or `-DELECTRY_BUILD_CLAP=OFF` to omit CLAP):
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
+cmake -S . -B build-plugin -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build-plugin --parallel
+ctest --test-dir build-plugin --output-on-failure
 ```
+
+Every CTest test carries one tier label: `unit` (DSP, performer, processor and
+tool contracts), `audio` (the full demo set renders identically twice),
+`render` (`Electry.EditorScreenshot` writes `build-plugin/screenshots/electry.png`
+and checks it is a whole 1180 x 910 PNG) and `fuzz` (a short libFuzzer session,
+in `-DELECTRY_BUILD_FUZZER=ON` builds). Select tiers with `ctest -L <tier>`.
+`ElectryDSPCxx17` compiles the Rack Extension's sources with its C++17 flags.
 
 Independent offline demo takes can render concurrently, with identical audio
 and report order. The worker count is explicit and bounded (1 through 23);
 large DSP state lives on the heap so small worker stacks are sufficient:
 
 ```bash
-./build/ElectryRenderDemos --jobs 4 build/demo-audio
+./build-plugin/ElectryRenderDemos --jobs 4 build-plugin/demo-audio
 ```
 
 The renderer preserves unrelated WAVs in ad-hoc output directories. The
@@ -1468,7 +1476,7 @@ Keep sanitizer and fuzz builds separate from distribution builds.
 Run the opt-in full-chain callback benchmark directly from that Release build:
 
 ```bash
-ELECTRY_BENCHMARK_REALTIME=1 ./build/ElectryPluginProcessorTests
+ELECTRY_BENCHMARK_REALTIME=1 ./build-plugin/ElectryPluginProcessorTests
 ```
 
 Its `BENCH` rows include rate, frame count, scenario, measured-block count,
@@ -1511,8 +1519,8 @@ The [earlier FX CPU optimization measurements](Docs/benchmarks/fx-cpu-optimizati
 retain the preceding implementation's measurements and validation.
 
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
-universal VST3, Audio Unit, CLAP and Standalone app and renders the committed editor
-screenshot while the suite runs. After final signing it runs
+universal VST3, Audio Unit, CLAP and Standalone app, runs every test tier and
+copies the render tier's screenshot to `Docs/screenshots/electry.png`. After final signing it runs
 `./scripts/validate-macos-artifacts.sh` against those exact bundles, including
 strict signature and identity checks plus direct AU, VST3 and CLAP load/render/state
 smokes. After installation, `auval -strict -v aumu Elc1 Eltr` remains a useful
@@ -1522,12 +1530,14 @@ stages, signs and packages all four products; provide the signing and
 notarization environment described by that script for Developer ID distribution.
 
 Every push to `main` (including a merged pull request) runs the
-[Main build workflow](.github/workflows/nightly.yml). It builds macOS universal
+[Main build workflow](.github/workflows/main-build.yml). It builds macOS universal
 (Apple Silicon + Intel) VST3, Audio Unit, CLAP and Standalone as a ZIP and PKG;
 Windows x64 VST3, CLAP and Standalone as a ZIP; and Linux x64 VST3, CLAP and
 Standalone as a tarball. Audio Unit is macOS-only. Windows Release builds link
 the C++ runtime statically. macOS bundles are ad-hoc signed; the CI installer
-is unsigned and is not notarized.
+is unsigned and is not notarized. The VST3 must pass pluginval at strictness
+level 10 on every platform and the AU must pass `auval -strict`; a 30-minute
+sanitized libFuzzer run goes alongside.
 
 Each main build also renders the editor screenshot and all 23 canonical audio
 demos from the same source commit. After every platform build succeeds and the
@@ -1540,18 +1550,29 @@ or a newer build link have already landed on `main`.
 Use the [direct binary download](#downloads), or download
 `electry-main-build-<build number>` from the completed run's **Artifacts** section
 in GitHub Actions. It includes packages named
-`Electry-<version>-build-<build number>-<platform>-<architecture>`, the screenshot
-and audio demos under `media/`, SHA-256 checksums, the build number and the source
-commit, retained for 14 days.
+`Electry-<version>-build.<build number>-<platform>`, the screenshot and audio
+demos under `media/`, `SHA256SUMS` and `BUILD.txt` (build number and source
+commit), retained for 30 days.
 Each merge gets its own run, including when other builds are still in progress.
 The same workflow also runs daily at 03:00 UTC and supports **Run workflow**
 manually. Manual branch builds keep their outputs as artifacts; only builds of
 `main` update the committed media.
-For a local Windows Release build, `./scripts/package-windows.ps1 -BuildDir
-build-win` packages the built products and dependency notices.
-Local macOS and Windows packaging uses `BUILD_NUMBER`, then `GITHUB_RUN_NUMBER`,
-and defaults to build `0` when neither is set. Set `BUILD_NUMBER=123` for macOS
-packaging or pass `-BuildNumber 123` to the Windows script to label a local build.
+For a local Release build, `python3 scripts/package-windows.py --build-dir
+build-plugin` or `python3 scripts/package-linux.py --build-dir build-plugin`
+packages the built products and dependency notices.
+Local packaging uses `BUILD_NUMBER`, then `GITHUB_RUN_NUMBER`, and defaults to
+build `0` when neither is set. Set `BUILD_NUMBER=123`, or pass
+`--build-number 123` to the Python packagers, to label a local build.
+
+A `vX.Y.Z` tag runs the [Release workflow](.github/workflows/release.yml): it
+checks that the tag names the CMake version, runs every test tier on all three
+platforms and under the sanitizers, validates with pluginval and auval, and
+drafts a GitHub release with the four packages and `SHA256SUMS`. When the
+`MACOS_CERTIFICATES_P12`, `MACOS_CERTIFICATES_PASSWORD`,
+`MACOS_APP_SIGN_IDENTITY` and `MACOS_INSTALLER_SIGN_IDENTITY` secrets exist it
+signs with Developer ID, and with `MACOS_NOTARY_APPLE_ID`,
+`MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD` it also notarizes and
+staples the PKG.
 
 ## Licensing
 

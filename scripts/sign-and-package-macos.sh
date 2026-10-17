@@ -173,9 +173,9 @@ sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/Components/Electry.component
 sign_bundle "${PACKAGE_ROOT}/Library/Audio/Plug-Ins/CLAP/Electry.clap"
 sign_bundle "${PACKAGE_ROOT}/Applications/Electry.app"
 
-ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
-PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-unsigned.pkg"
-PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build-${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"
+ZIP_PATH="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.zip"
+PKG_UNSIGNED="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-unsigned.pkg"
+PKG_FINAL="${DIST_DIR}/Electry-${VERSION}-build.${BUILD_NUMBER}-macOS-${ARTIFACT_ARCH}.pkg"
 
 # Leave exactly one Electry release set in dist, avoiding stale version or
 # architecture names in wildcard-driven CI publication.

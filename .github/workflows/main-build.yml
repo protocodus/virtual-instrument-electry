@@ -13,6 +13,11 @@ permissions:
 
 env:
   BUILD_NUMBER: ${{ github.run_number }}
+  # A pinned pluginval release, each archive checked against its SHA-256.
+  PLUGINVAL_VERSION: v1.0.4
+  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
+  PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
+  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
 
 # Each push builds independently: a shared concurrency group would discard
 # pending builds when several merges arrive while another run is still active.
@@ -21,19 +26,24 @@ jobs:
   # Linux is the canonical demo renderer. Keep the whole rendered set in the
   # run even when a newer source commit makes this run too old to update main.
   refresh-audio-demos:
-    name: Render audio demos and README peak table
+    name: DSP tiers, audio demos and README peak table
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
-      - name: Render and verify all 23 audio demos
+      - name: Build and run the unit and audio tiers
         run: |
           set -euo pipefail
           cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release \
-            -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=OFF
-          cmake --build build-dsp --parallel --target ElectryRenderDemos
+            -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-dsp --parallel
+          ctest --test-dir build-dsp --output-on-failure --no-tests=error -L 'unit|audio'
+
+      - name: Render and verify all 23 audio demos
+        run: |
+          set -euo pipefail
           ./build-dsp/ElectryRenderDemos Docs/audio
           rendered=$(find Docs/audio -maxdepth 1 -name '*.wav' | wc -l)
           if (( rendered != 23 )); then
@@ -50,12 +60,50 @@ jobs:
           name: main-build-audio
           path: build-dsp/audio-demos.tar.gz
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+  # The long coverage-guided session; every PR runs a short one in ci.yml.
+  long-fuzz:
+    name: Long sanitized DSP fuzz run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Build the libFuzzer harness
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build
+          cmake -S . -B build-fuzz -G Ninja \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DELECTRY_BUILD_FUZZER=ON \
+            -DELECTRY_BUILD_PLUGIN=OFF -DELECTRY_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF
+          cmake --build build-fuzz --parallel --target ElectryDspFuzz
+
+      - name: Fuzz the DSP API for 30 minutes
+        run: |
+          mkdir -p build-fuzz/corpus build-fuzz/fuzz-artifacts
+          build-fuzz/ElectryDspFuzz build-fuzz/corpus \
+            -seed="$BUILD_NUMBER" -max_total_time=1800 -max_len=4096 \
+            -timeout=30 -rss_limit_mb=2048 \
+            -artifact_prefix=build-fuzz/fuzz-artifacts/
+
+      - name: Preserve fuzz reproducers
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: long-fuzz-${{ github.run_number }}
+          path: |
+            build-fuzz/corpus
+            build-fuzz/fuzz-artifacts
+          retention-days: 30
 
   build-macos:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: macOS universal (VST3, AU, CLAP, standalone)
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -69,37 +117,16 @@ jobs:
       - name: Clear the committed screenshot before rendering
         run: rm -f Docs/screenshots/electry.png
 
-      # Full arm64 + x86_64 universal build (script default) plus the project's
-      # tests. The suite renders the committed editor screenshot while it runs,
-      # so the image in the README tracks the real editor.
+      # Full arm64 + x86_64 universal build (script default) plus every test
+      # tier. The render tier writes the committed editor screenshot, so the
+      # image in the README tracks the real editor.
       - name: Build and run tests
-        run: |
-          set -euo pipefail
-          export "ELECTRY_EDITOR_SNAPSHOT=${GITHUB_WORKSPACE}/Docs/screenshots/electry.png"
-          ./scripts/build-macos.sh
+        run: ./scripts/build-macos.sh
 
+      # The render tier already checked the PNG; this proves it reached the
+      # committed path.
       - name: Check that the editor screenshot was rendered
-        run: |
-          set -euo pipefail
-          screenshot="Docs/screenshots/electry.png"
-          if [[ ! -s "$screenshot" ]]; then
-            echo "error: the suite did not render $screenshot" >&2
-            echo "The suite must honour ELECTRY_EDITOR_SNAPSHOT." >&2
-            exit 1
-          fi
-          if [[ "$(head -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]]; then
-            echo "error: $screenshot does not carry the PNG signature" >&2
-            exit 1
-          fi
-          # The signature alone only proves the write started: a PNG truncated
-          # part way through still carries it. Every PNG ends with a zero-length
-          # IEND chunk and its constant CRC, so the trailer is what proves the
-          # encoder ran to completion and a whole image landed.
-          if [[ "$(tail -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "49454e44ae426082" ]]; then
-            echo "error: $screenshot has no terminating IEND chunk, so the write did not finish" >&2
-            exit 1
-          fi
-          echo "Rendered $screenshot ($(wc -c < "$screenshot") bytes)."
+        run: test -s Docs/screenshots/electry.png
 
       # Uploaded before packaging so that a packaging failure cannot cost the
       # run the screenshot it has already rendered, and handed to the commit job
@@ -117,25 +144,38 @@ jobs:
           name: main-build-screenshot
           path: Docs/screenshots/electry.png
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-      - name: Package (ad-hoc-signed bundles)
+      - name: Validate the AU with auval
         run: |
           set -euo pipefail
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-macos/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          VERSION="$version" ./scripts/sign-and-package-macos.sh
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          ditto "build-macos/Electry_artefacts/Release/AU/Electry.component" "$components/Electry.component"
+          # The registrar caches the component list; restarting it rescans.
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -strict -v aumu Elc1 Eltr
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-macos
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
+          echo "${PLUGINVAL_MACOS_SHA256}  pluginval.zip" | shasum -a 256 -c -
+          ditto -x -k pluginval.zip .
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+
+      - name: Package (ad-hoc-signed bundles)
+        run: ./scripts/sign-and-package-macos.sh
 
       - name: Check that both distributable packages were produced
         run: |
           set -euo pipefail
           shopt -s nullglob
           packages=(
-            build-macos/dist/Electry-*-macOS-universal.zip
-            build-macos/dist/Electry-*-macOS-universal.pkg
+            build-macos/dist/Electry-*-build.*-macOS-universal.zip
+            build-macos/dist/Electry-*-build.*-macOS-universal.pkg
           )
           if (( ${#packages[@]} != 2 )); then
             echo "error: expected one zip and one pkg, found ${#packages[@]}" >&2
@@ -150,12 +190,12 @@ jobs:
         with:
           name: distribution-packages-macos
           path: |
-            build-macos/dist/Electry-*-macOS-universal.zip
-            build-macos/dist/Electry-*-macOS-universal.pkg
+            build-macos/dist/Electry-*-build.*-macOS-universal.zip
+            build-macos/dist/Electry-*-build.*-macOS-universal.pkg
           if-no-files-found: error
           retention-days: 1
 
-  build-linux:
+  build-plugin:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: Linux build and package
     runs-on: ubuntu-24.04
@@ -178,7 +218,7 @@ jobs:
         run: |
           cmake \
             -S . \
-            -B build-linux \
+            -B build-plugin \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DELECTRY_BUILD_PLUGIN=ON \
@@ -187,52 +227,38 @@ jobs:
 
       - name: Build VST3, CLAP and standalone
         run: |
-          cmake --build build-linux --parallel \
+          cmake --build build-plugin --parallel \
             --target Electry_VST3 Electry_CLAP Electry_Standalone \
               ElectryPluginProcessorTests ElectryVST3ArtifactSmokeTests \
               ElectryCLAPArtifactSmokeTests
 
       - name: Validate Linux plug-ins and processor
         run: |
-          xvfb-run -a ctest --test-dir build-linux --output-on-failure \
-            -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
+          xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
+            --no-tests=error -L unit -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
-      - name: Package (Linux x64 tarball)
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
         run: |
           set -euo pipefail
-          artefacts="build-linux/Electry_artefacts/Release"
-          test -d "$artefacts/VST3/Electry.vst3"
-          test -s "$artefacts/CLAP/Electry.clap"
-          test -x "$artefacts/Standalone/Electry"
-          dist="build-linux/dist"
-          mkdir -p "$dist"
-          version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build-linux/CMakeCache.txt)"
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
-            echo "error: invalid CMake project version: ${version:-missing}" >&2
-            exit 1
-          fi
-          archive="$dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
-          # Licence and notice files ship inside the binary archive (the MIT
-          # licence requires the notice to accompany binaries).
-          contents=("VST3/Electry.vst3" "CLAP/Electry.clap" "Standalone/Electry")
-          for notice in LICENSE THIRD_PARTY_NOTICES.md ThirdParty/*-LICENSE.md; do
-            test -s "$notice"
-            cp "$notice" "$artefacts/$(basename "$notice")"
-            contents+=("$(basename "$notice")")
-          done
-          tar -czf "$archive" -C "$artefacts" "${contents[@]}"
-          test -s "$archive"
-          tar -tzf "$archive" >/dev/null
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
+          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
+          unzip -q -o pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+
+      - name: Package (Linux x64 tarball)
+        run: python3 scripts/package-linux.py --build-dir build-plugin
 
       - name: Upload the distributable Linux package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: distribution-packages-linux
-          path: build-linux/dist/Electry-*-Linux-x64.tar.gz
+          path: build-plugin/dist/Electry-*-build.*-Linux-x64.tar.gz
           if-no-files-found: error
           retention-days: 1
 
-  build-windows:
+  build-plugindows:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: Windows x64 (VST3, CLAP, standalone)
     runs-on: windows-2025
@@ -244,23 +270,33 @@ jobs:
       - name: Configure
         # Embed the Release C++ runtime in every target, including dependencies.
         run: |
-          cmake -S . -B build-win -A x64 -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+          cmake -S . -B build-plugin -A x64 -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
 
       - name: Build VST3, CLAP and standalone and run tests
         run: |
-          cmake --build build-win --config Release --parallel
+          cmake --build build-plugin --config Release --parallel
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --test-dir build-win -C Release --output-on-failure
+          ctest --test-dir build-plugin -C Release --output-on-failure --no-tests=error
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
+          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
+          7z x -y pluginval.zip
+          ./pluginval.exe --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
 
       - name: Package (Windows x64 ZIP)
-        shell: pwsh
-        run: ./scripts/package-windows.ps1 -BuildDir build-win
+        run: python scripts/package-windows.py --build-dir build-plugin
 
       - name: Upload the distributable Windows package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: distribution-packages-win
-          path: build-win/dist/Electry-*-Windows-x64.zip
+          path: build-plugin/dist/Electry-*-build.*-Windows-x64.zip
           if-no-files-found: error
           retention-days: 1
 
@@ -270,7 +306,7 @@ jobs:
   collect-packages:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: Collect packages, screenshot and audio demos
-    needs: [build-macos, build-linux, build-windows, refresh-audio-demos]
+    needs: [build-macos, build-plugin, build-plugindows, refresh-audio-demos]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -298,16 +334,16 @@ jobs:
           fi
           filename="${mac_zips[0]##*/}"
           version="${filename#Electry-}"
-          version="${version%-build-${BUILD_NUMBER}-macOS-universal.zip}"
+          version="${version%-build.${BUILD_NUMBER}-macOS-universal.zip}"
           if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
             echo "error: invalid version in $filename" >&2
             exit 1
           fi
           expected=(
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.zip"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-macOS-universal.pkg"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-Linux-x64.tar.gz"
-            "dist/Electry-${version}-build-${BUILD_NUMBER}-Windows-x64.zip"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-macOS-universal.zip"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-macOS-universal.pkg"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-Linux-x64.tar.gz"
+            "dist/Electry-${version}-build.${BUILD_NUMBER}-Windows-x64.zip"
           )
           for asset in "${expected[@]}"; do
             if [[ ! -s "$asset" ]]; then
@@ -346,10 +382,9 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          printf '%s\n' "$SOURCE_COMMIT" > SOURCE_COMMIT.txt
-          printf '%s\n' "$BUILD_NUMBER" > BUILD_NUMBER.txt
-          find . -type f ! -name SHA256SUMS.txt -print0 \
-            | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          printf 'build=%s\ncommit=%s\n' "$BUILD_NUMBER" "$SOURCE_COMMIT" > BUILD.txt
+          find . -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum > SHA256SUMS
 
       # Retained on the workflow run itself, downloadable by anyone with repo
       # access, as one complete cross-platform set.
@@ -360,7 +395,7 @@ jobs:
           name: electry-main-build-${{ github.run_number }}
           path: dist
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   # A single writer updates both media sets and the final download link only
   # after every product was built and the complete artifact was uploaded.
@@ -390,9 +425,8 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(cat SOURCE_COMMIT.txt)" = "$SOURCE_COMMIT"
-          test "$(cat BUILD_NUMBER.txt)" = "$BUILD_NUMBER"
-          sha256sum --check SHA256SUMS.txt
+          test "$(cat BUILD.txt)" = "$(printf 'build=%s\ncommit=%s' "$BUILD_NUMBER" "$SOURCE_COMMIT")"
+          sha256sum --check SHA256SUMS
 
       - name: Commit media and final artifact link from this source version
         env:

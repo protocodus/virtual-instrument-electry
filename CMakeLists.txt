@@ -147,6 +147,29 @@ else()
     target_compile_options(ElectryDSP PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# The Rack Extension compiles these sources with the Jukebox SDK's C++17
+# toolchain and the flags in its build45.py; this target proves that build
+# here, with the same shipping feature defines, before a pin advances.
+if(NOT MSVC)
+    add_library(ElectryDSPCxx17 OBJECT
+        Source/DSP/ElectryEngine.cpp
+        Source/DSP/ElectryFx.cpp
+        Source/DSP/ElectryPerformer.cpp)
+    target_include_directories(ElectryDSPCxx17
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+    set_target_properties(ElectryDSPCxx17 PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF)
+    target_compile_definitions(ElectryDSPCxx17 PRIVATE
+        ELECTRY_EMBEDDED_TARGET=1
+        ELECTRY_MEASURED_BODY_RESPONSE=1
+        ELECTRY_DECOUPLED_PICK_RELEASE=1
+        ELECTRY_ENERGY_ATTACK_PITCH=1)
+    target_compile_options(ElectryDSPCxx17 PRIVATE
+        -Wall -fno-exceptions -fno-rtti -fno-builtin)
+endif()
+
 add_executable(ElectryRenderRealismComparison Tools/RenderRealismComparison.cpp)
 target_link_libraries(ElectryRenderRealismComparison PRIVATE ElectryDSP)
 if(BUILD_TESTING)
@@ -498,6 +521,18 @@ if(BUILD_TESTING)
             set_tests_properties(Electry.PluginProcessor PROPERTIES TIMEOUT 60)
         endif()
 
+        # The README screenshot is the processor suite's own editor render;
+        # this test writes it to the build tree and checks the finished PNG.
+        set(ELECTRY_SCREENSHOT "${CMAKE_CURRENT_BINARY_DIR}/screenshots/electry.png")
+        add_test(NAME Electry.EditorScreenshot
+                 COMMAND ${CMAKE_COMMAND}
+                         -DELECTRY_PROCESSOR_TESTS=$<TARGET_FILE:ElectryPluginProcessorTests>
+                         -DELECTRY_SCREENSHOT=${ELECTRY_SCREENSHOT}
+                         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RenderEditorScreenshot.cmake)
+        set_tests_properties(Electry.EditorScreenshot PROPERTIES
+            LABELS render
+            TIMEOUT 120)
+
         # Black-box the built product rather than linking the processor class:
         # this catches a broken VST3 bundle, wrapper or exported host contract.
         add_executable(ElectryVST3ArtifactSmokeTests
@@ -582,7 +617,9 @@ if(BUILD_TESTING)
                 COMMAND "${Python3_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Tests/ParallelRenderTests.py"
                     $<TARGET_FILE:ElectryRenderDemos>)
-            set_tests_properties(Electry.ParallelRender PROPERTIES TIMEOUT 300)
+            set_tests_properties(Electry.ParallelRender PROPERTIES
+                LABELS audio
+                TIMEOUT 300)
         endif()
         add_test(NAME Electry.RefreshGeneratedMedia
                  COMMAND "${Python3_EXECUTABLE}"
@@ -612,4 +649,25 @@ if(BUILD_TESTING)
             Electry.FitDispersion
             PROPERTIES TIMEOUT 60)
     endif()
+
+    if(ELECTRY_BUILD_FUZZER)
+        # A short, fixed-seed libFuzzer session; CI adds a longer time-boxed run.
+        add_test(NAME Electry.DspFuzz
+                 COMMAND ElectryDspFuzz -seed=20260914 -max_total_time=60 -max_len=4096
+                         -timeout=30 -rss_limit_mb=2048)
+        set_tests_properties(Electry.DspFuzz PROPERTIES
+            LABELS fuzz
+            TIMEOUT 600)
+    endif()
+
+    # Every test carries exactly one tier label (unit, audio, render or fuzz)
+    # so CI selects tiers with `ctest -L`; a test not labelled above is a unit
+    # contract.
+    get_property(ELECTRY_TESTS DIRECTORY PROPERTY TESTS)
+    foreach(electry_test IN LISTS ELECTRY_TESTS)
+        get_test_property(${electry_test} LABELS electry_test_label)
+        if(NOT electry_test_label)
+            set_tests_properties(${electry_test} PROPERTIES LABELS unit)
+        endif()
+    endforeach()
 endif()

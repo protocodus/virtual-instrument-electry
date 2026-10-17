@@ -1,0 +1,310 @@
+name: Release
+
+# A v* tag runs every test tier, validates and packages every format and drafts
+# a GitHub release from them. The README's Build section lists the secrets.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUILD_NUMBER: ${{ github.run_number }}
+  # A pinned pluginval release, each archive checked against its SHA-256.
+  PLUGINVAL_VERSION: v1.0.4
+  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
+  PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
+  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
+
+jobs:
+  version:
+    name: Check the tag names the CMake version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          version="$(sed -n 's/^project(Electry VERSION \([0-9.]*\) .*/\1/p' CMakeLists.txt)"
+          if [[ "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "error: tag $GITHUB_REF_NAME does not name project version $version" >&2
+            exit 1
+          fi
+
+  macos:
+    name: macOS universal (VST3, AU, CLAP, standalone)
+    needs: version
+    runs-on: macos-15
+    outputs:
+      signing: ${{ steps.signing.outputs.state || 'ad-hoc signed, pkg unsigned, not notarized' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build universal plug-in and run every tier
+        run: ./scripts/build-macos.sh
+
+      - name: Validate the AU with auval
+        run: |
+          set -euo pipefail
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          ditto "build-macos/Electry_artefacts/Release/AU/Electry.component" "$components/Electry.component"
+          # The registrar caches the component list; restarting it rescans.
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -strict -v aumu Elc1 Eltr
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-macos
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
+          echo "${PLUGINVAL_MACOS_SHA256}  pluginval.zip" | shasum -a 256 -c -
+          ditto -x -k pluginval.zip .
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+
+      - name: Import Developer ID identities
+        id: signing
+        env:
+          CERTIFICATES_P12: ${{ secrets.MACOS_CERTIFICATES_P12 }}
+          CERTIFICATES_PASSWORD: ${{ secrets.MACOS_CERTIFICATES_PASSWORD }}
+          APP_IDENTITY: ${{ secrets.MACOS_APP_SIGN_IDENTITY }}
+          INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$CERTIFICATES_P12" ]]; then
+            echo "::notice::No MACOS_CERTIFICATES_P12 secret: the macOS bundles are signed ad hoc and the pkg is unsigned."
+            exit 0
+          fi
+          if [[ -z "$APP_IDENTITY" || -z "$INSTALLER_IDENTITY" ]]; then
+            echo "::error::MACOS_CERTIFICATES_P12 needs MACOS_APP_SIGN_IDENTITY and MACOS_INSTALLER_SIGN_IDENTITY."
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/electry-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo -n "$CERTIFICATES_P12" | base64 --decode -o "$RUNNER_TEMP/certificates.p12"
+          security import "$RUNNER_TEMP/certificates.p12" -P "$CERTIFICATES_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          rm -f "$RUNNER_TEMP/certificates.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -s "$keychain"
+          {
+            echo "APP_SIGN_IDENTITY=$APP_IDENTITY"
+            echo "INSTALLER_SIGN_IDENTITY=$INSTALLER_IDENTITY"
+          } >> "$GITHUB_ENV"
+          state="Developer ID signed, not notarized"
+          if [[ -n "$NOTARY_PASSWORD" ]]; then
+            xcrun notarytool store-credentials electry-notary --apple-id "$NOTARY_APPLE_ID" \
+              --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --keychain "$keychain"
+            echo "NOTARY_PROFILE=electry-notary" >> "$GITHUB_ENV"
+            state="Developer ID signed, pkg notarized and stapled"
+          else
+            echo "::notice::No MACOS_NOTARY_PASSWORD secret: the macOS package is not notarized."
+          fi
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
+      - name: Package macOS formats
+        run: ./scripts/sign-and-package-macos.sh
+
+      - name: Upload macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            build-macos/dist/Electry-*-build.*-macOS-universal.zip
+            build-macos/dist/Electry-*-build.*-macOS-universal.pkg
+          if-no-files-found: error
+          retention-days: 30
+
+  linux:
+    name: Linux x64 (VST3, CLAP, standalone)
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install JUCE Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config xvfb xauth \
+            libasound2-dev \
+            libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev
+
+      - name: Build and run the unit and audio tiers
+        run: |
+          cmake -S . -B build-dsp -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-dsp --parallel
+          ctest --test-dir build-dsp --output-on-failure --no-tests=error -L 'unit|audio'
+
+      - name: Build VST3, CLAP and standalone
+        run: |
+          cmake -S . -B build-plugin -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DBUILD_TESTING=ON
+          cmake --build build-plugin --parallel \
+            --target Electry_VST3 Electry_CLAP Electry_Standalone \
+              ElectryPluginProcessorTests ElectryVST3ArtifactSmokeTests \
+              ElectryCLAPArtifactSmokeTests
+
+      - name: Run the plug-in unit and render tiers
+        run: |
+          xvfb-run -a ctest --test-dir build-plugin --output-on-failure --no-tests=error \
+            -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact|EditorScreenshot)$'
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
+          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
+          unzip -q -o pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+
+      - name: Package
+        run: python3 scripts/package-linux.py --build-dir build-plugin
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: build-plugin/dist/Electry-*-build.*-Linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    name: Windows x64 (VST3, CLAP, standalone)
+    needs: version
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Embed the Release C++ runtime so the ZIP needs no redistributable.
+      - name: Build and run every tier
+        run: |
+          cmake -S . -B build-plugin -A x64 -DELECTRY_BUILD_PLUGIN=ON -DELECTRY_BUILD_CLAP=ON -DBUILD_TESTING=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-plugin --config Release --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build-plugin -C Release --output-on-failure --no-tests=error
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
+          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
+          7z x -y pluginval.zip
+          ./pluginval.exe --strictness-level 10 --verbose \
+            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+
+      - name: Package
+        run: python scripts/package-windows.py --build-dir build-plugin
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: build-plugin/dist/Electry-*-build.*-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  sanitizers:
+    name: Unit and fuzz tiers under ASan + UBSan
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install compiler and host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang ninja-build pkg-config xvfb xauth \
+            libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev
+      - name: Build and run
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          cmake -S . -B build-sanitize -G Ninja \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DELECTRY_ENABLE_SANITIZERS=ON -DELECTRY_BUILD_FUZZER=ON \
+            -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
+          cmake --build build-sanitize --parallel 2 --target \
+            ElectryDSPCxx17 ElectryEngineTests ElectryFxTests ElectryPluginProcessorTests ElectryDspFuzz
+          xvfb-run -a ctest --test-dir build-sanitize --output-on-failure \
+            --no-tests=error -L 'unit|fuzz' \
+            -R '^Electry\.(ElectryEngine|ElectryFx|PluginProcessor|DspFuzz)$'
+
+  draft-release:
+    name: Draft the GitHub release
+    needs: [macos, linux, windows, sanitizers]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - name: Check the package set and write SHA256SUMS
+        working-directory: release
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          for platform in macOS-universal.zip macOS-universal.pkg Linux-x64.tar.gz Windows-x64.zip; do
+            test -s "Electry-${version}-build.${BUILD_NUMBER}-${platform}"
+          done
+          test "$(find . -type f | wc -l)" -eq 4
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create the draft release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_SIGNING: ${{ needs.macos.outputs.signing }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Drafted by the release workflow from ${GITHUB_SHA}:"
+            echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "- macOS universal: ${MACOS_SIGNING}."
+            echo "- Windows x64: not Authenticode-signed."
+            echo "- Linux x64: not signed."
+            echo
+            echo "Every test tier passed; the VST3 passed pluginval at strictness level 10 on every platform and the AU passed auval -strict. CLAP and the standalone are covered by the artifact smoke tests only, and this workflow loads the plug-ins in no DAW."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Electry ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" -- *

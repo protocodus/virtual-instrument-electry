@@ -59,8 +59,9 @@ fi
 
 cmake "${cmake_args[@]}"
 cmake --build "${BUILD_DIR}" --config "${CONFIG}" --parallel
-ELECTRY_EDITOR_SNAPSHOT="${PROJECT_DIR}/Docs/screenshots/electry.png" \
-    ctest --test-dir "${BUILD_DIR}" -C "${CONFIG}" --output-on-failure
+ctest --test-dir "${BUILD_DIR}" -C "${CONFIG}" --output-on-failure
+# The render tier (Electry.EditorScreenshot) wrote and checked the README image.
+cp "${BUILD_DIR}/screenshots/electry.png" "${PROJECT_DIR}/Docs/screenshots/electry.png"
 
 ARTIFACT_DIR="${BUILD_DIR}/Electry_artefacts/${CONFIG}"
 artifacts=(
