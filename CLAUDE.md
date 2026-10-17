@@ -73,6 +73,26 @@ Version history is a ledger of what changed about the instrument — what it
 sounds like, what it exposes, what a session must know. Pure refactors,
 deduplications and test-coverage additions belong in git history, not in it.
 
+## Build and verify
+
+```sh
+cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+cmake --build build-dsp --parallel 2
+ctest --test-dir build-dsp -L unit --output-on-failure
+```
+
+Use a separate `build-plugin` directory (`-DELECTRY_BUILD_PLUGIN=ON`, the
+default) for the processor, editor and packaging. Every test is
+`Electry.<Suite>` with one tier label: `unit`, `audio` (demo renders),
+`render` (the editor screenshot) or `fuzz` (`-DELECTRY_BUILD_FUZZER=ON` with
+Clang). Select the suites that cover a change with `-R`, build
+`ElectryDSPCxx17` for any `Source/DSP/` change, then run the `unit` and
+`audio` tiers before a substantive DSP change is called done.
+
+A test is never skipped, disabled or loosened to get green. Diagnose a failed
+contract against the baseline before changing a fixture, and document why an
+assumption was stale.
+
 ## A–Z listening tests
 
 This is a physical model with no owned calibration captures, so there are

@@ -22,6 +22,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install JUCE Linux dependencies
         run: |
@@ -121,6 +124,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       # Clearing the committed screenshot first is what makes the check after
       # the build meaningful: the file can only be there afterwards because this
@@ -164,6 +170,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       # Embed the Release C++ runtime so the ZIP works without a separate
       # Visual C++ redistributable installation.
@@ -206,6 +215,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install compiler and host dependencies
         run: |
           sudo apt-get update

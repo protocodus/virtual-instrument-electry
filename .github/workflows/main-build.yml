@@ -38,6 +38,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Build and run the unit and audio tiers
         run: |
@@ -80,6 +83,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Build the libFuzzer harness
         run: |
@@ -121,6 +127,9 @@ jobs:
         with:
           # Build-time FetchContent code must not inherit the write credential.
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       # Removing the committed image first is what makes the check after the
       # build meaningful: the file can only be there afterwards because this
@@ -218,6 +227,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install JUCE Linux dependencies
         run: |
@@ -284,6 +296,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Configure
         # Embed the Release C++ runtime in every target, including dependencies.
@@ -436,6 +451,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Download the complete build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

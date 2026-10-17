@@ -17,7 +17,8 @@ from pathlib import Path
 from statistics import median
 
 
-HERE = Path(__file__).resolve().parent
+# The frozen protocol templates; their committed paths are part of the contract.
+HERE = Path(__file__).resolve().parents[1] / "Docs/research/capture/electry-repick-phase-v1"
 CELLS = {
     (string, direction, phase)
     for string in ("e1", "e2")

@@ -325,20 +325,20 @@ fixed setup, broken receipt links and invalid promotion gates. Run it at each
 irreversible boundary:
 
 ```sh
-python3 /absolute/electry/Docs/research/capture/electry-repick-phase-v1/validate.py \
+python3 /absolute/electry/Tools/ValidateRepickPhaseCapture.py \
   --allowed-signers /absolute/pretrusted/electry-repick-allowed-signers \
   --signer-identity independent-custodian \
   /absolute/study/acquisition-freeze.json
-python3 /absolute/electry/Docs/research/capture/electry-repick-phase-v1/validate.py \
+python3 /absolute/electry/Tools/ValidateRepickPhaseCapture.py \
   --allowed-signers /absolute/pretrusted/electry-repick-allowed-signers \
   --signer-identity independent-custodian \
   --train-result /absolute/study/train-1/result-receipt.json \
   /absolute/study/acquisition-freeze.json
-python3 /absolute/electry/Docs/research/capture/electry-repick-phase-v1/validate.py \
+python3 /absolute/electry/Tools/ValidateRepickPhaseCapture.py \
   --allowed-signers /absolute/pretrusted/electry-repick-allowed-signers \
   --signer-identity independent-custodian \
   /absolute/study/acquisition-freeze.json /absolute/study/holdout-freeze.json
-python3 /absolute/electry/Docs/research/capture/electry-repick-phase-v1/validate.py \
+python3 /absolute/electry/Tools/ValidateRepickPhaseCapture.py \
   --allowed-signers /absolute/pretrusted/electry-repick-allowed-signers \
   --signer-identity independent-custodian \
   /absolute/study/acquisition-freeze.json /absolute/study/holdout-freeze.json \
