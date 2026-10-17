@@ -1676,7 +1676,8 @@ private:
 #endif
     [[nodiscard]] VelocityProfile makeVelocityProfile(float velocity) const noexcept;
 
-    void configureVoicePitch(Voice& voice, bool forceDelayJump) noexcept;
+    void configureVoicePitch(Voice& voice, bool forceDelayJump,
+                             bool refitGeometry = false) noexcept;
     void configureVoiceDamping(Voice& voice, PlayStyle dampingStyle) noexcept;
     void configureVoiceDamping(Voice& voice, PlayStyle dampingStyle,
                                float liveFrequency, float liveFret) noexcept;

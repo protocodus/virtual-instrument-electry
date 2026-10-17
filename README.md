@@ -144,6 +144,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.2 — In development — Continuous legato arrival
+
+Hammer-ons and slides retain their continuous stiffness fit when the finger
+reaches its destination, avoiding a global coefficient jump on a ringing
+string. Disabled string-construction and modal-fit experiments remain available
+for research; no release package has been published for this development work.
+
 ### 1.2.1 — 2026-10-17 — Click-free bends and slides
 
 Bends, vibrato and slides on a ringing string no longer squeal: the string's
@@ -151,9 +158,6 @@ stiffness fit now moves smoothly with its pitch. The editor's **ABOUT** button
 shows the version and build. The vendor is now **Protocodus** with the bundle
 and CLAP ID `cz.protocodus.electry`; on macOS reinstall over the old build, and
 re-insert Electry in CLAP sessions saved with an earlier build.
-
-The `1.2.2` research branch adds disabled string-construction and modal-fit
-experiments; it is not a published release or a change to the default sound.
 
 ### 1.2.0 — 2026-10-16 — String voicing, realism corrections and release hardening
 

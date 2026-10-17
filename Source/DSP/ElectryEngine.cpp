@@ -3977,7 +3977,8 @@ void ElectryEngine::configureVoiceDispersion(
     voice.horizontal.dispersionHighCoefficient = highCoefficient;
 }
 
-void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexcept
+void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
+                                       bool refitGeometry) noexcept
 {
     const float legatoOffset = legatoPitchOffset(voice);
 
@@ -4032,7 +4033,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump) noexc
     // energy-derived pitch offset can otherwise move their quantisation grids
     // out of step while a finger slides. Keep every geometric refit together;
     // tension-only movement still updates loss/phase without the stiffness fit.
-    const bool fitMoved = forceDelayJump
+    const bool fitMoved = forceDelayJump || refitGeometry
         || scalarAbs(semitones - voice.lastConfiguredSemitones) > 0.06f
         || scalarAbs(liveFret - voice.lastConfiguredLiveFret) > 0.06f
         || scalarAbs(configuredF0 - voice.lastConfiguredFrequency)
@@ -7291,6 +7292,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
         modulate(voice.horizontal);
     }
 
+    bool reachedLegatoEndpoint = false;
     const bool physicalSlideAdvances = voice.legatoUsesLengthTrajectory
         && voice.legatoBlend < 1.0f && voice.legatoIncrement > 0.0f;
     const float slideOffsetBefore = physicalSlideAdvances
@@ -7301,8 +7303,12 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
                                    0.0f, 1.0f);
         if (voice.legatoBlend >= 1.0f)
         {
-            voice.lastConfiguredLiveFret = -999.0f;
-            voice.lastDampedLiveFret = -999.0f;
+            // Refit the exact destination without erasing the last performed
+            // coordinate. The -999 sentinel classified this still-ringing
+            // endpoint as a new geometry and restarted the global dispersion
+            // search, bypassing its bounded continuation window. A global
+            // pole-pair jump can inject a chirp as a hammer or slide arrives.
+            reachedLegatoEndpoint = true;
         }
         // The friction follows the glide's normalized smoothstep-velocity
         // proxy, 6 b (1 - b). It is therefore zero at both ends and the squeak
@@ -7337,7 +7343,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
         }
     }
 
-    configureVoicePitch(voice, false);
+    configureVoicePitch(voice, false, reachedLegatoEndpoint);
     if (physicalSlideAdvances)
     {
         // Only the finger's length change bypasses the general pitch follower.

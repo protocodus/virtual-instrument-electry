@@ -11,6 +11,23 @@ namespace electry
 {
 struct ElectryEngineTestAccess
 {
+    struct LegatoEndpoint
+    {
+        float blend, fittedFret, dampedFret;
+        std::array<float, 2> coefficients;
+    };
+
+    static LegatoEndpoint legatoEndpoint(const ElectryEngine& engine)
+    {
+        // The fixture explicitly owns physical E2, so an allocator change
+        // cannot silently turn the endpoint assertion into a different string.
+        const auto& voice = engine.voices_[2];
+        return { voice.legatoBlend, voice.lastConfiguredLiveFret,
+                 voice.lastDampedLiveFret,
+                 { voice.vertical.dispersionLowCoefficient,
+                   voice.vertical.dispersionHighCoefficient } };
+    }
+
     static std::array<float, 4> attackHandState(const ElectryEngine& engine)
     {
         const auto& voice = engine.voices_[0];
@@ -230,12 +247,106 @@ void testExcitationFollowsMovingHand()
       }
     }
 }
+
+void testLegatoEndpointKeepsContinuingDispersionFit()
+{
+    using Engine = electry::ElectryEngine;
+    using Access = electry::ElectryEngineTestAccess;
+    using Style = electry::PlayStyle;
+    for (double rate : { 48000.0, 96000.0, 384000.0 })
+        for (Style style : { Style::Hammer, Style::Slide })
+            for (bool descending : { false, true })
+            {
+                auto engine = std::make_unique<Engine>();
+                electry::EngineParameters p;
+                p.sympatheticAmount = p.artifactAmount = p.bodyResonance = 0.0f;
+                p.pickNoise = p.fingerNoise = p.releaseNoise = 0.0f;
+                engine->setParameters(p);
+                engine->prepare(rate, 127);
+                engine->setSoloStringMask(1u << 2);
+                const int source = descending ? 45 : 43;
+                const int destination = descending ? 43 : 45;
+                engine->noteOn(source, 0.7f);
+                render(*engine, rate, 0.5);
+                engine->noteOn(Engine::firstPlayStyleKeyswitchNote
+                    + static_cast<int>(style), 1.0f);
+                engine->noteOn(destination, 0.7f);
+                const std::string context = std::to_string(static_cast<int>(rate))
+                    + (style == Style::Hammer ? " Hz Hammer" : " Hz Slide")
+                    + (descending ? " descending" : " ascending");
+
+                bool reachedEndpoint = false;
+                float endpointStep = 0.0f, largestAudioStep = 0.0f;
+                float previousSample = 0.0f;
+                int endpointSample = -1, audioPeakSample = -1;
+                // The two-fret Slide lasts 44.8 ms at these defaults. Stop
+                // after its endpoint plus 20 ms, enough to observe a false
+                // coefficient-switch burst emerging through the loop/pickup.
+                const int count = static_cast<int>(std::lround(0.12 * rate));
+                auto before = Access::legatoEndpoint(*engine);
+                for (int sample = 0; sample < count; ++sample)
+                {
+                    float left = 0.0f, right = 0.0f;
+                    engine->process(&left, &right, 1);
+                    expect(std::isfinite(left) && std::isfinite(right),
+                        context + " endpoint render has finite stereo samples");
+                    const auto after = Access::legatoEndpoint(*engine);
+                    if (! reachedEndpoint && before.blend < 1.0f
+                        && after.blend == 1.0f)
+                    {
+                        reachedEndpoint = true;
+                        endpointSample = sample;
+                        for (std::size_t band = 0; band < before.coefficients.size(); ++band)
+                            endpointStep = std::max(endpointStep, std::abs(
+                                after.coefficients[band] - before.coefficients[band]));
+                        expect(std::abs(after.fittedFret
+                            - static_cast<float>(destination - 40)) < 1.0e-5f,
+                            context + " refits dispersion at the exact final fret");
+                        expect(std::abs(after.dampedFret
+                            - static_cast<float>(destination - 40)) < 1.0e-5f,
+                            context + " refits loss at the exact final fret");
+                    }
+                    if (reachedEndpoint && sample <= endpointSample
+                        + static_cast<int>(std::lround(0.020 * rate)))
+                    {
+                        const float step = std::abs(left - previousSample);
+                        if (step > largestAudioStep)
+                        {
+                            largestAudioStep = step;
+                            audioPeakSample = sample;
+                        }
+                    }
+                    previousSample = left;
+                    before = after;
+                    if (reachedEndpoint && sample > endpointSample
+                        + static_cast<int>(std::lround(0.020 * rate)))
+                        break;
+                }
+                expect(reachedEndpoint, context + " reaches its physical endpoint");
+                // Existing continuation policy: the first pass searches +/-
+                // .02; its 17-way refinement may extend one initial grid cell
+                // beyond that interval in the shipping fitter. A trajectory's
+                // final tick must obey that same local bound, not invoke the
+                // unrelated global fit merely to pin its exact destination.
+                constexpr float maximumContinuingStep = 0.02f
+                    + (2.0f * 0.02f / 17.0f) + 1.0e-6f;
+                expect(endpointStep <= maximumContinuingStep,
+                    context + " keeps its final dispersion step within the continuing neighborhood ("
+                    + std::to_string(endpointStep) + ")");
+                expect(std::isfinite(largestAudioStep), context + " endpoint audio stays finite");
+                std::cout << "PROBE " << context << " endpoint AP step " << endpointStep
+                          << ", largest post-endpoint audio step " << largestAudioStep
+                          << " at " << (audioPeakSample - endpointSample)
+                          << " host samples after endpoint\n";
+            }
+}
 }
 
 int main()
 {
     testStyleChangesUnderHeldPressure();
     testExcitationFollowsMovingHand();
+    testLegatoEndpointKeepsContinuingDispersionFit();
     for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
         for (bool pressureBeforeNote : { false, true })
