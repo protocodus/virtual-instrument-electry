@@ -85,7 +85,7 @@ struct Host
 {
     std::atomic<bool> callbackRequested { false };
     clap_host_t api {
-        CLAP_VERSION, this, "Electry artifact test", "Electry Audio", "", "1.0",
+        CLAP_VERSION, this, "Electry artifact test", "Protocodus", "", "1.0",
         [] (const clap_host_t*, const char*) -> const void* { return nullptr; },
         [] (const clap_host_t*) {},
         [] (const clap_host_t*) {},
@@ -201,7 +201,7 @@ void testArtifact (const std::filesystem::path& path)
              "CLAP factory must expose exactly one plug-in");
     const auto* descriptor = factory->get_plugin_descriptor (factory, 0);
     require (descriptor != nullptr && descriptor->id != nullptr
-             && std::strcmp (descriptor->id, "audio.electry.synth") == 0,
+             && std::strcmp (descriptor->id, "cz.protocodus.electry") == 0,
              "wrong CLAP plug-in ID");
     require (descriptor->name != nullptr && std::strcmp (descriptor->name, "Electry") == 0,
              "wrong CLAP product name");

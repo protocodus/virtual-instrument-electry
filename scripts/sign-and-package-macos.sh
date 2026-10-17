@@ -185,7 +185,7 @@ rm -f "${DIST_DIR}/Electry-"*-unsigned.pkg
 
 COPYFILE_DISABLE=1 pkgbuild \
     --root "${PACKAGE_ROOT}" \
-    --identifier audio.electry.synth.pkg \
+    --identifier cz.protocodus.electry.pkg \
     --version "${VERSION}" \
     --install-location / \
     "${PKG_UNSIGNED}"

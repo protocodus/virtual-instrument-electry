@@ -148,7 +148,9 @@ build from `main`. Per-change notes are in the
 
 Bends, vibrato and slides on a ringing string no longer squeal: the string's
 stiffness fit now moves smoothly with its pitch. The editor's **ABOUT** button
-shows the version and build.
+shows the version and build. The vendor is now **Protocodus** with the bundle
+and CLAP ID `cz.protocodus.electry`; on macOS reinstall over the old build, and
+re-insert Electry in CLAP sessions saved with an earlier build.
 
 ### 1.2.0 — 2026-10-16 — String voicing, realism corrections and release hardening
 

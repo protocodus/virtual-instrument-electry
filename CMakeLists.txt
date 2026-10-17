@@ -266,8 +266,8 @@ if(ELECTRY_BUILD_PLUGIN)
 
     juce_add_plugin(Electry
         VERSION ${PROJECT_VERSION}
-        COMPANY_NAME "Electry Audio"
-        BUNDLE_ID "audio.electry.synth"
+        COMPANY_NAME "Protocodus"
+        BUNDLE_ID "cz.protocodus.electry"
         PLUGIN_MANUFACTURER_CODE Eltr
         PLUGIN_CODE Elc1
         PRODUCT_NAME "Electry"
@@ -310,7 +310,7 @@ if(ELECTRY_BUILD_PLUGIN)
 
     if(ELECTRY_BUILD_CLAP)
         clap_juce_extensions_plugin(TARGET Electry
-            CLAP_ID "audio.electry.synth"
+            CLAP_ID "cz.protocodus.electry"
             CLAP_FEATURES instrument synthesizer stereo)
     endif()
 endif()

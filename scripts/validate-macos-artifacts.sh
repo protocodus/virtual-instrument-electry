@@ -48,7 +48,7 @@ AU_COMPONENT_VERSION="$(( (10#${BASH_REMATCH[1]} << 16) \
                          + (10#${BASH_REMATCH[2]} << 8) \
                          + 10#${BASH_REMATCH[3]} ))"
 
-expect_value "$(plist_value "${AU_PLIST}" CFBundleIdentifier)" "audio.electry.synth" "AU bundle ID"
+expect_value "$(plist_value "${AU_PLIST}" CFBundleIdentifier)" "cz.protocodus.electry" "AU bundle ID"
 expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:type)" "aumu" "AU type"
 expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:subtype)" "Elc1" "AU subtype"
 expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:manufacturer)" "Eltr" "AU manufacturer"
@@ -56,9 +56,9 @@ expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:factoryFunction)" "E
 expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:version)" \
     "${AU_COMPONENT_VERSION}" "AU component version"
 expect_value "$(plist_value "${AU_PLIST}" AudioComponents:0:sandboxSafe)" "true" "AU sandbox-safe flag"
-expect_value "$(plist_value "${VST3_PLIST}" CFBundleIdentifier)" "audio.electry.synth" "VST3 bundle ID"
+expect_value "$(plist_value "${VST3_PLIST}" CFBundleIdentifier)" "cz.protocodus.electry" "VST3 bundle ID"
 expect_value "$(plist_value "${VST3_PLIST}" CFBundleShortVersionString)" "${AU_VERSION}" "VST3 version"
-expect_value "$(plist_value "${CLAP_PLIST}" CFBundleIdentifier)" "audio.electry.synth" "CLAP bundle ID"
+expect_value "$(plist_value "${CLAP_PLIST}" CFBundleIdentifier)" "cz.protocodus.electry" "CLAP bundle ID"
 expect_value "$(plist_value "${CLAP_PLIST}" CFBundleShortVersionString)" \
     "${AU_VERSION}" "CLAP version"
 

@@ -105,7 +105,7 @@ int main (int argc, char** argv)
 
     const auto& description = *descriptions[0];
     expect (description.name == "Electry", "wrong VST3 name");
-    expect (description.manufacturerName == "Electry Audio",
+    expect (description.manufacturerName == "Protocodus",
             "wrong VST3 manufacturer");
     expect (description.version == ELECTRY_EXPECTED_VERSION,
             "wrong VST3 version: " + description.version.toStdString());
