@@ -12,7 +12,10 @@ permissions:
   contents: read
 
 env:
-  BUILD_NUMBER: ${{ github.run_number }}
+  # Build numbers continue from the retired nightly.yml workflow, whose last
+  # run was build 62; renaming the workflow restarted github.run_number at 1.
+  # Each job's first step sets BUILD_NUMBER from this offset.
+  BUILD_NUMBER_OFFSET: 62
   # A pinned pluginval release, each archive checked against its SHA-256.
   PLUGINVAL_VERSION: v1.0.4
   PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
@@ -29,6 +32,9 @@ jobs:
     name: DSP tiers, audio demos and README peak table
     runs-on: ubuntu-24.04
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -68,6 +74,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -94,7 +103,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: long-fuzz-${{ github.run_number }}
+          name: long-fuzz-${{ env.BUILD_NUMBER }}
           path: |
             build-fuzz/corpus
             build-fuzz/fuzz-artifacts
@@ -105,6 +114,9 @@ jobs:
     name: macOS universal (VST3, AU, CLAP, standalone)
     runs-on: macos-15
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Build-time FetchContent code must not inherit the write credential.
@@ -200,6 +212,9 @@ jobs:
     name: Linux build and package
     runs-on: ubuntu-24.04
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -263,6 +278,9 @@ jobs:
     name: Windows x64 (VST3, CLAP, standalone)
     runs-on: windows-2025
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -313,6 +331,9 @@ jobs:
     outputs:
       artifact-url: ${{ steps.upload-build.outputs.artifact-url }}
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - name: Download every package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -392,7 +413,7 @@ jobs:
         id: upload-build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: electry-main-build-${{ github.run_number }}
+          name: electry-main-build-${{ env.BUILD_NUMBER }}
           path: dist
           if-no-files-found: error
           retention-days: 30
@@ -408,6 +429,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Number this build
+        shell: bash
+        run: echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_NUMBER_OFFSET))" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -416,7 +440,7 @@ jobs:
       - name: Download the complete build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: electry-main-build-${{ github.run_number }}
+          name: electry-main-build-${{ env.BUILD_NUMBER }}
           path: completed-build
 
       - name: Verify the downloaded build
