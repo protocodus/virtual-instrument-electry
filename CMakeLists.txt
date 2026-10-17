@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.1 LANGUAGES C CXX)
+project(Electry VERSION 1.2.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,6 +63,10 @@ option(ELECTRY_MEASURED_PICKUP_FLUX
     "Build the default-off measurement-fitted pickup flux-linkage candidate" OFF)
 option(ELECTRY_PASSIVE_REPICK_SPRING
     "Build the default-off passive dynamic repick-contact candidate" OFF)
+option(ELECTRY_REFERENCE_STRING_MASS
+    "Build the default-off published XL wound-string mass experiment" OFF)
+option(ELECTRY_MODAL_DISPERSION_FIT
+    "Build the default-off stretched-modal dispersion fitter experiment" OFF)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
     "Optional path to a local JUCE 8.0.14 checkout (avoids downloading JUCE)")
 set(ELECTRY_CLAP_JUCE_EXTENSIONS_PATH "" CACHE PATH
@@ -126,6 +130,13 @@ if(ELECTRY_PASSIVE_REPICK_SPRING)
         ELECTRY_PASSIVE_REPICK_SPRING=1)
 endif()
 
+if(ELECTRY_REFERENCE_STRING_MASS)
+    target_compile_definitions(ElectryDSP PUBLIC ELECTRY_REFERENCE_STRING_MASS=1)
+endif()
+if(ELECTRY_MODAL_DISPERSION_FIT)
+    target_compile_definitions(ElectryDSP PUBLIC ELECTRY_MODAL_DISPERSION_FIT=1)
+endif()
+
 if(ELECTRY_MEASURED_MODERN_CABINET)
     target_compile_definitions(ElectryDSP PUBLIC
         ELECTRY_MEASURED_MODERN_CABINET=1)
@@ -166,6 +177,12 @@ if(NOT MSVC)
         ELECTRY_MEASURED_BODY_RESPONSE=1
         ELECTRY_DECOUPLED_PICK_RELEASE=1
         ELECTRY_ENERGY_ATTACK_PITCH=1)
+    if(ELECTRY_REFERENCE_STRING_MASS)
+        target_compile_definitions(ElectryDSPCxx17 PRIVATE ELECTRY_REFERENCE_STRING_MASS=1)
+    endif()
+    if(ELECTRY_MODAL_DISPERSION_FIT)
+        target_compile_definitions(ElectryDSPCxx17 PRIVATE ELECTRY_MODAL_DISPERSION_FIT=1)
+    endif()
     target_compile_options(ElectryDSPCxx17 PRIVATE
         -Wall -fno-exceptions -fno-rtti -fno-builtin)
 endif()
@@ -176,6 +193,9 @@ if(BUILD_TESTING)
     add_executable(ElectryIdlePickupObservationTests Tests/IdlePickupObservationTests.cpp)
     target_link_libraries(ElectryIdlePickupObservationTests PRIVATE ElectryDSP)
     add_test(NAME Electry.IdlePickupObservation COMMAND ElectryIdlePickupObservationTests)
+    add_executable(ElectryReferenceStringMassTests Tests/ReferenceStringMassTests.cpp)
+    target_link_libraries(ElectryReferenceStringMassTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.ReferenceStringMass COMMAND ElectryReferenceStringMassTests)
 endif()
 
 if(ELECTRY_BUILD_FUZZER)
@@ -654,6 +674,11 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion)
+            add_test(NAME Electry.${audit}
+                COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${audit}Tests.py")
+        endforeach()
         if(ELECTRY_BUILD_TOOLS AND NOT ELECTRY_ENABLE_SANITIZERS
            AND NOT ELECTRY_BUILD_FUZZER AND NOT CMAKE_CXX_FLAGS MATCHES "fsanitize")
             add_test(NAME Electry.ParallelRender

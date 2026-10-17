@@ -152,6 +152,9 @@ shows the version and build. The vendor is now **Protocodus** with the bundle
 and CLAP ID `cz.protocodus.electry`; on macOS reinstall over the old build, and
 re-insert Electry in CLAP sessions saved with an earlier build.
 
+The `1.2.2` research branch adds disabled string-construction and modal-fit
+experiments; it is not a published release or a change to the default sound.
+
 ### 1.2.0 — 2026-10-16 — String voicing, realism corrections and release hardening
 
 Notes prefer unused strings and the lowest fret; picked attacks, sympathetic
@@ -1332,6 +1335,12 @@ change improved some low modes but worsened a higher one, while an attack-time
 refit risks realtime cost. Neither is silently promoted. Passive pickup-circuit
 retuning, reciprocal idle-string bridge coupling and calibrated magnetic
 back-action retain the evidence requirements below.
+
+The [October 17 realism investigation](Docs/research/realism-techniques-2026-10-17.md)
+ranks practical follow-ons and provides reproducible mass and modal-frequency
+audits. Its two experimental CMake switches, `ELECTRY_REFERENCE_STRING_MASS`
+and `ELECTRY_MODAL_DISPERSION_FIT`, default to `OFF`. A measured improvement
+against a model equation does not by itself establish a more natural guitar.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

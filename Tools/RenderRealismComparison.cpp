@@ -51,7 +51,41 @@ Score makeScore(const std::string& probe, bool amp)
     s.parameters.fxEnabled = amp;
     s.parameters.effects.amp = amp ? 0.48f : 0;
     s.parameters.effects.ampModel = electry::AmpModel::ModernHighGain;
-    if (probe == "palm")
+    if (probe == "dispersion")
+    {
+        p.sympatheticAmount = 0;
+        p.pickNoise = p.fingerNoise = p.releaseNoise = p.artifactAmount = 0;
+        p.pickPosition = 0;
+        p.pickHardness = 1;
+        s.seconds = 13;
+        s.event(0, Kind::mask, 1); // Same thick E1 string at every fret.
+        for (int n = 0; n < 4; ++n)
+            s.note(0.2 + 3.1 * n, std::array<int, 4>{40, 47, 52, 62}[n],
+                   0.9f, 2.7);
+    }
+    else if (probe == "string-mass")
+    {
+        // Exact published light gauges; the heavy .098 morph is a separate,
+        // unidentified construction hypothesis and is not this audition.
+        p.stringGauge = 0;
+        p.scaleLength = 1;
+        p.sympatheticAmount = 0;
+        p.pickNoise = p.fingerNoise = p.releaseNoise = p.artifactAmount = 0;
+        s.seconds = 14;
+        for (int n = 0; n < 5; ++n)
+        {
+            const double t = 0.2 + 2.6 * n;
+            const int string = n < 3 ? n : 0;
+            s.event(t, Kind::mask, 1 << string);
+            s.style(t, electry::PlayStyle::Sustain);
+            s.note(t, std::array<int, 5>{40, 47, 52, 52, 40}[n],
+                   n == 4 ? 0.45f : 0.95f, 1.6);
+            s.style(t + 1.75, electry::PlayStyle::PalmMute);
+            s.note(t + 1.75, std::array<int, 5>{40, 47, 52, 52, 40}[n], 0.9f, 0.25);
+            s.note(t + 2.05, std::array<int, 5>{40, 47, 52, 52, 40}[n], 0.9f, 0.25);
+        }
+    }
+    else if (probe == "palm")
     {
         s.event(0, Kind::mask, 1);
         for (int phrase = 0; phrase < 3; ++phrase)

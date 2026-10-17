@@ -243,6 +243,37 @@ constexpr float performanceDelaySigmaSeconds = 0.001f;
 constexpr float steelDensity = 7850.0f;      // kg/m^3
 constexpr float steelYoungModulus = 2.0e11f; // Pa
 
+#if ELECTRY_REFERENCE_STRING_MASS
+// Reference-construction experiment, deliberately disabled in shipping builds.
+// The live D'Addario String Tension Pro calculator embeds
+// https://embed.cartfulsolutions.com/daddario-string-tension-finder/recommendation.min.js
+// and loads data/strings_sample.json. Its Mass_UL enters
+// T_lbf = Mass_UL * (2 * L_inches * f_Hz)^2 / 386.088, hence lb/in.
+// Frozen 2026-10-17 JSON SHA256:
+// 855d638563bb07bcb156bb359a75ff3fdaf83a15d27cfa840b7950c675c10ee3.
+// Exact U1AGFNP024/032/042/060/080 records: XL nickel-plated steel,
+// round wound, steel hex, small ball end. These are unit masses, NOT core
+// diameter measurements. Keep both existing empirical core coordinates.
+constexpr float poundsPerInchToKgPerMetre = 0.45359237f / 0.0254f;
+constexpr std::array<float, 5> referenceWoundUnitMass {{
+    0.0011055562555720800f, // .080
+    0.0006414349593603170f, // .060
+    0.0003140532008355160f, // .042
+    0.0001902095534263840f, // .032
+    0.0001082688980358360f, // .024
+}};
+
+float referenceWoundMass(int stringIndex, float gaugeScale) noexcept
+{
+    // Only gaugeScale=1 is directly identified by the reference construction.
+    // The existing synthetic gauge morph assumes geometrically similar
+    // strings, mu proportional to diameter squared. Retain that explicit
+    // hypothesis for research; no .098 measurement is inferred from .080.
+    return referenceWoundUnitMass[static_cast<std::size_t>(stringIndex)]
+         * poundsPerInchToKgPerMetre * gaugeScale * gaugeScale;
+}
+#endif
+
 // The waveguide is normalised for stable modal projection rather than stored
 // in SI units. The prior physical prototype measured 0.002831 loop mean-square
 // at 2.05 mm, giving 0.03853 m per loop unit; 0.040 is that calibration rounded.
@@ -3633,8 +3664,12 @@ void ElectryEngine::configureVoiceDispersion(
     const float soundingLength = openLength
         * std::exp2(-liveFret / 12.0f);
     const float massScale = spec.wound ? 0.85f : 1.0f;
-    const float linearMass = massScale * steelDensity * pi
-                           * 0.25f * diameter * diameter;
+    float linearMass = massScale * steelDensity * pi
+                     * 0.25f * diameter * diameter;
+#if ELECTRY_REFERENCE_STRING_MASS
+    if (spec.wound)
+        linearMass = referenceWoundMass(voice.stringIndex, gaugeScale);
+#endif
     const float waveSpeed = 2.0f * soundingLength * liveUnbentFrequency;
     const float tension = linearMass * waveSpeed * waveSpeed;
     // Kemp's stiff-string derivation gives
@@ -3675,6 +3710,158 @@ void ElectryEngine::configureVoiceDispersion(
     float lowCoefficient = 0.0f;
     float highCoefficient = 0.0f;
 
+#if ELECTRY_MODAL_DISPERSION_FIT
+    // The round-trip resonance condition at the intended stiff-string mode is
+    //   omega_n [P - d_AP(omega_1) + d_AP(omega_n)] = 2 pi n,
+    // where omega_n = n omega_1 sqrt((1+B n^2)/(1+B)). Scoring phase only at
+    // n*omega_1 instead does not enforce that condition. AuditDispersion.py
+    // independently solves the realized loop roots rather than repeating the
+    // fitter's deficit score. Keep this experiment default-off pending its
+    // complete modal, moving-pitch, CPU and listening comparisons.
+    if (inharmonicity > 1.0e-8f)
+    {
+        constexpr int maximumModes = 15; // every observable H2 through H16
+        std::array<float, maximumModes> modeOmega {};
+        std::array<float, maximumModes> wanted {};
+        int modeCount = 0;
+        for (int partial = 2; partial <= static_cast<int>(highPartial); ++partial)
+        {
+            const float n = static_cast<float>(partial);
+            const float stretch = std::sqrt(
+                (1.0f + inharmonicity * n * n) / (1.0f + inharmonicity));
+            const float omega = dispersionOmega * n * stretch;
+            if (omega >= pi * 0.95f)
+                break;
+            const auto index = static_cast<std::size_t>(modeCount++);
+            modeOmega[index] = omega;
+            wanted[index] = dispersionPeriod * (1.0f - 1.0f / stretch);
+        }
+
+        float lowMinimum = -0.995f, lowMaximum = 0.0f;
+        float highMinimum = -0.995f, highMaximum = 0.0f;
+        // Preserve the existing bounded neighborhood for a ringing string;
+        // changing the objective must not restore discontinuous global refits.
+        constexpr float continuingFitWindow = 0.02f;
+        if (continuesRingingFit)
+        {
+            const float currentLow = voice.vertical.dispersionLowCoefficient;
+            const float currentHigh = voice.vertical.dispersionHighCoefficient;
+            lowMinimum = std::max(-0.995f, currentLow - continuingFitWindow);
+            lowMaximum = std::min(0.0f, currentLow + continuingFitWindow);
+            highMinimum = std::max(-0.995f, currentHigh - continuingFitWindow);
+            highMaximum = std::min(0.0f, currentHigh + continuingFitWindow);
+        }
+        // Uniform coefficient spacing leaves almost all physical time
+        // constants unresolved near c=-1 at high sample rates. The DC group
+        // delay is tau=(1-c)/(1+c); search log(tau) on the exact same passive
+        // coefficient interval. A ringing string retains its existing .02
+        // coefficient neighborhood before that interval is transformed.
+        const auto coordinate = [] (float coefficient)
+        {
+            return std::log((1.0f - coefficient) / (1.0f + coefficient));
+        };
+        const auto coefficientAt = [] (float position)
+        {
+            const float delay = std::exp(position);
+            return (1.0f - delay) / (1.0f + delay);
+        };
+        const float lowStart = coordinate(lowMaximum);
+        lowMaximum = coordinate(lowMinimum);
+        lowMinimum = lowStart;
+        const float highStart = coordinate(highMaximum);
+        highMaximum = coordinate(highMinimum);
+        highMinimum = highStart;
+        const float lowCoordinateMinimum = lowMinimum;
+        const float lowCoordinateMaximum = lowMaximum;
+        const float highCoordinateMinimum = highMinimum;
+        const float highCoordinateMaximum = highMaximum;
+        float bestMaximum = 1.0e30f, bestSquared = 1.0e30f;
+        for (int pass = 0; pass < 2 && modeCount > 0; ++pass)
+        {
+            const int divisions = pass == 0 ? 17 : 13;
+            const float lowStep = (lowMaximum - lowMinimum) / divisions;
+            const float highStep = (highMaximum - highMinimum) / divisions;
+            // Each coefficient's response is independent of its paired
+            // coefficient. Cache it once; the bounded pair grid below adds
+            // floats and never evaluates an allpass or trigonometric function.
+            std::array<std::array<float, maximumModes>, 18> lowDeficits {};
+            std::array<std::array<float, maximumModes>, 18> highDeficits {};
+            std::array<std::array<float, maximumModes>, 18> lowGroups {};
+            std::array<std::array<float, maximumModes>, 18> highGroups {};
+            const auto cache = [&] (auto& deficits, auto& groups,
+                                     float minimum, float step)
+            {
+                for (int candidate = 0; candidate <= divisions; ++candidate)
+                {
+                    const float c = coefficientAt(minimum + step * candidate);
+                    const float base = allpassPhaseDelay(c, dispersionOmega);
+                    for (int mode = 0; mode < modeCount; ++mode)
+                    {
+                        const auto index = static_cast<std::size_t>(mode);
+                        const float omega = modeOmega[index];
+                        deficits[static_cast<std::size_t>(candidate)][index] = 4.0f
+                            * (base - allpassPhaseDelay(
+                                c, omega));
+                        // Exact group delay of (c+z^-1)/(1+c z^-1).
+                        // This positive denominator avoids cancellation for
+                        // c near -1, as in the loop-loss magnitude solve.
+                        const float sine = std::sin(0.5f * omega);
+                        const float denominator = (1.0f + c) * (1.0f + c)
+                            - 4.0f * c * sine * sine;
+                        const float group = (1.0f - c * c) / denominator;
+                        groups[static_cast<std::size_t>(candidate)][index]
+                            = 4.0f * (group - base);
+                    }
+                }
+            };
+            cache(lowDeficits, lowGroups, lowMinimum, lowStep);
+            cache(highDeficits, highGroups, highMinimum, highStep);
+            for (int low = 0; low <= divisions; ++low)
+                for (int high = 0; high <= divisions; ++high)
+                {
+                    float maximum = 0.0f, squared = 0.0f;
+                    for (int mode = 0; mode < modeCount; ++mode)
+                    {
+                        const auto index = static_cast<std::size_t>(mode);
+                        // Linearize the complete resonance condition at the
+                        // target mode. Dividing its phase residual by the
+                        // complete round-trip group delay gives fractional
+                        // frequency error (and hence first-order cents),
+                        // rather than scoring a relative stiffness deficit.
+                        const float groupPeriod = dispersionPeriod
+                            + lowGroups[low][index] + highGroups[high][index];
+                        if (! (groupPeriod > 0.0f))
+                        {
+                            maximum = squared = 1.0e30f;
+                            break;
+                        }
+                        const float error = (lowDeficits[low][index]
+                            + highDeficits[high][index] - wanted[index])
+                            / groupPeriod;
+                        maximum = std::max(maximum, scalarAbs(error));
+                        squared += error * error;
+                    }
+                    // Minimax gives every resolved mode the same frequency
+                    // tolerance. Sum-of-squares breaks exact ties without a
+                    // new spectral weight or empirical regularization term.
+                    if (maximum < bestMaximum
+                        || (maximum == bestMaximum && squared < bestSquared))
+                    {
+                        bestMaximum = maximum;
+                        bestSquared = squared;
+                        lowCoefficient = coefficientAt(lowMinimum + lowStep * low);
+                        highCoefficient = coefficientAt(highMinimum + highStep * high);
+                    }
+                }
+            const float lowCentre = coordinate(lowCoefficient);
+            const float highCentre = coordinate(highCoefficient);
+            lowMinimum = std::max(lowCoordinateMinimum, lowCentre - lowStep);
+            lowMaximum = std::min(lowCoordinateMaximum, lowCentre + lowStep);
+            highMinimum = std::max(highCoordinateMinimum, highCentre - highStep);
+            highMaximum = std::min(highCoordinateMaximum, highCentre + highStep);
+        }
+    }
+#else
     const auto wantedDeficit = [&] (float partial)
     {
         const float stretch =
@@ -3780,6 +3967,7 @@ void ElectryEngine::configureVoiceDispersion(
         }
     }
 
+#endif
     voice.inharmonicity = inharmonicity;
     voice.dispersionLowPartial = lowPartial;
     voice.dispersionHighPartial = highPartial;
@@ -5385,12 +5573,16 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // ordinary set while keeping extreme MPE bends and plain strings usable;
     // they are conservative voicing limits, not calibrated material data.
     constexpr float referenceGaugeScale = 11.0f / 9.0f;
+#if ELECTRY_REFERENCE_STRING_MASS
+    const float referenceLinearMass = referenceWoundMass(2, referenceGaugeScale);
+#else
     constexpr float referenceDiameterMetres = 0.0010668f * referenceGaugeScale;
     constexpr float referenceLinearMass = 0.85f * steelDensity * pi * 0.25f
         * referenceDiameterMetres * referenceDiameterMetres;
+#endif
     constexpr float referenceScaleMetres = conventionalScaleMetres
         + 0.85f * (baritoneScaleMetres - conventionalScaleMetres);
-    constexpr float referenceImpedance = referenceLinearMass
+    const float referenceImpedance = referenceLinearMass
         * (2.0f * referenceScaleMetres * 82.40689f);
     const float impedanceSlipScale = plectrumContact
         ? clampf(voice.stringWaveImpedance / referenceImpedance, 0.75f, 2.60f)
