@@ -2161,7 +2161,18 @@ int main(int argc, char** argv)
         }
     };
     {
-        std::vector<std::jthread> workers;
+        // std::thread rather than std::jthread: Xcode 16's libc++ (the pinned
+        // macos-15 runner) only offers jthread behind -fexperimental-library.
+        std::vector<std::thread> workers;
+        struct JoinAll
+        {
+            std::vector<std::thread>& threads;
+            ~JoinAll()
+            {
+                for (auto& thread : threads)
+                    thread.join();
+            }
+        } joinAll { workers };
         try
         {
             workers.reserve(static_cast<std::size_t>(jobs - 1));
