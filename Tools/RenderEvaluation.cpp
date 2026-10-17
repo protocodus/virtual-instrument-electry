@@ -808,6 +808,10 @@ bool writeMetalManifest(const std::filesystem::path& path,
         << (ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2 ? "true" : "false")
         << ", \"energy_attack_pitch\": "
         << (ELECTRY_ENERGY_ATTACK_PITCH ? "true" : "false")
+        << ", \"reference_string_mass\": "
+        << (ELECTRY_REFERENCE_STRING_MASS ? "true" : "false")
+        << ", \"modal_dispersion_fit\": "
+        << (ELECTRY_MODAL_DISPERSION_FIT ? "true" : "false")
         << ", \"positioned_fret_collision\": "
         << (ELECTRY_POSITIONED_FRET_COLLISION ? "true" : "false")
         << ", \"measured_pickup_flux\": "

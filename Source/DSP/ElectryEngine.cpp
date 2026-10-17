@@ -244,7 +244,7 @@ constexpr float steelDensity = 7850.0f;      // kg/m^3
 constexpr float steelYoungModulus = 2.0e11f; // Pa
 
 #if ELECTRY_REFERENCE_STRING_MASS
-// Reference-construction experiment, deliberately disabled in shipping builds.
+// Named-reference construction selected for the development default.
 // The live D'Addario String Tension Pro calculator embeds
 // https://embed.cartfulsolutions.com/daddario-string-tension-finder/recommendation.min.js
 // and loads data/strings_sample.json. Its Mass_UL enters
@@ -3699,9 +3699,9 @@ void ElectryEngine::configureVoiceDispersion(
     inharmonicity = clampf(inharmonicity, 0.0f, 3.0e-3f);
 
     // Eight cascaded first-order sections are fitted in factored form: four
-    // share each band coefficient. A bounded two-pass grid minimises relative
-    // phase-delay error at both reference partials. This runs only at
-    // note/control setup, never in the sample loop.
+    // share each band coefficient. The bounded two-pass grid scores either
+    // stretched modal roots or the legacy two-point phase-delay objective.
+    // This runs only at note/control setup, never in the sample loop.
     const float highPartial = clampf(
         scalarFloor(0.30f * static_cast<float>(sampleRate_) / configuredF0),
         4.0f, 16.0f);
@@ -3716,12 +3716,15 @@ void ElectryEngine::configureVoiceDispersion(
     // where omega_n = n omega_1 sqrt((1+B n^2)/(1+B)). Scoring phase only at
     // n*omega_1 instead does not enforce that condition. AuditDispersion.py
     // independently solves the realized loop roots rather than repeating the
-    // fitter's deficit score. Keep this experiment default-off pending its
-    // complete modal, moving-pitch, CPU and listening comparisons.
+    // fitter's deficit score. The selected modal objective retains the same
+    // stable topology and bounded continuation for a ringing string.
     if (inharmonicity > 1.0e-8f)
     {
         constexpr int maximumModes = 15; // every observable H2 through H16
         std::array<float, maximumModes> modeOmega {};
+        std::array<float, maximumModes> modeSine {};
+        std::array<float, maximumModes> modeCosine {};
+        std::array<float, maximumModes> modeHalfSine {};
         std::array<float, maximumModes> wanted {};
         int modeCount = 0;
         for (int partial = 2; partial <= static_cast<int>(highPartial); ++partial)
@@ -3734,8 +3737,28 @@ void ElectryEngine::configureVoiceDispersion(
                 break;
             const auto index = static_cast<std::size_t>(modeCount++);
             modeOmega[index] = omega;
+            modeSine[index] = std::sin(omega);
+            modeCosine[index] = std::cos(omega);
+            modeHalfSine[index] = std::sin(0.5f * omega);
             wanted[index] = dispersionPeriod * (1.0f - 1.0f / stretch);
         }
+        const float baseSine = std::sin(dispersionOmega);
+        const float baseCosine = std::cos(dispersionOmega);
+        // The frequencies are shared by every coefficient in both grids.
+        // Retain allpassPhaseDelay's arithmetic while resolving its trig
+        // functions once per frequency rather than once per candidate.
+        const auto phaseDelay = [] (float coefficient, float omega,
+                                     float sine, float cosine)
+        {
+            const float numeratorAngle = std::atan2(
+                -sine, coefficient + cosine);
+            const float denominatorAngle = std::atan2(
+                -coefficient * sine, 1.0f + coefficient * cosine);
+            const float angle = numeratorAngle - denominatorAngle;
+            if (omega <= 1.0e-9f)
+                return (1.0f - coefficient) / (1.0f + coefficient);
+            return -angle / omega;
+        };
 
         float lowMinimum = -0.995f, lowMaximum = 0.0f;
         float highMinimum = -0.995f, highMaximum = 0.0f;
@@ -3794,18 +3817,19 @@ void ElectryEngine::configureVoiceDispersion(
                 for (int candidate = 0; candidate <= divisions; ++candidate)
                 {
                     const float c = coefficientAt(minimum + step * candidate);
-                    const float base = allpassPhaseDelay(c, dispersionOmega);
+                    const float base = phaseDelay(
+                        c, dispersionOmega, baseSine, baseCosine);
                     for (int mode = 0; mode < modeCount; ++mode)
                     {
                         const auto index = static_cast<std::size_t>(mode);
                         const float omega = modeOmega[index];
                         deficits[static_cast<std::size_t>(candidate)][index] = 4.0f
-                            * (base - allpassPhaseDelay(
-                                c, omega));
+                            * (base - phaseDelay(
+                                c, omega, modeSine[index], modeCosine[index]));
                         // Exact group delay of (c+z^-1)/(1+c z^-1).
                         // This positive denominator avoids cancellation for
                         // c near -1, as in the loop-loss magnitude solve.
-                        const float sine = std::sin(0.5f * omega);
+                        const float sine = modeHalfSine[index];
                         const float denominator = (1.0f + c) * (1.0f + c)
                             - 4.0f * c * sine * sine;
                         const float group = (1.0f - c * c) / denominator;
@@ -4750,7 +4774,7 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     else
         loop.currentDelay = clampf(
             loop.currentDelay
-                + previousDampingPhaseDelay - dampingPhaseDelay
+                + (previousDampingPhaseDelay - dampingPhaseDelay)
                 + (fitMoved
                        ? previousDispersionPhaseDelay - dispersionPhaseDelay
                        : 0.0f),

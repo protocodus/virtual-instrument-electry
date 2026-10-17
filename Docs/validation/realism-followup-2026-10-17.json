@@ -1,0 +1,318 @@
+{
+  "schema": "electry-realism-followup/v1",
+  "date": "2026-10-17",
+  "source_base": "45e9a818b0924917aa2fb2b92e88b4a8d1fc7cfa",
+  "development_version": "1.2.2",
+  "defaults": {
+    "ELECTRY_REFERENCE_STRING_MASS": 1,
+    "ELECTRY_MODAL_DISPERSION_FIT": 1
+  },
+  "user_decision": {
+    "original_auditions": "B",
+    "subsequent_candidate_choices": "autonomous",
+    "scope": "this Electry realism investigation"
+  },
+  "source_hashes": {
+    "Source/DSP/ElectryEngine.cpp": "5eb11bef06e6232d6f86826db3243687cfc30ca2e34d16652ae8b7c6a8d1194f",
+    "Source/DSP/ElectryEngine.h": "509a76b99c1e8619d00858b7c14943914dc74090b228ea85bdc8b7a51ed22034"
+  },
+  "modal_mass_on": {
+    "legacy": {
+      "observations": 864,
+      "resolved_upper_modes": 12960,
+      "full_median_absolute_cents": 2.3938600431342687,
+      "full_maximum_absolute_cents": 196.49640668394653,
+      "dispersion_only_median_absolute_cents": 1.2747167668878285,
+      "dispersion_only_maximum_absolute_cents": 199.4742025762207,
+      "worst_full_loop": {
+        "host_rate": 384000,
+        "gauge": 1,
+        "scale": 0,
+        "string": 0,
+        "fret": 22,
+        "bend": -2,
+        "B": 0.003000000026077032,
+        "partial": 16,
+        "target_hz": 2778.822488226171,
+        "actual_hz": 2480.6645732201755,
+        "dispersion_only_hz": 2476.401392560316,
+        "full_error_cents": -196.49640668394653,
+        "dispersion_only_error_cents": -199.4742025762207,
+        "round_trip_gain_db": -0.8842285607779172,
+        "interpolation_gain_db": -4.807096034404996e-07
+      }
+    },
+    "selected": {
+      "observations": 864,
+      "resolved_upper_modes": 12960,
+      "full_median_absolute_cents": 3.6840084677145626,
+      "full_maximum_absolute_cents": 103.03627114187512,
+      "dispersion_only_median_absolute_cents": 2.1537738772493724,
+      "dispersion_only_maximum_absolute_cents": 100.4739920692819,
+      "worst_full_loop": {
+        "host_rate": 48000,
+        "gauge": 1,
+        "scale": 0,
+        "string": 0,
+        "fret": 22,
+        "bend": 0,
+        "B": 0.003000000026077032,
+        "partial": 7,
+        "target_hz": 1099.1352280064978,
+        "actual_hz": 1166.5373120504487,
+        "dispersion_only_hz": 1164.812078345995,
+        "full_error_cents": 103.03627114187512,
+        "dispersion_only_error_cents": 100.4739920692819,
+        "round_trip_gain_db": -0.31764759526694397,
+        "interpolation_gain_db": -6.6418264417972005e-06
+      }
+    },
+    "scope": "isolated vertical loop; horizontal detuning and polarisation coupling omitted; real-axis phase resonance, not complex pole or measured guitar"
+  },
+  "original_mass_off_decay": {
+    "summary": {
+      "observations": 864,
+      "poles": 13824,
+      "maximum_root_residual": 5.397425736138014e-12,
+      "minimum_t60_over_period_mapping": 0.7075475797299704,
+      "median_t60_over_period_mapping": 0.9733924987345679,
+      "maximum_group_approximation_relative_error": 8.18240275568538e-06,
+      "worst": {
+        "host_rate": 44100,
+        "gauge": 1,
+        "scale": 0,
+        "string": 0,
+        "fret": 22,
+        "bend": -2,
+        "B": 0.003000000026077032,
+        "partial": 16,
+        "phase_frequency_hz": 2550.265564638848,
+        "pole_frequency_hz": 2550.2592353794726,
+        "log_radius": -0.0002234683688862592,
+        "t60_seconds": 0.350471170664876,
+        "fundamental_period_mapping_t60_seconds": 0.49533230090141833,
+        "group_delay_approximation_t60_seconds": 0.35046939214091877,
+        "group_delay_samples": 477.05875826887416,
+        "t60_over_period_mapping": 0.7075475797299704,
+        "group_approximation_relative_error": -5.074665496263009e-06,
+        "residual": 4.906853248469635e-15,
+        "iterations": 3
+      }
+    },
+    "scope": "isolated vertical loop; horizontal detuning and polarisation coupling omitted"
+  },
+  "native_benchmark": {
+    "started_at_utc": "2026-10-17T21:31:20.742386+00:00",
+    "ended_at_utc": "2026-10-17T21:31:35.327381+00:00",
+    "method": "Native O3 C++17; same frozen source/headers; CLOCK_THREAD_CPUTIME_ID and steady_clock. Three paired rounds, reverse middle round; each case32warmup+512timed. Each quantile is median of3per-round quantiles. Cold eight-string fret12 chord event and whole256host-frame movingbend callback are distinct workloads, not per-sample steadycost. Compare explicitly MASS1/MODAL1 vs MASS1/MODAL0 vs MASS0/MODAL0. Root signaled CPU clear before run; root onlydocs/evidenceIO during timing. No claim of targetRackVM ortotalDAW performance.",
+    "rows": [
+      {
+        "host_rate": 48000,
+        "mode": "cold_eight_string_chord_event",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 196.41699999999764,
+            "thread_p95_microseconds": 206,
+            "thread_maximum_microseconds": 280.375,
+            "p50_microseconds": 196.208,
+            "p95_microseconds": 210.666,
+            "maximum_microseconds": 298.209
+          },
+          "mass": {
+            "thread_p50_microseconds": 198.70900000000256,
+            "thread_p95_microseconds": 213.45799999999872,
+            "thread_maximum_microseconds": 311.625,
+            "p50_microseconds": 198.5,
+            "p95_microseconds": 218.417,
+            "maximum_microseconds": 357
+          },
+          "combined": {
+            "thread_p50_microseconds": 214.58299999999872,
+            "thread_p95_microseconds": 229.29200000000128,
+            "thread_maximum_microseconds": 261.29199999999764,
+            "p50_microseconds": 214.375,
+            "p95_microseconds": 234.167,
+            "maximum_microseconds": 292.375
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 9.248690286482987,
+        "combined_thread_p50_change_from_mass_percent": 7.988566194785318
+      },
+      {
+        "host_rate": 48000,
+        "mode": "eight_string_bend_256_frames",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 762,
+            "thread_p95_microseconds": 2127.0419999999867,
+            "thread_maximum_microseconds": 2275.7080000000133,
+            "p50_microseconds": 761.875,
+            "p95_microseconds": 2126.791,
+            "maximum_microseconds": 2304.25
+          },
+          "mass": {
+            "thread_p50_microseconds": 761,
+            "thread_p95_microseconds": 2124.207999999984,
+            "thread_maximum_microseconds": 2268.167000000016,
+            "p50_microseconds": 760.833,
+            "p95_microseconds": 2124.041,
+            "maximum_microseconds": 2326.375
+          },
+          "combined": {
+            "thread_p50_microseconds": 879.6659999999974,
+            "thread_p95_microseconds": 2605.292000000016,
+            "thread_maximum_microseconds": 2755.9580000000424,
+            "p50_microseconds": 879.5,
+            "p95_microseconds": 2604.5,
+            "maximum_microseconds": 2798.333
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 15.441732283464237,
+        "combined_thread_p50_change_from_mass_percent": 15.59342969776576
+      },
+      {
+        "host_rate": 96000,
+        "mode": "cold_eight_string_chord_event",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 197.08299999998417,
+            "thread_p95_microseconds": 210.125,
+            "thread_maximum_microseconds": 235.16700000001583,
+            "p50_microseconds": 196.792,
+            "p95_microseconds": 218.334,
+            "maximum_microseconds": 265.667
+          },
+          "mass": {
+            "thread_p50_microseconds": 193.95799999998417,
+            "thread_p95_microseconds": 205.875,
+            "thread_maximum_microseconds": 242.625,
+            "p50_microseconds": 193.75,
+            "p95_microseconds": 208.542,
+            "maximum_microseconds": 269.25
+          },
+          "combined": {
+            "thread_p50_microseconds": 220.08299999998417,
+            "thread_p95_microseconds": 233.20799999998417,
+            "thread_maximum_microseconds": 284.45799999998417,
+            "p50_microseconds": 219.917,
+            "p95_microseconds": 235.709,
+            "maximum_microseconds": 301.958
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 11.670210013041139,
+        "combined_thread_p50_change_from_mass_percent": 13.469410903392554
+      },
+      {
+        "host_rate": 96000,
+        "mode": "eight_string_bend_256_frames",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 637.75,
+            "thread_p95_microseconds": 1161.0409999999683,
+            "thread_maximum_microseconds": 1230.75,
+            "p50_microseconds": 637.584,
+            "p95_microseconds": 1161.625,
+            "maximum_microseconds": 1281.5
+          },
+          "mass": {
+            "thread_p50_microseconds": 657.375,
+            "thread_p95_microseconds": 1170.375,
+            "thread_maximum_microseconds": 1288.5420000000158,
+            "p50_microseconds": 657.375,
+            "p95_microseconds": 1170.375,
+            "maximum_microseconds": 1400.666
+          },
+          "combined": {
+            "thread_p50_microseconds": 733.5420000000158,
+            "thread_p95_microseconds": 1368.4579999999842,
+            "thread_maximum_microseconds": 1449.8329999999842,
+            "p50_microseconds": 733.375,
+            "p95_microseconds": 1369.833,
+            "maximum_microseconds": 1468.083
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 15.020305762448572,
+        "combined_thread_p50_change_from_mass_percent": 11.586537364520378
+      },
+      {
+        "host_rate": 384000,
+        "mode": "cold_eight_string_chord_event",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 196.95800000010058,
+            "thread_p95_microseconds": 208.25,
+            "thread_maximum_microseconds": 234.29200000013225,
+            "p50_microseconds": 196.792,
+            "p95_microseconds": 211.917,
+            "maximum_microseconds": 272.625
+          },
+          "mass": {
+            "thread_p50_microseconds": 198.66700000001583,
+            "thread_p95_microseconds": 213.5,
+            "thread_maximum_microseconds": 397.66599999996834,
+            "p50_microseconds": 198.5,
+            "p95_microseconds": 220.792,
+            "maximum_microseconds": 421.083
+          },
+          "combined": {
+            "thread_p50_microseconds": 230.5,
+            "thread_p95_microseconds": 251,
+            "thread_maximum_microseconds": 356.3330000001006,
+            "p50_microseconds": 230.291,
+            "p95_microseconds": 261.459,
+            "maximum_microseconds": 609.834
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 17.030026706141555,
+        "combined_thread_p50_change_from_mass_percent": 16.023295262918168
+      },
+      {
+        "host_rate": 384000,
+        "mode": "eight_string_bend_256_frames",
+        "median_of_three_round_quantiles": {
+          "original": {
+            "thread_p50_microseconds": 257.04200000013225,
+            "thread_p95_microseconds": 392.70799999986775,
+            "thread_maximum_microseconds": 418.91700000013225,
+            "p50_microseconds": 256.916,
+            "p95_microseconds": 392.542,
+            "maximum_microseconds": 462.625
+          },
+          "mass": {
+            "thread_p50_microseconds": 261.6669999998994,
+            "thread_p95_microseconds": 394.66599999996834,
+            "thread_maximum_microseconds": 421.875,
+            "p50_microseconds": 261.459,
+            "p95_microseconds": 394.5,
+            "maximum_microseconds": 427.209
+          },
+          "combined": {
+            "thread_p50_microseconds": 288.5,
+            "thread_p95_microseconds": 446.08400000003166,
+            "thread_maximum_microseconds": 503.2080000001006,
+            "p50_microseconds": 288.292,
+            "p95_microseconds": 445.875,
+            "maximum_microseconds": 521.5
+          }
+        },
+        "combined_thread_p50_change_from_original_percent": 12.23846686527943,
+        "combined_thread_p50_change_from_mass_percent": 10.254636618339674
+      }
+    ],
+    "raw_timings_sha256": "1e626e583415ac0f328c9c9f3cde0085418dd520b46cf099b50e40c2bf790b3b",
+    "script_sha256": "1f465c20a82bc3a5ac00775c78384a487f124dfcb0684cd4dbc663cf8e5d4863"
+  },
+  "validation_record": "realism-followup-2026-10-17.md",
+  "evidence_directory": "build-legato-arrival-review/evidence",
+  "release": {
+    "packaged": false,
+    "published": false,
+    "rack_pin_changed": false,
+    "merged": false
+  },
+  "corrections": [
+    "continuous legato endpoint geometry refit",
+    "exactly idempotent sympathetic no-op refit"
+  ],
+  "validation_status": "combined final verification running; see Markdown and retained logs"
+}

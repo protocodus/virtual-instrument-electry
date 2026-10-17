@@ -2,10 +2,12 @@
 """Audit static low-string modal frequencies without trusting the fit's score.
 
 The C++ observer below reads coefficients from the shipping engine; it does
-not implement a second string fitter. This Python oracle solves the complete
-unwrapped loop phase for each real-axis phase resonance, including the actual
+not implement a second string fitter. This Python oracle solves the isolated
+vertical loop's unwrapped phase for each real-axis phase resonance, including the actual
 cubic fractional read and loss-filter phase. These are not complex damped
-pole roots or measured spectral peaks. It separately solves the dispersion-only
+pole roots or measured spectral peaks. The horizontal loop's detuning and
+nonzero two-polarisation coupling are omitted; these are not the complete
+static string's modes. It separately solves the dispersion-only
 loop, with its fundamental phase compensated, to expose the fitter's error
 apart from loss-filter curvature. The comparison law is
 f_n = n f_1 sqrt((1 + B n^2)/(1 + B)). Neither this law nor a coefficient audit
@@ -285,7 +287,7 @@ def main():
     parser.add_argument("--save-observations", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--compiler", default="c++")
-    parser.add_argument("--modal-fit", action="store_true", help="Observe the default-off modal-fit candidate")
+    parser.add_argument("--modal-fit", action="store_true", help="Explicitly enable the selected modal fitter (also the development default)")
     parser.add_argument("--define", action="append", default=[], help="Extra experimental ELECTRY_* macro, NAME=0 or NAME=1")
     parser.add_argument("--benchmark-only", action="store_true", help="Time cold chord events and moving-bend callbacks instead of modes")
     args = parser.parse_args()

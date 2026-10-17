@@ -64,9 +64,9 @@ option(ELECTRY_MEASURED_PICKUP_FLUX
 option(ELECTRY_PASSIVE_REPICK_SPRING
     "Build the default-off passive dynamic repick-contact candidate" OFF)
 option(ELECTRY_REFERENCE_STRING_MASS
-    "Build the default-off published XL wound-string mass experiment" OFF)
+    "Use the published XL wound-string reference mass" ON)
 option(ELECTRY_MODAL_DISPERSION_FIT
-    "Build the default-off stretched-modal dispersion fitter experiment" OFF)
+    "Use the stretched-modal dispersion fitter" ON)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
     "Optional path to a local JUCE 8.0.14 checkout (avoids downloading JUCE)")
 set(ELECTRY_CLAP_JUCE_EXTENSIONS_PATH "" CACHE PATH
@@ -130,12 +130,9 @@ if(ELECTRY_PASSIVE_REPICK_SPRING)
         ELECTRY_PASSIVE_REPICK_SPRING=1)
 endif()
 
-if(ELECTRY_REFERENCE_STRING_MASS)
-    target_compile_definitions(ElectryDSP PUBLIC ELECTRY_REFERENCE_STRING_MASS=1)
-endif()
-if(ELECTRY_MODAL_DISPERSION_FIT)
-    target_compile_definitions(ElectryDSP PUBLIC ELECTRY_MODAL_DISPERSION_FIT=1)
-endif()
+target_compile_definitions(ElectryDSP PUBLIC
+    ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
+    ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
 
 if(ELECTRY_MEASURED_MODERN_CABINET)
     target_compile_definitions(ElectryDSP PUBLIC
@@ -176,13 +173,9 @@ if(NOT MSVC)
         ELECTRY_EMBEDDED_TARGET=1
         ELECTRY_MEASURED_BODY_RESPONSE=1
         ELECTRY_DECOUPLED_PICK_RELEASE=1
-        ELECTRY_ENERGY_ATTACK_PITCH=1)
-    if(ELECTRY_REFERENCE_STRING_MASS)
-        target_compile_definitions(ElectryDSPCxx17 PRIVATE ELECTRY_REFERENCE_STRING_MASS=1)
-    endif()
-    if(ELECTRY_MODAL_DISPERSION_FIT)
-        target_compile_definitions(ElectryDSPCxx17 PRIVATE ELECTRY_MODAL_DISPERSION_FIT=1)
-    endif()
+        ELECTRY_ENERGY_ATTACK_PITCH=1
+        ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
+        ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
     target_compile_options(ElectryDSPCxx17 PRIVATE
         -Wall -fno-exceptions -fno-rtti -fno-builtin)
 endif()
@@ -521,6 +514,8 @@ if(BUILD_TESTING)
                          -DELECTRY_EXPECT_MEASURED_BODY_RESPONSE=${ELECTRY_MEASURED_BODY_RESPONSE}
                          -DELECTRY_EXPECT_LOW_STRING_LOSS_CORRECTION_ORDER2=${ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2}
                          -DELECTRY_EXPECT_ENERGY_ATTACK_PITCH=${ELECTRY_ENERGY_ATTACK_PITCH}
+                         -DELECTRY_EXPECT_REFERENCE_STRING_MASS=${ELECTRY_REFERENCE_STRING_MASS}
+                         -DELECTRY_EXPECT_MODAL_DISPERSION_FIT=${ELECTRY_MODAL_DISPERSION_FIT}
                          -DELECTRY_EXPECT_POSITIONED_FRET_COLLISION=${ELECTRY_POSITIONED_FRET_COLLISION}
                          -DELECTRY_EXPECT_MEASURED_PICKUP_FLUX=${ELECTRY_MEASURED_PICKUP_FLUX}
                          -DELECTRY_EXPECT_PASSIVE_REPICK_SPRING=${ELECTRY_PASSIVE_REPICK_SPRING}
@@ -674,7 +669,7 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
-        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion BuildRealismComparisons)
+        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion AuditModalDecay BuildRealismComparisons)
             add_test(NAME Electry.${audit}
                 COMMAND "${Python3_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${audit}Tests.py")

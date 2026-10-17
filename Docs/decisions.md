@@ -4,6 +4,35 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-17 — candidate direction for the realism investigation
+
+The four original comparisons used A = unchanged `45e9a81` and B = isolated
+research source `2ef0e1b`: published XL wound-string mass, dry and through the
+Modern amp, followed by the stretched-modal fitter, dry and amplified. The
+mass audition used the named light reference, not a measured heavy set.
+Identical performance, seed, rate and buffer size were matched by one
+whole-file RMS gain per take; exact trims and source hashes remain in
+`build-realism-review/listen/`. The key was separate from the listening page.
+
+The user answered “B”, then instructed: “continue on your own, without my
+interference, always take candidate.” Record B as the selected direction for
+both original mechanisms, without inventing a per-pair description. For this
+Electry investigation, subsequent candidate choices may proceed autonomously;
+another subjective confirmation is not required. Numerical tuning, stability,
+continuity and runtime failures still require diagnosis and correction. This
+does not authorize a merge, release or publication.
+
+Published reference mass is promoted to the development default. Only the
+three whole-source spectral snapshot centers made stale by that change are
+refreshed; their tolerances and separate physical/pickup rails remain intact.
+The heavier mass morph retains the existing geometric-similarity assumption,
+now anchored to the named light construction. The selected modal fitter is
+also the development default after test diagnosis and exact cache optimization;
+its worst-mode improvement, median/CPU tradeoffs and remaining topology limits
+are explicit. Engineering validation and the objective legato/idle-refit
+corrections are recorded in the
+[follow-up validation](validation/realism-followup-2026-10-17.md).
+
 ## 2026-10-16 — promote the combined realism candidate B
 
 The comparison used A = unchanged upstream `18e0d467` and B = the combined

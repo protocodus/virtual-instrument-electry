@@ -154,13 +154,15 @@ def main():
     for variant in spec:
         print("Building", variant["id"], flush=True)
         defines = variant.get("defines", {})
+        rate = variant.get("rate", 48000)
+        if type(rate) is not int or not 44100 <= rate <= 384000:
+            raise ValueError("Sample rate must be an integer from 44100 to 384000 Hz")
         exe = build(repo, output / "builds" / variant["id"], base, variant["commits"], driver, defines)
         for sound in variant.get("sounds", ["dry"]):
             name = variant["id"] + ("-amp" if sound == "amp" else "")
             locations = [output / "raw" / name / letter for letter in "AB"]
             for renderer, dest in zip([baseline, exe], locations):
-                print(run([str(renderer), str(dest), variant["probe"]]
-                          + (["amp"] if sound == "amp" else [])).decode().strip(), flush=True)
+                print(run([str(renderer), str(dest), variant["probe"], sound, str(rate)]).decode().strip(), flush=True)
             results.append(package_pair(*locations, output / "listen" / name,
                 {"id": name, "title": variant["title"], "probe": variant["probe"],
                  "sound": sound, "commits": variant["commits"], "defines": defines,
@@ -170,7 +172,7 @@ def main():
     template = (repo / "Tools/RealismListening.html").read_text()
     (output / "listen/index.html").write_text(template.replace("/*MANIFEST*/[]", json.dumps(display)))
     key = ["# Listening key — read after listening", "",
-           "A: unchanged upstream " + base + ". B: only the candidate listed below.",
+           "A: unchanged baseline " + base + ". B: only the candidate listed below.",
            "", "All takes use identical events, seed, rate and buffers. Whole-file RMS matched; trims below are constant dB gains.", ""]
     for r in results:
         key.append(f"- {r['id']}: {r['title']}. A {r['trim_db'][0]:+.3f} dB; B {r['trim_db'][1]:+.3f} dB. Commits: {', '.join(r['commits'])}. Defines: {r['defines']}.")

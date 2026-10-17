@@ -1,5 +1,13 @@
 # Eight-string realism techniques — 17 October 2026
 
+The investigation has produced a reference-mass development default and a
+continuous legato-arrival correction. The user selected the original B
+comparisons and authorized autonomous candidate choices. Current outcomes,
+the test diagnoses and further decay/pickup findings are in the
+[follow-up validation](../validation/realism-followup-2026-10-17.md). The
+[complex-pole feasibility study](complex-dispersion-feasibility-2026-10-17.md)
+extends the dispersion search without installing a new runtime topology.
+
 The immediate priorities are the accuracy of the existing stiff-string solver
 and an independently sourced wound-string mass experiment. Both affect the
 physical low-string model and can be investigated without guessing new player
@@ -20,7 +28,7 @@ applicable engineering and listening gates.
 | Rank | Technique and existing coverage | Missing behavior or accuracy | Finite next experiment and expected consequence | Main risk and validation |
 | --- | --- | --- | --- | --- |
 | 1 | **Solve the existing dispersive loop against its actual modal frequencies.** Electry already derives stiffness `B`, fits an eight-allpass cascade and compensates fundamental phase. | Fitting phase-delay deficits at selected harmonics is not the same as solving every closed-loop modal root. The independent audit finds much larger high-partial errors on short, heavy fretted strings than on opens. | Use `Tools/AuditDispersion.py` as an independent numerical oracle; compare one default-off fitter against the same stiff-string law over every string, fret, Build anchor and host rate. Better partial placement should affect upper-fret metallic ringing, harmonic attacks and chord beating. | A smaller optimizer residual need not reduce audible modal error. Require actual root errors, nominal fundamental accuracy, held bend/slide continuity, CPU and finite rendering. The mathematical reference does not identify an actual string's core. |
-| 2 | **Use published linear mass for one named wound-string construction.** The current model estimates wound mass from 85% of a solid steel cylinder's external area. | Current manufacturer data differs by up to 9.60% at the `.080` reference. That changes impedance, tension and stiffness together. | A default-off `ELECTRY_REFERENCE_STRING_MASS` candidate replaces only the five wound-string masses, retaining the existing empirical core coordinates. Compare the light reference separately from the synthetic heavier-gauge hypothesis. Expect construction-dependent release/contact response and partial stretch, with a potentially larger change in the unclamped attack-tension seed. | Unit mass is not core geometry, a decay measurement or an eight-string playing capture. Keep one common mass law in the physical solve and reference impedance. Score seed saturation, tuning, partials, attacks, releases and CPU before a level-matched audition. |
+| 2 | **Use published linear mass for one named wound-string construction.** The former model estimated wound mass from 85% of a solid steel cylinder's external area. | Current manufacturer data differs by up to 9.60% at the `.080` reference. That changes impedance, tension and stiffness together. | The initially default-off `ELECTRY_REFERENCE_STRING_MASS` candidate, now the development default, replaces only the five wound-string masses, retaining the existing empirical core coordinates. Compare the light reference separately from the synthetic heavier-gauge hypothesis. Expect construction-dependent release/contact response and partial stretch, with a potentially larger change in the unclamped attack-tension seed. | Unit mass is not core geometry, a decay measurement or an eight-string playing capture. Keep one common mass law in the physical solve and reference impedance. Score seed saturation, tuning, partials, attacks, releases and CPU before a level-matched audition. |
 | 3 | **A passive local plectrum junction that reacts to incoming motion.** Shipping already preserves the ringing string, performs a finite contact stage and shapes the release by physical string impedance. | Its retained contact loss is a placeholder, rather than a measured moving pick exchanging force with the local incoming waves. | First exercise a small passive two-rail oracle over phase, velocity, compliance and release timing. Then use the existing phase-conditioned capture contract to fit one candidate. Expected gain is the second and later stroke's body, brightness and phase dependence in rapid chugs. | Both passive-spring and moving-unilateral repick candidates already regressed source comparisons. A new implementation needs new phase-resolved evidence; passivity alone is insufficient. Preserve pre-contact audio, ownership, tuning and isolated-note behavior. |
 | 4 | **Registered two-axis pickup transduction and measured loading.** Electry already has two transverse polarizations, spatial aperture/coil geometry, differentiation and loaded electrical response. | The two axes are combined through voiced sensitivity before the nonlinear map, rather than measured as a two-dimensional displacement-to-flux surface at known pickup gaps. | Fit one target pickup's registered two-axis map, de-embedding its electrical load, and compare held-out trajectories before runtime integration. Expected effects include polarization-sensitive envelope motion and attack asymmetry. | The prior measured one-dimensional flux substitution regressed the paired source score. A published six-string pickup curve cannot calibrate the `.080` string or an unknown displacement scale. Validate both polarizations, several heights, full-band attacks, selector changes and the same high-gain chain. |
 | 5 | **Shared passive bridge/neck mobility.** Shipping already has coupled polarizations, sympathetic strings and measured paired body-mode frequencies/damping; its direct body contribution is deliberately quiet. | A common scalar string bus and per-string loss laws do not identify one reciprocal, frequency-dependent structural state with string-, axis- and fret-specific ports. | Build a synthetic positive-semidefinite modal-matrix oracle before using any measured target. Next fit a small measured neck/bridge mobility model. Expected effects are coherent string interaction, double decay and position-specific dead spots. | Current body poles have no signed absolute residues and deliberately supply no termination loss. Do not convert them into a mobility curve or add arbitrary resonators. Test reciprocity, no-source energy, decays, coupling versus voice count, state continuity and CPU. |
@@ -49,7 +57,7 @@ or a listener's assessment. The full sweep and final candidate results belong
 to the generated audit reports; this note does not convert the initial maximum
 into a final improvement claim.
 
-The final default-off minimax prototype scores stretched frequencies, normalizes
+The initially default-off, now selected minimax prototype scores stretched frequencies, normalizes
 by exact group delay, and searches a logarithmic DC-group-delay grid using the
 same pole domain and pair count. Across 864 configurations (12,960 upper
 partials), maximum full-loop phase-resonance error falls from 209.385 to
@@ -180,7 +188,9 @@ Those short checks do not establish decay fitting, audible preference,
 cross-platform equivalence, complete plugin validation or production
 promotion. The completed full-suite outcomes and reproducible single-intervention WAVs
 are recorded in the validation record. Whole-file RMS matching removes overall
-loudness as a preference cue; no user listening verdict has been recorded.
+loudness as a preference cue. The later B selection and autonomous-candidate
+instruction are recorded in the decision log; they do not turn preference
+into a physical measurement.
 
 ## Why the other techniques remain bounded
 

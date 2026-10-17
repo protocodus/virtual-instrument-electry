@@ -69,7 +69,10 @@ struct ElectryEngineTestAccess
                 || voice.vertical.materialLossDip.z2 != -0.0000625
                 || voice.horizontal.materialLossDip.z1 != 0
                 || voice.horizontal.materialLossDip.z2 != 0
-                || std::abs(voice.vertical.currentDelay - delay) > 1.0e-4f)
+                // An unchanged refit is exactly idempotent. Adding then
+                // subtracting the same phase moved this raw delay by one
+                // float ULP at 48 kHz even while every history stayed intact.
+                || voice.vertical.currentDelay != delay)
                 return false;
         }
         // A retired played voice has different-pitch history; unlike a live

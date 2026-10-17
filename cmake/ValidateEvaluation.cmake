@@ -265,6 +265,8 @@ foreach(metal_feature IN ITEMS
         measured_body_response
         low_string_loss_correction_order2
         energy_attack_pitch
+        reference_string_mass
+        modal_dispersion_fit
         positioned_fret_collision
         measured_pickup_flux
         passive_repick_spring

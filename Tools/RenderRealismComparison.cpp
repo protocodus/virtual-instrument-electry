@@ -1,6 +1,6 @@
 // Listening protocol: build this identical driver against the unchanged
 // shipping commit and each isolated candidate. Events use the host-neutral
-// ElectryPerformer, WRITTEN MIDI, 48 kHz / 64 frames and seed 0x160c2026.
+// ElectryPerformer, WRITTEN MIDI, 48 kHz by default / 64 frames and seed 0x160c2026.
 // The driver writes unnormalised float WAV and event/timing metadata. Packaging
 // matches whole-file RMS with one constant gain per take, checks peaks and
 // keeps the candidate mapping in a separate key.md. No audio approximations,
@@ -23,7 +23,8 @@
 
 namespace
 {
-constexpr int rate = 48000, block = 64;
+int rate = 48000;
+constexpr int block = 64;
 constexpr std::uint32_t seed = 0x160c2026u;
 using Engine = electry::ElectryEngine;
 enum class Kind { on, off, style, palm, bend, mask, stop };
@@ -51,7 +52,28 @@ Score makeScore(const std::string& probe, bool amp)
     s.parameters.fxEnabled = amp;
     s.parameters.effects.amp = amp ? 0.48f : 0;
     s.parameters.effects.ampModel = electry::AmpModel::ModernHighGain;
-    if (probe == "dispersion")
+    if (probe == "legato-arrival")
+    {
+        p.sympatheticAmount = 0;
+        p.pickNoise = p.fingerNoise = p.releaseNoise = p.artifactAmount = 0;
+        s.seconds = 13;
+        // Written MIDI remains one octave above the physical sounding notes.
+        // Hammers use E2; slides use E1. Each move retains its physical
+        // string, then stops before the next phrase.
+        const std::array<int, 4> source {55, 57, 42, 54};
+        const std::array<int, 4> target {57, 55, 54, 42};
+        for (int n = 0; n < 4; ++n)
+        {
+            const double t = 0.2 + 3.2 * n;
+            s.event(t, Kind::mask, n < 2 ? 4 : 1);
+            s.style(t, electry::PlayStyle::Sustain);
+            s.note(t, source[n], 0.9f, 2.6);
+            s.style(t + 0.5, n < 2 ? electry::PlayStyle::Hammer : electry::PlayStyle::Slide);
+            s.note(t + 0.5, target[n], 0.9f, 1.9);
+            s.event(t + 2.8, Kind::stop);
+        }
+    }
+    else if (probe == "dispersion")
     {
         p.sympatheticAmount = 0;
         p.pickNoise = p.fingerNoise = p.releaseNoise = p.artifactAmount = 0;
@@ -222,10 +244,20 @@ int main(int argc, char** argv)
 {
     try
     {
-        if (argc < 3 || argc > 4) throw std::runtime_error("Usage: renderer OUTPUT_DIR PROBE [amp]");
+        if (argc < 3 || argc > 5) throw std::runtime_error("Usage: renderer OUTPUT_DIR PROBE [amp|dry] [rate]");
         const std::filesystem::path out = argv[1];
         const std::string probe = argv[2];
-        const bool amp = argc == 4 && std::string(argv[3]) == "amp";
+        if (argc >= 4 && std::string(argv[3]) != "amp" && std::string(argv[3]) != "dry")
+            throw std::runtime_error("Sound must be amp or dry");
+        const bool amp = argc >= 4 && std::string(argv[3]) == "amp";
+        if (argc == 5)
+        {
+            const std::string requested = argv[4];
+            std::size_t parsed = 0;
+            rate = std::stoi(requested, &parsed);
+            if (parsed != requested.size() || rate < 44100 || rate > 384000)
+                throw std::runtime_error("Rate must be an integer from 44100 to 384000 Hz");
+        }
         const auto score = makeScore(probe, amp);
         std::filesystem::create_directories(out);
         auto performer = std::make_unique<electry::ElectryPerformer>();
