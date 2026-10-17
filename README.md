@@ -143,7 +143,7 @@ distribution builds arrived during 1.2.0 development.
 
 ## Downloads
 
-<!-- build-download-begin: updated by the Main build workflow -->
+<!-- build-download-begin -->
 **[Download distributable binaries — build 62](https://github.com/protocodus/virtual-instrument-electry/actions/runs/38870496587/artifacts/12033584421)**
 <!-- build-download-end -->
 

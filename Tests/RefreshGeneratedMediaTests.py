@@ -17,9 +17,16 @@ PNG = b"\x89PNG\r\n\x1a\nfixtureIEND\xaeB`\x82"
 ARTIFACT_URL = "https://github.com/example/electry/actions/runs/123/artifacts/456"
 
 
-def download(build_number, artifact_url=ARTIFACT_URL):
+def download(build_number, artifact_url=ARTIFACT_URL, source=None):
+    if source is None:
+        # The link text from before the portfolio standard, still recognised.
+        return (
+            f"\n**[Download distributable binaries — build {build_number}]({artifact_url})**\n"
+        ).encode("utf-8")
     return (
-        f"\n**[Download distributable binaries — build {build_number}]({artifact_url})**\n"
+        f"\n**[Download main build {build_number}]({artifact_url})**, built from"
+        f" [`{source[:12]}`](https://github.com/example/electry/commit/{source})."
+        " It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.\n"
     ).encode("utf-8")
 
 
@@ -125,7 +132,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         rendered = (self.media / "README.md").read_bytes()
         self.put(self.media, "README.md", rendered.replace(b"Human middle", b"Stale prose"))
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(2))
+        expected = README.replace(b"old table", b"new table").replace(download(1), download(2, source=self.source))
         self.assert_published(expected)
 
     def test_download_only_new_build_and_same_build_noop(self):
@@ -136,7 +143,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertEqual(
             self.git(self.remote, "diff", "--name-only", previous, "main"), b"README.md\n"
         )
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3))
+        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertIn("unchanged", self.publish(build_number=3, artifact_url=ARTIFACT_URL).stdout)
         self.assertEqual(self.tip(), published)
@@ -145,13 +152,13 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
         rerun_url = ARTIFACT_URL.replace("/456", "/789")
         self.publish(build_number=2, artifact_url=rerun_url)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(2, rerun_url))
+        expected = README.replace(b"old table", b"new table").replace(download(1), download(2, rerun_url, source=self.source))
         self.assert_published(expected)
 
     def test_generated_download_commit_does_not_suppress_publication(self):
         latest = self.upstream("README.md", README.replace(download(1), download(2)))
         self.publish(build_number=3, artifact_url=ARTIFACT_URL)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3))
+        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertEqual(self.git(self.remote, "rev-parse", "main^").strip(), latest)
 
@@ -161,6 +168,12 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertIn("newer build", result.stdout)
         self.assertEqual(self.tip(), latest)
         self.assertEqual(self.remote_show(UPDATER.SCREENSHOT), PNG)
+
+    def test_older_build_cannot_replace_newer_standard_download(self):
+        newer = download(3, source=self.source)
+        latest = self.upstream("README.md", README.replace(download(1), newer))
+        self.assertIn("newer build", self.publish(build_number=2, artifact_url=ARTIFACT_URL).stdout)
+        self.assertEqual(self.tip(), latest)
 
     def test_new_source_prevents_stale_update(self):
         latest = self.upstream("source.txt", b"new source\n")
@@ -289,7 +302,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
 
     def test_push_retry_reapplies_download_after_generated_change(self):
         raced_tip = self.run_download_race("README.md", README.replace(download(1), download(2)))
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3))
+        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertEqual(self.git(self.remote, "rev-parse", "main^").strip(), raced_tip)
 

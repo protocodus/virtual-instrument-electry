@@ -18,14 +18,15 @@ PEAKS_BEGIN = (
     b" edits between the markers are overwritten -->"
 )
 PEAKS_END = b"<!-- peaks-table-end -->"
-DOWNLOAD_BEGIN = b"<!-- build-download-begin: updated by the Main build workflow -->"
+DOWNLOAD_BEGIN = b"<!-- build-download-begin -->"
 DOWNLOAD_END = b"<!-- build-download-end -->"
 ARTIFACT_URL = re.compile(
     r"https://github\.com/[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/"
     r"[A-Za-z0-9_-][A-Za-z0-9_.-]*/actions/runs/[1-9][0-9]*/artifacts/[1-9][0-9]*"
 )
+# The second form is the link text written before the portfolio standard.
 PUBLISHED_BUILD = re.compile(
-    rb"\*\*\[Download distributable binaries \xe2\x80\x94 build ([0-9]+)\]\("
+    rb"\*\*\[Download (?:main build |distributable binaries \xe2\x80\x94 build )([0-9]+)\]\("
 )
 SCREENSHOT = "Docs/screenshots/electry.png"
 WAV_NAME = re.compile(r"(0[1-9]|1[0-9]|2[0-3])-[a-z0-9]+(?:-[a-z0-9]+)*\.wav")
@@ -131,7 +132,7 @@ def source_is_current(repo, source, tip):
     return True
 
 
-def apply_payload(repo, payload, table, build_number=None, artifact_url=None):
+def apply_payload(repo, payload, table, source, build_number=None, artifact_url=None):
     # Only the canonical directory's root WAVs belong to the renderer. Frozen
     # listening evidence in subdirectories is never replaced or staged.
     audio_dir = repo / "Docs/audio"
@@ -150,8 +151,11 @@ def apply_payload(repo, payload, table, build_number=None, artifact_url=None):
     readme = prefix + table + suffix
     if build_number is not None:
         prefix, _, suffix = download_parts(readme)
+        repository = artifact_url.split("/actions/runs/", 1)[0]
         download = (
-            f"\n**[Download distributable binaries — build {build_number}]({artifact_url})**\n"
+            f"\n**[Download main build {build_number}]({artifact_url})**, built from"
+            f" [`{source[:12]}`]({repository}/commit/{source}). It holds the macOS,"
+            " Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.\n"
         ).encode("utf-8")
         readme = prefix + download + suffix
     readme_path.write_bytes(readme)
@@ -199,7 +203,7 @@ def refresh(source_commit, media_dir, remote, branch, build_number=None, artifac
             print("Skipped outdated generated media: main source changed during the build.")
             return
         git(repo, "switch", "--detach", tip)
-        apply_payload(repo, payload, table, build_number, artifact_url)
+        apply_payload(repo, payload, table, source, build_number, artifact_url)
         if git(repo, "diff", "--cached", "--quiet", check=False).returncode == 0:
             print("Generated media is unchanged; no commit needed.")
             return
