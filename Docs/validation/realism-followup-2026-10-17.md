@@ -98,13 +98,20 @@ while the full period exceeds 10400. An 8192-sample production line still
 fails after its clamp. The 10-cent rendered-pitch and actual-capacity guards
 remain unchanged.
 
-Mass-only Engine and ReferenceStringMass suites pass. A fresh default build
+Mass-only Engine and ReferenceStringMass suites pass. The earlier mass-only build
 passes all 32 unit suites after one metadata-only repair: the first run used
 an evaluation executable built before the two new manifest fields were added;
 reconfigure/rebuild and the evaluation retest pass. The audio tier also passes
 its 23 serial/parallel technique comparisons. Embedded C++17 compilation with
 immutable tables, no exceptions, RTTI or builtins passes. Exact test logs,
 including the failed metadata run, remain in the working evidence directory.
+
+After the combined model's sympathetic no-op correction, final source at
+`909217c` passes **32/32 unit suites** in 91.73 s and the audio tier's
+23 serial/parallel technique comparisons in 25.76 s. The fresh build includes
+the embedded C++17 target with both selected flags ON. The initial combined
+31/32 run and its exact failed assertion are preserved alongside the final
+green run; no failure is hidden or reclassified as a pass.
 
 The endpoint correction received an independent source review. Review found
 and repaired a test issue: checking only a maximum-step accumulator could miss
@@ -204,6 +211,19 @@ The independent audits are reproducible from saved observations. NumPy/SciPy
 are optional offline research/listening dependencies; the instrument and
 mandatory Python audit tests do not require them. No third-party performance
 audio or licensed SDK content is included.
+
+The final development sound also has a separate 22-second dry/Modern-amp
+comparison in `build-candidate-fidelity-review/`. A is unchanged `45e9a81`;
+B applies the exact DSP diffs of `2ef0e1b`, `7b76928` and `909217c`, with both
+selected flags ON. Candidate Engine.cpp/Engine.h hashes equal the final
+working source exactly. A's raw dry/amp hashes equal the initial baseline
+null-render hashes in the historical checkpoint. All four float files have
+1,056,000 finite stereo frames at 48 kHz/64 frames with the same seed/events.
+Single whole-file RMS gains are +12.0470/+12.0943 dB dry and
++6.2627/+6.2876 dB amp; shared peak headroom puts the dry pair at -25.40885
+dBFS RMS and the amplified pair at -24 dBFS RMS. The key remains separate.
+The local page and all WAV endpoints were verified; no new verdict is required
+under the user's autonomous-candidate instruction.
 
 This work is local development version 1.2.2. It does not include a plugin or
 Rack release build, host/Recon playback, a Rack submodule pin, publication or

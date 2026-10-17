@@ -314,5 +314,95 @@
     "continuous legato endpoint geometry refit",
     "exactly idempotent sympathetic no-op refit"
   ],
-  "validation_status": "combined final verification running; see Markdown and retained logs"
+  "implementation_commit": "909217c",
+  "validation": {
+    "combined_default": {
+      "unit_passed": 32,
+      "unit_total": 32,
+      "unit_wall_seconds": 91.73,
+      "audio_tier": "pass; 23 serial/parallel technique WAVs identical",
+      "audio_wall_seconds": 25.76,
+      "embedded_cxx17": "pass; both selected flags ON, immutable tables, no exceptions/RTTI/builtins"
+    },
+    "optional_complex_oracle_tests": 5,
+    "initial_combined_unit": "31/32; sympathetic no-op ULP drift corrected and regression strengthened"
+  },
+  "final_listening": [
+    {
+      "id": "01",
+      "title": "Selected realism models",
+      "probe": "combined",
+      "sound": "dry",
+      "commits": [
+        "2ef0e1b",
+        "7b76928",
+        "909217c"
+      ],
+      "defines": {
+        "ELECTRY_REFERENCE_STRING_MASS": 1,
+        "ELECTRY_MODAL_DISPERSION_FIT": 1
+      },
+      "base": "45e9a818b0924917aa2fb2b92e88b4a8d1fc7cfa",
+      "rate": 48000,
+      "frames": 1056000,
+      "channels": 2,
+      "raw_rms": [
+        0.013403123725401297,
+        0.013330389497343165
+      ],
+      "trim_db": [
+        12.047029889219447,
+        12.094293638760426
+      ],
+      "matched_rms_dbfs": -25.408849578400414,
+      "matched_difference_db_relative": -18.274746702556822,
+      "peak": [
+        0.9267549353947049,
+        0.9399999999999998
+      ],
+      "events_sha256": "6eac590b7a265b58857988e7f49bbf176bf1a258962950b64bfc188ef7dd2a51",
+      "files": {
+        "A": "4f3ab94d2403352821fa64c441feee566165fcdb04aa294b87ad72f3888c0f1b",
+        "B": "cdc6187feba52f5a9304764148b138c1d13d77f20945a7526688fd1e54f4bfec"
+      }
+    },
+    {
+      "id": "01-amp",
+      "title": "Selected realism models",
+      "probe": "combined",
+      "sound": "amp",
+      "commits": [
+        "2ef0e1b",
+        "7b76928",
+        "909217c"
+      ],
+      "defines": {
+        "ELECTRY_REFERENCE_STRING_MASS": 1,
+        "ELECTRY_MODAL_DISPERSION_FIT": 1
+      },
+      "base": "45e9a818b0924917aa2fb2b92e88b4a8d1fc7cfa",
+      "rate": 48000,
+      "frames": 1056000,
+      "channels": 2,
+      "raw_rms": [
+        0.03068080466793166,
+        0.030592898624554228
+      ],
+      "trim_db": [
+        6.262665085944946,
+        6.287587448201854
+      ],
+      "matched_rms_dbfs": -24.000000000002657,
+      "matched_difference_db_relative": -17.38030810453274,
+      "peak": [
+        0.6568308675367873,
+        0.652021762175195
+      ],
+      "events_sha256": "6eac590b7a265b58857988e7f49bbf176bf1a258962950b64bfc188ef7dd2a51",
+      "files": {
+        "A": "f1c19726ac5902cfd61735db14f6a60aa2272c6ede945c2fed32e5f926678711",
+        "B": "8083d0102567bd807f042e0585e033eb278aaeff3c746dec9556c21ac43d3722"
+      }
+    }
+  ]
 }
