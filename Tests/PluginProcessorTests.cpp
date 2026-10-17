@@ -925,11 +925,11 @@ void testSameSampleChordAllocationIsCanonical()
         const auto reference = render (canonical, {}, spread, 137);
         expect (reference.strings[0].midiNote == 45
                     && reference.strings[0].fret == 5
-                    && reference.strings[1].midiNote == 52
-                    && reference.strings[1].fret == 5
-                    && reference.strings[2].midiNote == 57
-                    && reference.strings[2].fret == 5,
-                "same-sample A power chord did not use its compact fifth-fret shape");
+                    && reference.strings[2].midiNote == 52
+                    && reference.strings[2].fret == 0
+                    && reference.strings[3].midiNote == 57
+                    && reference.strings[3].fret == 0,
+                "same-sample A power chord did not take its lowest-fret open shape");
         expect (std::all_of (reference.left.begin(),
                             reference.left.begin() + 137,
                             [] (float sample) { return sample == 0.0f; }),
@@ -998,11 +998,11 @@ void testSameSampleChordAllocationIsCanonical()
         duplicateChord, {}, 0.0f, 137, 52);
     expect (duplicateReference.strings[0].midiNote == 45
                 && duplicateReference.strings[0].fret == 5
-                && duplicateReference.strings[1].midiNote == 52
-                && duplicateReference.strings[1].fret == 5
-                && duplicateReference.strings[2].midiNote == 57
-                && duplicateReference.strings[2].fret == 5,
-            "duplicate chord did not retain its compact physical shape");
+                && duplicateReference.strings[2].midiNote == 52
+                && duplicateReference.strings[2].fret == 0
+                && duplicateReference.strings[3].midiNote == 57
+                && duplicateReference.strings[3].fret == 0,
+            "duplicate chord did not retain its lowest-fret open shape");
     do
     {
         const auto candidate = render (duplicateChord, {}, 0.0f, 137, 52);
