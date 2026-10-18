@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.5 LANGUAGES C CXX)
+project(Electry VERSION 1.2.6 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -425,6 +425,11 @@ if(BUILD_TESTING)
     add_executable(ElectryRealismDecayTests Tests/RealismDecayTests.cpp)
     target_link_libraries(ElectryRealismDecayTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismDecay COMMAND ElectryRealismDecayTests)
+
+    add_executable(ElectryRealismModalReleaseTests
+        Tests/RealismModalReleaseTests.cpp)
+    target_link_libraries(ElectryRealismModalReleaseTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismModalRelease COMMAND ElectryRealismModalReleaseTests)
 
     add_executable(ElectryEngineTests Tests/ElectryEngineTests.cpp)
     target_link_libraries(ElectryEngineTests PRIVATE ElectryDSP)

@@ -349,8 +349,16 @@ struct ElectryEngineTestAccess
         result.excitationAmplitude = voice.excitationAmplitude;
         result.excitationTransientAmplitude =
             voice.excitationTransientAmplitude;
-        result.excitationModalCoefficient =
-            voice.excitationModalCoefficient;
+        // Observe the filter that actually projects this release. The nominal
+        // legacy pole alone cannot detect a disconnected TPT cutoff during a
+        // pre-bend. Invert the exact DC-delay mapping g=d*(1-a)/(4a) to
+        // express the active release in the existing normalized coordinate.
+        result.excitationModalCoefficient = voice.excitationModalShaper.flatRelease
+            ? static_cast<float>(voice.excitationModalShaper.damping
+                / (voice.excitationModalShaper.damping
+                   + 4.0 * voice.excitationModalShaper.a2
+                     / voice.excitationModalShaper.a1))
+            : voice.excitationModalCoefficient;
         result.excitationReleaseCoefficient =
             voice.excitationReleaseCoefficient;
 #if ELECTRY_ANALYTIC_RELEASE_IC
