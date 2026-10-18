@@ -66,7 +66,8 @@ struct ElectryEngineTestAccess
                 double m = loop->loopGain * pole(loop->loopDampingCoefficient, hz);
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
                 if (loop->lossShelfActive)
-                    m = loop->loopGain * section(loop->lossShelf);
+                    m *= loop->lossShelfGain * std::abs(
+                        1.0 - static_cast<double>(loop->lossShelfZeroCoefficient) * z) * section(loop->lossShelf);
 #endif
                 if (loop->handDipActive) m *= section(loop->handDip);
                 if (loop->materialLossDepth > 0) m *= section(loop->materialLossDip);

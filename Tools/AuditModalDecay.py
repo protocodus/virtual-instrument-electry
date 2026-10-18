@@ -55,6 +55,9 @@ def transfer_and_log_derivative(row, s):
         h *= numerator / denominator
         derivative += (-b1 * q - 2 * b2 * q * q) / numerator
         derivative -= (-a1 * q - 2 * a2 * q * q) / denominator
+    zero = row.get("loss_zero", 0)
+    h *= row.get("loss_gain", 1) * (1 - zero * q)
+    derivative += zero * q / (1 - zero * q)
     return h, derivative
 
 

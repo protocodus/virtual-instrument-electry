@@ -24,6 +24,7 @@ struct ElectryEngineTestAccess
         bool handActive;
         std::array<double, 5> hand;
         std::array<double, 5> loss {1, 0, 0, 0, 0};
+        double lossGain = 1, lossZero = 0;
     };
 
     static Response inspect(ElectryEngine& engine, int stringIndex, double frequency)
@@ -38,7 +39,8 @@ struct ElectryEngineTestAccess
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
         if (loop.lossShelfActive)
         {
-            result.coefficient = 0;
+            result.lossGain = loop.lossShelfGain;
+            result.lossZero = loop.lossShelfZeroCoefficient;
             const auto& loss = loop.lossShelf;
             result.loss = {loss.b0, loss.b1, loss.b2, loss.a1, loss.a2};
         }
@@ -155,7 +157,8 @@ double magnitude(const Access::Response& r, double hz)
         return std::abs((b[0] + b[1] * z + b[2] * z * z)
                         / (1.0 + b[3] * z + b[4] * z * z));
     };
-    result *= section(r.loss);
+    result *= r.lossGain * std::abs(1.0 - r.lossZero
+        * std::polar(1.0, -2.0 * pi * hz / r.rate)) * section(r.loss);
     if (r.depth > 0) result *= section(r.material);
     if (r.handActive) result *= section(r.hand);
     return result;

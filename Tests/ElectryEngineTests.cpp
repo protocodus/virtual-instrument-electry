@@ -960,8 +960,10 @@ struct ElectryEngineTestAccess
         {
             const auto z = std::polar(1.0, -static_cast<double>(omega));
             const auto& b = loop.lossShelf;
-            lossMagnitude = std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
-                / (1.0 + b.a1 * z + b.a2 * z * z));
+            lossMagnitude *= loop.lossShelfGain
+                * std::abs(1.0 - static_cast<double>(loop.lossShelfZeroCoefficient) * z)
+                * std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
+                    / (1.0 + b.a1 * z + b.a2 * z * z));
         }
 #endif
         const double perRoundTrip = materialMagnitude * loop.loopGain
@@ -1628,7 +1630,8 @@ struct ElectryEngineTestAccess
             };
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
             if (loop.lossShelfActive)
-                filterPhase = std::arg(interpolator) + biquadPhase(loop.lossShelf);
+                filterPhase += std::arg(1.0 - static_cast<double>(loop.lossShelfZeroCoefficient) * z)
+                    + biquadPhase(loop.lossShelf);
 #endif
             if (loop.materialLossDepth > 0.0f)
                 filterPhase += biquadPhase(loop.materialLossDip);

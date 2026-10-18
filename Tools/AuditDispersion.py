@@ -106,7 +106,7 @@ struct ElectryEngineTestAccess {
                   << l.dispersionHighCoefficient << ']'
                   << ",\"pole\":"
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-                  << (l.lossShelfActive ? 0.f : l.loopDampingCoefficient)
+                  << l.loopDampingCoefficient
 #else
                   << l.loopDampingCoefficient
 #endif
@@ -120,6 +120,13 @@ struct ElectryEngineTestAccess {
         else
 #endif
             std::cout << "[1,0,0,0,0]";
+        std::cout << ",\"loss_gain\":";
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        std::cout << (l.lossShelfActive ? l.lossShelfGain : 1.0);
+        std::cout << ",\"loss_zero\":" << (l.lossShelfActive ? l.lossShelfZeroCoefficient : 0.f);
+#else
+        std::cout << "1,\"loss_zero\":0";
+#endif
         std::cout << ",\"hand\":";
         if (l.handDipActive) biquad(l.handDip);
         else std::cout << "[1,0,0,0,0]";
@@ -203,7 +210,9 @@ def loop_phase_and_magnitude(observation, omega, dispersion_only=False):
     pole = (1 - observation["pole"]) / (1 - observation["pole"] * z)
     loss = (pole * biquad_response(observation["material"], omega)
             * biquad_response(observation["hand"], omega)
-            * biquad_response(observation.get("loss", [1,0,0,0,0]), omega))
+            * biquad_response(observation.get("loss", [1,0,0,0,0]), omega)
+            * observation.get("loss_gain", 1)
+            * (1 - observation.get("loss_zero", 0) * z))
     return phase + ap_phase + cmath.phase(loss), magnitude * abs(loss) * observation["gain"]
 
 

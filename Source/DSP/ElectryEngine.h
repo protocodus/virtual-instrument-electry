@@ -937,6 +937,9 @@ private:
         // Fixed two-anchor passive shelf; its two running states survive live
         // pitch, hand and string-parameter refits just as the one-pole does.
         DipBiquad lossShelf {};
+        double lossShelfInputState { 0.0 };
+        double lossShelfGain { 1.0 };
+        float lossShelfZeroCoefficient { 0.0f };
         bool lossShelfActive { false };
 #endif
         // Conservative intrinsic-loss curvature for the two extended-range
@@ -1620,7 +1623,8 @@ private:
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     static void configureLoopLossShelf(PolarisationLoop& loop, float omega0,
-                                      float omegaHigh) noexcept;
+                                      float omegaHigh, float intrinsicPole,
+                                      float intrinsicGain) noexcept;
     static float loopLossPhaseDelay(const PolarisationLoop& loop,
                                     float omega) noexcept;
 #endif
