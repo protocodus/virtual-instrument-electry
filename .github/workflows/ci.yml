@@ -268,7 +268,7 @@ jobs:
         run: |
           xvfb-run -a ctest --test-dir build-sanitize --output-on-failure \
             --no-tests=error -L 'unit|fuzz' \
-            -R '^Electry\.(ElectryEngine|ElectryFx|PluginProcessor|DspFuzz|ParameterMatrix)$'
+            -R '^Electry\.(ElectryEngine|Refret|ElectryFx|PluginProcessor|DspFuzz|ParameterMatrix)$'
       - name: Mutate DSP API sequences
         run: |
           mkdir -p build-sanitize/corpus build-sanitize/fuzz-artifacts
