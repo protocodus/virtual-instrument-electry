@@ -144,6 +144,17 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.4 — In development — Picked fret transitions
+
+Small picked changes on a ringing string hand off between stationary old- and
+new-fret feedback taps, avoiding the unintended pitch sweep from the bend
+follower. The handoff retains string, filter and pickup history, with no output
+fade or new timing control. Interrupted changes finish their current handoff
+before moving to the latest destination. Large jumps retain their existing
+choke; deliberate slides and continuous expression retain their trajectories.
+See the [fret-handoff validation](Docs/validation/refret-handoff-2026-10-18.md)
+for real DI comparisons and the method's limits.
+
 ### 1.2.3 — In development — Same-string note handoffs
 
 An older MIDI Note Off no longer stops a newer note after an A → B → A
@@ -1361,11 +1372,13 @@ The [follow-up validation](Docs/validation/realism-followup-2026-10-17.md)
 records the current engineering outcome and listening decision. Accuracy
 against a model equation does not by itself establish resemblance to a guitar.
 
-Fast picked changes on one string can briefly glide toward the new pitch.
-The [October 18 performance investigation](Docs/research/dry-reference-comparisons-2026-10-18.md)
-provides actual dry guitar phrases and controlled retrigger comparisons.
-Direct and fast-ramped retuning exposed a transient in the repeated phrase;
-a reliable handoff of the already-ringing string remains under investigation.
+Small picked fret changes now use the
+[stationary-tap handoff](Docs/research/refret-handoff-2026-10-18.md) instead of
+the continuous bend follower. The short mixture can introduce temporary comb
+coloration; it is an engineering approximation rather than a calibrated fret
+contact. The real DI comparisons use six-string performance references, and
+do not establish eight-string perceptual parity. Large-jump choking and a
+physical spatial model of the fretting contact remain further work.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

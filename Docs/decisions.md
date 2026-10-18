@@ -4,6 +4,31 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — select fixed-tap picked fret handoffs
+
+The user explicitly requested an autonomous fix for the ordinary picked
+fret-change glide, real dry guitar comparisons and a main merge after green
+checks. Select candidate B `60f7bec` against unchanged A `49f42e3`: stationary
+old/new feedback reads replace the moving read head on the small changes that
+previously used the bend follower. Reuse the existing Contact duration, retain
+the ringing/filter/pickup state and finish an interrupted mixture before
+moving to the latest destination. This is an engineering selection under the
+user's autonomy instruction, not a new listener vote or fitted fret-contact
+constant.
+
+Keep the original large-jump choke and instantaneous retuning. Removing that
+choke increased a level-matched large-hop step by about 5.7 dB; it is not part
+of the selected correction. Four performance controls, including the octave
+changes and rapid same-note repicks, remain byte-identical. The real-DI room
+adds two genuine monophonic descents to the two frozen ascending excerpts;
+source selection preceded candidate audio. All fourteen attacks retain their
+registered timing, shared A/B crop and whole-file gain protocol. Hardware,
+force and remaining comb-coloration limits stay explicit.
+
+The room is `http://127.0.0.1:8722/`; the mechanism keys are separate. See
+the [validation and limits](validation/refret-handoff-2026-10-18.md) and
+[portable source receipt](research/refret-reference-selection-2026-10-18.json).
+
 ## 2026-10-18 — select the note-lifetime correction; retain real DI references
 
 The user asked to prioritize changing notes, repeated notes and the same

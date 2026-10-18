@@ -1,0 +1,99 @@
+{
+  "schema": "electry-refret-validation/v1",
+  "date": "2026-10-18",
+  "dsp_version": "1.2.4",
+  "baseline_revision": "49f42e347fa021535e4892a357796e7533d3d42e",
+  "selected_dsp_revision": "60f7becdcfcaa2a15ef3648c61e22411cf4202a7",
+  "selection": "Autonomous engineering selection explicitly authorized by user; no new subjective listener vote.",
+  "source_sha256": {
+    "Source/DSP/ElectryEngine.cpp": "1c546f643a72ef2ea13a7e276859fccdc1a4fa84ad60156a23572b0ffc4a90de",
+    "Source/DSP/ElectryEngine.h": "8bc4a602c7bbfa56a1ee0297b47b0d7425e4dc97c9f173123b08299d333b3cbc",
+    "Tests/ElectryRefretTests.cpp": "b18f6614461f1ce6d6de18b94ac9eedb6093d9f3ec16a70d97116c759a22bcca",
+    "Tools/AnalyzeRefretComparisons.py": "c34689903c0cdb62273f42302789748e3689469490fb288bc9108e7e0776582b"
+  },
+  "checks": {
+    "unit_suites": 38,
+    "unit_failed": 0,
+    "serial_parallel_demos": 23,
+    "audio_failed": 0,
+    "embedded_cpp17": true,
+    "refret_assertions": 63111,
+    "refret_failures": 0,
+    "baseline_assertion_failures": 62,
+    "baseline_release_pitch_cases_failed": 48,
+    "without_queued_repick_guard_failures": 1,
+    "analysis_protocol_tests": 7,
+    "release_phase": {
+      "cases": 48,
+      "max_absolute_cents": 2.98849861,
+      "max_unexplained_residue_cents": 6.36684769e-05,
+      "existing_attack_energy_span_cents": 6,
+      "meaning": "Frozen complex full-loop state; not instantaneous acoustic pitch."
+    }
+  },
+  "comparisons": {
+    "url": "http://127.0.0.1:8722/",
+    "performance_pairs": 6,
+    "real_phrase_triples": 4,
+    "wav_count": 24,
+    "registered_attacks": 14,
+    "unchanged_performance_controls": [
+      "repeat-8hz",
+      "repeat-12hz",
+      "alternating-string",
+      "rapid-palm"
+    ],
+    "primary_step_ratio_to_A_range": [
+      0.9363,
+      1.0369
+    ],
+    "primary_high8k_db_change_range": [
+      -0.641,
+      0.0368
+    ],
+    "primary_raw_rms_ratio_to_A_range": [
+      0.9866,
+      1.0947
+    ],
+    "wider_0_30ms_max_step_ratio": 1.1063,
+    "following_20_80ms_max_high8k_db_change": 1.006,
+    "source12_transfer_residual_ms": 4.4517375,
+    "independently_verified_measurements": 1008,
+    "independent_metric_max_error": 5.36e-14,
+    "max_constant_gain_reconstruction_error_fs": 1.5203e-07,
+    "max_rms_spread_db": 3.3523e-08,
+    "scripts_syntax_checked": 2,
+    "navigation_targets_http_200": 8,
+    "comment_only_amend_wav_hashes_identical": true
+  },
+  "committed_reference_receipts_sha256": {
+    "refret-reference-selection-2026-10-18.json": "679e5de44e46e64ccd1ca240ee264c59ac59d40a03bc141ffb6e6027fafa29bc",
+    "performance-reference-selection-2026-10-18.json": "66bbbf8ff5bcc5240f60ec294c7f1d0c73a624d775b3b0f98adf57d6c606217e"
+  },
+  "working_evidence_sha256": {
+    "performance/measurements.json": "c6b734c2f1a89500447fb2ca7635b9b3e52d60e9168833124650fbb531e8c3d3",
+    "phrases/measurements.json": "7ab7bc30e276bf552d14afc04bde9634c0b01700c6e95096cbe7488266a6cb9c",
+    "evidence/phrase-analysis-final.json": "8fcf1db7afe5ad8386fedd2af47480034ef6bcad1532f31a33460ad6d7efd6a0",
+    "evidence/phrase-analysis-independent-audit.json": "f4a8bd4b6d821546563567e18893ad29ff346a310c1ca0c5f811df3946601ec9",
+    "evidence/room-integrity-final-60f7bec.json": "a35049909395af0a35f3f8c1a49d4153fe9914b133ce7f01b1de0bbb88713a35",
+    "evidence/refret-unit-observation.json": "2125253bb33b613932a7d1fe6776108689032d4305edf45abd4a182ef2af8d1c",
+    "evidence/final-source-validation.json": "57d7819472b6d47d75050021b18856dc08a5d9e058d6c4391cab1ebb04faf1a5",
+    "evidence/controlled-performance.json": "f228fe53d00a24376376130c13ab74db9010f072da35ccd6e856782c5622dc7d"
+  },
+  "validation_logs_sha256": {
+    "unit-final-after-space.log": "6bb149de18d9756450756bede3c3fc83fcc72e8866617df337d7b50599a21475",
+    "audio-final-after-space.log": "7595436dca833d619c385923cb1aea7cd48e5412160083ad21f8e1b36e48a673",
+    "unit-final-focused.log": "1a4115265b5832f3ccc69ce351e2a0d52425edd61c026eac69a5e83571abf113",
+    "build-comment-only-final.log": "574b0f1c9550ce53ea5eaa85a9977465dba6aff1b94d44e4c3d9b13c43bac6ca",
+    "refret-comment-only-final.log": "414fc3d857cfc9bf8880bc41082563b7eb8c1485fff83a0f93cb5f98e8eecc4b"
+  },
+  "limits": [
+    "Six-string Sire T7 performance references; player, force, geometry and pickup loading differ.",
+    "Stationary feedback-tap crossfade is an engineering approximation with temporary comb coloration; Contact time is not calibrated fret-contact duration.",
+    "Frozen tap gain bounds do not prove global switched-system passivity.",
+    "Large-jump choke retained; its removal trial was rejected after increased normalized attack step.",
+    "No candidate-specific crop, per-note alignment or per-window gain; later source timing residuals remain.",
+    "No subjective vote, interactive browser audio QA or Reason-host playback claim."
+  ],
+  "hosted_checks": "Reported on the associated pull request; merge only after all latest-head checks succeed and feedback is addressed."
+}
