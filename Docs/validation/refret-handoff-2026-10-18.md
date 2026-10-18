@@ -10,7 +10,7 @@ transitions; it is not a claim of perceptual parity with an eight-string guitar.
 Baseline `49f42e347fa021535e4892a357796e7533d3d42e` sends a small picked
 fret change through the continuous bend follower. Its moving read head scans
 the intervening ringing history, adding an unintended pitch sweep. The selected
-DSP, `60f7becdcfcaa2a15ef3648c61e22411cf4202a7`, instead crossfades two stationary feedback reads.
+DSP, `634fd339e7f5e6f58475bc017be1d5c82850e4f2`, instead crossfades two fret endpoints.
 Both use the same ringing line, damping/dispersion filters and pickup history.
 The nonnegative complementary smoothstep weights have exact source and
 destination endpoints. There is no output fade, reset, additional voice,
@@ -26,6 +26,14 @@ source. Stopping-hand filtering and temporary harmonic/thumb touches are
 evaluated at each endpoint before mixing. Explicit slides and hammer gestures
 retain their intended continuous trajectories.
 
+Wheel, MPE and vibrato retain the ordinary six-ms follower at both endpoints;
+only fret-length motion is excluded. Bends already in flight retain their
+remaining motion at NoteOn. Unclamped endpoint coordinates preserve correct
+returns from the upper and lower safety limits. A queued fret never enters
+this expression follower. Pending wrist descriptors also retain the preceding
+Contact's complete force, noise, style and stroke state until actual arrival,
+while MIDI ownership and the fretting geometry update immediately.
+
 The existing large-jump path already retuned immediately. Its 0.28 retained
 amplitude and corresponding energy/tension attenuation remain intact. A
 trial that removed this choke raised the alternating-fret control's raw RMS
@@ -33,6 +41,9 @@ by about 5.9 dB and its level-matched maximum sample step by about 5.7 dB;
 that expansion was rejected. A queued same-destination manual repick must not
 apply this choke again. Independent review reproduced that prototype defect
 through the public per-string repick event and verified the final guard.
+Unheard same-clock replacements are classified from the original sounding
+source, so small intermediate hops cannot bypass a net large-jump choke or
+cause a false choke when returning to the original fret.
 
 See the [primary-source rationale and limitations](../research/refret-handoff-2026-10-18.md).
 Fixed-tap mixtures can cause temporary comb coloration. A frozen response
@@ -47,7 +58,7 @@ as the sounding pitch. Forty-eight small-refret cases cover both directions,
 three string registers and four host rates. The unchanged baseline fails all
 48 release-pitch witnesses.
 
-The selected suite passes 63,111 assertions. The maximum absolute release
+The selected suite passes 122,489 assertions. The maximum absolute release
 error against the live energy-raised target is 2.98849861 cents; the maximum
 residue beyond the independently observed intentional tension span is
 0.0000636685 cents. The existing attack-energy law can raise pitch by up to
@@ -62,9 +73,20 @@ and endpoint rates. Queued release checks require the destination endpoint,
 zero handoff remainder and an unlocked delay. Existing large-jump state
 assertions and spectral/tuning rails were not weakened.
 
+Expression regressions verify source and destination movement, the six-ms
+response, bends begun before and during Contact, queued length isolation,
+both pitch-limit exits and motion that remains pinned. Their frozen observer
+snapshot passes 66,075 assertions against the correction and fails 18 against
+the first candidate. Forty-eight additional wrist cases compare the same new
+fret with different future styles, stroke directions, velocities and MPE owners,
+with and without texture noise, at 48/96/384 kHz. Every pre-contact sample must
+agree; the requested wrist must be installed at arrival. The same cases fail
+228 assertions before full wrist deferral. An independent public MPE ownership
+probe verifies 51 pre-contact host frames with zero audio difference.
+
 ## Recorded comparisons
 
-The room at `http://127.0.0.1:8722/` contains two original Guitar-TECHS source06
+The final room at `http://127.0.0.1:8723/` contains two original Guitar-TECHS source06
 E-string phrases and two additional source12 descents: G3–F3–E3 on the D string
 and G5–F5–E5 on the high E string. The source-only selection preceded candidate
 audio. Chord-overlapped alternatives were excluded. The original two source
@@ -124,6 +146,11 @@ across all four excerpts, agreeing within 5.36e−14.
 Four controlled performance probes are byte-identical to A: 8 Hz repeats,
 12 Hz repeats, rapid Palm/open changes and the alternating-octave large-jump
 score. Returning and overlapping small-fret probes differ as intended.
+All 24 final listening WAVs are also byte-identical to the first `60f7bec`
+candidate, and all 1,008 metrics remain unchanged. The expression, same-clock
+and queued-wrist corrections address cases outside these existing auditions;
+their evidence is the dedicated regressions, not an additional acoustic gain
+in the unchanged recording comparisons.
 
 ## Reproduction and final checks
 
@@ -133,14 +160,14 @@ recordings remain outside Git and are never used as runtime excitation.
 
 ```sh
 python Tools/BuildPerformanceComparisons.py --base 49f42e3 \
-  --candidate 60f7becdcfcaa2a15ef3648c61e22411cf4202a7 --output build-refret-review
+  --candidate 634fd339e7f5e6f58475bc017be1d5c82850e4f2 --output build-refret-final-review
 python Tools/BuildPhraseComparisons.py --base 49f42e3 \
-  --candidate 60f7becdcfcaa2a15ef3648c61e22411cf4202a7 \
-  --plan build-refret-review/reference-analysis/reference-plan-phrases.json \
-  --output build-refret-review
+  --candidate 634fd339e7f5e6f58475bc017be1d5c82850e4f2 \
+  --plan build-refret-final-review/reference-analysis/reference-plan-phrases.json \
+  --output build-refret-final-review
 python Tools/AnalyzeRefretComparisons.py \
-  --manifest build-refret-review/phrases/measurements.json \
-  --output build-refret-review/evidence/phrase-analysis-final.json
+  --manifest build-refret-final-review/phrases/measurements.json \
+  --output build-refret-final-review/evidence/phrase-analysis-final.json
 ```
 
 Local validation passes all 38 unit suites, all 23 serial/parallel demo WAVs
@@ -150,10 +177,11 @@ and both source-path/analysis suites. All 20 observer protocol tests pass;
 nine targeted annotation/score mutations accepted by the previous observer
 are rejected. PR review also identified a sanitizer execution-filter omission:
 `Electry.Refret` is now included, and an actual local ASan/UBSan run passes.
-These review fixes leave the DSP and all 24 listening WAVs unchanged.
-The exact final test file produces 62
-failures against frozen baseline, including every one of the 48 release-pitch
-cases. Removing only the queued-repick guard produces one targeted failure.
+Those observer/filter review fixes leave audio unchanged. The original frozen
+63,111-assertion fixture produces 62 failures against baseline, including every
+one of the 48 release-pitch cases. Removing only its queued-repick guard produces
+one targeted failure. That historical test/source binding remains separate from
+the expanded final suite.
 
 A new queued-large fixture initially assumed a blanket five-cent comparison
 to the live target. The existing energy law permits six cents after a fresh
@@ -167,13 +195,16 @@ local and HTTP hashes, original MIDI/score binding, fixed crops and one
 constant gain. Maximum sample-domain reconstruction error is 1.5203e−7 FS;
 maximum within-pair/triple RMS spread is 3.3523e−8 dB. Both generated scripts
 pass `node --check`, and all eight static navigation targets return HTTP 200.
-All WAV hashes are identical across the source-comment-only amendment.
+The earlier candidate's source-comment-only amendment leaves all WAV hashes
+identical. Its frozen room remains at `http://127.0.0.1:8722/`; final renders
+use a separately built immutable DSP snapshot and output directory.
 The [machine receipt](refret-handoff-2026-10-18.json) binds the final source,
 logs, independent observers and immutable comparison manifests. Hosted CI
 and review status are recorded on [PR #5](https://github.com/protocodus/virtual-instrument-electry/pull/5).
 
-Working evidence is retained in `build-refret-review/`, including the rejected
-unchoked large-jump renders. The machine receipt binds the final source,
+Working evidence is retained in `build-refret-final-review/`, with earlier
+candidates and rejected unchoked large-jump renders in `build-refret-review/`.
+The machine receipt binds the final source,
 comparison manifests, observer and validation logs. No subjective listener
 vote, interactive browser audio QA or Reason-host playback claim is inferred
 from file integrity, analytical pitch checks or native renders.

@@ -1,6 +1,6 @@
 # Picked fret handoff research — 18 October 2026
 
-Status: **selected engineering candidate `60f7bec`** under the user's explicit
+Status: **selected engineering candidate `634fd33`** under the user's explicit
 autonomous instruction. The [validation record](../validation/refret-handoff-2026-10-18.md)
 reports pitch, lifecycle and real-DI evidence. This is not a listener vote or
 an acoustic parity claim.
@@ -42,6 +42,14 @@ fade the output, add a voice, or introduce a new damping or timing control.
 The existing continuous follower remains appropriate to deliberate slides and
 continuous pitch expression. The finite Contact interval is a practical reuse
 of current articulation timing, not a measured duration of changing frets.
+
+The fret endpoints also retain separate tension-expression targets. Wheel,
+MPE and vibrato follow the existing six-ms smoother at both endpoints while
+the fret mixture advances independently. Unclamped pitch coordinates retain
+the correct destination when an extreme bend leaves a safety limit. A queued
+fret is excluded from this expression follower. Pending wrist descriptors keep
+the preceding Contact's force, noise and stroke state intact until the new
+pick arrives; the new MIDI owner and fretting geometry can change earlier.
 
 ## Spectral and energy limits
 

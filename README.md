@@ -151,7 +151,10 @@ new-fret feedback taps, avoiding the unintended pitch sweep from the bend
 follower. The handoff retains string, filter and pickup history, with no output
 fade or new timing control. Interrupted changes finish their current handoff
 before moving to the latest destination. Large jumps retain their existing
-choke; deliberate slides and continuous expression retain their trajectories.
+choke, including net jumps across unheard same-clock intermediate frets.
+Wheel, MPE and vibrato keep their continuous smoothing at both endpoints.
+A queued pick retains the preceding Contact's complete wrist state until
+arrival, including when a new MPE member takes the same pitch.
 See the [fret-handoff validation](Docs/validation/refret-handoff-2026-10-18.md)
 for real DI comparisons and the method's limits.
 
