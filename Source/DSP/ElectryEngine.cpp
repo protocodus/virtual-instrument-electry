@@ -548,6 +548,7 @@ void ElectryEngine::PolarisationLoop::clear() noexcept
 {
     line.fill(0.0f);
     writeIndex = 0;
+    refretSource.valid = refretFrozenDestination.valid = false;
     damping.reset();
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     lossShelf.reset();
@@ -580,28 +581,34 @@ void ElectryEngine::PolarisationLoop::scaleState(float amplitude) noexcept
 {
     for (auto& sample : line)
         sample *= amplitude;
-    damping.state *= amplitude;
+    const auto scaleBank = [amplitude] (LoopFilterBank& bank)
+    {
+        bank.damping.state *= amplitude;
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-    lossShelf.z1 *= amplitude;
-    lossShelf.z2 *= amplitude;
-    lossShelfZ3 *= amplitude;
+        bank.lossShelf.z1 *= amplitude;
+        bank.lossShelf.z2 *= amplitude;
+        bank.lossShelfZ3 *= amplitude;
 #endif
-    materialLossDip.z1 *= amplitude;
-    materialLossDip.z2 *= amplitude;
+        bank.materialLossDip.z1 *= amplitude;
+        bank.materialLossDip.z2 *= amplitude;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
-    fittedLossDip.z1 *= amplitude;
-    fittedLossDip.z2 *= amplitude;
+        bank.fittedLossDip.z1 *= amplitude;
+        bank.fittedLossDip.z2 *= amplitude;
 #endif
-    handDip.z1 *= amplitude;
-    handDip.z2 *= amplitude;
-    dispersion1.state *= amplitude;
-    dispersion2.state *= amplitude;
-    dispersion3.state *= amplitude;
-    dispersion4.state *= amplitude;
-    dispersion5.state *= amplitude;
-    dispersion6.state *= amplitude;
-    dispersion7.state *= amplitude;
-    dispersion8.state *= amplitude;
+        bank.handDip.z1 *= amplitude;
+        bank.handDip.z2 *= amplitude;
+        bank.dispersion1.state *= amplitude;
+        bank.dispersion2.state *= amplitude;
+        bank.dispersion3.state *= amplitude;
+        bank.dispersion4.state *= amplitude;
+        bank.dispersion5.state *= amplitude;
+        bank.dispersion6.state *= amplitude;
+        bank.dispersion7.state *= amplitude;
+        bank.dispersion8.state *= amplitude;
+    };
+    scaleBank(*this);
+    if (refretSource.valid) scaleBank(refretSource.bank);
+    if (refretFrozenDestination.valid) scaleBank(refretFrozenDestination.bank);
 }
 
 void ElectryEngine::DelayTap::setDelay(float delaySamples) noexcept
@@ -1398,7 +1405,7 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
     loop.lossShelfActive = true;
 }
 
-float ElectryEngine::loopLossPhaseDelay(const PolarisationLoop &loop,
+float ElectryEngine::loopLossPhaseDelay(const LoopFilterBank &loop,
                                         float omega) noexcept
 {
     if (!loop.lossShelfActive)
@@ -4937,6 +4944,17 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
         voice.refretTrackedMidiNote = voice.midiNote;
     }
     voice.refretExpressionSemitones = expressionSemitones;
+    if (voice.refretRemainingSamples > 0)
+    {
+        for (auto* loop : { &voice.vertical, &voice.horizontal })
+        {
+            const float scale = loop == &voice.vertical ? 1.0f : 1.00023f;
+            retargetRefretEndpoint(loop->refretSource,
+                voice.refretSourcePeriod, voice.refretSourcePending, scale);
+            retargetRefretEndpoint(loop->refretFrozenDestination,
+                voice.refretDestinationPeriod, voice.refretDestinationPending, scale);
+        }
+    }
 
     // This is the coefficient of the memoryless two-by-two scattering matrix
     // at the seam, not a per-sample loss. Solving it from the sounding period at
@@ -5612,6 +5630,90 @@ int ElectryEngine::plectrumContactSamples(const Voice& voice) const noexcept
         / voice.strokeTravelSpeedScale));
 }
 
+float ElectryEngine::refretBankPhaseDelay(const LoopFilterBank& bank,
+                                           float physicalPeriod) noexcept
+{
+    const float omega = twoPi / std::max(physicalPeriod, 1.0f);
+    float magnitude = 1.0f, handPhase = 0.0f, materialPhase = 0.0f;
+    handLossResponse(bank.handLossDepth, bank.handLossShape,
+                     omega, magnitude, handPhase);
+    handLossResponse(bank.materialLossDepth, bank.materialLossShape,
+                     omega, magnitude, materialPhase);
+    float phase =
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        loopLossPhaseDelay(bank, omega)
+#else
+        onePolePhaseDelay(bank.loopDampingCoefficient, omega)
+#endif
+        + 4.0f * allpassPhaseDelay(bank.dispersionLowCoefficient, omega)
+        + 4.0f * allpassPhaseDelay(bank.dispersionHighCoefficient, omega)
+        - (handPhase + materialPhase) / omega;
+#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
+    float fittedPhase = 0.0f;
+    handLossResponse(bank.fittedLossDepth, bank.fittedLossShape,
+                     omega, magnitude, fittedPhase);
+    phase -= fittedPhase / omega;
+#endif
+    return phase;
+}
+
+void ElectryEngine::copyLoopFilterState(LoopFilterBank& target,
+                                         const LoopFilterBank& source) noexcept
+{
+    target.damping.state = source.damping.state;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    target.lossShelf.z1 = source.lossShelf.z1;
+    target.lossShelf.z2 = source.lossShelf.z2;
+    target.lossShelfZ3 = source.lossShelfZ3;
+#endif
+    target.materialLossDip.z1 = source.materialLossDip.z1;
+    target.materialLossDip.z2 = source.materialLossDip.z2;
+#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
+    target.fittedLossDip.z1 = source.fittedLossDip.z1;
+    target.fittedLossDip.z2 = source.fittedLossDip.z2;
+#endif
+    target.handDip.z1 = source.handDip.z1;
+    target.handDip.z2 = source.handDip.z2;
+    target.handEnvelope = source.handEnvelope;
+    target.handEnvelopePeak = source.handEnvelopePeak;
+    target.dispersion1 = source.dispersion1;
+    target.dispersion2 = source.dispersion2;
+    target.dispersion3 = source.dispersion3;
+    target.dispersion4 = source.dispersion4;
+    target.dispersion5 = source.dispersion5;
+    target.dispersion6 = source.dispersion6;
+    target.dispersion7 = source.dispersion7;
+    target.dispersion8 = source.dispersion8;
+}
+
+void ElectryEngine::captureRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                          const PolarisationLoop& loop,
+                                          float physicalPeriod) const noexcept
+{
+    endpoint.bank = static_cast<const LoopFilterBank&>(loop);
+    endpoint.rawDelay = endpoint.anchorRawDelay = loop.currentDelay;
+    endpoint.anchorPeriod = endpoint.physicalPeriod = physicalPeriod;
+    endpoint.anchorPhaseDelay = refretBankPhaseDelay(endpoint.bank, physicalPeriod);
+    endpoint.physicalPending = endpoint.rawPending = 0.0f;
+    endpoint.valid = true;
+}
+
+void ElectryEngine::retargetRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                           float physicalPeriod,
+                                           float physicalPending,
+                                           float polarisationScale) noexcept
+{
+    if (!endpoint.valid) return;
+    const float delta = (physicalPeriod - endpoint.anchorPeriod)
+        - (refretBankPhaseDelay(endpoint.bank, physicalPeriod)
+           - endpoint.anchorPhaseDelay);
+    const float target = clampf(endpoint.anchorRawDelay + polarisationScale * delta,
+                                4.0f, static_cast<float>(delayLineSize - 8));
+    endpoint.physicalPeriod = physicalPeriod;
+    endpoint.physicalPending = physicalPending;
+    endpoint.rawPending = target - endpoint.rawDelay;
+}
+
 void ElectryEngine::beginRefretHandoff(Voice& voice, int durationSamples,
                                        bool keepsUnperformedSource) noexcept
 {
@@ -5642,8 +5744,10 @@ void ElectryEngine::beginRefretHandoff(Voice& voice, int durationSamples,
     voice.refretTrackedMidiNote = voice.midiNote;
     voice.refretDestinationPeriod = voice.lastCompensatedPeriod;
     voice.refretDestinationPending = voice.refretDestinationPeriod * pendingFraction;
-    const float sourceActualPeriod = voice.lastCompensatedPeriod
-        + verticalSource - voice.vertical.targetDelay;
+    const float sourceActualPeriod = voice.vertical.refretSource.valid
+        ? voice.vertical.refretSource.physicalPeriod
+            - voice.vertical.refretSource.physicalPending
+        : voice.lastCompensatedPeriod + verticalSource - voice.vertical.targetDelay;
     voice.refretSourcePeriod = sourceActualPeriod / (1.0f - pendingFraction);
     voice.refretSourcePending = voice.refretSourcePeriod - sourceActualPeriod;
     voice.vertical.currentDelay = clampf(
@@ -5658,6 +5762,10 @@ void ElectryEngine::beginRefretHandoff(Voice& voice, int durationSamples,
     voice.refretRemainingSamples = voice.refretLengthSamples;
     voice.refretQueued = false;
     voice.refretDelayLocked = true;
+    for (auto* loop : { &voice.vertical, &voice.horizontal })
+        retargetRefretEndpoint(loop->refretSource,
+            voice.refretSourcePeriod, voice.refretSourcePending,
+            loop == &voice.vertical ? 1.0f : 1.00023f);
 }
 
 void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
@@ -6885,6 +6993,28 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
 
     const auto configureGeometry = [&] ()
     {
+        if (wasRinging && pickedFretChange
+            && voice.refretRemainingSamples == 0)
+        {
+            for (auto* loop : { &voice.vertical, &voice.horizontal })
+            {
+                const float actualPeriod = voice.vertical.currentDelay
+                    + voice.lastCompensatedPeriod - voice.compensatedPeriodVertical;
+                captureRefretEndpoint(loop->refretSource, *loop, actualPeriod);
+            }
+        }
+        if (wasRinging && pickedFretChange
+            && voice.refretRemainingSamples > 0
+            && voice.refretRemainingSamples < voice.refretLengthSamples)
+        {
+            // A queued request must not refit the already audible incoming
+            // half. Retain its actual running state before the latest target
+            // is configured in the live solver fields.
+            for (auto* loop : { &voice.vertical, &voice.horizontal })
+                if (!loop->refretFrozenDestination.valid)
+                    captureRefretEndpoint(loop->refretFrozenDestination, *loop,
+                        voice.refretDestinationPeriod - voice.refretDestinationPending);
+        }
         // A delayed fret retarget still contains the preceding stroke. Keep that
         // ring under the hand that is physically present; the scheduled style is
         // restored by startExcitation() when its contact actually arrives.
@@ -7701,6 +7831,11 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.refretDestinationUnclampedPeriod = 0.0f;
     voice.refretSourceUnclampedPeriod = 0.0f;
     voice.refretTrackedMidiNote = -1;
+    for (auto* loop : { &voice.vertical, &voice.horizontal })
+    {
+        loop->refretSource = {};
+        loop->refretFrozenDestination = {};
+    }
     voice.touchDepth = 0.0f;
     voice.touchHoldRemaining = 0;
     voice.touchFraction = 0.0f;
@@ -8399,7 +8534,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                   float compensatedPeriod,
                                   float extraFeedback)
     {
-        const auto readBoundary = [&] (float delayOffset)
+        const auto readBoundary = [&] (float delayOffset,
+                                        float endpointPeriod = 0.0f)
         {
             const float boundaryDelay = loop.currentDelay + delayOffset;
             float boundary = loop.readFractional(boundaryDelay);
@@ -8422,11 +8558,74 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             {
                 // A temporary finger/thumb contact follows each endpoint's
                 // complete sounding period, including the loop-filter phase.
-                const float touched = readTouchedString(
-                    voice, loop, compensatedPeriod, delayOffset);
+                const float touched = endpointPeriod <= 0.0f
+                    ? readTouchedString(voice, loop, compensatedPeriod, delayOffset)
+                    : [&] {
+                        const float centre = boundaryDelay
+                            + voice.touchFraction * endpointPeriod;
+                        const float halfWidth = std::min(
+                            voice.touchHalfWidthMetres * voice.touchInverseSpeakingLength,
+                            std::min(voice.touchFraction, 1.0f - voice.touchFraction));
+                        const float spread = 0.7745966692f
+                            * std::max(halfWidth, 0.0f) * endpointPeriod;
+                        return spread <= 0.0f ? loop.readFractional(centre)
+                            : (4.0f / 9.0f) * loop.readFractional(centre)
+                              + (5.0f / 18.0f) * (loop.readFractional(centre - spread)
+                                                + loop.readFractional(centre + spread));
+                    }();
                 boundary += touchWeight * (touched - boundary);
             }
             return boundary;
+        };
+        const auto filter = [&] (LoopFilterBank& bank, float sample)
+        {
+            sample = bank.dispersion1.process(sample, bank.dispersionLowCoefficient);
+            sample = bank.dispersion2.process(sample, bank.dispersionLowCoefficient);
+            sample = bank.dispersion3.process(sample, bank.dispersionLowCoefficient);
+            sample = bank.dispersion4.process(sample, bank.dispersionLowCoefficient);
+            sample = bank.dispersion5.process(sample, bank.dispersionHighCoefficient);
+            sample = bank.dispersion6.process(sample, bank.dispersionHighCoefficient);
+            sample = bank.dispersion7.process(sample, bank.dispersionHighCoefficient);
+            sample = bank.dispersion8.process(sample, bank.dispersionHighCoefficient);
+            sample = bank.damping.process(sample, bank.loopDampingCoefficient);
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            if (bank.lossShelfActive)
+            {
+                const double input = sample;
+                auto& b = bank.lossShelf;
+                const double output = b.b0 * input + b.z1;
+                b.z1 = b.b1 * input - b.a1 * output + b.z2;
+                b.z2 = b.b2 * input - b.a2 * output + bank.lossShelfZ3;
+                bank.lossShelfZ3 = bank.lossShelfB3 * input;
+                sample = static_cast<float>(output);
+            }
+#endif
+            if (bank.materialLossDepth > 0.0f)
+                sample = bank.materialLossDip.process(sample);
+#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
+            if (bank.fittedLossDipActive)
+                sample = bank.fittedLossDip.process(sample);
+#endif
+            // A peaking section with sub-unity gain: its magnitude never exceeds one
+            // anywhere, so it cannot destabilise the loop at any depth, and because
+            // it returns to unity above its band it costs almost nothing at the high
+            // fitted point - which is what lets it be deep enough to matter.
+            if (bank.handDipActive)
+                sample = bank.handDip.process(sample);
+            if (bank.handLossSolvedDepth > 0.0f)
+            {
+                // Cheap one-pole follower on the loop itself: what the heel's grip
+                // tracks is how hard the string is still pressing into it. Peak-
+                // relative rather than absolute deliberately - an absolute reference
+                // was built and measured, and was worse at every scale tried.
+                const float rectified = sample < 0.0f ? -sample : sample;
+                bank.handEnvelope += handEnvelopeCoefficient_
+                                   * (rectified - bank.handEnvelope);
+                if (bank.handEnvelope > bank.handEnvelopePeak)
+                    bank.handEnvelopePeak = bank.handEnvelope;
+            }
+            sample *= bank.loopGain * voice.releaseGain * extraFeedback;
+            return sample;
         };
         float sample = readBoundary(0.0f);
         if (voice.refretRemainingSamples > 0)
@@ -8455,57 +8654,26 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                 ? halfWeight : 1.0f - halfWeight;
             const float sourceOffset = &loop == &voice.vertical
                 ? voice.refretVerticalOffset : voice.refretHorizontalOffset;
+            if (loop.refretSource.valid)
+            {
+                auto& source = loop.refretSource;
+                const float sourceSample = readBoundary(source.rawDelay - loop.currentDelay,
+                    source.physicalPeriod - source.physicalPending);
+                float destinationSample = sample;
+                if (loop.refretFrozenDestination.valid)
+                {
+                    auto& destination = loop.refretFrozenDestination;
+                    destinationSample = filter(destination.bank,
+                        readBoundary(destination.rawDelay - loop.currentDelay,
+                            destination.physicalPeriod - destination.physicalPending));
+                }
+                else destinationSample = filter(loop, sample);
+                return lerp(filter(source.bank, sourceSample),
+                            destinationSample, destinationWeight);
+            }
             sample = lerp(readBoundary(sourceOffset), sample, destinationWeight);
         }
-        sample = loop.dispersion1.process(sample, loop.dispersionLowCoefficient);
-        sample = loop.dispersion2.process(sample, loop.dispersionLowCoefficient);
-        sample = loop.dispersion3.process(sample, loop.dispersionLowCoefficient);
-        sample = loop.dispersion4.process(sample, loop.dispersionLowCoefficient);
-        sample = loop.dispersion5.process(sample, loop.dispersionHighCoefficient);
-        sample = loop.dispersion6.process(sample, loop.dispersionHighCoefficient);
-        sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
-        sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
-#if ELECTRY_BUTTERWORTH_LOSS_SHELF
-        sample = loop.damping.process(sample, loop.loopDampingCoefficient);
-        if (loop.lossShelfActive)
-        {
-            const double input = sample;
-            auto &b = loop.lossShelf;
-            const double output = b.b0 * input + b.z1;
-            b.z1 = b.b1 * input - b.a1 * output + b.z2;
-            b.z2 = b.b2 * input - b.a2 * output + loop.lossShelfZ3;
-            loop.lossShelfZ3 = loop.lossShelfB3 * input;
-            sample = static_cast<float>(output);
-        }
-#else
-        sample = loop.damping.process(sample, loop.loopDampingCoefficient);
-#endif
-        if (loop.materialLossDepth > 0.0f)
-            sample = loop.materialLossDip.process(sample);
-#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
-        if (loop.fittedLossDipActive)
-            sample = loop.fittedLossDip.process(sample);
-#endif
-        // A peaking section with sub-unity gain: its magnitude never exceeds one
-        // anywhere, so it cannot destabilise the loop at any depth, and because
-        // it returns to unity above its band it costs almost nothing at the high
-        // fitted point - which is what lets it be deep enough to matter.
-        if (loop.handDipActive)
-            sample = loop.handDip.process(sample);
-        if (loop.handLossSolvedDepth > 0.0f)
-        {
-            // Cheap one-pole follower on the loop itself: what the heel's grip
-            // tracks is how hard the string is still pressing into it. Peak-
-            // relative rather than absolute deliberately - an absolute reference
-            // was built and measured, and was worse at every scale tried.
-            const float rectified = sample < 0.0f ? -sample : sample;
-            loop.handEnvelope += handEnvelopeCoefficient_
-                               * (rectified - loop.handEnvelope);
-            if (loop.handEnvelope > loop.handEnvelopePeak)
-                loop.handEnvelopePeak = loop.handEnvelope;
-        }
-        sample *= loop.loopGain * voice.releaseGain * extraFeedback;
-        return sample;
+        return filter(loop, sample);
     };
 
 #if ELECTRY_PASSIVE_REPICK_SPRING
@@ -9049,6 +9217,18 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     }
     voice.refretDestinationPending *= vertical.delayRetention;
     voice.refretSourcePending *= vertical.delayRetention;
+    if (voice.refretRemainingSamples > 0)
+        for (auto* loop : { &vertical, &horizontal })
+            for (auto* endpoint : { &loop->refretSource,
+                                     &loop->refretFrozenDestination })
+                if (endpoint->valid)
+                {
+                    endpoint->rawDelay = clampf(endpoint->rawDelay
+                        + (1.0f - loop->delayRetention) * endpoint->rawPending,
+                        4.0f, static_cast<float>(delayLineSize - 8));
+                    endpoint->rawPending *= loop->delayRetention;
+                    endpoint->physicalPending *= loop->delayRetention;
+                }
     if (voice.refretRemainingSamples > 0
         && --voice.refretRemainingSamples == 0)
     {
@@ -9056,7 +9236,24 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         voice.refretHorizontalOffset = 0.0f;
         voice.refretDelayLocked = false;
         if (voice.refretQueued)
+        {
+            for (auto* loop : { &vertical, &horizontal })
+            {
+                if (loop->refretFrozenDestination.valid)
+                {
+                    loop->refretSource = loop->refretFrozenDestination;
+                    copyLoopFilterState(*loop, loop->refretSource.bank);
+                }
+                else
+                    captureRefretEndpoint(loop->refretSource, *loop,
+                        voice.refretDestinationPeriod - voice.refretDestinationPending);
+                loop->refretFrozenDestination.valid = false;
+            }
             beginRefretHandoff(voice, plectrumContactSamples(voice), false);
+        }
+        else
+            for (auto* loop : { &vertical, &horizontal })
+                loop->refretSource.valid = loop->refretFrozenDestination.valid = false;
     }
 
     // A phase-coherent divided-pickup field. Mono leaves both weights at one;
