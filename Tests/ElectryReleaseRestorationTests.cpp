@@ -20,6 +20,8 @@ struct ElectryEngineTestAccess
         int phase, remaining, delay;
         float gain, depth;
         double rate;
+        int style, dampingStyle, restoring;
+        bool flatRelease;
     };
 
     static State state(const ElectryEngine& engine, int stringIndex)
@@ -27,7 +29,9 @@ struct ElectryEngineTestAccess
         const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
         return {voice.active, voice.releasing, static_cast<int>(voice.excitationPhase),
                 voice.excitationRemaining, voice.startDelaySamples,
-                voice.releaseGain, voice.releaseSpectralDepth, engine.sampleRate_};
+                voice.releaseGain, voice.releaseSpectralDepth, engine.sampleRate_,
+                static_cast<int>(voice.playStyle), static_cast<int>(voice.dampingStyle),
+                voice.releaseRestoreLength, voice.excitationModalShaper.flatRelease};
     }
 
     static void renderVoice(ElectryEngine& engine, int stringIndex)
@@ -36,10 +40,11 @@ struct ElectryEngineTestAccess
         engine.renderVoice(engine.voices_[static_cast<std::size_t>(stringIndex)], sums);
     }
 
-    static void deferRepick(ElectryEngine& engine, int stringIndex, int samples)
+    static void deferRepick(ElectryEngine& engine, int stringIndex, int samples,
+                            PlayStyle style = PlayStyle::Sustain)
     {
         auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
-        engine.startVoice(voice, voice.midiNote, .85f, voice.playStyle,
+        engine.startVoice(voice, voice.midiNote, .85f, style,
                           voice.strokeIsUp, samples, 0);
     }
 
@@ -49,6 +54,34 @@ struct ElectryEngineTestAccess
         voice.keyDown = false;
         voice.keyDownCount = 0;
         engine.beginVoiceRelease(voice);
+    }
+
+    static void applyLegacyPalmOpening(ElectryEngine& engine, int stringIndex)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        // Historical immediate Palm endpoint, applied independently before
+        // the new contact. This is the retained control, not a new ramp law.
+        voice.releasing = false;
+        voice.releaseGain = voice.releaseGainTarget = 1;
+        voice.releaseSpectralDepth = voice.releaseSpectralTarget = 0;
+        voice.releaseGainCoefficient = 0;
+    }
+
+    static bool samePalmHistory(const ElectryEngine& a, const ElectryEngine& b,
+                                int stringIndex)
+    {
+        const auto& x = a.voices_[static_cast<std::size_t>(stringIndex)];
+        const auto& y = b.voices_[static_cast<std::size_t>(stringIndex)];
+        return x.vertical.line == y.vertical.line
+            && x.horizontal.line == y.horizontal.line
+            && x.previousFluxNeck == y.previousFluxNeck
+            && x.previousFluxBridge == y.previousFluxBridge
+            && x.releaseGain == y.releaseGain
+            && x.releaseSpectralDepth == y.releaseSpectralDepth
+            && x.excitationModalShaper.contactShaper1.state
+                == y.excitationModalShaper.contactShaper1.state
+            && x.excitationModalShaper.contactShaper2.state
+                == y.excitationModalShaper.contactShaper2.state;
     }
 
     static float observedStoppedBoundary(ElectryEngine& engine, int stringIndex,
@@ -158,7 +191,7 @@ void stoppedRingOpensOnlyThroughPhysicalContact()
 {
     for (const int rate : {48000, 384000})
         for (const auto stringNote : {std::array<int, 2>{0, 28}, {2, 47}})
-            for (const auto style : {electry::PlayStyle::Sustain, electry::PlayStyle::PalmMute})
+            for (const auto style : {electry::PlayStyle::Sustain})
                 for (const float hardness : {0.f, .58f, 1.f})
                 {
                     auto engine = makeEngine(rate, stringNote[0], style, hardness);
@@ -338,6 +371,95 @@ void aSpectralHandRemainsPresentWhileOpening()
            "The actual boundary reader bypassed a finite spectral stop while opening");
 }
 
+void delayedStyleBoundaryUsesTheArrivingContact()
+{
+    for (const int rate : {48000, 384000})
+        for (const auto styles : {std::array<electry::PlayStyle, 2>{
+                                    electry::PlayStyle::Sustain, electry::PlayStyle::PalmMute},
+                                 {electry::PlayStyle::PalmMute, electry::PlayStyle::Sustain},
+                                 {electry::PlayStyle::PalmMute, electry::PlayStyle::PalmMute}})
+        {
+            auto pending = makeEngine(rate, 2, styles[0]);
+            auto control = makeEngine(rate, 2, styles[0]);
+            stopRinging(*pending, 47, rate, .008);
+            stopRinging(*control, 47, rate, .008);
+            const auto old = Access::state(*pending, 2);
+            Access::deferRepick(*pending, 2, static_cast<int>(old.rate) / 250, styles[1]);
+            auto state = Access::state(*pending, 2);
+            expect(state.gain == old.gain && state.depth == old.depth
+                       && state.style == old.style && state.dampingStyle == old.dampingStyle,
+                   "A reserved style boundary replaced the old hand before contact");
+            bool identical = true;
+            while (state.delay > 0)
+            {
+                float left = 0, right = 0, refLeft = 0, refRight = 0;
+                pending->process(&left, &right, 1);
+                control->process(&refLeft, &refRight, 1);
+                state = Access::state(*pending, 2);
+                const auto reference = Access::state(*control, 2);
+                if (state.delay > 0)
+                    identical = identical && left == refLeft && right == refRight
+                        && state.gain == reference.gain && state.depth == reference.depth
+                        && state.style == old.style && state.dampingStyle == old.dampingStyle;
+            }
+            expect(identical, "A pending Palm/ordinary boundary changed the old ringing wrist");
+            expect(state.phase == 1 && state.style == static_cast<int>(styles[1]),
+                   "The arriving physical contact lost its reserved style");
+            const bool palm = styles[1] == electry::PlayStyle::PalmMute;
+            expect(palm ? state.gain == 1 && state.depth == 0 && state.restoring == 0
+                              && !state.flatRelease
+                        : state.gain < 1 && state.restoring > 1 && state.flatRelease,
+                   "The actual contact applied the wrong Palm/ordinary opening or projection");
+            const int length = state.remaining;
+            const auto arriving = state;
+            for (int sample = 0; sample < length; ++sample)
+            {
+                Access::renderVoice(*pending, 2);
+                state = Access::state(*pending, 2);
+                const double weight = openingWeight(static_cast<double>(sample) / (length - 1));
+                expect(palm ? state.gain == 1 && state.depth == 0
+                            : std::abs(state.gain - (arriving.gain
+                                + (1 - arriving.gain) * weight)) < 2e-6
+                                && std::abs(state.depth - arriving.depth * (1 - weight)) < 2e-6,
+                       "Palm scope leaked into ordinary Contact restoration or vice versa");
+            }
+        }
+}
+
+void rapidPalmRetainsTheEstablishedSourceAndHistory()
+{
+    auto actual = makeEngine(44100, 0, electry::PlayStyle::PalmMute, .85f);
+    auto legacyControl = makeEngine(44100, 0, electry::PlayStyle::PalmMute, .85f);
+    bool identical = true;
+    for (int hit = 0; hit < 12; ++hit)
+    {
+        Access::applyLegacyPalmOpening(*legacyControl, 0);
+        pick(*actual, 28);
+        pick(*legacyControl, 28);
+        auto state = Access::state(*actual, 0);
+        expect(state.gain == 1 && state.depth == 0 && state.restoring == 0
+                   && !state.flatRelease,
+               "Rapid Palm no longer uses its established opening and source");
+        const int hold = static_cast<int>(.055 * 44100);
+        const int gap = static_cast<int>(.028333 * 44100);
+        for (int frame = 0; frame < hold + gap; ++frame)
+        {
+            if (frame == hold)
+            {
+                actual->noteOff(28);
+                legacyControl->noteOff(28);
+            }
+            float left = 0, right = 0, refLeft = 0, refRight = 0;
+            actual->process(&left, &right, 1);
+            legacyControl->process(&refLeft, &refRight, 1);
+            identical = identical && left == refLeft && right == refRight;
+        }
+        expect(Access::samePalmHistory(*actual, *legacyControl, 0),
+               "A rapid Palm contact changed its established source or pickup history");
+    }
+    expect(identical, "The scoped Palm path changed the legacy-opening audio control");
+}
+
 void freshAndHeldPicksNeedNoRestoration()
 {
     for (const auto style : {electry::PlayStyle::Sustain, electry::PlayStyle::PalmMute,
@@ -376,6 +498,8 @@ int main()
     delayedContactLatchesTheHandThatActuallyArrives();
     interruptedContactStartsAtTheCurrentHand();
     aSpectralHandRemainsPresentWhileOpening();
+    delayedStyleBoundaryUsesTheArrivingContact();
+    rapidPalmRetainsTheEstablishedSourceAndHistory();
     freshAndHeldPicksNeedNoRestoration();
     std::cout << assertions << " assertions, " << failures << " failures\n";
     return failures == 0 ? 0 : 1;

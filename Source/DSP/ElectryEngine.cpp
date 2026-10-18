@@ -6339,13 +6339,17 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // Note ownership may have changed during strum lookahead, but the old
     // stopping hand is opened only by this physical plectrum contact. Keep
     // its starting gain and spectrum together through the existing Contact.
+    // Palm retains its established opening: the finite ordinary-stop change
+    // has not qualified that separately calibrated source/heel interaction.
+    const bool restoresOrdinaryStop = voice.playStyle != PlayStyle::PalmMute;
     voice.releaseRestoreLength = contactSamples > 1
+        && restoresOrdinaryStop
         && preservesExistingStringState
         && (voice.releaseGain != 1.0f || voice.releaseSpectralDepth != 0.0f)
             ? contactSamples : 0;
     voice.releaseRestoreStartGain = voice.releaseGain;
     voice.releaseRestoreStartDepth = voice.releaseSpectralDepth;
-    if (contactSamples <= 1)
+    if (contactSamples <= 1 || ! restoresOrdinaryStop)
     {
         voice.releaseGain = 1.0f;
         voice.releaseSpectralDepth = 0.0f;
@@ -6531,10 +6535,11 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         28.0f, std::min(900.0f, 0.20f * sampleRate));
     voice.excitationModalCoefficient = std::exp(
         -twoPi * articulationModalCutoff * inverseSampleRate_);
-    // Keep the established projection for the separately calibrated finger,
+    // Keep the established projection for separately calibrated heel, finger,
     // thumb and dead-hand contacts. Ordinary plucks and node-selected natural
     // harmonics use the same unit-DC Bessel projection and mean release latency.
-    const bool flatRelease = voice.playStyle != PlayStyle::Hammer
+    const bool flatRelease = voice.playStyle != PlayStyle::PalmMute
+        && voice.playStyle != PlayStyle::Hammer
         && voice.playStyle != PlayStyle::Pinch
         && voice.playStyle != PlayStyle::Dead;
     voice.excitationModalShaper.configureFromLegacyPole(
