@@ -6038,8 +6038,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     const bool flatRelease = voice.playStyle != PlayStyle::Hammer
         && voice.playStyle != PlayStyle::Pinch
         && voice.playStyle != PlayStyle::Dead;
-    voice.excitationModalShaper.configure(articulationModalCutoff, sampleRate,
-                                          flatRelease);
+    voice.excitationModalShaper.configureFromLegacyPole(
+        voice.excitationModalCoefficient, flatRelease);
     voice.excitationModalShaper.contactCoefficient =
         voice.excitationModalCoefficient;
     // The plectrum does not release every string equally quickly: a wound .080
@@ -6113,11 +6113,18 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         std::sqrt(1.0f + releaseRatio * releaseRatio), 1.0f, 6.0f);
 #endif
 
-    voice.excitationTailLength = std::clamp(
-        static_cast<int>(8.0f * sampleRate
-                         / (twoPi * std::min(articulationModalCutoff,
-                                             releaseCutoff))),
-        16, static_cast<int>(0.075f * sampleRate));
+    // Preserve the existing truncation budget for the new pole shape. Its
+    // natural corner changes under equal mean-latency normalization, so the
+    // old corner alone no longer describes its slowest exponential tail.
+    const double actualProjectionDecay = flatRelease
+        ? voice.excitationModalShaper.decayPerSample() : 0.0;
+    voice.excitationTailLength = flatRelease
+        ? std::clamp(static_cast<int>(8.0 / std::min(actualProjectionDecay,
+                         -std::log(static_cast<double>(voice.excitationReleaseCoefficient)))),
+                     16, static_cast<int>(0.075f * sampleRate))
+        : std::clamp(static_cast<int>(8.0f * sampleRate
+                         / (twoPi * std::min(articulationModalCutoff, releaseCutoff))),
+                     16, static_cast<int>(0.075f * sampleRate));
     voice.excitationShaper.reset();
     voice.excitationModalShaper.reset();
     voice.excitationReleaseShaper.reset();

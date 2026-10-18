@@ -674,19 +674,30 @@ private:
         OnePole contactShaper1 {}, contactShaper2 {};
         float contactCoefficient { 0.99f };
         bool flatRelease { true };
+        static constexpr double damping = 1.7320508075688772935;
 
-        void configure(double frequency, double rate,
-                       bool useFlatRelease = true) noexcept
+        void configureFromLegacyPole(double pole,
+                                     bool useFlatRelease = true) noexcept
         {
             flatRelease = useFlatRelease;
-            constexpr double piDouble = 3.1415926535897932384626433832795;
-            // H(s)=wn^2/(s^2+sqrt(2)*wn*s+wn^2): standard Butterworth pole
-            // shape, retaining the existing natural frequency and DC gain.
-            constexpr double damping = 1.4142135623730950488;
-            const double g = std::tan(piDouble * frequency / rate);
+            // Standard Bessel H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2).
+            // Match the existing release's mean latency, not its natural
+            // corner: the old cascaded poles have DC group delay 2a/(1-a),
+            // while this trapezoidal pair has sqrt(3)/(2g). Equating them
+            // gives g=sqrt(3)*(1-a)/(4a), with unit DC gain in both cases.
+            // No recording-fitted corner, Q or amplitude gain is introduced.
+            const double g = damping * (1.0 - pole) / (4.0 * pole);
             a1 = 1.0 / (1.0 + g * (g + damping));
             a2 = g * a1;
             a3 = g * a2;
+        }
+        double decayPerSample() const noexcept
+        {
+            // The complex poles have radius sqrt(a2_den). Use their actual
+            // digital decay to drain Tail for the existing eight decay units.
+            const double g = a2 / a1;
+            return -0.5 * std::log((1.0 - damping * g + g * g)
+                                   / (1.0 + damping * g + g * g));
         }
         void reset() noexcept
         {
