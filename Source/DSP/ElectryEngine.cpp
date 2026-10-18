@@ -549,6 +549,10 @@ void ElectryEngine::PolarisationLoop::clear() noexcept
     line.fill(0.0f);
     writeIndex = 0;
     damping.reset();
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    lossShelf.reset();
+    lossShelfActive = false;
+#endif
     materialLossDip.reset();
     materialLossShape = {};
     materialLossDepth = 0.0f;
@@ -576,6 +580,10 @@ void ElectryEngine::PolarisationLoop::scaleState(float amplitude) noexcept
     for (auto& sample : line)
         sample *= amplitude;
     damping.state *= amplitude;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    lossShelf.z1 *= amplitude;
+    lossShelf.z2 *= amplitude;
+#endif
     materialLossDip.z1 *= amplitude;
     materialLossDip.z2 *= amplitude;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
@@ -1118,6 +1126,94 @@ void ElectryEngine::solveLoopLoss(float t60Fundamental, float t60High,
         }
     }
 }
+
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+void ElectryEngine::configureLoopLossShelf(PolarisationLoop& loop,
+                                          float omega0, float omegaHigh) noexcept
+{
+    // Prototype: retain the already feasible one-pole/scalar traversal gains
+    // at both existing anchors, but bend the intervening loss with a passive
+    // second-order shelf. This is a fixed engineering approximation, not a
+    // measurement of the winding's complex Young modulus. Physical intrinsic
+    // damping has distinct air, internal and winding terms (Pate et al.,
+    // JASA 2014, III.A, equations 8--12):
+    // https://www.lam.jussieu.fr/Membres/LeCarrou/Articles/A8_Pate_PredictingDecayTime.pdf
+    // Butterworth pole and zero pairs both have Q=1/sqrt(2). In the bilinear
+    // coordinate O=tan(w/2), |H|^2=(1+(O/Oz)^4)/(1+(O/Op)^4).
+    // The existing upper anchor is their geometric centre: Oh^2=Op*Oz.
+    // With q=Op/Oz, |H(Oh)|=q and |H(infinity)|=q^2. Matching the old ratio R
+    // gives q^2=(R^2-r)/(1-R^2*r), r=(O0/Oh)^4. No new decay target or fitted
+    // shape parameter is introduced. The high-frequency loss is bounded.
+    loop.lossShelfActive = false;
+    if (! (omegaHigh > omega0) || ! (loop.loopDampingCoefficient > 0.0f))
+        return;
+    const double pole = loop.loopDampingCoefficient;
+    const auto onePoleSquared = [pole] (double omega)
+    {
+        const double difference = 1.0 - pole;
+        const double sine = std::sin(0.5 * omega);
+        return difference * difference
+            / (difference * difference + 4.0 * pole * sine * sine);
+    };
+    const double m0 = onePoleSquared(omega0);
+    const double mh = onePoleSquared(omegaHigh);
+    const double ratioSquared = mh / m0;
+    const double o0 = std::tan(0.5 * static_cast<double>(omega0));
+    const double oh = std::tan(0.5 * static_cast<double>(omegaHigh));
+    const double relative = o0 / oh;
+    const double r = relative * relative * relative * relative;
+    const double qSquared = (ratioSquared - r) / (1.0 - ratioSquared * r);
+    if (! (qSquared > 0.0) || ! (qSquared <= 1.0))
+        return; // Preserve the original feasible filter on invalid coordinates.
+    const double q = std::sqrt(qSquared);
+    const double rootQ = std::sqrt(q);
+    const double kp = 1.0 / (oh * rootQ);
+    const double kz = rootQ / oh;
+    const double rootTwo = std::sqrt(2.0);
+    const double inverseA0 = 1.0 / (1.0 + rootTwo * kp + kp * kp);
+    const double gain = static_cast<double>(loop.loopGain) * std::sqrt(m0)
+        * std::sqrt((1.0 + r / qSquared) / (1.0 + r * qSquared));
+    // The original solver remains the feasibility oracle. Guard passivity at
+    // the scalar as well; a rejected transform leaves that exact solve intact.
+    if (! (gain > 0.0) || ! (gain <= static_cast<double>(loop.loopGain)))
+        return;
+    auto& shelf = loop.lossShelf;
+    shelf.b0 = (1.0 + rootTwo * kz + kz * kz) * inverseA0;
+    shelf.b1 = 2.0 * (1.0 - kz * kz) * inverseA0;
+    shelf.b2 = (1.0 - rootTwo * kz + kz * kz) * inverseA0;
+    shelf.a1 = 2.0 * (1.0 - kp * kp) * inverseA0;
+    shelf.a2 = (1.0 - rootTwo * kp + kp * kp) * inverseA0;
+    // Both analytic DC sums are equal. Remove their tiny subtraction residual
+    // before putting the section inside feedback, as for the existing dips.
+    const double dcCorrection = (1.0 + shelf.a1 + shelf.a2)
+        / (shelf.b0 + shelf.b1 + shelf.b2);
+    shelf.b0 *= dcCorrection;
+    shelf.b1 *= dcCorrection;
+    shelf.b2 *= dcCorrection;
+    loop.loopGain = static_cast<float>(gain);
+    loop.lossShelfActive = true;
+}
+
+float ElectryEngine::loopLossPhaseDelay(const PolarisationLoop& loop,
+                                         float omega) noexcept
+{
+    if (! loop.lossShelfActive)
+        return onePolePhaseDelay(loop.loopDampingCoefficient, omega);
+    if (! (omega > 0.0f))
+        return 0.0f;
+    const double cosine = std::cos(static_cast<double>(omega));
+    const double sine = std::sin(static_cast<double>(omega));
+    const double cosine2 = cosine * cosine - sine * sine;
+    const double sine2 = 2.0 * sine * cosine;
+    const auto& shelf = loop.lossShelf;
+    const double nr = shelf.b0 + shelf.b1 * cosine + shelf.b2 * cosine2;
+    const double ni = -shelf.b1 * sine - shelf.b2 * sine2;
+    const double dr = 1.0 + shelf.a1 * cosine + shelf.a2 * cosine2;
+    const double di = -shelf.a1 * sine - shelf.a2 * sine2;
+    return static_cast<float>(-std::atan2(ni * dr - nr * di,
+                                        nr * dr + ni * di) / omega);
+}
+#endif
 
 float ElectryEngine::highFrequencyDecayRatio(int stringIndex) const noexcept
 {
@@ -3612,6 +3708,14 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
                                       intrinsicT60High, t60Scale);
         if (! (loop.materialLossDepth > 0.0f))
             loop.materialLossDip.reset();
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        // The two extended bass strings retain their existing intrinsic
+        // material-loss curvature and its independently established contract.
+        if (voice.stringIndex >= 2)
+            configureLoopLossShelf(loop, omega0, omegaHigh);
+        else
+            loop.lossShelfActive = false;
+#endif
     };
 
     // The polarisation parallel to the body outlives the perpendicular one,
@@ -4319,10 +4423,20 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
                          fittedMagnitude, fittedPhase);
         const float fittedDelay = phaseOmega > 1.0e-9f
             ? -fittedPhase / phaseOmega : 0.0f;
-        return onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+        return
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            loopLossPhaseDelay(loop, phaseOmega)
+#else
+            onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+#endif
              + fittedDelay + dipDelay;
 #else
-        return onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+        return
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            loopLossPhaseDelay(loop, phaseOmega)
+#else
+            onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+#endif
              + dipDelay;
 #endif
     };
@@ -4777,8 +4891,13 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     };
     if (voice.sympatheticReady)
     {
-        previousDampingPhaseDelay = onePolePhaseDelay(
-            loop.loopDampingCoefficient, omega) + materialPhaseDelay();
+        previousDampingPhaseDelay =
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            loopLossPhaseDelay(loop, omega)
+#else
+            onePolePhaseDelay(loop.loopDampingCoefficient, omega)
+#endif
+            + materialPhaseDelay();
         if (fitMoved)
         {
             previousDispersionPhaseDelay =
@@ -4868,6 +4987,14 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
                                   intrinsicT60High, 1.0f);
     if (! (loop.materialLossDepth > 0.0f))
         loop.materialLossDip.reset();
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    if (voice.stringIndex >= 2)
+        configureLoopLossShelf(loop, omega, omegaHigh);
+    else
+        loop.lossShelfActive = false;
+    voice.horizontal.lossShelf.reset();
+    voice.horizontal.lossShelfActive = false;
+#endif
     // The unused polarisation must not retain a played filter's history for
     // a later repick. The running vertical section retains its own history
     // across wheel, age and pressure refits.
@@ -4888,8 +5015,13 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
         4.0f * allpassPhaseDelay(loop.dispersionLowCoefficient, omega)
         + 4.0f * allpassPhaseDelay(
             loop.dispersionHighCoefficient, omega);
-    const float dampingPhaseDelay = onePolePhaseDelay(
-        loop.loopDampingCoefficient, omega) + materialPhaseDelay();
+    const float dampingPhaseDelay =
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        loopLossPhaseDelay(loop, omega)
+#else
+        onePolePhaseDelay(loop.loopDampingCoefficient, omega)
+#endif
+        + materialPhaseDelay();
     const float loopPhaseDelay = dampingPhaseDelay + dispersionPhaseDelay;
     const float compensatedPeriod = clampf(
         period - loopPhaseDelay,
@@ -8007,7 +8139,12 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         sample = loop.dispersion6.process(sample, loop.dispersionHighCoefficient);
         sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
         sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        sample = loop.lossShelfActive ? loop.lossShelf.process(sample)
+            : loop.damping.process(sample, loop.loopDampingCoefficient);
+#else
         sample = loop.damping.process(sample, loop.loopDampingCoefficient);
+#endif
         if (loop.materialLossDepth > 0.0f)
             sample = loop.materialLossDip.process(sample);
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
@@ -8688,7 +8825,12 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     sample = loop.dispersion6.process(sample, loop.dispersionHighCoefficient);
     sample = loop.dispersion7.process(sample, loop.dispersionHighCoefficient);
     sample = loop.dispersion8.process(sample, loop.dispersionHighCoefficient);
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    sample = loop.lossShelfActive ? loop.lossShelf.process(sample)
+        : loop.damping.process(sample, loop.loopDampingCoefficient);
+#else
     sample = loop.damping.process(sample, loop.loopDampingCoefficient);
+#endif
     if (loop.materialLossDepth > 0.0f)
         sample = loop.materialLossDip.process(sample);
     sample *= loop.loopGain * voice.sympatheticHandLoopGain;

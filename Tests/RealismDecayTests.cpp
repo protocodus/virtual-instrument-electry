@@ -38,6 +38,15 @@ struct ElectryEngineTestAccess
             const double material = loop.materialLossDepth > 0.0f
                 ? std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
                          / (1.0 + b.a1 * z + b.a2 * z * z)) : 1.0;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            if (loop.lossShelfActive)
+            {
+                const auto& loss = loop.lossShelf;
+                return material * loop.loopGain * std::abs(
+                    (loss.b0 + loss.b1 * z + loss.b2 * z * z)
+                    / (1.0 + loss.a1 * z + loss.a2 * z * z));
+            }
+#endif
             return material * loop.loopGain * (1.0 - a)
                 / std::sqrt(1.0 + a * a - 2.0 * a * std::cos(omega));
         };

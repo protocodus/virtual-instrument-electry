@@ -77,6 +77,7 @@ struct ElectryEngineTestAccess
         std::array<double, 2> ap {};
         double pole = 0;
         double gain = 0;
+        std::array<double, 5> loss {1, 0, 0, 0, 0};
         std::array<double, 5> material {1, 0, 0, 0, 0};
         std::array<double, 5> hand {1, 0, 0, 0, 0};
     };
@@ -214,6 +215,13 @@ struct ElectryEngineTestAccess
             return std::array<double, 5> {biquad.b0, biquad.b1, biquad.b2,
                                           biquad.a1, biquad.a2};
         };
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        if (loop.lossShelfActive)
+        {
+            result.pole = 0;
+            result.loss = coefficients(loop.lossShelf);
+        }
+#endif
         if (loop.materialLossDepth > 0)
             result.material = coefficients(loop.materialLossDip);
         if (loop.handDipActive)
@@ -294,6 +302,7 @@ std::complex<double> loopTransfer(const State& state, double frequency)
         transfer *= stage * stage * stage * stage;
     }
     transfer *= state.gain * (1 - state.pole) / (1.0 - state.pole * z);
+    transfer *= biquadTransfer(state.loss, z);
     transfer *= biquadTransfer(state.material, z);
     transfer *= biquadTransfer(state.hand, z);
     return transfer;
