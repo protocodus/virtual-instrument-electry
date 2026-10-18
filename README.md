@@ -1375,6 +1375,9 @@ for the C++17 API, source ownership, and immutable embedded lookup tables.
 The JUCE-free DSP core, tests and demo renderer:
 
 ```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r Tools/requirements-review.txt
 cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release \
   -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
 cmake --build build-dsp --parallel
@@ -1384,6 +1387,10 @@ ctest --test-dir build-dsp --output-on-failure -L audio
 ./build-dsp/ElectryRenderEvaluation build-dsp/evaluation
 ./build-dsp/ElectryRenderEvaluation --metal-benchmark build-dsp/metal-benchmark
 ```
+
+The pinned Python dependencies support offline listening and reference-analysis
+tests; they are not plug-in runtime dependencies. CI uses Python 3.12. On Windows,
+activate the environment with `.venv\Scripts\Activate.ps1` before configuring.
 
 Read the [evaluation contract](Docs/research/evaluation.md) before comparing levels or
 publishing scores. For a rights-reviewed upstream-original exact-eight fixture,

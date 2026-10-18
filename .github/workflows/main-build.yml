@@ -41,6 +41,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Build and run the unit and audio tiers
         run: |
@@ -163,6 +168,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       # Removing the committed image first is what makes the check after the
       # build meaningful: the file can only be there afterwards because this
@@ -263,6 +273,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Install JUCE Linux dependencies
         run: |
@@ -347,6 +362,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Configure
         # Embed the Release C++ runtime in every target, including dependencies.

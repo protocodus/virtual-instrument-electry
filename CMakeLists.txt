@@ -335,6 +335,10 @@ endif()
 option(ELECTRY_BUILD_TOOLS "Build the demo/evaluation renderers and FX benchmark" ON)
 
 if(ELECTRY_BUILD_TOOLS)
+    add_executable(ElectryRenderDryReferenceComparison Tools/RenderDryReferenceComparison.cpp)
+    target_link_libraries(ElectryRenderDryReferenceComparison PRIVATE ElectryDSP)
+    add_executable(ElectryRenderPerformanceComparison Tools/RenderPerformanceComparison.cpp)
+    target_link_libraries(ElectryRenderPerformanceComparison PRIVATE ElectryDSP)
     find_package(Threads REQUIRED)
     add_executable(ElectryRenderDemos Tools/RenderDemos.cpp)
     target_link_libraries(ElectryRenderDemos PRIVATE ElectryDSP Threads::Threads)
@@ -669,6 +673,21 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        # Offline NumPy/SciPy review tooling belongs to the normal tools build;
+        # embedded/fuzz/sanitizer configurations validate their selected DSP
+        # contracts without building or depending on these offline tools.
+        if(ELECTRY_BUILD_TOOLS AND NOT ELECTRY_ENABLE_SANITIZERS
+           AND NOT ELECTRY_BUILD_FUZZER AND NOT CMAKE_CXX_FLAGS MATCHES "fsanitize")
+            add_test(NAME Electry.PerformanceComparison
+                COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PerformanceComparisonTests.py"
+                    $<TARGET_FILE:ElectryRenderPerformanceComparison>)
+            foreach(review IN ITEMS BuildDryReferenceComparisons AnalyzeDryReferenceComparisons BuildPhraseComparisons)
+                add_test(NAME Electry.${review}
+                    COMMAND "${Python3_EXECUTABLE}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${review}Tests.py")
+            endforeach()
+        endif()
         foreach(audit IN ITEMS AuditStringConstruction AuditDispersion AuditModalDecay BuildRealismComparisons)
             add_test(NAME Electry.${audit}
                 COMMAND "${Python3_EXECUTABLE}"

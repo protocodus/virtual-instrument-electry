@@ -1,0 +1,602 @@
+{
+  "schema": "electry-performance-reference-selection/v1",
+  "selection_utc": "2026-10-18T09:52:49.974889+00:00",
+  "purpose": "Frozen development/repeat listening references; no engine coefficient, pick force or geometry fitted to recordings. Not an exact-eight calibration corpus.",
+  "asset_root": "User-selected external asset directory; audio and third-party MIDI are not committed. Paths below are relative to this receipt acquisition root.",
+  "acquisition": "Download each official archive URL; verify its published MD5 if downloading the whole archive; extract only named members under assets/ retaining original bytes; verify member CRC32 and SHA256. P3/EG-IPT may also be fetched by HTTP byte ranges, checking decoded member length/CRC before SHA256.",
+  "sources": [
+    {
+      "id": "guitar-techs",
+      "url": "https://guitar-techs.github.io/",
+      "dataset_url": "https://zenodo.org/records/14963133",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "Pedroza, Hegel; Abreu, Wallace; Corey, Ryan M.; Roman, Iran R. Guitar-TECHS: An Electric Guitar Dataset Covering Techniques, Musical Excerpts, Chords and Scales Using a Diverse Array of Hardware. ICASSP 2025.",
+      "di_evidence": "Primary project Recording Setup: guitar output→signal splitter→audio interface and separately mic-recorded amplifier. Only directinput WAV members selected.",
+      "p1": "Ibanez PF300, .011-.050, bridge pickup, Audient ID14. Six-string standard EADGBE source annotations.",
+      "p3": "Sire T7, .010-.046, bridge-neck pickups, UMC202HD; independent per-string MIDI tracks named e/B/G/D/A/E, channels0..5.",
+      "timing_warning": "Dataset release warns inter-modality offsets up to100ms; phrases retain original event timing plus one documented global offset, never quantized."
+    },
+    {
+      "id": "eg-ipt",
+      "url": "https://zenodo.org/records/15205644",
+      "paper_url": "https://nime.org/proceedings/2025/nime2025_14.pdf",
+      "license": "CC-BY-4.0",
+      "attribution": "Fiorini, Marco; Brochec, Nicolas; Borg, Joakim; Pasini, Riccardo. EG-IPT Dataset (2025). DOI:10.5281/zenodo.15205644.",
+      "di_evidence": "2005 Gibson SG Standard, BSS Audio AR-133 DI through Midas XL48; native96kHz/24bit mono; only DI/ordinario members selected.",
+      "limits": "6s denotes string6, 02 is a note identifier, not a published fret/tuning contract; E2-like pitch measured independently. Existing three files previously analyzed, development only."
+    }
+  ],
+  "archives": [
+    {
+      "id": "P1_singlenotes",
+      "url": "https://zenodo.org/records/14963133/files/P1_singlenotes.zip?download=1",
+      "bytes": 108626613,
+      "published_md5": "ca0c4674dde3805574685a313f7c39eb",
+      "complete_archive_md5_verified": true,
+      "sha256": "130592ae5555476ea8e4070c0f3421794ef8b5e252dfa780745d07eedd0eb4a4"
+    },
+    {
+      "id": "P1_techniques",
+      "url": "https://zenodo.org/records/14963133/files/P1_techniques.zip?download=1",
+      "bytes": 326280863,
+      "published_md5": "18634a41a6db5a8de10d07eb3122a872",
+      "complete_archive_md5_verified": true,
+      "sha256": "1e4b80a464182d345e129f3e1158b6c05690c60b5f9be4bde3fb26f23263236e"
+    },
+    {
+      "id": "P3_music",
+      "url": "https://zenodo.org/api/records/14963133/files/P3_music.zip/content",
+      "bytes": 129505089,
+      "published_md5": "071ba80aecf00f4a31fbd167b3f22198",
+      "complete_archive_md5_verified": false,
+      "verification": "Only selected member ranges downloaded; decoded byte length and ZIP CRC32 checked; selected original WAV/MIDI SHA256 below."
+    },
+    {
+      "id": "EG-IPT",
+      "url": "https://zenodo.org/api/records/15205644/files/EG-IPT.zip/content",
+      "bytes": 23757983313,
+      "published_md5": "48a5135adfd090515ff0af7dc5c3c32f",
+      "complete_archive_md5_verified": false,
+      "verification": "Prior selected ZIP-range extraction receipt retained; current original WAV hashes match the decoded member receipts."
+    }
+  ],
+  "assets": [
+    {
+      "id": "techs-midi_allsinglenotes.mid",
+      "archive_id": "P1_singlenotes",
+      "member": "P1_singlenotes/midi/midi_allsinglenotes.mid",
+      "path": "assets/P1_singlenotes/midi/midi_allsinglenotes.mid",
+      "bytes": 1569,
+      "sha256": "da63c696926c5b28fe42f69ffa83cbdd84635ad37562203c953b273382b69671",
+      "zip_crc32": "d93e473d"
+    },
+    {
+      "id": "techs-directinput_allsinglenotes.wav",
+      "archive_id": "P1_singlenotes",
+      "member": "P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav",
+      "path": "assets/P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav",
+      "bytes": 82563004,
+      "sha256": "610d68404f3938ff84a80dbbd97245837ddf73e8c5b6b5baab0f8b8386142587",
+      "zip_crc32": "a4908d9c"
+    },
+    {
+      "id": "techs-midi_PalmMute.mid",
+      "archive_id": "P1_techniques",
+      "member": "P1_techniques/midi/midi_PalmMute.mid",
+      "path": "assets/P1_techniques/midi/midi_PalmMute.mid",
+      "bytes": 1579,
+      "sha256": "35baa9795ca112bc0a82e59f53c7f215042fca203bb2c3835ca0267bce8d1960",
+      "zip_crc32": "66e5f0cb"
+    },
+    {
+      "id": "techs-directinput_PalmMute.wav",
+      "archive_id": "P1_techniques",
+      "member": "P1_techniques/audio/directinput/directinput_PalmMute.wav",
+      "path": "assets/P1_techniques/audio/directinput/directinput_PalmMute.wav",
+      "bytes": 79910064,
+      "sha256": "11ae07a637343438eadf26d16dffff01e9f01d0590773a3c9e80ee07198ffb28",
+      "zip_crc32": "d2aa6b90"
+    },
+    {
+      "id": "techs-midi_06.mid",
+      "archive_id": "P3_music",
+      "member": "P3_music/midi/midi_06.mid",
+      "path": "assets/P3_music/midi/midi_06.mid",
+      "bytes": 2643,
+      "sha256": "1847ab3c83c4a85027c8bf801a17ffc494f48d381723b39de908b29c99e094cd",
+      "zip_crc32": "2d0010c0"
+    },
+    {
+      "id": "techs-directinput_06.wav",
+      "archive_id": "P3_music",
+      "member": "P3_music/audio/directinput/directinput_06.wav",
+      "path": "assets/P3_music/audio/directinput/directinput_06.wav",
+      "bytes": 9216690,
+      "sha256": "2fd88dc725f475e13686f50ce6c88e7fed3d6b635b62147a69d42e29a5dd6254",
+      "zip_crc32": "0b75afc8"
+    },
+    {
+      "id": "egipt-HB-couple_ordinario_07-02_6s_DI.wav",
+      "archive_id": "EG-IPT",
+      "member": "EG-IPT/HB-couple/DI/ordinario/HB-couple_ordinario_07-02_6s_DI.wav",
+      "path": "assets/EG-IPT/HB-couple/DI/ordinario/HB-couple_ordinario_07-02_6s_DI.wav",
+      "bytes": 5904678,
+      "sha256": "745b68063c7b51d38c0417c8aee0a869ef5826186a585d3691779b8b33426b06",
+      "zip_crc32": "8a57e72d"
+    },
+    {
+      "id": "egipt-HB-bridge_ordinario_13-02_6s_DI.wav",
+      "archive_id": "EG-IPT",
+      "member": "EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "path": "assets/EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "bytes": 5151606,
+      "sha256": "f497d68f72d711ac0121fecbfebfd8244b3aa98d7d8c0210c07492f3721def6f",
+      "zip_crc32": "55d3affb"
+    },
+    {
+      "id": "egipt-HB-neck_ordinario_01-02_6s_DI.wav",
+      "archive_id": "EG-IPT",
+      "member": "EG-IPT/HB-neck/DI/ordinario/HB-neck_ordinario_01-02_6s_DI.wav",
+      "path": "assets/EG-IPT/HB-neck/DI/ordinario/HB-neck_ordinario_01-02_6s_DI.wav",
+      "bytes": 4791168,
+      "sha256": "4b9d51835d70a49f5ae747b7a175c603b5f5b788d66f67d0df6829cfcdc1c6c6",
+      "zip_crc32": "4e86b175"
+    }
+  ],
+  "references": [
+    {
+      "id": "egipt-e2-bridge",
+      "title": "Gibson SG E2-like ordinary DI, bridge",
+      "path": "assets/EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "sha256": "f497d68f72d711ac0121fecbfebfd8244b3aa98d7d8c0210c07492f3721def6f",
+      "channel": 0,
+      "crop_start_frame": 0,
+      "crop_frames": 337884,
+      "onset_frame": 1884,
+      "sounding_midi": 40,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.0,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/15205644",
+        "license": "CC-BY-4.0",
+        "attribution": "Marco Fiorini, Nicolas Brochec, Joakim Borg and Riccardo Pasini. EG-IPT Dataset (2025), DOI:10.5281/zenodo.15205644. CC BY 4.0. Crop/channel selection and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player 2005 Gibson SG Standard six-string proxy; BSS AR-133 DI box through Midas XL48; 96 kHz/24-bit mono.",
+          "Filename 6s identifies string 6; identifier 02 does not document fret or open-string tuning. E2-like pitch is independently measured, not filename-derived.",
+          "Source scale, string gauge, pick force/direction and normalization are not documented by the dataset; model scale0/gauge0/velocity0.85 are shared hypotheses, not fitted matches.",
+          "Only about 19 ms pre-onset exists in the published file; preserve all of it, with no fabricated silent pre-roll.",
+          "One separate performance per pickup; prior Electry research analyzed these same assets, so these are development checks, not independent held-out captures."
+        ]
+      },
+      "asset_id": "egipt-HB-bridge_ordinario_13-02_6s_DI.wav",
+      "native_rate_hz": 96000,
+      "source_crop_pcm24_sha256": "fe70fd86bdd310e1554412e118260ff226f04ff27b15de5a42f1536e4d481d8c",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "egipt-e2-both",
+      "title": "Gibson SG E2-like ordinary DI, both",
+      "path": "assets/EG-IPT/HB-couple/DI/ordinario/HB-couple_ordinario_07-02_6s_DI.wav",
+      "sha256": "745b68063c7b51d38c0417c8aee0a869ef5826186a585d3691779b8b33426b06",
+      "channel": 0,
+      "crop_start_frame": 0,
+      "crop_frames": 337825,
+      "onset_frame": 1825,
+      "sounding_midi": 40,
+      "physical_string_index": 2,
+      "pickup": "both",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.0,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/15205644",
+        "license": "CC-BY-4.0",
+        "attribution": "Marco Fiorini, Nicolas Brochec, Joakim Borg and Riccardo Pasini. EG-IPT Dataset (2025), DOI:10.5281/zenodo.15205644. CC BY 4.0. Crop/channel selection and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player 2005 Gibson SG Standard six-string proxy; BSS AR-133 DI box through Midas XL48; 96 kHz/24-bit mono.",
+          "Filename 6s identifies string 6; identifier 02 does not document fret or open-string tuning. E2-like pitch is independently measured, not filename-derived.",
+          "Source scale, string gauge, pick force/direction and normalization are not documented by the dataset; model scale0/gauge0/velocity0.85 are shared hypotheses, not fitted matches.",
+          "Only about 19 ms pre-onset exists in the published file; preserve all of it, with no fabricated silent pre-roll.",
+          "One separate performance per pickup; prior Electry research analyzed these same assets, so these are development checks, not independent held-out captures."
+        ]
+      },
+      "asset_id": "egipt-HB-couple_ordinario_07-02_6s_DI.wav",
+      "native_rate_hz": 96000,
+      "source_crop_pcm24_sha256": "e01c5dd2e0648227e4b57b129de45d5cdf3cbfc10cc28c0809868cf90d8379c8",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "egipt-e2-neck",
+      "title": "Gibson SG E2-like ordinary DI, neck",
+      "path": "assets/EG-IPT/HB-neck/DI/ordinario/HB-neck_ordinario_01-02_6s_DI.wav",
+      "sha256": "4b9d51835d70a49f5ae747b7a175c603b5f5b788d66f67d0df6829cfcdc1c6c6",
+      "channel": 0,
+      "crop_start_frame": 0,
+      "crop_frames": 337828,
+      "onset_frame": 1828,
+      "sounding_midi": 40,
+      "physical_string_index": 2,
+      "pickup": "neck",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.0,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/15205644",
+        "license": "CC-BY-4.0",
+        "attribution": "Marco Fiorini, Nicolas Brochec, Joakim Borg and Riccardo Pasini. EG-IPT Dataset (2025), DOI:10.5281/zenodo.15205644. CC BY 4.0. Crop/channel selection and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player 2005 Gibson SG Standard six-string proxy; BSS AR-133 DI box through Midas XL48; 96 kHz/24-bit mono.",
+          "Filename 6s identifies string 6; identifier 02 does not document fret or open-string tuning. E2-like pitch is independently measured, not filename-derived.",
+          "Source scale, string gauge, pick force/direction and normalization are not documented by the dataset; model scale0/gauge0/velocity0.85 are shared hypotheses, not fitted matches.",
+          "Only about 19 ms pre-onset exists in the published file; preserve all of it, with no fabricated silent pre-roll.",
+          "One separate performance per pickup; prior Electry research analyzed these same assets, so these are development checks, not independent held-out captures."
+        ]
+      },
+      "asset_id": "egipt-HB-neck_ordinario_01-02_6s_DI.wav",
+      "native_rate_hz": 96000,
+      "source_crop_pcm24_sha256": "0a91f565254fefd0cec07011b47c2b0a52b1ba49ca629ecd5602777b25da9917",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "techs-p1-f2-ordinary",
+      "title": "Guitar-TECHS P1 F2 ordinary raw DI",
+      "path": "assets/P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav",
+      "sha256": "610d68404f3938ff84a80dbbd97245837ddf73e8c5b6b5baab0f8b8386142587",
+      "channel": 0,
+      "crop_start_frame": 184800,
+      "crop_frames": 175200,
+      "onset_frame": 191020,
+      "sounding_midi": 41,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.8,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel selection, crop and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player six-string EADGBE Ibanez PF300 proxy, .011-.050 flatwounds, bridge pickup, Audient ID14; source routed through signal splitter to interface DI.",
+          "Known sixth-string fret1 F2 in second four-second slot; native48kHz/24-bit mono WAV; first E2 slot is deliberately excluded because its attack is truncated.",
+          "Model shortest scale0 and gauge0.8 are approximate common hypotheses; source is flatwound and model wound mass references are roundwound. Pick force and output calibration are unknown.",
+          "Pre-onset contains the preceding note decay, not a calibrated silent noise capture; source MIDI/audio may be offset, so onset is measured from audio.",
+          "This same corpus was explored in earlier research; development comparison, not globally unseen held-out hardware."
+        ]
+      },
+      "asset_id": "techs-directinput_allsinglenotes.wav",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "a2e6037e811aa77b94062e6e626af94407663057be7fe0081fb6ece8e6d229d9",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "techs-p1-e3-ordinary",
+      "title": "Guitar-TECHS P1 E3 ordinary raw DI, sixth string fret 12",
+      "path": "assets/P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav",
+      "sha256": "610d68404f3938ff84a80dbbd97245837ddf73e8c5b6b5baab0f8b8386142587",
+      "channel": 0,
+      "crop_start_frame": 2296800,
+      "crop_frames": 175200,
+      "onset_frame": 2305908,
+      "sounding_midi": 52,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.8,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel selection, crop and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player six-string EADGBE Ibanez PF300 proxy, .011-.050 flatwounds, bridge pickup, Audient ID14; source routed through signal splitter to interface DI.",
+          "Known sixth-string fret12 E3 in its fixed four-second score slot; native48kHz/24-bit mono WAV.",
+          "Model shortest scale0 and gauge0.8 are approximate common hypotheses; source is flatwound and model wound mass references are roundwound. Pick force and output calibration are unknown.",
+          "Pre-onset contains the preceding note decay, not a calibrated silent noise capture; source MIDI/audio may be offset, so onset is measured from audio.",
+          "This same corpus was explored in earlier research; development comparison, not globally unseen held-out hardware."
+        ]
+      },
+      "asset_id": "techs-directinput_allsinglenotes.wav",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "a60cace4e5988f81865441a0b0c5b643efd43489703adf80817d06d85c30e459",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "techs-p1-d4-ordinary",
+      "title": "Guitar-TECHS P1 D4 ordinary raw DI, sixth string fret 22",
+      "path": "assets/P1_singlenotes/audio/directinput/directinput_allsinglenotes.wav",
+      "sha256": "610d68404f3938ff84a80dbbd97245837ddf73e8c5b6b5baab0f8b8386142587",
+      "channel": 0,
+      "crop_start_frame": 4216800,
+      "crop_frames": 175200,
+      "onset_frame": 4222458,
+      "sounding_midi": 62,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "model": {
+        "gauge": 0.8,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel selection, crop and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player six-string EADGBE Ibanez PF300 proxy, .011-.050 flatwounds, bridge pickup, Audient ID14; source routed through signal splitter to interface DI.",
+          "Known sixth-string fret22 D4 in its fixed four-second score slot; native48kHz/24-bit mono WAV.",
+          "Model shortest scale0 and gauge0.8 are approximate common hypotheses; source is flatwound and model wound mass references are roundwound. Pick force and output calibration are unknown.",
+          "Pre-onset contains the preceding note decay, not a calibrated silent noise capture; source MIDI/audio may be offset, so onset is measured from audio.",
+          "This same corpus was explored in earlier research; development comparison, not globally unseen held-out hardware.",
+          "Reserved before candidate output as present-run upper-fret structural check; same previously explored corpus, not independent unseen hardware."
+        ]
+      },
+      "asset_id": "techs-directinput_allsinglenotes.wav",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "ce8614640204783a70a4e0843b39696565e6276cd5627cf33d1c7f11d3230017",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "techs-p1-f2-palm",
+      "title": "Guitar-TECHS P1 F2 palm-muted raw DI",
+      "path": "assets/P1_techniques/audio/directinput/directinput_PalmMute.wav",
+      "sha256": "11ae07a637343438eadf26d16dffff01e9f01d0590773a3c9e80ee07198ffb28",
+      "channel": 0,
+      "crop_start_frame": 184800,
+      "crop_frames": 175200,
+      "onset_frame": 189091,
+      "sounding_midi": 41,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "palm",
+      "model": {
+        "gauge": 0.8,
+        "scale": 0.0,
+        "velocity": 0.85
+      },
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel selection, crop and constant listening trim by Electry research.",
+        "role": "development",
+        "limits": [
+          "Professional-player six-string EADGBE Ibanez PF300 proxy, .011-.050 flatwounds, bridge pickup, Audient ID14; source routed through signal splitter to interface DI.",
+          "Known sixth-string fret1 F2 in second four-second slot; native48kHz/24-bit mono WAV; first E2 slot is deliberately excluded because its attack is truncated.",
+          "Model shortest scale0 and gauge0.8 are approximate common hypotheses; source is flatwound and model wound mass references are roundwound. Pick force and output calibration are unknown.",
+          "Pre-onset contains the preceding note decay, not a calibrated silent noise capture; source MIDI/audio may be offset, so onset is measured from audio.",
+          "This same corpus was explored in earlier research; development comparison, not globally unseen held-out hardware.",
+          "Palm pressure/heel position uncalibrated; model uses its common default Mute Tightness, not fitted to this clip."
+        ]
+      },
+      "asset_id": "techs-directinput_PalmMute.wav",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "ecc45e6f0e894f11d956b699ddc62eaa1c051c85907375a2ddb361b7c55bb336",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header"
+    },
+    {
+      "id": "techs-p3-06-e-string-transition",
+      "title": "Guitar-TECHS P3 same E-string B2–C3–C#3–C#3, development-anchor",
+      "path": "assets/P3_music/audio/directinput/directinput_06.wav",
+      "sha256": "2fd88dc725f475e13686f50ce6c88e7fed3d6b635b62147a69d42e29a5dd6254",
+      "channel": 0,
+      "crop_start_frame": 230400,
+      "crop_frames": 52800,
+      "onset_frame": 238285,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "alignment_group": "techs-p3-06",
+      "alignment_role": "development-anchor",
+      "midi_to_audio_offset_s": -0.0308705531250002,
+      "midi_path": "assets/P3_music/midi/midi_06.mid",
+      "midi_sha256": "1847ab3c83c4a85027c8bf801a17ffc494f48d381723b39de908b29c99e094cd",
+      "model": {
+        "guitar_build": 0.8,
+        "scale": 0.85,
+        "gauge": 1.0,
+        "pickup": "bridge",
+        "pickup_type": 0.32,
+        "tone": 0.7,
+        "velocity": "source-MIDI velocity / 127; annotation, not calibrated force"
+      },
+      "events": [
+        {
+          "time_s": 4.964270833333333,
+          "type": "on",
+          "note": 47,
+          "velocity": 127
+        },
+        {
+          "time_s": 5.128159804166667,
+          "type": "on",
+          "note": 48,
+          "velocity": 127
+        },
+        {
+          "time_s": 5.132326472916667,
+          "type": "off",
+          "note": 47,
+          "velocity": 0
+        },
+        {
+          "time_s": 5.233020967708333,
+          "type": "off",
+          "note": 48,
+          "velocity": 0
+        },
+        {
+          "time_s": 5.328854348958333,
+          "type": "on",
+          "note": 49,
+          "velocity": 105
+        },
+        {
+          "time_s": 5.393437714583333,
+          "type": "off",
+          "note": 49,
+          "velocity": 0
+        },
+        {
+          "time_s": 5.637187836458333,
+          "type": "on",
+          "note": 49,
+          "velocity": 121
+        }
+      ],
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel0 selection, fixed crops and constant listening trims by Electry research.",
+        "role": "development",
+        "limits": [
+          "P3 Sire T7 six-string .010-.046, bridge-neck pickups, UMC202HD; signal splitter→interface raw DI. Native48kHz/24-bit stereo is exact dual mono; channel0 explicitly selected, never averaged.",
+          "Only released E-string MIDI events are selected; no other string is MIDI-active in the crop. Residual body/sympathetic sound is not guaranteed absent.",
+          "Score times/velocities are unquantized Fishman tracker annotations, not verified pick force or fretting-versus-picking labels. Keep the 47→48 on-before-old-off overlap and same-pitch49 repick; no hand articulation invented.",
+          "One constant MIDI→audio offset is measured from the first development note only and shared by both crops; repeat first audio onset differs from that prediction by −0.478ms. No per-note warp, spectral matching or pitch correction.",
+          "Shipping GuitarBuild0.8 model controls are identical across A/B and deliberately not a hardware fit: extended heavy eight-string/bridge differs from this lighter six-string/bridge-neck setup.",
+          "Second excerpt is a structural repeat check on the same newly examined recording/player/guitar, not an independent hardware holdout.",
+          "Crop ends before the next multi-string chord while the final C#3 is still held. Do not add a fabricated source NoteOff or decay tail.",
+          "Conservative crop end5.900s or16.550s excludes the following multi-string chord/pick precursor; guard chosen from source events and source high-band rise, independently of candidate output."
+        ]
+      },
+      "sounding_midi": 47,
+      "sounding_midi_role": "First-note label only; phrase explicitly changes47→48→49→49. Use events for all sounding pitches.",
+      "asset_id": "techs-directinput_06.wav",
+      "midi_asset_id": "techs-midi_06.mid",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "87895bb131576d21f0529507760eb7916e9c5e2964b713bc74baf2ab1bf60695",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header",
+      "model_written_note_shift_semitones": 12,
+      "event_omissions": "None within selected E-string crop; other strings are not MIDI-active; events outside crop omitted; final held note has no fabricated NoteOff."
+    },
+    {
+      "id": "techs-p3-06-e-string-repeat",
+      "title": "Guitar-TECHS P3 same E-string B2–C3–C#3–C#3, repeat-check",
+      "path": "assets/P3_music/audio/directinput/directinput_06.wav",
+      "sha256": "2fd88dc725f475e13686f50ce6c88e7fed3d6b635b62147a69d42e29a5dd6254",
+      "channel": 0,
+      "crop_start_frame": 741600,
+      "crop_frames": 52800,
+      "onset_frame": 749429,
+      "physical_string_index": 2,
+      "pickup": "bridge",
+      "style": "sustain",
+      "alignment_group": "techs-p3-06",
+      "alignment_role": "repeat-check",
+      "midi_to_audio_offset_s": -0.0308705531250002,
+      "midi_path": "assets/P3_music/midi/midi_06.mid",
+      "midi_sha256": "1847ab3c83c4a85027c8bf801a17ffc494f48d381723b39de908b29c99e094cd",
+      "model": {
+        "guitar_build": 0.8,
+        "scale": 0.85,
+        "gauge": 1.0,
+        "pickup": "bridge",
+        "pickup_type": 0.32,
+        "tone": 0.7,
+        "velocity": "source-MIDI velocity / 127; annotation, not calibrated force"
+      },
+      "events": [
+        {
+          "time_s": 15.613581713541667,
+          "type": "on",
+          "note": 47,
+          "velocity": 119
+        },
+        {
+          "time_s": 15.763581788541666,
+          "type": "on",
+          "note": 48,
+          "velocity": 111
+        },
+        {
+          "time_s": 15.7670540125,
+          "type": "off",
+          "note": 47,
+          "velocity": 0
+        },
+        {
+          "time_s": 15.912192973958334,
+          "type": "off",
+          "note": 48,
+          "velocity": 0
+        },
+        {
+          "time_s": 15.969137446875001,
+          "type": "on",
+          "note": 49,
+          "velocity": 121
+        },
+        {
+          "time_s": 16.05733193541667,
+          "type": "off",
+          "note": 49,
+          "velocity": 0
+        },
+        {
+          "time_s": 16.290665385416666,
+          "type": "on",
+          "note": 49,
+          "velocity": 105
+        }
+      ],
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel0 selection, fixed crops and constant listening trims by Electry research.",
+        "role": "held-out",
+        "limits": [
+          "P3 Sire T7 six-string .010-.046, bridge-neck pickups, UMC202HD; signal splitter→interface raw DI. Native48kHz/24-bit stereo is exact dual mono; channel0 explicitly selected, never averaged.",
+          "Only released E-string MIDI events are selected; no other string is MIDI-active in the crop. Residual body/sympathetic sound is not guaranteed absent.",
+          "Score times/velocities are unquantized Fishman tracker annotations, not verified pick force or fretting-versus-picking labels. Keep the 47→48 on-before-old-off overlap and same-pitch49 repick; no hand articulation invented.",
+          "One constant MIDI→audio offset is measured from the first development note only and shared by both crops; repeat first audio onset differs from that prediction by −0.478ms. No per-note warp, spectral matching or pitch correction.",
+          "Shipping GuitarBuild0.8 model controls are identical across A/B and deliberately not a hardware fit: extended heavy eight-string/bridge differs from this lighter six-string/bridge-neck setup.",
+          "Second excerpt is a structural repeat check on the same newly examined recording/player/guitar, not an independent hardware holdout.",
+          "Crop ends before the next multi-string chord while the final C#3 is still held. Do not add a fabricated source NoteOff or decay tail.",
+          "Conservative crop end5.900s or16.550s excludes the following multi-string chord/pick precursor; guard chosen from source events and source high-band rise, independently of candidate output."
+        ]
+      },
+      "sounding_midi": 47,
+      "sounding_midi_role": "First-note label only; phrase explicitly changes47→48→49→49. Use events for all sounding pitches.",
+      "asset_id": "techs-directinput_06.wav",
+      "midi_asset_id": "techs-midi_06.mid",
+      "native_rate_hz": 48000,
+      "source_crop_pcm24_sha256": "7ee0f5f3b274d628a53f64c2204e71b0cddbe22552c7a9f02a96a7b655484293",
+      "source_crop_hash_encoding": "selected-channel, signed24 PCM, little-endian 3bytes/sample, no normalization/trim; excludes WAV header",
+      "model_written_note_shift_semitones": 12,
+      "event_omissions": "None within selected E-string crop; other strings are not MIDI-active; events outside crop omitted; final held note has no fabricated NoteOff."
+    }
+  ],
+  "selection_notes": [
+    "P1 first E2 slot excluded: published ordinary WAV starts at the attack boundary. F2 sixth-string fret1 has intact precursor. E3fret12/D4fret22 are explicitly fretted proxy checks; D4 has substantial source detuning and is not an intonation-matched target.",
+    "P3 excerpt06 first phrase selected for physical-string transition and same-pitch repick before candidate audio was auditioned. Second occurrence on same recording retained as repeat-check, not independent hardware validation.",
+    "P3 shared MIDI→audio offset=-0.0308705531250002s is computed only from development first NoteOn4.995141386458333s and measured native frame238285/48000. Repeat predicted first note15.613581713541667s; observed749429/48000=15.613104166666666s; residual−0.000477546875s preserved.",
+    "No per-hit alignment, hidden quantization, pitch correction, EQ or source velocity→physical-force calibration. Listening trim is constant whole-crop RMS and reported by packager.",
+    "8ridgelite excluded from dry-DI pack: source does not identify channel meanings or guarantee raw DI. Freesound557299/525010 previews remain CC0 exploratory clean/dry context, not uncompressed raw-DI calibration assets."
+  ]
+}
