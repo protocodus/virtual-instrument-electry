@@ -16,6 +16,7 @@ different guitar hardware. Short-window audio pitch is deliberately omitted.
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import warnings
 
@@ -68,6 +69,83 @@ def configuration(receipt):
             if key not in {'render_seconds', 'frames'}}
 
 
+def annotated_score(reference, rate):
+    """Derive the renderer's numeric events directly from source annotations.
+
+    This observer deliberately does not import the score builder. The source
+    time origin is checked separately against the frozen alignment anchor,
+    because relative frame differences alone cannot detect a global shift.
+    """
+    events = reference['events']
+    if not events or events[0]['type'] != 'on':
+        raise ValueError("Source score must begin with a NoteOn")
+    first = events[0]['time_s']
+    if not isinstance(first, (int, float)) or not math.isfinite(first):
+        raise ValueError("Source event time must be finite")
+    previous = first
+    result = []
+    for event in events:
+        time, kind = event['time_s'], event['type']
+        note, velocity = event['note'], event['velocity']
+        if (not isinstance(time, (int, float)) or not math.isfinite(time)
+                or time < previous or kind not in ('on', 'off')
+                or type(note) is not int or not 28 <= note <= 86
+                or not isinstance(velocity, (int, float)) or not math.isfinite(velocity)
+                or not 0 <= velocity <= 127
+                or (kind == 'on' and velocity == 0)):
+            raise ValueError("Invalid source score annotation")
+        # Source release velocity is retained in the annotation; the renderer's
+        # NoteOff API has no velocity and the builder writes zero for that row.
+        result.append([round((time - first) * rate) + rate // 4,
+                       0 if kind == 'on' else 1, note + 12,
+                       velocity / 127 if kind == 'on' else 0])
+        previous = time
+    return result
+
+
+def same_score(actual, expected):
+    if not isinstance(actual, list) or len(actual) != len(expected):
+        return False
+    for row, wanted in zip(actual, expected):
+        if (not isinstance(row, (list, tuple)) or len(row) != 4
+                or any(type(value) is not int for value in row[:3])
+                or list(row[:3]) != wanted[:3]
+                or not isinstance(row[3], (int, float)) or not math.isfinite(row[3])
+                or not math.isclose(row[3], wanted[3], rel_tol=0, abs_tol=1e-6)):
+            return False
+    return True
+
+
+def bind_score(comparison, manifest_directory, rate, model_start):
+    expected = annotated_score(comparison['reference'], rate)
+    score_path = locate(comparison['score_path'], manifest_directory)
+    if sha(score_path) != comparison['score_sha256']:
+        raise ValueError("Source score TSV hash mismatch")
+    rows = []
+    try:
+        for line in score_path.read_text().splitlines():
+            if not line.strip() or line.lstrip().startswith('#'):
+                continue
+            cells = line.split()
+            if len(cells) != 4:
+                raise ValueError("Expected four numeric score columns")
+            rows.append([int(cells[0]), int(cells[1]), int(cells[2]), float(cells[3])])
+    except (ValueError, OverflowError) as error:
+        raise ValueError("Invalid source score TSV rows") from error
+    if not same_score(rows, expected):
+        raise ValueError("Source annotations differ from frozen score TSV")
+    reference = comparison['reference']
+    nominal = round(reference['events'][0]['time_s'] * rate) - reference['crop_start_frame']
+    anchor = comparison['alignment_anchor']
+    if (anchor.get('rate') != rate or type(anchor.get('latency_frames')) is not int
+            or model_start != rate // 4 + anchor['latency_frames'] - nominal):
+        raise ValueError("Source annotation origin differs from frozen alignment anchor")
+    prediction = comparison.get('source_onset_prediction')
+    if prediction is not None and prediction['expected_frame_after_crop'] != nominal:
+        raise ValueError("Source annotation origin differs from frozen onset prediction")
+    return expected
+
+
 def analyze(manifest_path, extras=None):
     manifest_path = Path(manifest_path).resolve()
     digest = sha(manifest_path)
@@ -110,6 +188,7 @@ def analyze(manifest_path, extras=None):
         sources = {'Reference': {'path': str(reference_path), 'sha256': sha(reference_path),
                                  'crop_start_frame': start, 'channel': channel}}
         model_start = comparison['tracks']['A']['alignment']['crop_start_frame']
+        score = bind_score(comparison, manifest_path.parent, rate, model_start)
         expected = comparison['model_render']['A']
         folders = {}
         for label in ('A', 'B'):
@@ -130,6 +209,8 @@ def analyze(manifest_path, extras=None):
             receipt = json.loads(receipt_path.read_text())
             if stored_receipt is not None and receipt != stored_receipt:
                 raise ValueError("Model render receipt differs from frozen manifest")
+            if not same_score(receipt.get('events'), score):
+                raise ValueError("Source annotations differ from model render score events")
             if (configuration(receipt) != configuration(expected)
                     or actual_rate != rate or len(samples) != receipt['frames']
                     or samples.shape[1] != 2
