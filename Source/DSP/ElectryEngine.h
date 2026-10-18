@@ -979,15 +979,11 @@ private:
         void setDelay(float delaySamples) noexcept;
     };
 
-    // One transverse polarisation of a string: a single-delay-loop waveguide
-    // with loop damping, stiffness dispersion, and a loop DC guard.
-    struct PolarisationLoop
+    // A fixed-size feedback filter bank, deliberately excluding ring storage.
+    // Retaining it lets a refret start with the actually sounding raw tap and
+    // filter state while its destination topology warms independently.
+    struct LoopFilterBank
     {
-        std::array<float, delayLineSize> line {};
-        int writeIndex { 0 };
-        float currentDelay { 100.0f };
-        float targetDelay { 100.0f };
-        float delayRetention { 0.98f };
         float loopGain { 0.995f };
         float loopDampingCoefficient { 0.3f };
         // Two independently fitted four-section allpass groups match the
@@ -1066,6 +1062,33 @@ private:
         DispersionAllpass dispersion6 {};
         DispersionAllpass dispersion7 {};
         DispersionAllpass dispersion8 {};
+
+    };
+
+    struct RefretFilterEndpoint
+    {
+        LoopFilterBank bank {};
+        float rawDelay { 100.0f };
+        float anchorRawDelay { 100.0f };
+        float anchorPeriod { 100.0f };
+        float anchorPhaseDelay { 0.0f };
+        float physicalPeriod { 100.0f };
+        float physicalPending { 0.0f };
+        float rawPending { 0.0f };
+        bool valid { false };
+    };
+
+    // One transverse polarisation of a string: a single-delay-loop waveguide
+    // with loop damping, stiffness dispersion, and a loop DC guard.
+    struct PolarisationLoop : LoopFilterBank
+    {
+        std::array<float, delayLineSize> line {};
+        int writeIndex { 0 };
+        float currentDelay { 100.0f };
+        float targetDelay { 100.0f };
+        float delayRetention { 0.98f };
+        RefretFilterEndpoint refretSource {};
+        RefretFilterEndpoint refretFrozenDestination {};
 
         void clear() noexcept;
         void scaleState(float amplitude) noexcept;
@@ -1697,7 +1720,7 @@ private:
     static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                                        float omegaHigh, float intrinsicPole,
                                        float intrinsicGain) noexcept;
-    static float loopLossPhaseDelay(const PolarisationLoop &loop, float omega) noexcept;
+    static float loopLossPhaseDelay(const LoopFilterBank &loop, float omega) noexcept;
 #endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
@@ -1826,6 +1849,17 @@ private:
     void startExcitation(Voice& voice, float velocity, bool legato,
                          bool preservesExistingStringState) noexcept;
     [[nodiscard]] int plectrumContactSamples(const Voice& voice) const noexcept;
+    [[nodiscard]] static float refretBankPhaseDelay(
+        const LoopFilterBank& bank, float physicalPeriod) noexcept;
+    static void copyLoopFilterState(LoopFilterBank& target,
+                                     const LoopFilterBank& source) noexcept;
+    void captureRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                const PolarisationLoop& loop,
+                                float physicalPeriod) const noexcept;
+    static void retargetRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                        float physicalPeriod,
+                                        float physicalPending,
+                                        float polarisationScale) noexcept;
     void beginRefretHandoff(Voice& voice, int durationSamples,
                             bool keepsUnperformedSource) noexcept;
 #if ELECTRY_ANALYTIC_RELEASE_IC
