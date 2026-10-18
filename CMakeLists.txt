@@ -446,6 +446,11 @@ if(BUILD_TESTING)
     target_link_libraries(ElectryRealismModalReleaseTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismModalRelease COMMAND ElectryRealismModalReleaseTests)
 
+    add_executable(ElectryReleaseRestorationTests
+        Tests/ElectryReleaseRestorationTests.cpp)
+    target_link_libraries(ElectryReleaseRestorationTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.ReleaseRestoration COMMAND ElectryReleaseRestorationTests)
+
     add_executable(ElectryEngineTests Tests/ElectryEngineTests.cpp)
     target_link_libraries(ElectryEngineTests PRIVATE ElectryDSP)
     target_compile_features(ElectryEngineTests PRIVATE cxx_std_20)
