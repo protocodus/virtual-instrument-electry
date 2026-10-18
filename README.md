@@ -144,6 +144,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.2 — In development — String mass, modal fitting and continuous legato
+
+Hammer-ons and slides retain their continuous stiffness fit when the finger
+reaches its destination, avoiding a global coefficient jump on a ringing
+string. Wound strings now use published XL reference masses for their light
+gauges; the heavier gauge morph remains an explicit geometric-similarity
+hypothesis. The selected dispersion fitter scores stretched modes rather than
+two harmonic anchors; cached trigonometry bounds its extra setup cost.
+Saved patches use canonical parameter values so restoring a factory rig
+preserves its serialized state exactly without altering live controls.
+No release package has been published for this development work.
+
 ### 1.2.1 — 2026-10-17 — Click-free bends and slides
 
 Bends, vibrato and slides on a ringing string no longer squeal: the string's
@@ -1332,6 +1344,15 @@ change improved some low modes but worsened a higher one, while an attack-time
 refit risks realtime cost. Neither is silently promoted. Passive pickup-circuit
 retuning, reciprocal idle-string bridge coupling and calibrated magnetic
 back-action retain the evidence requirements below.
+
+The [October 17 realism investigation](Docs/research/realism-techniques-2026-10-17.md)
+ranks practical follow-ons and provides reproducible mass and modal-frequency
+audits. `ELECTRY_REFERENCE_STRING_MASS` now defaults to `ON` following the
+candidate choice; `ELECTRY_MODAL_DISPERSION_FIT` also defaults to `ON` for the
+selected modal objective. Both remain explicitly switchable for comparison.
+The [follow-up validation](Docs/validation/realism-followup-2026-10-17.md)
+records the current engineering outcome and listening decision. Accuracy
+against a model equation does not by itself establish resemblance to a guitar.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

@@ -6,6 +6,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -996,6 +997,64 @@ struct ElectryEngineTestAccess
              + 4.0f * sectionDeficit(loop.dispersionHighCoefficient);
     }
 
+#if ELECTRY_MODAL_DISPERSION_FIT
+    struct IsolatedDispersionModel
+    {
+        double sampleRate, fundamental, inharmonicity;
+        std::array<double, 2> coefficients;
+    };
+
+    static IsolatedDispersionModel isolatedDispersionModel(
+        const ElectryEngine& engine, int stringIndex) noexcept
+    {
+        const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        return { engine.sampleRate_, voice.lastConfiguredFrequency,
+                 voice.inharmonicity,
+                 { voice.vertical.dispersionLowCoefficient,
+                   voice.vertical.dispersionHighCoefficient } };
+    }
+
+    // Independent lossless modal oracle: evaluate complex allpass transfers
+    // and bisect the complete unwrapped loop phase, rather than repeating the
+    // production fitter's deficit/group-delay objective or search. Separate
+    // fundamental compensation below still tests the actual cubic read/loss
+    // filters; reconstructing this isolated delay cannot establish that.
+    static double isolatedDispersionModeFrequency(
+        const IsolatedDispersionModel& model, int partial,
+        int sectionsPerCoefficient = 4, bool compensateFundamental = true) noexcept
+    {
+        constexpr double pi = 3.1415926535897932384626433832795;
+        const auto filterPhase = [&] (double omega)
+        {
+            const auto z = std::polar(1.0, -omega);
+            double phase = 0.0;
+            for (double coefficient : model.coefficients)
+                phase += sectionsPerCoefficient * std::arg(
+                    (coefficient + z) / (1.0 + coefficient * z));
+            return phase;
+        };
+        const double omega1 = 2.0 * pi * model.fundamental / model.sampleRate;
+        const double delay = model.sampleRate / model.fundamental
+            + (compensateFundamental ? filterPhase(omega1) / omega1 : 0.0);
+        const auto error = [&] (double omega)
+        {
+            return delay * omega - filterPhase(omega) - 2.0 * pi * partial;
+        };
+        double low = 0.0, high = pi * (1.0 - 1.0e-9);
+        if (! (delay > 0.0) || ! (error(low) <= 0.0 && error(high) >= 0.0))
+            return std::numeric_limits<double>::quiet_NaN();
+        for (int iteration = 0; iteration < 64; ++iteration)
+        {
+            const double middle = 0.5 * (low + high);
+            if (error(middle) < 0.0)
+                low = middle;
+            else
+                high = middle;
+        }
+        return 0.5 * (low + high) * model.sampleRate / (2.0 * pi);
+    }
+#endif
+
     static std::array<float, 9> loopFilterState(
         const ElectryEngine& engine, int stringIndex,
         bool horizontal = false) noexcept
@@ -1507,6 +1566,80 @@ struct ElectryEngineTestAccess
                 high = mid;
         }
         return 0.5f * (low + high);
+    }
+
+    // Independent frozen-coefficient fundamental for an ordinary untouched
+    // Sustain loop. Evaluate the actual loss biquads, eight allpasses and
+    // four-point cubic read in double; do not reuse the production phase-delay
+    // functions. A raw delay is only one part of the period, and its direction
+    // can reverse when a stiffness-grid refit changes the filters' phase.
+    static double evaluatedSustainLoopFrequency(
+        const ElectryEngine& engine, int stringIndex,
+        bool useTargetDelay = true) noexcept
+    {
+        if (stringIndex < 0 || stringIndex >= ElectryEngine::stringCount)
+            return std::numeric_limits<double>::quiet_NaN();
+        const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        // These fixtures exercise a held Sustain note, without the separate
+        // touch/release spatial operators. An accidental topology change must
+        // fail the finite trace assertion rather than omit those operators.
+        if (voice.touchDepth != 0.0f || voice.releaseSpectralDepth != 0.0f)
+            return std::numeric_limits<double>::quiet_NaN();
+        const auto& loop = voice.vertical;
+        constexpr double pi = 3.1415926535897932384626433832795;
+        const double delay = useTargetDelay ? loop.targetDelay : loop.currentDelay;
+        const double ceiling = std::ceil(delay);
+        const double t = ceiling - delay;
+        const std::array<double, 4> cubic {
+            -t * (t - 1.0) * (t - 2.0) / 6.0,
+            (t + 1.0) * (t - 1.0) * (t - 2.0) / 2.0,
+            -(t + 1.0) * t * (t - 2.0) / 2.0,
+            (t + 1.0) * t * (t - 1.0) / 6.0
+        };
+        const auto phaseError = [&] (double frequency)
+        {
+            const double omega = 2.0 * pi * frequency / engine.sampleRate_;
+            const auto z = std::polar(1.0, -omega);
+            const auto advance = std::conj(z);
+            const auto interpolator = cubic[0] * z + cubic[1]
+                + cubic[2] * advance + cubic[3] * advance * advance;
+            const double damping = loop.loopDampingCoefficient;
+            double filterPhase = std::arg(interpolator)
+                + std::arg((1.0 - damping) / (1.0 - damping * z));
+            const auto biquadPhase = [&] (const ElectryEngine::DipBiquad& b)
+            {
+                return std::arg((b.b0 + b.b1 * z + b.b2 * z * z)
+                                / (1.0 + b.a1 * z + b.a2 * z * z));
+            };
+            if (loop.materialLossDepth > 0.0f)
+                filterPhase += biquadPhase(loop.materialLossDip);
+            if (loop.handDipActive)
+                filterPhase += biquadPhase(loop.handDip);
+#if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
+            if (loop.fittedLossDipActive)
+                filterPhase += biquadPhase(loop.fittedLossDip);
+#endif
+            for (double coefficient : { double(loop.dispersionLowCoefficient),
+                                        double(loop.dispersionHighCoefficient) })
+                filterPhase += 4.0 * std::arg(
+                    (coefficient + z) / (1.0 + coefficient * z));
+            // Leave the integer delay unwrapped; the first complete round
+            // trip is phase -2pi. Wrapping the whole transfer would confuse
+            // the fundamental with later closed-loop modes.
+            return omega * ceiling - filterPhase - 2.0 * pi;
+        };
+        double low = 20.0, high = 0.24 * engine.sampleRate_;
+        if (! (phaseError(low) <= 0.0 && phaseError(high) >= 0.0))
+            return std::numeric_limits<double>::quiet_NaN();
+        for (int iteration = 0; iteration < 48; ++iteration)
+        {
+            const double middle = 0.5 * (low + high);
+            if (phaseError(middle) < 0.0)
+                low = middle;
+            else
+                high = middle;
+        }
+        return 0.5 * (low + high);
     }
 
     static int hostFramesPerControlPeriod(
@@ -4125,8 +4258,15 @@ void testDropELowNoteAtMaximumRate()
     const auto snapshot = TestAccess::snapshot(engine, stringIndex);
     expect(stringIndex == 0 && snapshot.fret == 0,
            "open E1 was not allocated to the eighth string");
-    expect(snapshot.verticalDelayTarget > 9000.0f,
-           "maximum-rate Drop-E delay did not exercise the expanded line");
+    // Exercise the resource boundary, not an arbitrary division of period
+    // between the raw line and dispersion filters. The selected mass/modal
+    // model needs about 8960 raw samples here, although the full period is
+    // over 10400. An 8192-sample line must still fail this test after its
+    // production clamp; the acoustic pitch and actual capacity rails below
+    // remain independent and unchanged.
+    constexpr float insufficientLineCapacity = 8192.0f;
+    expect(snapshot.verticalDelayTarget > insufficientLineCapacity,
+           "maximum-rate Drop-E did not require a line larger than 8192 samples");
     expect(snapshot.verticalDelayTarget
                < static_cast<float>(TestAccess::delayLineCapacity() - 8),
            "maximum-rate Drop-E delay exceeded the delay-line capacity");
@@ -7600,15 +7740,20 @@ void testHardPickingStaysInTune()
         }
         return strongest;
     };
-    const auto harmonicErrorFor = [&] (int note, PlayStyle style)
+    const auto isolatedFundamentalErrorFor = [&] (int note, PlayStyle style)
     {
         const auto hard = renderHard(note, style);
         expect(rmsInRange(hard.left, analysisStart,
                           analysisStart + analysisLength) > 1.0e-5,
                "hard-pick tuning fixture rendered too little body at MIDI "
                    + std::to_string(note));
-        const double measured = measureFrequency(
-            hard.left, analysisStart, analysisLength, sampleRate, midiHz(note));
+        // The generic estimator sums H1--H5 on harmonic bins. A stiff string
+        // moves those modes independently: the modal fitter's hard E1 has
+        // H1 at +3.75 cents but H5/n at +9.5 cents in this capture, biasing
+        // that sum to +8 cents. Measure the written fundamental with the
+        // same H1 scan used for the chord and muted-style checks below.
+        const double measured = scanFundamental(
+            hard, note, analysisStart, analysisLength);
         return centsBetween(measured, midiHz(note));
     };
 
@@ -7616,7 +7761,7 @@ void testHardPickingStaysInTune()
     for (std::size_t index = 0; index < openNotes.size(); ++index)
     {
         const int note = openNotes[index];
-        errors[index] = harmonicErrorFor(note, PlayStyle::Sustain);
+        errors[index] = isolatedFundamentalErrorFor(note, PlayStyle::Sustain);
         expect(std::abs(errors[index]) < 8.0,
                "a maximum-velocity open string is out of tune at MIDI "
                    + std::to_string(note) + " (" + std::to_string(errors[index])
@@ -7839,7 +7984,12 @@ void testEnergyAttackPitchExperiment()
            * e2.state.tensionNewtons);
     const float fullDiameterScale = expectedScale / (0.28f * 0.28f);
     const float q = tensionRatio(e2.state);
-    const float maximumRatio = std::exp2(maximumCents / 600.0f) - 1.0f;
+    // exp2(0.01f)-1 loses 4.56e-8 through float cancellation, exceeding
+    // the unchanged 2e-8 conversion tolerance when a stroke reaches the cap.
+    // Derive the same exact six-cent bound with cancellation-safe double
+    // arithmetic before rounding to the engine's storage precision.
+    const float maximumRatio = static_cast<float>(std::expm1(
+        std::log(2.0) * static_cast<double>(maximumCents) / 600.0));
     const float expectedQ = std::min(
         e2.seed.pendingEnergyJoules
             * e2.seed.pendingElasticScalePerJoule,
@@ -7874,19 +8024,29 @@ void testEnergyAttackPitchExperiment()
     // Reset-identical strokes isolate MIDI force from deterministic player
     // variation. Growth is strict until the explicit safety clamp is reached;
     // saturation is allowed only at that bound.
+    bool exercisedCappedSeed = false, exercisedUncappedSeed = false;
     for (const int note : { 28, 35, 40 })
     {
         std::array<double, velocities.size()> ratios {};
+        std::array<double, velocities.size()> rawSeeds {};
         std::array<double, velocities.size()> cents {};
         for (std::size_t i = 0; i < velocities.size(); ++i)
         {
             const auto stroke = freshStroke(
-                note, velocities[i], sampleRate).state;
-            ratios[i] = tensionRatio(stroke);
-            cents[i] = pitchCents(stroke);
+                note, velocities[i], sampleRate);
+            ratios[i] = tensionRatio(stroke.state);
+            rawSeeds[i] = static_cast<double>(stroke.seed.pendingEnergyJoules)
+                       * stroke.seed.pendingElasticScalePerJoule;
+            cents[i] = pitchCents(stroke.state);
             expect(std::isfinite(ratios[i]) && ratios[i] >= 0.0
                        && cents[i] <= maximumCents + 1.0e-3,
                    "velocity sweep produced unbounded energy-pitch state");
+            expect(std::isfinite(rawSeeds[i]) && rawSeeds[i] > 0.0
+                       && std::abs(ratios[i] - std::min(
+                           rawSeeds[i], static_cast<double>(maximumRatio))) < 2.0e-8,
+                   "committed pluck tension did not equal the bounded physical seed");
+            exercisedCappedSeed = exercisedCappedSeed || rawSeeds[i] >= maximumRatio;
+            exercisedUncappedSeed = exercisedUncappedSeed || rawSeeds[i] < maximumRatio;
             if (i > 0)
             {
                 const bool rose = ratios[i] > ratios[i - 1];
@@ -7900,18 +8060,23 @@ void testEnergyAttackPitchExperiment()
                "energy-pitch velocity range collapsed at MIDI "
                    + std::to_string(note));
 
-        if (note == 40)
+        // The previous E2 fixture silently assumed velocity=1 was uncapped,
+        // then divided every committed q by that saturated endpoint. A valid
+        // construction change can cross the unchanged cap. Check the force
+        // law on every pending raw seed and the exact min(seed, cap) above;
+        // neither capped nor uncapped cases bypass either physical contract.
+        const double response = EngineParameters {}.velocityAmount;
+        for (std::size_t i = 0; i + 1 < velocities.size(); ++i)
         {
-            const double response = EngineParameters {}.velocityAmount;
-            for (std::size_t i = 0; i + 1 < velocities.size(); ++i)
-            {
-                const double force = 0.05 + 0.95 * velocities[i];
-                const double expected = std::pow(force, 2.0 * response);
-                expect(std::abs(ratios[i] / ratios.back() - expected) < 2.0e-4,
-                       "uncapped E2 energy did not follow squared pluck force");
-            }
+            const double force = 0.05 + 0.95 * velocities[i];
+            const double expected = std::pow(force, 2.0 * response);
+            expect(std::abs(rawSeeds[i] / rawSeeds.back() - expected) < 2.0e-4,
+                   "raw pluck energy did not follow squared pluck force at MIDI "
+                       + std::to_string(note));
         }
     }
+    expect(exercisedCappedSeed && exercisedUncappedSeed,
+           "pluck-force matrix did not exercise both sides of the safety cap");
 
     // A pending seed ignores the control tick's phase. Once released, the
     // stored tension increment is non-increasing, follows the configured
@@ -9168,6 +9333,77 @@ void testAdvancedDispersionAndBodyConductance()
                && snapshot.dispersionHighCoefficient >= -0.9951f,
            "eight-stage dispersion coefficients escaped their stable bounds");
 
+#if ELECTRY_MODAL_DISPERSION_FIT
+    // This fixed fixture is the heavy endpoint on a 25.5-inch E1 at a 48 kHz
+    // host (96 kHz internal). It is a synthetic construction, not a captured
+    // guitar; the current mass law is selected by the build's feature flag.
+    // The new fitter minimizes frequency error over every H2--H16, whereas
+    // the legacy branch below checks relative deficits at just H4/H16 and at
+    // harmonic rather than stretched frequencies. Do not impose that obsolete
+    // surrogate on the new objective or change its tolerance for the old one.
+    // Adopt an explicit numerical approximation budget of five cents (one
+    // twentieth of a semitone) per upper mode on THIS open-string fixture,
+    // independently of candidate output values. This is an engineering
+    // resolution, not a measured-guitar calibration or perceptual threshold.
+    constexpr double modalBudgetCents = 5.0;
+    constexpr double fundamentalBudgetCents = 0.1;
+    const auto model = TestAccess::isolatedDispersionModel(engine, stringIndex);
+    const auto maximumModalError = [&] (const auto& candidate, int copies = 4)
+    {
+        double maximum = 0.0;
+        double previous = candidate.fundamental;
+        for (int partial = 2; partial <= 16; ++partial)
+        {
+            const double n = partial;
+            const double target = candidate.fundamental * n * std::sqrt(
+                (1.0 + candidate.inharmonicity * n * n)
+                / (1.0 + candidate.inharmonicity));
+            const double actual = TestAccess::isolatedDispersionModeFrequency(
+                candidate, partial, copies);
+            if (! std::isfinite(actual) || ! (actual > previous))
+                return std::numeric_limits<double>::infinity();
+            maximum = std::max(maximum,
+                std::abs(1200.0 * std::log2(actual / target)));
+            previous = actual;
+        }
+        return maximum;
+    };
+    const double maximum = maximumModalError(model);
+    expect(maximum <= modalBudgetCents,
+           "isolated H2-H16 roots exceeded the five-cent open-string budget ("
+               + std::to_string(maximum) + " cents)");
+
+    // This check uses the independently evaluated ACTUAL raw cubic delay,
+    // all eight allpasses, and loss biquads. The isolated oracle's deliberate
+    // phase compensation is not allowed to hide a production tuning error.
+    const double actualFundamental = TestAccess::evaluatedSustainLoopFrequency(
+        engine, stringIndex, false);
+    const double fundamentalError = std::abs(1200.0 * std::log2(
+        actualFundamental / model.fundamental));
+    expect(std::isfinite(fundamentalError)
+               && fundamentalError <= fundamentalBudgetCents,
+           "actual compensated loop exceeded the 0.1-cent fundamental budget ("
+               + std::to_string(fundamentalError) + " cents)");
+
+    // Mutation witnesses prove that bypassing the model, halving its order,
+    // or omitting phase compensation cannot pass the same numerical gates.
+    // They alter only the test model and never the engine under observation.
+    auto bypassedDispersion = model;
+    bypassedDispersion.coefficients = { 0.0, 0.0 };
+    expect(maximumModalError(bypassedDispersion) > modalBudgetCents,
+           "modal oracle accepted a no-op stiffness model");
+    expect(maximumModalError(model, 2) > modalBudgetCents,
+           "modal oracle accepted four sections in place of eight");
+    const double uncompensated = TestAccess::isolatedDispersionModeFrequency(
+        model, 1, 4, false);
+    expect(std::abs(1200.0 * std::log2(uncompensated / model.fundamental))
+               > fundamentalBudgetCents,
+           "modal oracle accepted omitted fundamental phase compensation");
+    std::cout << "PROBE isolated modal roots: H2-H16 max " << maximum
+              << " cents, actual full-loop H1 " << fundamentalError
+              << " cents, B=" << model.inharmonicity
+              << ", reference_mass=" << ELECTRY_REFERENCE_STRING_MASS << '\n';
+#else
     const auto expectedDeficit = [&] (float partial)
     {
         const float period = static_cast<float>(TestAccess::internalSampleRate(engine))
@@ -9191,6 +9427,7 @@ void testAdvancedDispersionAndBodyConductance()
                    + std::to_string(wanted) + ", actual "
                    + std::to_string(actual) + ")");
     }
+#endif
 
 #if ELECTRY_MEASURED_BODY_RESPONSE
     expect(snapshot.bodyConductance == 0.0f
@@ -11692,12 +11929,14 @@ void testFrettingHandVibrato()
 {
     constexpr double sampleRate = 48000.0;
 
-    // Track the sounding delay target, which is what the vibrato actually
-    // drives; the audio follows it, and it is sampled far more cheaply and
-    // precisely than a frequency estimate on a moving tone.
+    // Track the complete target period, independently solving the actual
+    // cubic read, loss filters and allpass cascade at each frozen control
+    // state. A raw target delay alone can grow when a stiffness refit removes
+    // still more filter phase; the old fixture misreported that valid
+    // compensation as a flat vibrato. The physical rails below are unchanged.
     struct Trace
     {
-        std::vector<float> target;
+        std::vector<double> target;
         int stringIndex { -1 };
     };
     const auto traceOf = [&] (float pressure, double seconds)
@@ -11721,11 +11960,11 @@ void testFrettingHandVibrato()
         for (int at = 0; at < total; at += chunk)
         {
             engine.process(scratch.left.data(), scratch.right.data(), chunk);
-            trace.target.push_back(
-                trace.stringIndex >= 0
-                    ? TestAccess::snapshot(engine,
-                                           trace.stringIndex).verticalDelayTarget
-                    : 0.0f);
+            const double frequency = TestAccess::evaluatedSustainLoopFrequency(
+                engine, trace.stringIndex);
+            expect(std::isfinite(frequency) && frequency > 0.0,
+                   "vibrato target-period oracle received an invalid held loop");
+            trace.target.push_back(TestAccess::internalSampleRate(engine) / frequency);
         }
         return trace;
     };
@@ -11773,14 +12012,16 @@ void testFrettingHandVibrato()
             constexpr int chunk = 32;
             const int total = static_cast<int>(1.6 * sampleRate);
             StereoBuffer scratch(chunk);
-            std::vector<float> target;
+            std::vector<double> target;
             for (int at = 0; at < total; at += chunk)
             {
                 engine.process(scratch.left.data(), scratch.right.data(),
                                chunk);
-                target.push_back(
-                    TestAccess::snapshot(engine,
-                                         stringIndex).verticalDelayTarget);
+                const double frequency = TestAccess::evaluatedSustainLoopFrequency(
+                    engine, stringIndex);
+                expect(std::isfinite(frequency) && frequency > 0.0,
+                       "automated-depth oracle received an invalid held loop");
+                target.push_back(TestAccess::internalSampleRate(engine) / frequency);
             }
 
             double highest = 0.0;
@@ -21120,7 +21361,20 @@ void testHumbuckerTwoCoilNotch()
             { 1, 16.6964 }, { 2, 22.5331 }, { 3, 24.6485 },
             { 4, 24.6580 }, { 6, 21.7631 }, { 8, 13.4499 },
             { 10, 0.821492 }, { 12, -4.00395 }, { 14, -9.09672 },
-            { 16, -19.9548 }, { 18, -37.2547 }, { 20, -46.0267 },
+#if ELECTRY_REFERENCE_STRING_MASS && ELECTRY_MODAL_DISPERSION_FIT
+            // Exact combined candidate render; mass and modal effects are
+            // nonlinear and are not assembled from isolated dB differences.
+            { 16, -21.110825 },
+#elif ELECTRY_REFERENCE_STRING_MASS
+            // October 17 mass-only source, promoted by the user's standing
+            // candidate choice: published XL unit mass changes the upstream
+            // string/excitation, not the single-coil topology. Preserve the
+            // same tolerance and the previous source for other flag states.
+            { 16, -20.894620 },
+#else
+            { 16, -19.9548 },
+#endif
+            { 18, -37.2547 }, { 20, -46.0267 },
             { 22, -81.4120 }, { 24, -59.2493 }, { 26, -61.5400 },
             { 28, -73.2640 },
 #else
@@ -21253,9 +21507,32 @@ void testHumbuckerTwoCoilNotch()
         struct Reference { int midiNote; double humbucker[2]; double single[2]; };
         const std::array<Reference, 3> shipping {{
 #if ELECTRY_ENERGY_ATTACK_PITCH
+#if ELECTRY_REFERENCE_STRING_MASS && ELECTRY_MODAL_DISPERSION_FIT
+            // Whole-source centers from the exact combined development
+            // candidate. Keep all band tolerances and contrast rails.
+            // The E1 8--16 kHz center was also refreshed after Windows CI
+            // exposed the retained legacy center: macOS measures -95.0943
+            // dB and MSVC -93.642014 dB, inside the unchanged 2.5 dB rail.
+            { 28, { -76.4927, -110.879 }, { -53.830035, -95.0943 } },
+            { 40, { -85.2438, -115.187 }, { -61.664437, -101.924184 } },
+            { 64, { -72.8765, -118.131 }, { -52.7207, -105.864615 } },
+#elif ELECTRY_MODAL_DISPERSION_FIT
+            // Isolated modal comparator from the separately retained render.
+            { 28, { -76.4927, -110.879 }, { -52.428532, -96.4860 } },
+            { 40, { -72.745838, -115.187 }, { -51.949692, -98.3536 } },
+            { 64, { -72.8765, -118.131 }, { -52.7207, -105.621764 } },
+#else
             { 28, { -76.4927, -110.879 }, { -50.3817, -96.4860 } },
+#if ELECTRY_REFERENCE_STRING_MASS && !ELECTRY_MODAL_DISPERSION_FIT
+            // Same isolated mass promotion as the partial-16 fixture above;
+            // these are complete-source centers, with the existing band
+            // tolerances and independent pickup-contrast rails unchanged.
+            { 40, { -85.2438, -115.187 }, { -62.138510, -103.323953 } },
+#else
             { 40, { -85.2438, -115.187 }, { -66.1048, -98.3536 } },
+#endif
             { 64, { -72.8765, -118.131 }, { -52.7207, -103.039 } },
+#endif
 #else
             // The extended-range material-loss bend preserves the fitted
             // 3.6 kHz anchor while changing this one-second upper tail.
@@ -22442,6 +22719,11 @@ void testCpuGuardrail()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--dispersion-contract-only")
+    {
+        testAdvancedDispersionAndBodyConductance();
+        return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     if (argc == 2 && std::string(argv[1]) == "--allocation-only")
     {
         testStringAllocationAndPolyphony();

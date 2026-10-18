@@ -768,6 +768,64 @@ void testStateRoundTrip()
 
 }
 
+void testStateSerializationIsCanonical()
+{
+    const auto source = std::make_unique<ElectryAudioProcessor>();
+    const auto restored = std::make_unique<ElectryAudioProcessor>();
+    const auto verify = [&] (const std::string& context)
+    {
+        std::vector<float> rawBefore;
+        for (const auto& parameter : expectedParameters)
+            rawBefore.push_back (parameterValue (*source, parameter.id));
+
+        juce::MemoryBlock original, roundTrip, repeatedRoundTrip;
+        source->getStateInformation (original);
+        for (std::size_t i = 0; i < expectedParameters.size(); ++i)
+            expect (std::bit_cast<std::uint32_t> (rawBefore[i])
+                        == std::bit_cast<std::uint32_t> (parameterValue (
+                            *source, expectedParameters[i].id)),
+                    context + ": saving changed the live "
+                        + expectedParameters[i].id + " value");
+
+        restored->setStateInformation (original.getData(),
+                                       static_cast<int> (original.getSize()));
+        restored->getStateInformation (roundTrip);
+        expect (original == roundTrip,
+                context + ": state bytes changed after save and restore");
+        restored->setStateInformation (roundTrip.getData(),
+                                       static_cast<int> (roundTrip.getSize()));
+        restored->getStateInformation (repeatedRoundTrip);
+        expect (roundTrip == repeatedRoundTrip,
+                context + ": state bytes drifted on a repeated round trip");
+    };
+
+    for (int program = 0; program < source->getNumPrograms(); ++program)
+    {
+        source->setCurrentProgram (program);
+        verify ("factory rig " + std::to_string (program));
+    }
+
+    // A value may be host-valid yet have a different floating representation
+    // after range snapping. In particular, the Factory Default's output used
+    // to save as -5.999999046325684 and reload as -5.999999523162842 dB.
+    // Keep the exact byte contract, including endpoints, arbitrary automation
+    // positions and values immediately around a quantisation boundary.
+    const std::array<float, 15> positions {{
+        0.0f, std::nextafter (0.0f, 1.0f), 0.00049f, 0.00051f,
+        0.1234567f, 0.2718282f, 0.49949f, 0.49951f,
+        std::nextafter (0.5f, 0.0f), 0.5f,
+        std::nextafter (0.5f, 1.0f), 0.7312345f, 0.99951f,
+        std::nextafter (1.0f, 0.0f), 1.0f
+    }};
+    for (const float position : positions)
+    {
+        for (auto* parameter : source->getParameters())
+            if (parameter->isAutomatable())
+                parameter->setValueNotifyingHost (position);
+        verify ("automated position " + std::to_string (position));
+    }
+}
+
 void testBusAndPluginContract()
 {
     const auto processorStorage = std::make_unique<ElectryAudioProcessor>();
@@ -6558,6 +6616,7 @@ int main()
     testParameterTextFormatting();
     testParameterTextParsing();
     testStateRoundTrip();
+    testStateSerializationIsCanonical();
     testBusAndPluginContract();
     testSampleAccurateNoteAndSound();
     testSameSampleChordAllocationIsCanonical();

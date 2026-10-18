@@ -58,7 +58,13 @@ Compile these translation units with `Source` on the include path:
 
 `ElectryVisuals.cpp` is optional editor drawing support. Shipping builds also
 define `ELECTRY_MEASURED_BODY_RESPONSE=1`, `ELECTRY_DECOUPLED_PICK_RELEASE=1`,
-and `ELECTRY_ENERGY_ATTACK_PITCH=1`; other experimental features default to zero.
+`ELECTRY_ENERGY_ATTACK_PITCH=1`, `ELECTRY_REFERENCE_STRING_MASS=1`, and
+`ELECTRY_MODAL_DISPERSION_FIT=1`;
+other experimental features default to zero. The mass reference is the named
+light-gauge XL construction; its heavier gauge morph is a geometric-similarity
+hypothesis, not a measured heavy eight-string set. CMake emits explicit 0/1
+definitions for the mass and modal-fit options, so an explicit OFF also
+overrides the source header's development defaults.
 Use the same feature definitions in the adapter and every instrument source,
 because some definitions affect class layouts.
 

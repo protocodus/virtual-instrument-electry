@@ -151,6 +151,14 @@
 #define ELECTRY_PASSIVE_REPICK_SPRING 0
 #endif
 
+#ifndef ELECTRY_REFERENCE_STRING_MASS
+#define ELECTRY_REFERENCE_STRING_MASS 1
+#endif
+
+#ifndef ELECTRY_MODAL_DISPERSION_FIT
+#define ELECTRY_MODAL_DISPERSION_FIT 1
+#endif
+
 namespace electry
 {
 
@@ -1668,7 +1676,8 @@ private:
 #endif
     [[nodiscard]] VelocityProfile makeVelocityProfile(float velocity) const noexcept;
 
-    void configureVoicePitch(Voice& voice, bool forceDelayJump) noexcept;
+    void configureVoicePitch(Voice& voice, bool forceDelayJump,
+                             bool refitGeometry = false) noexcept;
     void configureVoiceDamping(Voice& voice, PlayStyle dampingStyle) noexcept;
     void configureVoiceDamping(Voice& voice, PlayStyle dampingStyle,
                                float liveFrequency, float liveFret) noexcept;

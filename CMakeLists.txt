@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.1 LANGUAGES C CXX)
+project(Electry VERSION 1.2.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,6 +63,10 @@ option(ELECTRY_MEASURED_PICKUP_FLUX
     "Build the default-off measurement-fitted pickup flux-linkage candidate" OFF)
 option(ELECTRY_PASSIVE_REPICK_SPRING
     "Build the default-off passive dynamic repick-contact candidate" OFF)
+option(ELECTRY_REFERENCE_STRING_MASS
+    "Use the published XL wound-string reference mass" ON)
+option(ELECTRY_MODAL_DISPERSION_FIT
+    "Use the stretched-modal dispersion fitter" ON)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
     "Optional path to a local JUCE 8.0.14 checkout (avoids downloading JUCE)")
 set(ELECTRY_CLAP_JUCE_EXTENSIONS_PATH "" CACHE PATH
@@ -126,6 +130,10 @@ if(ELECTRY_PASSIVE_REPICK_SPRING)
         ELECTRY_PASSIVE_REPICK_SPRING=1)
 endif()
 
+target_compile_definitions(ElectryDSP PUBLIC
+    ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
+    ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
+
 if(ELECTRY_MEASURED_MODERN_CABINET)
     target_compile_definitions(ElectryDSP PUBLIC
         ELECTRY_MEASURED_MODERN_CABINET=1)
@@ -165,7 +173,9 @@ if(NOT MSVC)
         ELECTRY_EMBEDDED_TARGET=1
         ELECTRY_MEASURED_BODY_RESPONSE=1
         ELECTRY_DECOUPLED_PICK_RELEASE=1
-        ELECTRY_ENERGY_ATTACK_PITCH=1)
+        ELECTRY_ENERGY_ATTACK_PITCH=1
+        ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
+        ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
     target_compile_options(ElectryDSPCxx17 PRIVATE
         -Wall -fno-exceptions -fno-rtti -fno-builtin)
 endif()
@@ -176,6 +186,9 @@ if(BUILD_TESTING)
     add_executable(ElectryIdlePickupObservationTests Tests/IdlePickupObservationTests.cpp)
     target_link_libraries(ElectryIdlePickupObservationTests PRIVATE ElectryDSP)
     add_test(NAME Electry.IdlePickupObservation COMMAND ElectryIdlePickupObservationTests)
+    add_executable(ElectryReferenceStringMassTests Tests/ReferenceStringMassTests.cpp)
+    target_link_libraries(ElectryReferenceStringMassTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.ReferenceStringMass COMMAND ElectryReferenceStringMassTests)
 endif()
 
 if(ELECTRY_BUILD_FUZZER)
@@ -501,6 +514,8 @@ if(BUILD_TESTING)
                          -DELECTRY_EXPECT_MEASURED_BODY_RESPONSE=${ELECTRY_MEASURED_BODY_RESPONSE}
                          -DELECTRY_EXPECT_LOW_STRING_LOSS_CORRECTION_ORDER2=${ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2}
                          -DELECTRY_EXPECT_ENERGY_ATTACK_PITCH=${ELECTRY_ENERGY_ATTACK_PITCH}
+                         -DELECTRY_EXPECT_REFERENCE_STRING_MASS=${ELECTRY_REFERENCE_STRING_MASS}
+                         -DELECTRY_EXPECT_MODAL_DISPERSION_FIT=${ELECTRY_MODAL_DISPERSION_FIT}
                          -DELECTRY_EXPECT_POSITIONED_FRET_COLLISION=${ELECTRY_POSITIONED_FRET_COLLISION}
                          -DELECTRY_EXPECT_MEASURED_PICKUP_FLUX=${ELECTRY_MEASURED_PICKUP_FLUX}
                          -DELECTRY_EXPECT_PASSIVE_REPICK_SPRING=${ELECTRY_PASSIVE_REPICK_SPRING}
@@ -654,6 +669,11 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        foreach(audit IN ITEMS AuditStringConstruction AuditDispersion AuditModalDecay BuildRealismComparisons)
+            add_test(NAME Electry.${audit}
+                COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${audit}Tests.py")
+        endforeach()
         if(ELECTRY_BUILD_TOOLS AND NOT ELECTRY_ENABLE_SANITIZERS
            AND NOT ELECTRY_BUILD_FUZZER AND NOT CMAKE_CXX_FLAGS MATCHES "fsanitize")
             add_test(NAME Electry.ParallelRender
