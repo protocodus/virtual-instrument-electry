@@ -228,6 +228,20 @@ struct ElectryEngineTestAccess
         (void) expected;
         return result;
     }
+    static bool resetClearsObservation(Engine& e, int string)
+    {
+        e.reset();
+        const auto& v = e.voices_[static_cast<std::size_t>(string)];
+        const auto zero = [](const auto& values)
+        { return std::all_of(values.begin(), values.end(), [](auto value) { return value == 0; }); };
+        return zero(v.apertureNeck.cumulativeHistory) && zero(v.apertureBridge.cumulativeHistory)
+            && v.apertureNeck.cumulative == 0 && v.apertureBridge.cumulative == 0
+            && v.apertureNeck.writeIndex == 0 && v.apertureBridge.writeIndex == 0
+            && zero(v.coilPairNeck.history) && zero(v.coilPairBridge.history)
+            && v.coilPairNeck.writeIndex == 0 && v.coilPairBridge.writeIndex == 0
+            && v.previousFluxNeck == 0 && v.previousFluxBridge == 0
+            && v.emfLowpassNeck.state == 0 && v.emfLowpassBridge.state == 0;
+    }
     static bool refitRetainsHistory(Engine& e, int string)
     {
         auto& v = e.voices_[static_cast<std::size_t>(string)];
@@ -375,6 +389,7 @@ int main()
                         expect(error < 1e-4, "Actual played pickup path differs from independent small-signal discrete transfer");
                     }
                     expect(Access::refitRetainsHistory(*e, 2), "Pickup time refit erased populated observation histories");
+                    expect(Access::resetClearsObservation(*e, 2), "Reset retained spatial pickup observation histories");
                 }
     expect(legacyPhaseError > .5, "The legacy-phase negative control did not expose the missing anchor phase");
 #if ELECTRY_COMMON_TIME_PICKUP
