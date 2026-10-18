@@ -685,17 +685,17 @@ private:
         OnePole contactShaper1 {}, contactShaper2 {};
         float contactCoefficient { 0.99f };
         bool flatRelease { true };
-        static constexpr double damping = 1.7320508075688772935;
+        static constexpr double damping = 1.4142135623730950488;
 
         void configureFromLegacyPole(double pole,
                                      bool useFlatRelease = true) noexcept
         {
             flatRelease = useFlatRelease;
-            // Standard Bessel H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2).
+            // Standard Butterworth H(s)=wn^2/(s^2+sqrt(2)*wn*s+wn^2).
             // Match the existing release's mean latency, not its natural
             // corner: the old cascaded poles have DC group delay 2a/(1-a),
-            // while this trapezoidal pair has sqrt(3)/(2g). Equating them
-            // gives g=sqrt(3)*(1-a)/(4a), with unit DC gain in both cases.
+            // while this trapezoidal pair has sqrt(2)/(2g). Equating them
+            // gives g=sqrt(2)*(1-a)/(4a), with unit DC gain in both cases.
             // No recording-fitted corner, Q or amplitude gain is introduced.
             const double g = damping * (1.0 - pole) / (4.0 * pole);
             a1 = 1.0 / (1.0 + g * (g + damping));
