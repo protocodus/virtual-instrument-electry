@@ -23,8 +23,8 @@ struct ElectryEngineTestAccess
         std::array<double, 5> material;
         bool handActive;
         std::array<double, 5> hand;
-        std::array<double, 5> loss {1, 0, 0, 0, 0};
-        double lossGain = 1, lossZero = 0;
+        std::array<double, 5> loss{1, 0, 0, 0, 0};
+        double lossB3 = 0;
     };
 
     static Response inspect(ElectryEngine& engine, int stringIndex, double frequency)
@@ -32,16 +32,15 @@ struct ElectryEngineTestAccess
         const auto& loop = engine.voices_[static_cast<std::size_t>(stringIndex)].vertical;
         const auto& b = loop.materialLossDip;
         const auto& h = loop.handDip;
-        Response result { engine.sampleRate_, frequency,
-                 loop.loopDampingCoefficient, loop.loopGain,
-                 loop.materialLossDepth, { b.b0, b.b1, b.b2, b.a1, b.a2 },
-                 loop.handDipActive, { h.b0, h.b1, h.b2, h.a1, h.a2 } };
+        Response result{engine.sampleRate_,          frequency,
+                        loop.loopDampingCoefficient, loop.loopGain,
+                        loop.materialLossDepth,      {b.b0, b.b1, b.b2, b.a1, b.a2},
+                        loop.handDipActive,          {h.b0, h.b1, h.b2, h.a1, h.a2}};
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
         if (loop.lossShelfActive)
         {
-            result.lossGain = loop.lossShelfGain;
-            result.lossZero = loop.lossShelfZeroCoefficient;
-            const auto& loss = loop.lossShelf;
+            result.lossB3 = loop.lossShelfB3;
+            const auto &loss = loop.lossShelf;
             result.loss = {loss.b0, loss.b1, loss.b2, loss.a1, loss.a2};
         }
 #endif
@@ -151,14 +150,13 @@ double poleMagnitude(double a, double hz, double rate)
 double magnitude(const Access::Response& r, double hz)
 {
     double result = r.gain * poleMagnitude(r.coefficient, hz, r.rate);
-    const auto section = [&](const std::array<double, 5>& b)
+    const auto section = [&](const std::array<double, 5> &b, double b3 = 0)
     {
         const auto z = std::polar(1.0, -2.0 * pi * hz / r.rate);
-        return std::abs((b[0] + b[1] * z + b[2] * z * z)
-                        / (1.0 + b[3] * z + b[4] * z * z));
+        return std::abs((b[0] + b[1] * z + b[2] * z * z + b3 * z * z * z) /
+                        (1.0 + b[3] * z + b[4] * z * z));
     };
-    result *= r.lossGain * std::abs(1.0 - r.lossZero
-        * std::polar(1.0, -2.0 * pi * hz / r.rate)) * section(r.loss);
+    result *= section(r.loss, r.lossB3);
     if (r.depth > 0) result *= section(r.material);
     if (r.handActive) result *= section(r.hand);
     return result;

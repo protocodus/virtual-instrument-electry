@@ -120,12 +120,11 @@ struct ElectryEngineTestAccess {
         else
 #endif
             std::cout << "[1,0,0,0,0]";
-        std::cout << ",\"loss_gain\":";
+        std::cout << ",\"loss_b3\":";
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-        std::cout << (l.lossShelfActive ? l.lossShelfGain : 1.0);
-        std::cout << ",\"loss_zero\":" << (l.lossShelfActive ? l.lossShelfZeroCoefficient : 0.f);
+        std::cout << (l.lossShelfActive ? l.lossShelfB3 : 0.0);
 #else
-        std::cout << "1,\"loss_zero\":0";
+        std::cout << "0";
 #endif
         std::cout << ",\"hand\":";
         if (l.handDipActive) biquad(l.handDip);
@@ -192,10 +191,10 @@ def cubic_read_response(delay, omega):
     return -ceiling * omega + cmath.phase(local), abs(local)
 
 
-def biquad_response(coefficients, omega):
+def biquad_response(coefficients, omega, b3=0):
     b0, b1, b2, a1, a2 = coefficients
     z = cmath.exp(-1j * omega)
-    return (b0 + b1 * z + b2 * z * z) / (1 + a1 * z + a2 * z * z)
+    return (b0 + b1 * z + b2 * z * z + b3 * z * z * z) / (1 + a1 * z + a2 * z * z)
 
 
 def loop_phase_and_magnitude(observation, omega, dispersion_only=False):
@@ -210,7 +209,7 @@ def loop_phase_and_magnitude(observation, omega, dispersion_only=False):
     pole = (1 - observation["pole"]) / (1 - observation["pole"] * z)
     loss = (pole * biquad_response(observation["material"], omega)
             * biquad_response(observation["hand"], omega)
-            * biquad_response(observation.get("loss", [1,0,0,0,0]), omega)
+            * biquad_response(observation.get("loss", [1,0,0,0,0]), omega, observation.get("loss_b3", 0))
             * observation.get("loss_gain", 1)
             * (1 - observation.get("loss_zero", 0) * z))
     return phase + ap_phase + cmath.phase(loss), magnitude * abs(loss) * observation["gain"]

@@ -953,21 +953,20 @@ struct ElectryEngineTestAccess
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
         ElectryEngine::handLossResponse(loop.materialLossDepth,
             loop.materialLossShape, omega, materialMagnitude, materialPhase);
-        double lossMagnitude = ElectryEngine::onePoleMagnitude(
-            loop.loopDampingCoefficient, omega);
+        double lossMagnitude =
+            ElectryEngine::onePoleMagnitude(loop.loopDampingCoefficient, omega);
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
         if (loop.lossShelfActive)
         {
             const auto z = std::polar(1.0, -static_cast<double>(omega));
-            const auto& b = loop.lossShelf;
-            lossMagnitude *= loop.lossShelfGain
-                * std::abs(1.0 - static_cast<double>(loop.lossShelfZeroCoefficient) * z)
-                * std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
-                    / (1.0 + b.a1 * z + b.a2 * z * z));
+            const auto &b = loop.lossShelf;
+            lossMagnitude *= std::abs(
+                (b.b0 + b.b1 * z + b.b2 * z * z + loop.lossShelfB3 * z * z * z) /
+                (1.0 + b.a1 * z + b.a2 * z * z));
         }
 #endif
-        const double perRoundTrip = materialMagnitude * loop.loopGain
-            * lossMagnitude * handMagnitude * fittedMagnitude;
+        const double perRoundTrip = materialMagnitude * loop.loopGain * lossMagnitude *
+                                    handMagnitude * fittedMagnitude;
         if (! (perRoundTrip > 0.0 && perRoundTrip < 1.0))
             return 0.0;
         return -3.0 * period / (rate * std::log10(perRoundTrip));
@@ -1560,11 +1559,11 @@ struct ElectryEngineTestAccess
 #else
                 ElectryEngine::onePolePhaseDelay(loop.loopDampingCoefficient, omega)
 #endif
-                + fittedDelay + dipDelay
-                + 4.0f * ElectryEngine::allpassPhaseDelay(
-                    loop.dispersionLowCoefficient, omega)
-                + 4.0f * ElectryEngine::allpassPhaseDelay(
-                    loop.dispersionHighCoefficient, omega);
+                + fittedDelay + dipDelay +
+                4.0f * ElectryEngine::allpassPhaseDelay(loop.dispersionLowCoefficient,
+                                                        omega) +
+                4.0f * ElectryEngine::allpassPhaseDelay(loop.dispersionHighCoefficient,
+                                                        omega);
             const float delay = useTargetDelay ? loop.targetDelay
                                                : loop.currentDelay;
             return delay + phaseDelay - sampleRate / frequency;
@@ -1623,15 +1622,15 @@ struct ElectryEngineTestAccess
             const double damping = loop.loopDampingCoefficient;
             double filterPhase = std::arg(interpolator)
                 + std::arg((1.0 - damping) / (1.0 - damping * z));
-            const auto biquadPhase = [&] (const ElectryEngine::DipBiquad& b)
+            const auto biquadPhase =
+                [&](const ElectryEngine::DipBiquad &b, double b3 = 0)
             {
-                return std::arg((b.b0 + b.b1 * z + b.b2 * z * z)
-                                / (1.0 + b.a1 * z + b.a2 * z * z));
+                return std::arg((b.b0 + b.b1 * z + b.b2 * z * z + b3 * z * z * z) /
+                                (1.0 + b.a1 * z + b.a2 * z * z));
             };
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
             if (loop.lossShelfActive)
-                filterPhase += std::arg(1.0 - static_cast<double>(loop.lossShelfZeroCoefficient) * z)
-                    + biquadPhase(loop.lossShelf);
+                filterPhase += biquadPhase(loop.lossShelf, loop.lossShelfB3);
 #endif
             if (loop.materialLossDepth > 0.0f)
                 filterPhase += biquadPhase(loop.materialLossDip);

@@ -77,8 +77,8 @@ struct ElectryEngineTestAccess
         std::array<double, 2> ap {};
         double pole = 0;
         double gain = 0;
-        std::array<double, 5> loss {1, 0, 0, 0, 0};
-        double lossGain = 1, lossZero = 0;
+        std::array<double, 5> loss{1, 0, 0, 0, 0};
+        double lossB3 = 0;
         std::array<double, 5> material {1, 0, 0, 0, 0};
         std::array<double, 5> hand {1, 0, 0, 0, 0};
     };
@@ -219,8 +219,7 @@ struct ElectryEngineTestAccess
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
         if (loop.lossShelfActive)
         {
-            result.lossGain = loop.lossShelfGain;
-            result.lossZero = loop.lossShelfZeroCoefficient;
+            result.lossB3 = loop.lossShelfB3;
             result.loss = coefficients(loop.lossShelf);
         }
 #endif
@@ -285,11 +284,11 @@ std::complex<double> readTransfer(double delay, double omega)
     return result;
 }
 
-std::complex<double> biquadTransfer(const std::array<double, 5>& b,
-                                   std::complex<double> z)
+std::complex<double> biquadTransfer(const std::array<double, 5> &b,
+                                    std::complex<double> z, double b3 = 0)
 {
-    return (b[0] + b[1] * z + b[2] * z * z)
-        / (1.0 + b[3] * z + b[4] * z * z);
+    return (b[0] + b[1] * z + b[2] * z * z + b3 * z * z * z) /
+           (1.0 + b[3] * z + b[4] * z * z);
 }
 
 std::complex<double> loopTransfer(const State& state, double frequency)
@@ -304,8 +303,7 @@ std::complex<double> loopTransfer(const State& state, double frequency)
         transfer *= stage * stage * stage * stage;
     }
     transfer *= state.gain * (1 - state.pole) / (1.0 - state.pole * z);
-    transfer *= state.lossGain * (1.0 - state.lossZero * z)
-        * biquadTransfer(state.loss, z);
+    transfer *= biquadTransfer(state.loss, z, state.lossB3);
     transfer *= biquadTransfer(state.material, z);
     transfer *= biquadTransfer(state.hand, z);
     return transfer;

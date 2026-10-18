@@ -551,7 +551,7 @@ void ElectryEngine::PolarisationLoop::clear() noexcept
     damping.reset();
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     lossShelf.reset();
-    lossShelfInputState = 0.0;
+    lossShelfZ3 = 0.0;
     lossShelfActive = false;
 #endif
     materialLossDip.reset();
@@ -584,7 +584,7 @@ void ElectryEngine::PolarisationLoop::scaleState(float amplitude) noexcept
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     lossShelf.z1 *= amplitude;
     lossShelf.z2 *= amplitude;
-    lossShelfInputState *= amplitude;
+    lossShelfZ3 *= amplitude;
 #endif
     materialLossDip.z1 *= amplitude;
     materialLossDip.z2 *= amplitude;
@@ -1130,17 +1130,16 @@ void ElectryEngine::solveLoopLoss(float t60Fundamental, float t60High,
 }
 
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-void ElectryEngine::configureLoopLossShelf(PolarisationLoop& loop,
-                                          float omega0, float omegaHigh,
-                                          float intrinsicPole,
-                                          float intrinsicGain) noexcept
+void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
+                                           float omegaHigh, float intrinsicPole,
+                                           float intrinsicGain) noexcept
 {
-    // Prototype: retain the already feasible one-pole/scalar traversal gains
-    // at both existing anchors, but bend the intervening loss with a passive
-    // second-order shelf. This is a fixed engineering approximation, not a
-    // measurement of the winding's complex Young modulus. Physical intrinsic
-    // damping has distinct air, internal and winding terms (Pate et al.,
-    // JASA 2014, III.A, equations 8--12):
+    // Prototype intrinsic correction: retain the fresh no-hand one-pole/scalar
+    // traversal gains at both existing anchors, but bend the intervening loss
+    // with a passive second-order shelf. This is a fixed engineering approximation, not
+    // a measurement of the winding's complex Young modulus. Physical intrinsic damping
+    // has distinct air, internal and winding terms (Pate et al., JASA 2014, III.A,
+    // equations 8--12):
     // https://www.lam.jussieu.fr/Membres/LeCarrou/Articles/A8_Pate_PredictingDecayTime.pdf
     // Butterworth pole and zero pairs both have Q=1/sqrt(2). In the bilinear
     // coordinate O=tan(w/2), |H|^2=(1+(O/Oz)^4)/(1+(O/Op)^4).
@@ -1149,15 +1148,15 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop& loop,
     // gives q^2=(R^2-r)/(1-R^2*r), r=(O0/Oh)^4. No new decay target or fitted
     // shape parameter is introduced. The high-frequency loss is bounded.
     loop.lossShelfActive = false;
-    if (! (omegaHigh > omega0) || ! (intrinsicPole > 0.0f))
+    if (!(omegaHigh > omega0) || !(intrinsicPole > 0.0f) || !(loop.loopGain <= 1.0f))
         return;
     const double pole = intrinsicPole;
-    const auto onePoleSquared = [pole] (double omega)
+    const auto onePoleSquared = [pole](double omega)
     {
         const double difference = 1.0 - pole;
         const double sine = std::sin(0.5 * omega);
-        return difference * difference
-            / (difference * difference + 4.0 * pole * sine * sine);
+        return difference * difference /
+               (difference * difference + 4.0 * pole * sine * sine);
     };
     const double m0 = onePoleSquared(omega0);
     const double mh = onePoleSquared(omegaHigh);
@@ -1167,21 +1166,34 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop& loop,
     const double relative = o0 / oh;
     const double r = relative * relative * relative * relative;
     const double qSquared = (ratioSquared - r) / (1.0 - ratioSquared * r);
-    if (! (qSquared > 0.0) || ! (qSquared <= 1.0))
+    if (!(qSquared > 0.0) || !(qSquared <= 1.0))
         return; // Preserve the original feasible filter on invalid coordinates.
+#if ELECTRY_INTRINSIC_LOSS_LOWPASS
+    const double c4 =
+        (ratioSquared * oh * oh * oh * oh - o0 * o0 * o0 * o0) / (1.0 - ratioSquared);
+    if (!(c4 > 0.0))
+        return;
+    const double kp = 1.0 / std::sqrt(std::sqrt(c4));
+    const double kz = 0.0;
+#else
     const double q = std::sqrt(qSquared);
     const double rootQ = std::sqrt(q);
     const double kp = 1.0 / (oh * rootQ);
     const double kz = rootQ / oh;
+#endif
     const double rootTwo = std::sqrt(2.0);
     const double inverseA0 = 1.0 / (1.0 + rootTwo * kp + kp * kp);
     const double gain = static_cast<double>(intrinsicGain) * std::sqrt(m0)
-        * std::sqrt((1.0 + r / qSquared) / (1.0 + r * qSquared));
+#if ELECTRY_INTRINSIC_LOSS_LOWPASS
+                        * std::sqrt(1.0 + o0 * o0 * o0 * o0 / c4);
+#else
+                        * std::sqrt((1.0 + r / qSquared) / (1.0 + r * qSquared));
+#endif
     // The original solver remains the feasibility oracle. Guard passivity at
     // the scalar as well; a rejected transform leaves that exact solve intact.
-    if (! (gain > 0.0) || ! (gain <= static_cast<double>(intrinsicGain)))
+    if (!(gain > 0.0) || !(gain <= static_cast<double>(intrinsicGain)))
         return;
-    auto& shelf = loop.lossShelf;
+    auto &shelf = loop.lossShelf;
     shelf.b0 = (1.0 + rootTwo * kz + kz * kz) * inverseA0;
     shelf.b1 = 2.0 * (1.0 - kz * kz) * inverseA0;
     shelf.b2 = (1.0 - rootTwo * kz + kz * kz) * inverseA0;
@@ -1189,109 +1201,235 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop& loop,
     shelf.a2 = (1.0 - rootTwo * kp + kp * kp) * inverseA0;
     // Both analytic DC sums are equal. Remove their tiny subtraction residual
     // before putting the section inside feedback, as for the existing dips.
-    const double dcCorrection = (1.0 + shelf.a1 + shelf.a2)
-        / (shelf.b0 + shelf.b1 + shelf.b2);
+    const double dcCorrection =
+        (1.0 + shelf.a1 + shelf.a2) / (shelf.b0 + shelf.b1 + shelf.b2);
     shelf.b0 *= dcCorrection;
     shelf.b1 *= dcCorrection;
     shelf.b2 *= dcCorrection;
-    // Correct only intrinsic loss: H_total remains the old hand solve,
-    // cascaded with H_newIntrinsic/H_oldIntrinsic. The inverse old one-pole
-    // is a stable FIR zero, not an inverse recursive filter. No fitted hand
-    // target, hand dip or original running one-pole state is replaced.
-    const double correctionGain = gain
-        / (static_cast<double>(intrinsicGain) * (1.0 - pole));
-    // Prove passivity of total-onepole * correction * shelf over the entire
-    // unit circle. Passive hand/material dips can only decrease this bound.
-    // For t=sin^2(w/2), each biquad squared magnitude is quadratic; after
-    // multiplying the one-pole/zero the denominator-minus-numerator is cubic.
-    // Its minimum on [0,1] is at an endpoint or one of two derivative roots.
-    const auto magnitudePolynomial = [] (double b0, double b1, double b2)
+    // C = H_newIntrinsic/H_oldIntrinsic is a stable two-pole correction
+    // with a third-order FIR numerator. Keep its denominator fixed and use
+    // C_d=1+d(C-1). At d=0 this is the exact legacy transfer; choose the
+    // greatest certified passive d, so a constrained contact bends the amount
+    // continuously instead of toggling a different running filter on and off.
+    // Mixing phases can add a small loss at the two anchors when d<1. The
+    // requested targets and incremental age/hand law are retained; exact
+    // realized-anchor equality applies to the unconstrained d=1 correction.
+    const long double correctionGain =
+        gain / (static_cast<double>(intrinsicGain) * (1.0 - pole));
+    const std::array<long double, 4> full{correctionGain * shelf.b0,
+                                          correctionGain * (shelf.b1 - pole * shelf.b0),
+                                          correctionGain * (shelf.b2 - pole * shelf.b1),
+                                          -correctionGain * pole * shelf.b2};
+    const std::array<long double, 4> identity{1, shelf.a1, shelf.a2, 0};
+    const auto magnitudePolynomial = [](double b0, double b1, double b2)
     {
         const long double sum = static_cast<long double>(b0) + b1 + b2;
         const long double ends = static_cast<long double>(b0) + b2;
         const long double difference = static_cast<long double>(b0) - b2;
-        return std::array<long double, 3> {sum * sum,
-            -4 * sum * ends + 4 * difference * difference,
-            16 * static_cast<long double>(b0) * b2};
+        return std::array<long double, 3>{sum * sum,
+                                          -4 * sum * ends + 4 * difference * difference,
+                                          16 * static_cast<long double>(b0) * b2};
     };
-    const auto numerator = magnitudePolynomial(shelf.b0, shelf.b1, shelf.b2);
-    const auto denominator = magnitudePolynomial(1.0, shelf.a1, shelf.a2);
-    const long double totalPole = loop.loopDampingCoefficient;
-    const long double originalZero = pole;
-    const long double totalGain = static_cast<long double>(loop.loopGain)
-                               * correctionGain * (1 - totalPole);
-    const long double scale = totalGain * totalGain;
-    const long double d0 = (1 - totalPole) * (1 - totalPole), d1 = 4 * totalPole;
-    const long double n0 = (1 - originalZero) * (1 - originalZero), n1 = 4 * originalZero;
-    std::array<long double, 4> difference {
-        d0 * denominator[0] - scale * n0 * numerator[0],
-        d0 * denominator[1] + d1 * denominator[0]
-            - scale * (n0 * numerator[1] + n1 * numerator[0]),
-        d0 * denominator[2] + d1 * denominator[1]
-            - scale * (n0 * numerator[2] + n1 * numerator[1]),
-        d1 * denominator[2] - scale * n1 * numerator[2]};
-    const auto passiveAt = [&] (long double t)
+    const auto denominator = magnitudePolynomial(1, shelf.a1, shelf.a2);
+    const auto handNumerator =
+        magnitudePolynomial(loop.handDip.b0, loop.handDip.b1, loop.handDip.b2);
+    const auto handDenominator =
+        magnitudePolynomial(1, loop.handDip.a1, loop.handDip.a2);
+    const long double a = loop.loopDampingCoefficient;
+    const long double d0 = (1 - a) * (1 - a), d1 = 4 * a;
+    // Preserve the legacy maximum loop-gain bound, not only unity. The
+    // existing scalar remains outside this normalized-filter certificate.
+    const long double numeratorScale = d0;
+    const std::array<long double, 4> baseD{
+        d0 * denominator[0], d0 * denominator[1] + d1 * denominator[0],
+        d0 * denominator[2] + d1 * denominator[1], d1 * denominator[2]};
+    const auto blendNumerator = [&](long double depth)
     {
-        return ((difference[3] * t + difference[2]) * t
-                + difference[1]) * t + difference[0] >= 0;
+        std::array<long double, 4> b{};
+        for (int i = 0; i < 4; ++i)
+            b[static_cast<std::size_t>(i)] =
+                identity[static_cast<std::size_t>(i)] +
+                depth * (full[static_cast<std::size_t>(i)] -
+                         identity[static_cast<std::size_t>(i)]);
+        return b;
     };
-    bool passive = passiveAt(0) && passiveAt(1);
-    const auto checkRoot = [&] (long double t)
+    const auto certified = [&](long double depth)
     {
-        if (t > 0 && t < 1) passive = passive && passiveAt(t);
-    };
-    const long double a = 3 * difference[3], b = 2 * difference[2], c0 = difference[1];
-    if (a == 0)
-    {
-        if (b != 0) checkRoot(-c0 / b);
-    }
-    else
-    {
-        const long double discriminant = b * b - 4 * a * c0;
-        if (discriminant >= 0)
+        const auto b = blendNumerator(depth);
+        const long double sum = b[0] + b[1] + b[2] + b[3];
+        const long double r1 = b[0] * b[1] + b[1] * b[2] + b[2] * b[3];
+        const long double r2 = b[0] * b[2] + b[1] * b[3], r3 = b[0] * b[3];
+        const std::array<long double, 4> baseN{
+            numeratorScale * sum * sum, numeratorScale * (-4 * r1 - 16 * r2 - 36 * r3),
+            numeratorScale * (16 * r2 + 96 * r3), numeratorScale * (-64 * r3)};
+        std::array<long double, 4> difference{};
+        for (int i = 0; i < 4; ++i)
+            difference[static_cast<std::size_t>(i)] =
+                baseD[static_cast<std::size_t>(i)] - baseN[static_cast<std::size_t>(i)];
+        const auto positiveAt = [&](long double t)
         {
-            const long double root = std::sqrt(discriminant);
-            const long double stableRoot = -0.5L * (b + std::copysign(root, b));
-            if (stableRoot != 0)
-            {
-                checkRoot(stableRoot / a);
-                checkRoot(c0 / stableRoot);
-            }
-            else checkRoot(-b / (2 * a));
+            return ((difference[3] * t + difference[2]) * t + difference[1]) * t +
+                       difference[0] >=
+                   0;
+        };
+        bool passive = positiveAt(0) && positiveAt(1);
+        const auto checkRoot = [&](long double t)
+        {
+            if (t > 0 && t < 1)
+                passive = passive && positiveAt(t);
+        };
+        const long double qa = 3 * difference[3], qb = 2 * difference[2],
+                          qc = difference[1];
+        if (qa == 0)
+        {
+            if (qb != 0)
+                checkRoot(-qc / qb);
         }
+        else
+        {
+            const long double discriminant = qb * qb - 4 * qa * qc;
+            if (discriminant >= 0)
+            {
+                const long double root = std::sqrt(discriminant);
+                const long double stable = -.5L * (qb + std::copysign(root, qb));
+                if (stable != 0)
+                {
+                    checkRoot(stable / qa);
+                    checkRoot(qc / stable);
+                }
+                else
+                    checkRoot(-qb / (2 * qa));
+            }
+        }
+        if (passive || !loop.handDipActive)
+            return passive;
+        // Full hand response is degree five in t=sin^2(w/2). Bernstein
+        // coefficients bound its value on an interval. Fixed-stack subdivision
+        // provides a sufficient global certificate, not a frequency sample.
+        // Depth 32 and 255 unresolved-node visits are numerical work limits,
+        // not voiced shape parameters. At most 511 intervals and 33 pending
+        // records are examined per certificate; up to 19 certificates occur
+        // per constrained control/event refit (initial plus 18 bisections).
+        // The pending stack is 1.9 KiB with 64-bit long double, 3.7 KiB with
+        // 128-bit storage. No allocation occurs. Unresolved intervals limit
+        // the admitted correction depth; no uncertified filter is installed.
+        std::array<long double, 6> polynomial{};
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 3; ++j)
+                polynomial[static_cast<std::size_t>(i + j)] +=
+                    baseD[static_cast<std::size_t>(i)] *
+                        handDenominator[static_cast<std::size_t>(j)] -
+                    baseN[static_cast<std::size_t>(i)] *
+                        handNumerator[static_cast<std::size_t>(j)];
+        struct Interval
+        {
+            std::array<long double, 6> b;
+            int depth;
+        };
+        std::array<Interval, 33> pending{};
+        constexpr long double choose5[6]{1, 5, 10, 10, 5, 1};
+        Interval initial{};
+        for (int k = 0; k <= 5; ++k)
+        {
+            long double choose = 1;
+            for (int i = 0; i <= k; ++i)
+            {
+                initial.b[static_cast<std::size_t>(k)] +=
+                    polynomial[static_cast<std::size_t>(i)] * choose / choose5[i];
+                if (i < k)
+                    choose = choose * (k - i) / (i + 1);
+            }
+        }
+        pending[0] = initial;
+        int count = 1, visited = 0;
+        while (count > 0)
+        {
+            const auto interval = pending[static_cast<std::size_t>(--count)];
+            bool positive = true;
+            for (const auto value : interval.b)
+                positive = positive && (value >= 0);
+            if (positive)
+                continue;
+            if (interval.b.front() < 0 || interval.b.back() < 0 ||
+                interval.depth >= 32 || ++visited > 255)
+                return false;
+            auto triangle = interval.b;
+            Interval left{}, right{};
+            left.depth = right.depth = interval.depth + 1;
+            left.b[0] = triangle[0];
+            right.b[5] = triangle[5];
+            for (int level = 1; level <= 5; ++level)
+            {
+                for (int i = 0; i <= 5 - level; ++i)
+                    triangle[static_cast<std::size_t>(i)] =
+                        .5L * (triangle[static_cast<std::size_t>(i)] +
+                               triangle[static_cast<std::size_t>(i + 1)]);
+                left.b[static_cast<std::size_t>(level)] = triangle[0];
+                right.b[static_cast<std::size_t>(5 - level)] =
+                    triangle[static_cast<std::size_t>(5 - level)];
+            }
+            pending[static_cast<std::size_t>(count++)] = right;
+            pending[static_cast<std::size_t>(count++)] = left;
+        }
+        return true;
+    };
+    long double depth = 1;
+    if (!certified(depth))
+    {
+        long double low = 0, high = 1;
+        // Each frequency's passive set is an interval in this affine
+        // numerator depth. Their intersection contains the legacy endpoint.
+        for (int iteration = 0; iteration < 18; ++iteration)
+        {
+            const long double middle = .5L * (low + high);
+            if (certified(middle))
+                low = middle;
+            else
+                high = middle;
+        }
+        depth = low;
     }
-    if (! passive) return; // The exact legacy feasible solve is the fallback.
-    loop.lossShelfGain = correctionGain;
-    loop.lossShelfZeroCoefficient = intrinsicPole;
+    const auto numerator = blendNumerator(depth);
+    shelf.b0 = static_cast<double>(numerator[0]);
+    shelf.b1 = static_cast<double>(numerator[1]);
+    shelf.b2 = static_cast<double>(numerator[2]);
+    loop.lossShelfB3 = static_cast<double>(numerator[3]);
+    loop.lossShelfDepth = static_cast<float>(depth);
     loop.lossShelfActive = true;
 }
 
-float ElectryEngine::loopLossPhaseDelay(const PolarisationLoop& loop,
-                                         float omega) noexcept
+float ElectryEngine::loopLossPhaseDelay(const PolarisationLoop &loop,
+                                        float omega) noexcept
 {
-    if (! loop.lossShelfActive)
+    if (!loop.lossShelfActive)
         return onePolePhaseDelay(loop.loopDampingCoefficient, omega);
-    if (! (omega > 0.0f))
+    if (!(omega > 0.0f))
         return 0.0f;
     const double cosine = std::cos(static_cast<double>(omega));
     const double sine = std::sin(static_cast<double>(omega));
     const double cosine2 = cosine * cosine - sine * sine;
     const double sine2 = 2.0 * sine * cosine;
-    const auto& shelf = loop.lossShelf;
-    const double nr = shelf.b0 + shelf.b1 * cosine + shelf.b2 * cosine2;
-    const double ni = -shelf.b1 * sine - shelf.b2 * sine2;
+    const auto &shelf = loop.lossShelf;
+    const double cosine3 = cosine * cosine2 - sine * sine2;
+    const double sine3 = sine * cosine2 + cosine * sine2;
+    const double nr =
+        shelf.b0 + shelf.b1 * cosine + shelf.b2 * cosine2 + loop.lossShelfB3 * cosine3;
+    const double ni = -shelf.b1 * sine - shelf.b2 * sine2 - loop.lossShelfB3 * sine3;
     const double dr = 1.0 + shelf.a1 * cosine + shelf.a2 * cosine2;
     const double di = -shelf.a1 * sine - shelf.a2 * sine2;
-    const double shelfPhase = std::atan2(ni * dr - nr * di,
-                                         nr * dr + ni * di);
-    const double zeroPhase = std::atan2(loop.lossShelfZeroCoefficient * sine,
-        1.0 - loop.lossShelfZeroCoefficient * cosine);
-    return onePolePhaseDelay(loop.loopDampingCoefficient, omega)
-        + static_cast<float>(-(shelfPhase + zeroPhase) / omega);
+    const double shelfPhase = std::atan2(ni * dr - nr * di, nr * dr + ni * di);
+    return onePolePhaseDelay(loop.loopDampingCoefficient, omega) +
+           static_cast<float>(-shelfPhase / omega);
 }
 #endif
 
 float ElectryEngine::highFrequencyDecayRatio(int stringIndex) const noexcept
+{
+    return highFrequencyDecayRatioAtAge(stringIndex, smoothedParameters_.stringAge);
+}
+
+float ElectryEngine::highFrequencyDecayRatioAtAge(int stringIndex,
+                                                  float age) const noexcept
 {
     // A wound string is not a plain one with a thicker core: the wrap slides
     // over the core and dissipates bending energy, so its top end dies far
@@ -1300,7 +1438,7 @@ float ElectryEngine::highFrequencyDecayRatio(int stringIndex) const noexcept
     // the fundamental is still ringing seconds later.
     const auto& parameters = smoothedParameters_;
     const auto& spec = stringSpecs()[static_cast<std::size_t>(stringIndex)];
-    float highRatio = lerp(0.036f, 0.010f, parameters.stringAge);
+    float highRatio = lerp(0.036f, 0.010f, age);
     highRatio *= spec.wound ? 1.0f : 7.5f;
     highRatio *= lerp(1.15f, 0.78f, parameters.stringGauge);
 #if ! ELECTRY_MEASURED_BODY_RESPONSE
@@ -3235,6 +3373,13 @@ float ElectryEngine::deadSpotFactor(int stringIndex, float fret) const noexcept
 
 float ElectryEngine::intrinsicStringT60(int stringIndex, float liveFret) const noexcept
 {
+    return intrinsicStringT60AtAge(stringIndex, liveFret,
+                                   smoothedParameters_.stringAge);
+}
+
+float ElectryEngine::intrinsicStringT60AtAge(int stringIndex, float liveFret,
+                                             float age) const noexcept
+{
     // A string's internal loss and static termination do not depend on which
     // excitation woke it. Share the established played-string construction
     // target with the idle bank; contacts remain in their separate solves.
@@ -3244,7 +3389,7 @@ float ElectryEngine::intrinsicStringT60(int stringIndex, float liveFret) const n
     const auto& parameters = smoothedParameters_;
     const auto& spec = stringSpecs()[static_cast<std::size_t>(stringIndex)];
     float t60 = spec.t60Seconds;
-    t60 *= lerp(1.08f, 0.38f, parameters.stringAge);
+    t60 *= lerp(1.08f, 0.38f, age);
 #if ! ELECTRY_MEASURED_BODY_RESPONSE
     t60 *= lerp(1.16f, 0.86f, parameters.construction);
 #else
@@ -3264,6 +3409,37 @@ float ElectryEngine::intrinsicStringT60(int stringIndex, float liveFret) const n
 
     return t60;
 }
+
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+void ElectryEngine::configureIntrinsicLossCorrection(PolarisationLoop &loop,
+                                                     int stringIndex, float liveFret,
+                                                     float f0, float omega0,
+                                                     float omegaHigh, float t60Scale,
+                                                     float gainCeiling) const noexcept
+{
+    // A fixed fresh-string reference changes only the intrinsic baseline;
+    // all already-voiced incremental age and hand attenuation stays in the
+    // original total filter. This is not a corpus-fitted age curve.
+#if ELECTRY_INTRINSIC_LOSS_FRESH
+    constexpr float basisAge = 0.0f;
+#else
+    const float basisAge = smoothedParameters_.stringAge;
+#endif
+    float low =
+        clampf(intrinsicStringT60AtAge(stringIndex, liveFret, basisAge), 0.02f, 26.0f);
+    float high = low * clampf(highFrequencyDecayRatioAtAge(stringIndex, basisAge),
+                              0.0015f, 0.9f);
+    if (stringSpecs()[static_cast<std::size_t>(stringIndex)].wound && liveFret > 0.0f)
+        low *= std::exp2(-liveFret / 12.0f);
+    low = clampf(low, 0.02f, 26.0f);
+    high = clampf(high, 0.008f, low);
+    float intrinsicPole = 0.0f, intrinsicGain = 0.0f;
+    solveLoopLoss(std::max(0.02f, low * t60Scale), std::max(0.008f, high * t60Scale),
+                  static_cast<float>(sampleRate_) / f0, static_cast<float>(sampleRate_),
+                  omega0, omegaHigh, gainCeiling, intrinsicPole, intrinsicGain);
+    configureLoopLossShelf(loop, omega0, omegaHigh, intrinsicPole, intrinsicGain);
+}
+#endif
 
 void ElectryEngine::configureVoiceDamping(Voice& voice,
                                           PlayStyle dampingStyle) noexcept
@@ -3789,13 +3965,8 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
         // material-loss curvature and its independently established contract.
         if (voice.stringIndex >= 2)
         {
-            float intrinsicPole = 0.0f, intrinsicGain = 0.0f;
-            solveLoopLoss(std::max(0.02f, intrinsicT60 * t60Scale),
-                std::max(0.008f, intrinsicT60High * t60Scale), period,
-                sampleRate, omega0, omegaHigh, 0.99999f,
-                intrinsicPole, intrinsicGain);
-            configureLoopLossShelf(loop, omega0, omegaHigh,
-                                   intrinsicPole, intrinsicGain);
+            configureIntrinsicLossCorrection(loop, voice.stringIndex, liveFret, f0,
+                                             omega0, omegaHigh, t60Scale, 0.99999f);
         }
         else
             loop.lossShelfActive = false;
@@ -4513,7 +4684,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
 #else
             onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
 #endif
-             + fittedDelay + dipDelay;
+            + fittedDelay + dipDelay;
 #else
         return
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
@@ -4521,7 +4692,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
 #else
             onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
 #endif
-             + dipDelay;
+            + dipDelay;
 #endif
     };
 
@@ -5074,22 +5245,18 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     if (voice.stringIndex >= 2)
     {
-        float intrinsicPole = 0.0f, intrinsicGain = 0.0f;
-        solveLoopLoss(intrinsicT60, intrinsicT60High, period, sampleRate,
-                      omega, omegaHigh, coupledGainCeiling,
-                      intrinsicPole, intrinsicGain);
-        configureLoopLossShelf(loop, omega, omegaHigh,
-                               intrinsicPole, intrinsicGain);
+        configureIntrinsicLossCorrection(loop, voice.stringIndex, 0.0f, f0, omega,
+                                         omegaHigh, 1.0f, coupledGainCeiling);
     }
     else
         loop.lossShelfActive = false;
-    if (! voice.sympatheticReady)
+    if (!voice.sympatheticReady)
     {
         loop.lossShelf.reset();
-        loop.lossShelfInputState = 0.0;
+        loop.lossShelfZ3 = 0.0;
     }
     voice.horizontal.lossShelf.reset();
-    voice.horizontal.lossShelfInputState = 0.0;
+    voice.horizontal.lossShelfZ3 = 0.0;
     voice.horizontal.lossShelfActive = false;
 #endif
     // The unused polarisation must not retain a played filter's history for
@@ -8241,9 +8408,12 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         if (loop.lossShelfActive)
         {
             const double input = sample;
-            sample = loop.lossShelf.process(static_cast<float>(loop.lossShelfGain
-                * (input - loop.lossShelfZeroCoefficient * loop.lossShelfInputState)));
-            loop.lossShelfInputState = input;
+            auto &b = loop.lossShelf;
+            const double output = b.b0 * input + b.z1;
+            b.z1 = b.b1 * input - b.a1 * output + b.z2;
+            b.z2 = b.b2 * input - b.a2 * output + loop.lossShelfZ3;
+            loop.lossShelfZ3 = loop.lossShelfB3 * input;
+            sample = static_cast<float>(output);
         }
 #else
         sample = loop.damping.process(sample, loop.loopDampingCoefficient);
@@ -8933,9 +9103,12 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     if (loop.lossShelfActive)
     {
         const double input = sample;
-        sample = loop.lossShelf.process(static_cast<float>(loop.lossShelfGain
-            * (input - loop.lossShelfZeroCoefficient * loop.lossShelfInputState)));
-        loop.lossShelfInputState = input;
+        auto &b = loop.lossShelf;
+        const double output = b.b0 * input + b.z1;
+        b.z1 = b.b1 * input - b.a1 * output + b.z2;
+        b.z2 = b.b2 * input - b.a2 * output + loop.lossShelfZ3;
+        loop.lossShelfZ3 = loop.lossShelfB3 * input;
+        sample = static_cast<float>(output);
     }
 #else
     sample = loop.damping.process(sample, loop.loopDampingCoefficient);

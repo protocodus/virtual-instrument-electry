@@ -58,16 +58,15 @@ struct ElectryEngineTestAccess
             const auto magnitude = [&] (double hz)
             {
                 const auto z = std::polar(1.0, -6.2831853071795864769 * hz / engine.sampleRate_);
-                const auto section = [&] (const auto& b)
+                const auto section = [&](const auto &b, double b3 = 0)
                 {
-                    return std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
-                                  / (1.0 + b.a1 * z + b.a2 * z * z));
+                    return std::abs((b.b0 + b.b1 * z + b.b2 * z * z + b3 * z * z * z) /
+                                    (1.0 + b.a1 * z + b.a2 * z * z));
                 };
                 double m = loop->loopGain * pole(loop->loopDampingCoefficient, hz);
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
                 if (loop->lossShelfActive)
-                    m *= loop->lossShelfGain * std::abs(
-                        1.0 - static_cast<double>(loop->lossShelfZeroCoefficient) * z) * section(loop->lossShelf);
+                    m *= section(loop->lossShelf, loop->lossShelfB3);
 #endif
                 if (loop->handDipActive) m *= section(loop->handDip);
                 if (loop->materialLossDepth > 0) m *= section(loop->materialLossDip);
