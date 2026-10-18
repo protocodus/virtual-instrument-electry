@@ -1,0 +1,100 @@
+{
+  "schema": "electry-qualified-tone-validation/v1",
+  "source_revision": "46f4a49127c53e148ef83f88000e1495f8e2a068",
+  "shipping_revision": "3df6a10b77b8bee0c04ab20bda34b28b81f2ec84",
+  "version": "1.2.6",
+  "selection": "Autonomous engineering selection; no new human listening vote.",
+  "source_hashes": {
+    "Source/DSP/DspCompatibility.h": "2231bb969c0683cba01a787fa2c8d44ea8952f23c47b315f5966edd4f0155e28",
+    "Source/DSP/DspMath.h": "fbe4c96d53e3f067f3d64af2c5de750215c2be79fa648122c3bc444a18d24c7c",
+    "Source/DSP/ElectryEngine.cpp": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567",
+    "Source/DSP/ElectryEngine.h": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20",
+    "Source/DSP/ElectryFx.cpp": "77d222b1efcf4bfbf81dc3c534dfcf4bfd32db81dcecf5b2003a2b6c348abc51",
+    "Source/DSP/ElectryFx.h": "477f5a425e148051d7fa9e357635956077eb53f3ea071049a34ca2e851054282",
+    "Source/DSP/ElectryPerformer.cpp": "309e1a7637ff8b3cfae444e6f36f9cc97c15d41107e8ea343d881fedcd0566ce",
+    "Source/DSP/ElectryPerformer.h": "7884c6d58c7777f14ef01850b73f6fa976ca79179f4f4067ae1c1937ff5ec09c",
+    "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+    "Source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+    "Source/DSP/FrozenTables/PhaseCalibrationEcc81.inc": "593283526f91beff6534fa059217f25c3585c8ba0d7f018bdb022a09986df11d",
+    "Source/DSP/FrozenTables/PhaseCalibrationEcc83.inc": "79068c278916de38b5cd537cc5ab1c21121a969afb6a7439dae80df3984144ad",
+    "Source/DSP/FrozenTables/PhaseMath.inc": "cc9ec28d05342669d0b399751bb3ed9af63ab8da0259d42bab79c4abefa1f349",
+    "Source/DSP/FrozenTables/PowerCalibration6L6.inc": "e1d9bd0154cb7f865bd9e9e641c273c7f1575e09a4c62efe7f364cba6873aebc",
+    "Source/DSP/FrozenTables/PowerCalibrationEl34.inc": "dd2bcedc2ab44883d55c2e6876628973c0966072334575b74c320b574d85dd50",
+    "Source/DSP/FrozenTables/PowerGrid.inc": "f53c9dd72a005e8a0968459132873f7a69f97bab5b85d9424252a163d5c62e78",
+    "Source/DSP/FrozenTables/PowerTable6L6.inc": "d0bb32ee6b2fd11e6f747120477830d00767427b3f148d6c0bfb7dc4586eb90d",
+    "Source/DSP/FrozenTables/PowerTableEl34.inc": "411960efa85456c29d8795a138e731fd1d9ce27267708cb60323802588a8cbaa",
+    "Source/DSP/FrozenTables/TriodeTransfer.inc": "ad1241cf1dd2c5b0dcdcc222ba0aecc3fd19be12d5ff31de757e43d815be949c",
+    "Source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f",
+    "Source/PluginEditor.cpp": "3881b30dee8dff7b79096d0c0e51421f193f0d27d67854d71e4d44dc29b0fb5a",
+    "Source/PluginEditor.h": "f97aea49af7c369f6b1daf5eea77dab88de71001e157d2c407728d20b6168412",
+    "Source/PluginProcessor.cpp": "e31e11d5712e2feedf3a19d8bfd844d06f5ff9cfe94a15924d681a06c0c09daf",
+    "Source/PluginProcessor.h": "bcf809cc149cf6a9bb3ff3bc3e73c992b1f893c9505f39c0b54c145d7ca35ad2"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+  "definitions": {
+    "ELECTRY_MEASURED_BODY_RESPONSE": 1,
+    "ELECTRY_DECOUPLED_PICK_RELEASE": 1,
+    "ELECTRY_ENERGY_ATTACK_PITCH": 1,
+    "ELECTRY_REFERENCE_STRING_MASS": 1,
+    "ELECTRY_MODAL_DISPERSION_FIT": 1,
+    "ELECTRY_BUTTERWORTH_LOSS_SHELF": 1,
+    "ELECTRY_INTRINSIC_LOSS_FRESH": 1,
+    "ELECTRY_INTRINSIC_LOSS_LOWPASS": 0
+  },
+  "tests": {
+    "unit": {
+      "passed": 41,
+      "failed": 0
+    },
+    "audio": {
+      "passed": 1,
+      "failed": 0
+    },
+    "targeted_asan_ubsan_float_cast_overflow": {
+      "passed": 4,
+      "failed": 0
+    },
+    "embedded_cxx17": "ElectryDSPCxx17 target passes with -fno-exceptions -fno-rtti -fno-builtin; performer/FX main-CI validation remains required",
+    "source_snapshots": "Final source ON/OFF observations and full Engine verification in accompanying tone-source-snapshots receipt; numerical margins unchanged"
+  },
+  "corpora": {
+    "recorded_phrases": 4,
+    "registered_real_attacks": 14,
+    "isolated_recordings": 7,
+    "frozen_body_windows": 24,
+    "rapid_playing_scores": 6,
+    "rapid_note_ons": 111,
+    "rapid_fixed_windows": 333
+  },
+  "frozen_mask_sha256": "253f882462a2fce4bad8c796e6230daeba3e453a181e57cd691a02ffa2a03b05",
+  "baseline_receipt_sha256": "65beffbfbbbe46efdd66792fd848e444ff6ac771127033301288f2950684073c",
+  "analysis_receipts": {
+    "selected-tone-comparison.json": "ad4f2f09e9db13e85661417159e0523b410c087e210a174761426993efa4d894",
+    "selected-phrase-attack-analysis.json": "4204a550573d0e5bfe98690db6080358d11ac8fb490b3189de0b356b06841e1f",
+    "selected-performance-analysis.json": "da4be345b988a02a60c16bf3038775093fd6fd002b2dced873f5ffde5f707932",
+    "selected-prototype-summary.json": "05d65fe345f14135f590c1ff88234f3ffe0cf12aeb780ebd6f0864e2918f98a4"
+  },
+  "room_manifests": {
+    "phrases": "be02d63a5e329f508a5aed6657b831d9ec4053c5c3b4d819c8eeea751125025e",
+    "listen": "2de6dc207c84373dc4847676af1256c38e3a000509c87afe95dcf5597e4004a6",
+    "performance": "8e60f223e45503cad57e5499d1d13d52e007179186aa35b6036c7b71c88df80a"
+  },
+  "local_verification_logs": {
+    "selected-unit.log": "f31c87e6d5ded3654f118dbbb9ca70c1e4ed6da927ce309530d2cac4f92d0fa5",
+    "selected-audio.log": "9a9b71366dbbbd8c83c8192031e751970f3f5b5d1cfe89e2dec8cb7a03f54c50",
+    "selected-asan-tests.log": "e8f30bf1d9ccf60724ee53cf662d58acf7af5c307f0bea566c1dd13e73aec198",
+    "selected-build.log": "f72589f4c828ef25f976f13dc02119b501b9d10b4255ee4cf1141c121d561ff5"
+  },
+  "native_runtime_receipt_sha256": "1789f5e6a797d4785076ddc4de2007482b12edc2a8d2d38d40be583813ddf87b",
+  "snapshot_receipt_sha256": "f8bf8d29c626a856013dbb7a206022c6034e40ffeaa9f6156e45183c9bd0741b",
+  "figure_sha256": "90e4fb6a4828af66a5689c55f4ffe981d68ff75e6f86101bb4223df23226a7c8",
+  "listening_url": "http://127.0.0.1:8726/",
+  "artifact_root": "build-tone-body-review",
+  "limits": [
+    "References do not identify the modeled eight-string construction or player force.",
+    "All raw and matched cases retained; no universal transient or perceptual-quality claim.",
+    "Palm finite opening and large-jump fade prototypes withheld; known old packets remain.",
+    "Fixed-filter certificate is not a whole-instrument LTV passivity proof.",
+    "Moving-pressure runtime stress exceeded some block deadlines; no global real-time guarantee."
+  ]
+}
