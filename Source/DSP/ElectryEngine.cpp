@@ -4933,14 +4933,29 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
         if (expressionSemitones != voice.refretExpressionSemitones)
             voice.refretDestinationPending += clampExpressionPeriod(unclampedExpressionPeriod)
                 - previousExpressionPeriod;
-        voice.refretSourceUnclampedPeriod = voice.refretTrackedMidiNote != voice.midiNote
-            ? voice.refretDestinationUnclampedPeriod * expressionPeriodRatio
-            : unclampedExpressionPeriod;
+        if (voice.refretRemainingSamples > 0 && voice.vertical.refretSource.valid)
+        {
+            // A finger glide owns the incoming geometry, not the outgoing
+            // filter bank's physical coordinate. Its retained endpoint follows
+            // expression through its own unclamped wave-speed coordinate.
+            const float source = voice.refretSourceUnclampedPeriod * expressionPeriodRatio;
+            const float sourceDelta = clampExpressionPeriod(source)
+                - clampExpressionPeriod(voice.refretSourceUnclampedPeriod);
+            voice.refretSourceUnclampedPeriod = source;
+            voice.refretSourcePeriod += sourceDelta;
+            voice.refretSourcePending += sourceDelta;
+        }
+        else
+        {
+            voice.refretSourceUnclampedPeriod = voice.refretTrackedMidiNote != voice.midiNote
+                ? voice.refretDestinationUnclampedPeriod * expressionPeriodRatio
+                : unclampedExpressionPeriod;
+            voice.refretSourcePeriod = destination + voice.refretVerticalOffset;
+            voice.refretSourcePending = voice.refretDestinationPending
+                * (voice.refretSourcePeriod / destination);
+        }
         voice.refretDestinationUnclampedPeriod = unclampedExpressionPeriod;
         voice.refretDestinationPeriod = destination;
-        voice.refretSourcePeriod = destination + voice.refretVerticalOffset;
-        voice.refretSourcePending = voice.refretDestinationPending
-            * (voice.refretSourcePeriod / destination);
         voice.refretTrackedMidiNote = voice.midiNote;
     }
     voice.refretExpressionSemitones = expressionSemitones;
@@ -7012,8 +7027,22 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
             // is configured in the live solver fields.
             for (auto* loop : { &voice.vertical, &voice.horizontal })
                 if (!loop->refretFrozenDestination.valid)
-                    captureRefretEndpoint(loop->refretFrozenDestination, *loop,
+                {
+                    auto& endpoint = loop->refretFrozenDestination;
+                    captureRefretEndpoint(endpoint, *loop,
                         voice.refretDestinationPeriod - voice.refretDestinationPending);
+                    // Save the performed endpoint, before a queued request can
+                    // replace the voice's logical fret/frequency and fit cache.
+                    // The unclamped wave-speed coordinate preserves identity
+                    // when a wide wheel/member bend reaches a rate limit.
+                    endpoint.nominalFrequency = static_cast<float>(sampleRate_)
+                        / voice.refretDestinationUnclampedPeriod
+                        * std::exp2(voice.refretExpressionSemitones / 12.0f);
+                    endpoint.nominalFret = voice.lastConfiguredLiveFret;
+                    endpoint.configuredSemitones = voice.lastConfiguredSemitones;
+                    endpoint.configuredFrequency = voice.lastConfiguredFrequency;
+                    endpoint.configuredFret = voice.lastConfiguredLiveFret;
+                }
         }
         // A delayed fret retarget still contains the preceding stroke. Keep that
         // ring under the hand that is physically present; the scheduled style is
@@ -7100,6 +7129,12 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
             // same attenuation. Its queued destination follows at the independent
             // handoff boundary, rather than adding another read-head jump here.
         }
+        if (voice.refretRemainingSamples == 0)
+            for (auto* loop : { &voice.vertical, &voice.horizontal })
+            {
+                loop->refretSource = {};
+                loop->refretFrozenDestination = {};
+            }
     };
 
     if (reservedStartOrder == 0 && waitsForSoundingBoundary)
@@ -7323,8 +7358,38 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
                                    PlayStyle playStyle,
                                    ExpressionId expressionId) noexcept
 {
+    // A queued destination has not replaced the running incoming endpoint.
+    // Let an explicit finger gesture adopt that audible bank and its raw and
+    // physical coordinates before deriving the new legato trajectory.
+    const bool adoptsFrozenEndpoint = voice.vertical.refretFrozenDestination.valid;
+    float performedFrequency = 0.0f;
+    float performedFretPosition = 0.0f;
+    if (adoptsFrozenEndpoint)
+    {
+        const auto& incoming = voice.vertical.refretFrozenDestination;
+        performedFrequency = incoming.nominalFrequency;
+        performedFretPosition = incoming.nominalFret;
+        voice.lastConfiguredSemitones = incoming.configuredSemitones;
+        voice.lastConfiguredFrequency = incoming.configuredFrequency;
+        voice.lastConfiguredLiveFret = incoming.configuredFret;
+        voice.lastCompensatedSemitones = incoming.configuredSemitones;
+        voice.lastCompensatedPeriod = voice.refretDestinationPeriod;
+        for (auto* loop : { &voice.vertical, &voice.horizontal })
+        {
+            auto& endpoint = loop->refretFrozenDestination;
+            static_cast<LoopFilterBank&>(*loop) = endpoint.bank;
+            loop->currentDelay = endpoint.rawDelay;
+            loop->targetDelay = clampf(endpoint.rawDelay + endpoint.rawPending,
+                4.0f, static_cast<float>(delayLineSize - 8));
+            endpoint.valid = false;
+        }
+        voice.compensatedPeriodVertical = voice.vertical.targetDelay;
+        voice.compensatedPeriodHorizontal =
+            (voice.horizontal.targetDelay - horizontalDetuneSamples_) / 1.00023f;
+        voice.compensationDirty = true;
+    }
     // The sounding boundary mixture finishes continuously, while an explicit
-    // finger gesture takes over its shared delay coordinate and destination.
+    // finger gesture takes over its incoming delay coordinate and destination.
     voice.refretQueued = false;
     voice.refretDelayLocked = false;
 #if ELECTRY_ANALYTIC_RELEASE_IC
@@ -7358,9 +7423,10 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
     // configureVoicePitch() uses, evaluated before target state is
     // overwritten, so the handoff remains position-continuous for both the
     // physical slide and the finger-landing pitch trajectory.
-    const float fromFrequency = voice.baseFrequency
-        * std::exp2(legatoPitchOffset(voice) / 12.0f);
-    const float fromFret = performedFret(voice);
+    const float fromFrequency = adoptsFrozenEndpoint ? performedFrequency
+        : voice.baseFrequency * std::exp2(legatoPitchOffset(voice) / 12.0f);
+    const float fromFret = adoptsFrozenEndpoint ? performedFretPosition
+                                               : performedFret(voice);
     const bool travellingContact = voice.startDelaySamples > 0;
     const bool freshFingerPending = travellingContact
                                  && voice.pendingRepick.active
