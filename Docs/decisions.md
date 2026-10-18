@@ -4,6 +4,36 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — upper-loss ablation improves tails but worsens upper level
+
+Under the standing autonomous-evaluation instruction, retain `95e5c1b` as
+research only. A separate diagnostic classifies its exact ultrasonic-floor
+maximum as surviving pre-decimator baseband signal, strongly dependent on
+the contact-noise path. Output-decimator folding, FIR arithmetic and estimated
+low-partial window leakage do not explain that maximum. The failed source cap is
+still recorded; this does not prove physical correctness or all-engine alias
+freedom, and no fixture or threshold is changed.
+
+After that diagnosis, the prospectively frozen comparison uses all sixty
+dry plucks at each of two fixed public pick settings. Every new shipping A
+raw file and recomputed baseline observation reproduces its prior freeze
+exactly. All 130 prequalified upper prefixes remain admitted and pass the
+unchanged observability checks. Most 1.5–4 kHz slopes improve and all sixteen
+paired Strat 4–8 kHz slopes improve, but the Les Paul 1.5–4 kHz level becomes
+too strong in 215 of 216 windows at each pick setting. Lower body and
+H1/H2/H3 barely change. Do not promote slower decay as a universal tone fix
+or fit an intermediate damping factor to conceal this tradeoff.
+
+The [whole-score report](research/upper-loss-ablation-2026-10-18.md) retains
+every regression and the control/hardware uncertainty. The local room is
+`http://127.0.0.1:8728/`, with a separate key; no user vote is claimed.
+Published `6c83ff4` remains unchanged. All 25 original Engine failures remain;
+the prospective performance plan is preserved without rendering after the
+tone rejection. Source/readout weighting and loss need separate physical
+qualification. The [modal decay audit](research/upper-modal-decay-2026-10-18.md)
+and [force/contact work balance](research/force-contact-work-balance-2026-10-18.md)
+provide bounded diagnostics, not a new playable source or authenticity claim.
+
 ## 2026-10-18 — separate lower body, control setup and failed source hypotheses
 
 Continue under the user's autonomous-evaluation instruction without claiming
