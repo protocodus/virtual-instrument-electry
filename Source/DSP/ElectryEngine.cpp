@@ -6032,7 +6032,16 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         28.0f, std::min(900.0f, 0.20f * sampleRate));
     voice.excitationModalCoefficient = std::exp(
         -twoPi * articulationModalCutoff * inverseSampleRate_);
-    voice.excitationModalShaper.configure(articulationModalCutoff, sampleRate);
+    // Keep the established projection for the separately calibrated finger,
+    // thumb and dead-hand contacts. Ordinary plucks and node-selected natural
+    // harmonics use the same unit-area, maximally flat release approximation.
+    const bool flatRelease = voice.playStyle != PlayStyle::Hammer
+        && voice.playStyle != PlayStyle::Pinch
+        && voice.playStyle != PlayStyle::Dead;
+    voice.excitationModalShaper.configure(articulationModalCutoff, sampleRate,
+                                          flatRelease);
+    voice.excitationModalShaper.contactCoefficient =
+        voice.excitationModalCoefficient;
     // The plectrum does not release every string equally quickly: a wound .080
     // carries an order of magnitude more mass per unit length than a plain
     // .009 at comparable tension, so it leaves the pick more slowly, and the
