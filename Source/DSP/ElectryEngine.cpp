@@ -6032,6 +6032,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         28.0f, std::min(900.0f, 0.20f * sampleRate));
     voice.excitationModalCoefficient = std::exp(
         -twoPi * articulationModalCutoff * inverseSampleRate_);
+    voice.excitationModalShaper.configure(articulationModalCutoff, sampleRate);
     // The plectrum does not release every string equally quickly: a wound .080
     // carries an order of magnitude more mass per unit length than a plain
     // .009 at comparable tension, so it leaves the pick more slowly, and the
@@ -6109,8 +6110,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
                                              releaseCutoff))),
         16, static_cast<int>(0.075f * sampleRate));
     voice.excitationShaper.reset();
-    voice.excitationModalShaper1.reset();
-    voice.excitationModalShaper2.reset();
+    voice.excitationModalShaper.reset();
     voice.excitationReleaseShaper.reset();
     voice.excitationImageShaper.reset();
     if (plectrumContact && voice.playStyle == PlayStyle::Sustain && spec.wound
@@ -7288,8 +7288,7 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     // break the engine's determinism contract.
     resetVoicePickupState(voice);
     voice.excitationShaper.reset();
-    voice.excitationModalShaper1.reset();
-    voice.excitationModalShaper2.reset();
+    voice.excitationModalShaper.reset();
     voice.excitationReleaseShaper.reset();
     voice.excitationImageShaper.reset();
     voice.noiseShaper.reset();
@@ -8278,11 +8277,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         const float window = load * slip;
         const float releasePulse = window * voice.excitationPolarity;
         const float modal = voice.excitationReleaseShaper.process(
-            voice.excitationModalShaper2.process(
-                voice.excitationModalShaper1.process(
-                    voice.excitationAmplitude * releasePulse,
-                    voice.excitationModalCoefficient),
-                voice.excitationModalCoefficient),
+            voice.excitationModalShaper.process(
+                voice.excitationAmplitude * releasePulse),
             voice.excitationReleaseCoefficient);
         const float edge = voice.excitationShaper.process(
             voice.excitationTransientAmplitude * releasePulse,
@@ -8297,10 +8293,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     else if (voice.excitationPhase == ExcitationPhase::Tail)
     {
         const float modal = voice.excitationReleaseShaper.process(
-            voice.excitationModalShaper2.process(
-                voice.excitationModalShaper1.process(
-                    0.0f, voice.excitationModalCoefficient),
-                voice.excitationModalCoefficient),
+            voice.excitationModalShaper.process(0.0f),
             voice.excitationReleaseCoefficient);
         const float edge = voice.excitationShaper.process(
             0.0f, voice.excitationPulseCoefficient);

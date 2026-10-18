@@ -664,6 +664,37 @@ private:
         }
     };
 
+    // Unit-area second-order release projection. The two integrator states
+    // use double so the low-string corner remains well resolved at 384 kHz.
+    // Coefficients are configured only at an excitation boundary.
+    struct ModalReleaseFilter
+    {
+        double a1 { 1.0 }, a2 { 0.0 }, a3 { 0.0 };
+        double ic1 { 0.0 }, ic2 { 0.0 };
+
+        void configure(double frequency, double rate) noexcept
+        {
+            constexpr double piDouble = 3.1415926535897932384626433832795;
+            // H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2): standard Bessel pole
+            // shape, retaining the existing natural frequency and DC gain.
+            constexpr double damping = 1.7320508075688772935;
+            const double g = std::tan(piDouble * frequency / rate);
+            a1 = 1.0 / (1.0 + g * (g + damping));
+            a2 = g * a1;
+            a3 = g * a2;
+        }
+        void reset() noexcept { ic1 = ic2 = 0.0; }
+        float process(float input) noexcept
+        {
+            const double v3 = static_cast<double>(input) - ic2;
+            const double v1 = a1 * ic1 + a2 * v3;
+            const double v2 = ic2 + a2 * ic1 + a3 * v3;
+            ic1 = 2.0 * v1 - ic1;
+            ic2 = 2.0 * v2 - ic2;
+            return static_cast<float>(v2);
+        }
+    };
+
     struct DispersionAllpass
     {
         float state { 0.0f };
@@ -1351,8 +1382,7 @@ private:
         float noiseLengthDenominator { 1.0f };
         float excitationPulseCoefficient { 0.5f };
         OnePole excitationShaper {};
-        OnePole excitationModalShaper1 {};
-        OnePole excitationModalShaper2 {};
+        ModalReleaseFilter excitationModalShaper {};
         OnePole excitationReleaseShaper {};
         // The reflected excitation image has travelled to the pick and back
         // through the same lossy, dispersive string, so it returns darker than
