@@ -189,3 +189,7 @@ of the already matched Reference/A/B Bridge takes. A uses Pick Position .18,
 B .5; both use the same published engine. The key is separate. No listener
 vote is claimed under the user's standing autonomous-evaluation instruction.
 The room is a control comparison and does not promote a new DSP/default.
+
+A subsequent [fixed-bank modal audit](upper-modal-decay-2026-10-18.md)
+separates the existing upper string loss from source weighting and observed
+band slopes. It introduces no new damping coefficient or production change.
