@@ -4,6 +4,44 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — select the note-lifetime correction; retain real DI references
+
+The user asked to prioritize changing notes, repeated notes and the same
+physical string, under the standing instruction to choose candidates
+autonomously. Select the corrected note-lifetime candidate: an older end in
+A → B → A must not stop the returning A. Explicitly masked duplicate MIDI
+identities retain their established broadcast-end behavior. This is a
+reproduced correctness correction, not a claimed listener vote or fitted
+realism coefficient.
+
+The working room at `http://127.0.0.1:8721/` contains six matched performance
+probes, two actual dry Guitar-TECHS same-string phrases and seven real
+ordinary/Palm note excerpts. Reference is recorded guitar; A is unchanged
+main `aab8bca`; B is the identified corrected engine. Original phrase timing,
+a single development-derived latency offset, fixed A/B crops and one
+whole-file RMS gain per take remain explicit. Hardware and player force are
+not matched. Source and final build hashes are in the manifests; the
+[source-selection receipt](research/performance-reference-selection-2026-10-18.json)
+is committed without reference audio.
+
+Most controls are intentionally unchanged: at the ownership checkpoint,
+five performance probes and all real-reference A/B model renders are exactly
+identical; the stale-end probe differs. Do not call these controls new acoustic
+realism gains. The real phrases instead expose an unresolved generic pitch
+follower on ordinary picked fret changes. An abrupt read jump and a temporary
+Contact-duration ramp correct its pitch lag but introduce a large
+phase-dependent transient in the repeat. Withhold those incomplete state
+handoffs; the user's candidate preference does not waive engineering concerns.
+The earlier decay-mapping trial also remains unselected after its unchanged
+Palm rail failure.
+
+The stricter lifetime check revealed six unbalanced demo scores. End every
+logical owner and independently validate the score, including stolen strings
+and appended takes. One blues lead previously leaked a held E4 for about
+0.78 seconds past its intended release. Correct that score's lifetime rather
+than preserving its erroneous tail. Details, evidence and limits are in the
+[performance validation](validation/performance-realism-2026-10-18.md).
+
 ## 2026-10-17 — candidate direction for the realism investigation
 
 The four original comparisons used A = unchanged `45e9a81` and B = isolated

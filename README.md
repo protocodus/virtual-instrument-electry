@@ -150,6 +150,7 @@ An older MIDI Note Off no longer stops a newer note after an A → B → A
 passage on the same string. Displaced MIDI owners are retained until their
 matching ends arrive, so overlapping riffs and repeated notes keep their
 intended sustain. Picking-hand repick keys retain their separate ownership.
+See the [real DI comparisons and validation](Docs/validation/performance-realism-2026-10-18.md).
 
 ### 1.2.2 — In development — String mass, modal fitting and continuous legato
 
@@ -1344,11 +1345,10 @@ whole-file RMS trim per take; the separate key records the trims and source
 revisions. The user selected the combined B candidate for `main`; the choice
 is recorded in `Docs/decisions.md` as a user selection, not a calibration result.
 
-Research also identified two deferred dispersion questions: attack-induced
-tension is absent from the stiffness fit, and the coarse allpass fit scores
-phase at harmonic rather than stretched modal frequencies. A direct fitter
-change improved some low modes but worsened a higher one, while an attack-time
-refit risks realtime cost. Neither is silently promoted. Passive pickup-circuit
+The selected modal fitter scores stretched frequencies, but its finite
+real-pole topology still leaves upper-mode approximation errors. Attack-induced
+tension remains outside the stiffness fit, and an attack-time refit risks
+realtime cost. Passive pickup-circuit
 retuning, reciprocal idle-string bridge coupling and calibrated magnetic
 back-action retain the evidence requirements below.
 
@@ -1360,6 +1360,12 @@ selected modal objective. Both remain explicitly switchable for comparison.
 The [follow-up validation](Docs/validation/realism-followup-2026-10-17.md)
 records the current engineering outcome and listening decision. Accuracy
 against a model equation does not by itself establish resemblance to a guitar.
+
+Fast picked changes on one string can briefly glide toward the new pitch.
+The [October 18 performance investigation](Docs/research/dry-reference-comparisons-2026-10-18.md)
+provides actual dry guitar phrases and controlled retrigger comparisons.
+Direct and fast-ramped retuning exposed a transient in the repeated phrase;
+a reliable handoff of the already-ringing string remains under investigation.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the
