@@ -48,7 +48,7 @@ The physical reference is the fundamental-normalized uniform stiff string:
 f_n = n f_1 sqrt((1 + B n^2) / (1 + B)).
 ```
 
-An independent audit of the actual closed-loop phase roots found a roughly
+The initial mass-OFF audit of the isolated vertical-loop phase roots found a roughly
 209-cent worst upper-partial error at harmonic 16 on a short, heavy, high-fret
 case. At the default low-E construction, harmonic 16 was about +0.69 cents on
 the open string and -27.83 cents at fret 12. These are numerical model errors
@@ -68,19 +68,26 @@ partials get substantially worse: this redistributes approximation error and
 is not a general accuracy win. Full-loop values are real-axis phase resonances;
 only the separate lossless dispersion roots are exact eigenmodes.
 
-Native timing medians rise by 31–35% for a cold eight-string chord event and
+In that initial, uncached prototype, native timing medians rose by 31–35% for a cold eight-string chord event and
 31–40% for moving eight-string bends in 256-frame callbacks. The candidate's
 96-kHz maximum callback was 29.567 ms against a 2.667-ms callback period;
 no thread-CPU measurement explains away that wall-time outlier. These native
 engine diagnostics are not SDK target or Reason-host measurements. Earlier
-and final timing runs are retained with the working evidence.
+and final timing runs are retained with the working evidence. The later cache
+optimization and paired wall/thread-CPU results are recorded in the follow-up
+below; these initial timings do not describe the selected final implementation.
 
-Both the modal and mass candidates fail the established Engine regression
-suite. The modal candidate also violates transition/tuning rails. Neither is
-recommended for production; hearing a preferred timbre would select a research
-direction, not waive these failures. The [validation record](../validation/realism-2026-10-17.md)
-and [machine-readable summary](../validation/realism-2026-10-17.json) record
-the final results and reproducing commands.
+Both candidates initially failed the Engine suite, and the initial modal path
+also failed transition/tuning rails. Those failed runs remain in the
+[initial validation checkpoint](../validation/realism-2026-10-17.md) and its
+[machine-readable summary](../validation/realism-2026-10-17.json). Subsequent
+diagnosis corrected the legato endpoint and sympathetic refit, replaced stale
+measurement assumptions with independent physical checks, and refreshed the
+chosen complete-source spectral centers without relaxing their tolerances.
+Both selected models now default ON; the final combined implementation passes
+32/32 unit suites, the audio tier and embedded C++17 compilation. See the
+[current follow-up](../validation/realism-followup-2026-10-17.md) for the exact
+decision, current mass-ON modal sweep, CPU tradeoff and remaining limits.
 
 [Kemp's stiff-string analysis](https://research-repository.st-andrews.ac.uk/bitstream/handle/10023/19673/Kemp_2020_SNAS_Inharmonicity_CC.pdf?sequence=1)
 also distinguishes external construction, mass and flexural stiffness. Better
