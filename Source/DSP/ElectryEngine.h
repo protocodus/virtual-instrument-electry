@@ -156,6 +156,17 @@
 #define ELECTRY_REFERENCE_STRING_MASS 1
 #endif
 
+#ifndef ELECTRY_INTRINSIC_LOSS_FRESH
+#define ELECTRY_INTRINSIC_LOSS_FRESH 1
+#endif
+#ifndef ELECTRY_INTRINSIC_LOSS_LOWPASS
+#define ELECTRY_INTRINSIC_LOSS_LOWPASS 0
+#endif
+
+#ifndef ELECTRY_BUTTERWORTH_LOSS_SHELF
+#define ELECTRY_BUTTERWORTH_LOSS_SHELF 0
+#endif
+
 #ifndef ELECTRY_MODAL_DISPERSION_FIT
 #define ELECTRY_MODAL_DISPERSION_FIT 1
 #endif
@@ -985,6 +996,16 @@ private:
         float dispersionLowCoefficient { 0.0f };
         float dispersionHighCoefficient { 0.0f };
         OnePole damping {};
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        // Intrinsic correction: a third-order numerator over a stable
+        // two-pole denominator. All three running states survive live pitch,
+        // hand and string-parameter refits just as the one-pole does.
+        DipBiquad lossShelf{};
+        double lossShelfZ3{0.0};
+        double lossShelfB3{0.0};
+        float lossShelfDepth{1.0f};
+        bool lossShelfActive{false};
+#endif
         // Conservative intrinsic-loss curvature for the two extended-range
         // bass strings. A passive dip bends the existing two-anchor fit toward
         // linear-in-frequency material loss; both anchors stay fixed.
@@ -1666,6 +1687,12 @@ private:
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
+                                       float omegaHigh, float intrinsicPole,
+                                       float intrinsicGain) noexcept;
+    static float loopLossPhaseDelay(const PolarisationLoop &loop, float omega) noexcept;
+#endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
     // requested ratio of decay times. Both the played strings' damping solve
@@ -1688,7 +1715,17 @@ private:
     // fundamental, for the current string set and build. Shared for the same
     // reason: a coupled string is the same piece of steel as a played one.
     [[nodiscard]] float highFrequencyDecayRatio(int stringIndex) const noexcept;
+    [[nodiscard]] float highFrequencyDecayRatioAtAge(int stringIndex,
+                                                     float age) const noexcept;
     [[nodiscard]] float intrinsicStringT60(int stringIndex, float liveFret) const noexcept;
+    [[nodiscard]] float intrinsicStringT60AtAge(int stringIndex, float liveFret,
+                                                float age) const noexcept;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    void configureIntrinsicLossCorrection(PolarisationLoop &loop, int stringIndex,
+                                          float liveFret, float f0, float omega0,
+                                          float omegaHigh, float t60Scale,
+                                          float gainCeiling) const noexcept;
+#endif
     void configureBassMaterialLoss(PolarisationLoop& loop, float f0, float fHigh,
                                    float intrinsicT60, float intrinsicT60High,
                                    float polarisationScale) noexcept;
