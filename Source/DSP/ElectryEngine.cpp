@@ -6034,7 +6034,8 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             amplitude *= 0.88f;
             pulseMs *= 1.2f;
             pulseCutoff *= 0.72f;
-            pluckFraction *= 0.8f;
+            // The heel changes the bridge contact; the user's picking-hand
+            // position remains the same distance from the bridge.
             noiseLevel *= 1.5f;
             // Keep more of the string's low modal body after retiring the
             // stacked finite heel, while the steady hand supplies the decay.
