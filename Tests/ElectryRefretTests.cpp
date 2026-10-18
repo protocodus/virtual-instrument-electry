@@ -329,6 +329,39 @@ struct ElectryEngineTestAccess
         return engine.voices_[static_cast<std::size_t>(index)].legatoFromFrequency;
     }
 
+    static bool adoptedIncomingRetainsHistory(const ElectryEngine& adopted,
+                                               const ElectryEngine& before,
+                                               int index)
+    {
+        const auto& a = adopted.voices_[static_cast<std::size_t>(index)];
+        const auto& b = before.voices_[static_cast<std::size_t>(index)];
+        const auto history = [] (const ElectryEngine::LoopFilterBank& bank)
+        {
+            return std::vector<double> {
+                bank.damping.state,
+                bank.dispersion1.state, bank.dispersion2.state,
+                bank.dispersion3.state, bank.dispersion4.state,
+                bank.dispersion5.state, bank.dispersion6.state,
+                bank.dispersion7.state, bank.dispersion8.state,
+                bank.materialLossDip.z1, bank.materialLossDip.z2,
+                bank.handDip.z1, bank.handDip.z2,
+                bank.handEnvelope, bank.handEnvelopePeak,
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+                bank.lossShelf.z1, bank.lossShelf.z2, bank.lossShelfZ3,
+#endif
+            };
+        };
+        for (int axis = 0; axis < 2; ++axis)
+        {
+            const auto& old = (axis ? b.horizontal : b.vertical).refretFrozenDestination;
+            const auto& live = axis ? a.horizontal : a.vertical;
+            if (!old.valid || live.refretFrozenDestination.valid
+                || history(old.bank) != history(live))
+                return false;
+        }
+        return true;
+    }
+
     static void seedFeedbackWitness(ElectryEngine& engine, int index, int phase)
     {
         auto& v = engine.voices_[static_cast<std::size_t>(index)];
@@ -361,6 +394,8 @@ struct ElectryEngineTestAccess
             loop->materialLossDip.z2 = -.00011 * axis;
             loop->handDip.z1 = -.00013 * axis;
             loop->handDip.z2 = .00019 * axis;
+            loop->handEnvelope = .01f * axis;
+            loop->handEnvelopePeak = .02f * axis;
         }
         neutraliseFeedbackProbe(engine, index);
     }
@@ -1502,6 +1537,7 @@ void fingerGesturesAdoptTheAudibleQueuedEndpoint()
                 const auto id = member ? 7 : electry::ElectryEngine::legacyExpressionId;
                 engine->noteOn(47, .85f, id);
                 render(*engine, 2400);
+                electry::ElectryEngineTestAccess::seedFeedbackWitness(*engine, 2, member ? 1 : 2);
                 engine->noteOn(48, .85f, id);
                 render(*engine, 1);
                 engine->noteOn(49, .85f, id);
@@ -1510,6 +1546,7 @@ void fingerGesturesAdoptTheAudibleQueuedEndpoint()
                 const double from = electry::ElectryEngineTestAccess::frozenNominalFrequency(*engine, 2);
                 expect(from > 0, "Finger-adoption witness did not freeze an audible incoming bank");
                 const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+                auto history = std::make_unique<electry::ElectryEngine>(*engine);
                 engine->noteOn(electry::ElectryEngine::firstPlayStyleKeyswitchNote
                                   + static_cast<int>(style), 1);
                 engine->noteOn(50, .85f, id);
@@ -1518,6 +1555,8 @@ void fingerGesturesAdoptTheAudibleQueuedEndpoint()
                 expect(electry::ElectryEngineTestAccess::fingerFromFrequency(*engine, 2) == from,
                        "A finger gesture started at the unheard queued fret or clamped frequency");
                 const auto adopted = electry::ElectryEngineTestAccess::state(*engine, 2);
+                expect(electry::ElectryEngineTestAccess::adoptedIncomingRetainsHistory(*engine, *history, 2),
+                       "Finger adoption reset a warmed allpass, loop-loss or hand-contact history");
                 expect(!adopted.queued && !adopted.locked && adopted.transitionRemaining > 0,
                        "Finger adoption changed the existing boundary clock or retained a queued fret");
                 if (wideBend == 0)
