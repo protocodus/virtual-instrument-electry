@@ -1148,7 +1148,25 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
     // gives q^2=(R^2-r)/(1-R^2*r), r=(O0/Oh)^4. No new decay target or fitted
     // shape parameter is introduced. The high-frequency loss is bounded.
     loop.lossShelfActive = false;
-    if (!(omegaHigh > omega0) || !(intrinsicPole > 0.0f) || !(loop.loopGain <= 1.0f))
+    const auto clearInvalidCorrection = [&]()
+    {
+        // A deliberately bypassed invalid transform stops advancing these
+        // states. Do not replay that stale correction on a later valid return.
+        // The original loop's damping/material histories remain untouched.
+        loop.lossShelf.reset();
+        loop.lossShelfZ3 = 0.0;
+    };
+    // The played path bounds its fundamental, but idle sympathetic strings
+    // can follow the full legacy global-bend range. Frequencies beyond Nyquist
+    // are not valid bilinear coordinates: a negative tan(w/2) would turn the
+    // intended passive section into an unstable denominator. Retain the exact
+    // legacy solve outside this transform's domain.
+    if (!(omega0 > 0.0f) || !(omegaHigh > omega0) || !(omegaHigh < pi))
+    {
+        clearInvalidCorrection();
+        return;
+    }
+    if (!(intrinsicPole > 0.0f) || !(loop.loopGain <= 1.0f))
         return;
     const double pole = intrinsicPole;
     const auto onePoleSquared = [pole](double omega)
@@ -1181,8 +1199,23 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
     const double kp = 1.0 / (oh * rootQ);
     const double kz = rootQ / oh;
 #endif
+    if (!(kp > 0.0) || !(kz >= 0.0) || !std::isfinite(kp) || !std::isfinite(kz))
+    {
+        clearInvalidCorrection();
+        return;
+    }
     const double rootTwo = std::sqrt(2.0);
     const double inverseA0 = 1.0 / (1.0 + rootTwo * kp + kp * kp);
+    const double a1 = 2.0 * (1.0 - kp * kp) * inverseA0;
+    const double a2 = (1.0 - rootTwo * kp + kp * kp) * inverseA0;
+    // A unit-circle magnitude bound alone does not establish recursive
+    // stability. Strict second-order Schur conditions also reject rounded
+    // pole pairs on the unit circle before installing any coefficients.
+    if (!(a2 > -1.0) || !(a2 < 1.0) || !(1.0 + a1 + a2 > 0.0) || !(1.0 - a1 + a2 > 0.0))
+    {
+        clearInvalidCorrection();
+        return;
+    }
     const double gain = static_cast<double>(intrinsicGain) * std::sqrt(m0)
 #if ELECTRY_INTRINSIC_LOSS_LOWPASS
                         * std::sqrt(1.0 + o0 * o0 * o0 * o0 / c4);
@@ -1197,8 +1230,8 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
     shelf.b0 = (1.0 + rootTwo * kz + kz * kz) * inverseA0;
     shelf.b1 = 2.0 * (1.0 - kz * kz) * inverseA0;
     shelf.b2 = (1.0 - rootTwo * kz + kz * kz) * inverseA0;
-    shelf.a1 = 2.0 * (1.0 - kp * kp) * inverseA0;
-    shelf.a2 = (1.0 - rootTwo * kp + kp * kp) * inverseA0;
+    shelf.a1 = a1;
+    shelf.a2 = a2;
     // Both analytic DC sums are equal. Remove their tiny subtraction residual
     // before putting the section inside feedback, as for the existing dips.
     const double dcCorrection =
@@ -1231,10 +1264,6 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                                           16 * static_cast<long double>(b0) * b2};
     };
     const auto denominator = magnitudePolynomial(1, shelf.a1, shelf.a2);
-    const auto handNumerator =
-        magnitudePolynomial(loop.handDip.b0, loop.handDip.b1, loop.handDip.b2);
-    const auto handDenominator =
-        magnitudePolynomial(1, loop.handDip.a1, loop.handDip.a2);
     const long double a = loop.loopDampingCoefficient;
     const long double d0 = (1 - a) * (1 - a), d1 = 4 * a;
     // Preserve the legacy maximum loop-gain bound, not only unity. The
@@ -1253,6 +1282,13 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                          identity[static_cast<std::size_t>(i)]);
         return b;
     };
+    // The hand envelope can weaken its dip between damping refits. Admit
+    // every correction before that mutable attenuation, so any later passive
+    // dip (including a bypass) preserves the original scalar-gain bound.
+    // The squared-magnitude difference is cubic in t=sin^2(w/2): checking its
+    // endpoints and up to two derivative roots bounds the whole unit circle.
+    // At most 19 such fixed-size checks occur in a constrained refit (initial
+    // plus 18 depth bisections); no interval stack or allocation is required.
     const auto certified = [&](long double depth)
     {
         const auto b = blendNumerator(depth);
@@ -1301,77 +1337,7 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                     checkRoot(-qb / (2 * qa));
             }
         }
-        if (passive || !loop.handDipActive)
-            return passive;
-        // Full hand response is degree five in t=sin^2(w/2). Bernstein
-        // coefficients bound its value on an interval. Fixed-stack subdivision
-        // provides a sufficient global certificate, not a frequency sample.
-        // Depth 32 and 255 unresolved-node visits are numerical work limits,
-        // not voiced shape parameters. At most 511 intervals and 33 pending
-        // records are examined per certificate; up to 19 certificates occur
-        // per constrained control/event refit (initial plus 18 bisections).
-        // The pending stack is 1.9 KiB with 64-bit long double, 3.7 KiB with
-        // 128-bit storage. No allocation occurs. Unresolved intervals limit
-        // the admitted correction depth; no uncertified filter is installed.
-        std::array<long double, 6> polynomial{};
-        for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 3; ++j)
-                polynomial[static_cast<std::size_t>(i + j)] +=
-                    baseD[static_cast<std::size_t>(i)] *
-                        handDenominator[static_cast<std::size_t>(j)] -
-                    baseN[static_cast<std::size_t>(i)] *
-                        handNumerator[static_cast<std::size_t>(j)];
-        struct Interval
-        {
-            std::array<long double, 6> b;
-            int depth;
-        };
-        std::array<Interval, 33> pending{};
-        constexpr long double choose5[6]{1, 5, 10, 10, 5, 1};
-        Interval initial{};
-        for (int k = 0; k <= 5; ++k)
-        {
-            long double choose = 1;
-            for (int i = 0; i <= k; ++i)
-            {
-                initial.b[static_cast<std::size_t>(k)] +=
-                    polynomial[static_cast<std::size_t>(i)] * choose / choose5[i];
-                if (i < k)
-                    choose = choose * (k - i) / (i + 1);
-            }
-        }
-        pending[0] = initial;
-        int count = 1, visited = 0;
-        while (count > 0)
-        {
-            const auto interval = pending[static_cast<std::size_t>(--count)];
-            bool positive = true;
-            for (const auto value : interval.b)
-                positive = positive && (value >= 0);
-            if (positive)
-                continue;
-            if (interval.b.front() < 0 || interval.b.back() < 0 ||
-                interval.depth >= 32 || ++visited > 255)
-                return false;
-            auto triangle = interval.b;
-            Interval left{}, right{};
-            left.depth = right.depth = interval.depth + 1;
-            left.b[0] = triangle[0];
-            right.b[5] = triangle[5];
-            for (int level = 1; level <= 5; ++level)
-            {
-                for (int i = 0; i <= 5 - level; ++i)
-                    triangle[static_cast<std::size_t>(i)] =
-                        .5L * (triangle[static_cast<std::size_t>(i)] +
-                               triangle[static_cast<std::size_t>(i + 1)]);
-                left.b[static_cast<std::size_t>(level)] = triangle[0];
-                right.b[static_cast<std::size_t>(5 - level)] =
-                    triangle[static_cast<std::size_t>(5 - level)];
-            }
-            pending[static_cast<std::size_t>(count++)] = right;
-            pending[static_cast<std::size_t>(count++)] = left;
-        }
-        return true;
+        return passive;
     };
     long double depth = 1;
     if (!certified(depth))

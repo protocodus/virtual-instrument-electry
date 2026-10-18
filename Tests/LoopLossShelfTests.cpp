@@ -21,6 +21,7 @@ struct ElectryEngineTestAccess
         double pole, b3, depth;
         bool active;
         bool historiesRetained;
+        bool invalidCorrectionCleared;
     };
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     static Result transform(float coefficient, float gain, float omega0, float high,
@@ -32,6 +33,7 @@ struct ElectryEngineTestAccess
         loop->damping.state = .03125f;
         loop->lossShelf.z1 = .000125;
         loop->lossShelf.z2 = -.0000625;
+        loop->lossShelfZ3 = .00003125;
         ElectryEngine::configureLoopLossShelf(*loop, omega0, high, coefficient, gain);
         const auto &b = loop->lossShelf;
         return {{b.b0, b.b1, b.b2, b.a1, b.a2},
@@ -40,7 +42,32 @@ struct ElectryEngineTestAccess
                 loop->lossShelfB3,
                 loop->lossShelfDepth,
                 loop->lossShelfActive,
-                b.z1 == .000125 && b.z2 == -.0000625 && loop->damping.state == .03125f};
+                b.z1 == .000125 && b.z2 == -.0000625 &&
+                    loop->lossShelfZ3 == .00003125 && loop->damping.state == .03125f,
+                b.z1 == 0 && b.z2 == 0 && loop->lossShelfZ3 == 0 &&
+                    loop->damping.state == .03125f};
+    }
+    static bool invalidDomainReturn()
+    {
+        auto loop = std::make_unique<ElectryEngine::PolarisationLoop>();
+        loop->loopDampingCoefficient = .3f;
+        loop->loopGain = .9999f;
+        loop->damping.state = .03125f;
+        ElectryEngine::configureLoopLossShelf(*loop, .001f, 1.f, .3f, .9999f);
+        if (!loop->lossShelfActive)
+            return false;
+        loop->lossShelf.z1 = .000125;
+        loop->lossShelf.z2 = -.0000625;
+        loop->lossShelfZ3 = .00003125;
+        ElectryEngine::configureLoopLossShelf(*loop, .001f, 4.f, .3f, .9999f);
+        if (loop->lossShelfActive || loop->lossShelf.z1 != 0 ||
+            loop->lossShelf.z2 != 0 || loop->lossShelfZ3 != 0 ||
+            loop->damping.state != .03125f)
+            return false;
+        ElectryEngine::configureLoopLossShelf(*loop, .001f, 1.f, .3f, .9999f);
+        return loop->lossShelfActive && loop->lossShelf.z1 == 0 &&
+               loop->lossShelf.z2 == 0 && loop->lossShelfZ3 == 0 &&
+               loop->damping.state == .03125f;
     }
     static double largestPressureStep(int resolution, int stringIndex, int fret,
                                       PlayStyle style, float age, float gauge)
@@ -106,10 +133,212 @@ struct ElectryEngineTestAccess
                   << " originaldelta=" << legacyAtLargest << '\n';
         return largest;
     }
+    struct Relaxation
+    {
+        bool established = false, relaxed = false, correctionRetained = false;
+        double maximumRelaxedRatio = 0, maximumBypassedRatio = 0;
+    };
+    static Relaxation laterHandRelaxation(double rate)
+    {
+        auto e = std::make_unique<ElectryEngine>();
+        EngineParameters p;
+        applyGuitarBuild(p, defaultGuitarBuild);
+        p.stringAge = 0;
+        p.stringGauge = 1;
+        p.palmMute = .5f;
+        p.strumSpreadSeconds = 0;
+        p.bodyResonance = p.sympatheticAmount = p.artifactAmount = 0;
+        e->setParameters(p);
+        e->prepare(rate, 64);
+        e->setSoloStringMask(1u << 2);
+        e->noteOn(ElectryEngine::firstPlayStyleKeyswitchNote + int(PlayStyle::Dead), 1);
+        e->noteOn(e->stringSpecs()[2].openMidiNote + 22, .85f);
+        auto &v = e->voices_[2];
+        v.attackPitchTensionRatio = 0;
+        e->configureVoicePitch(v, true);
+        auto &l = v.vertical;
+        const auto before = l.lossShelf;
+        const double beforeB3 = l.lossShelfB3;
+        const float beforeCorrectionDepth = l.lossShelfDepth;
+        const float solvedHandDepth = l.handLossSolvedDepth;
+        Relaxation result;
+        result.established =
+            l.lossShelfActive && l.handDipActive && solvedHandDepth > 0;
+        // Exercise the actual envelope path without requesting new parameters
+        // or another damping fit. It deliberately weakens the solved hand dip.
+        v.palmDampingPending = false;
+        v.palmDampingCountdown = 100;
+        l.handEnvelopePeak = 1;
+        l.handEnvelope = 0;
+        e->updateVoiceControl(v);
+        result.relaxed = l.handLossDepth == .4f * solvedHandDepth;
+        result.correctionRetained =
+            l.lossShelf.b0 == before.b0 && l.lossShelf.b1 == before.b1 &&
+            l.lossShelf.b2 == before.b2 && l.lossShelf.a1 == before.a1 &&
+            l.lossShelf.a2 == before.a2 && l.lossShelfB3 == beforeB3 &&
+            l.lossShelfDepth == beforeCorrectionDepth;
+        const auto maximumRatio = [&]()
+        {
+            double maximum = 0;
+            for (int bin = 0; bin <= 2048; ++bin)
+            {
+                const auto z = std::polar(1., -3.14159265358979323846 * bin / 2048);
+                const auto &b = l.lossShelf;
+                const double a = l.loopDampingCoefficient;
+                auto h = (1 - a) / (1. - a * z) *
+                         (b.b0 + b.b1 * z + b.b2 * z * z + l.lossShelfB3 * z * z * z) /
+                         (1. + b.a1 * z + b.a2 * z * z);
+                if (l.handDipActive)
+                {
+                    const auto &hand = l.handDip;
+                    h *= (hand.b0 + hand.b1 * z + hand.b2 * z * z) /
+                         (1. + hand.a1 * z + hand.a2 * z * z);
+                }
+                maximum = std::max(maximum, std::abs(h));
+            }
+            return maximum;
+        };
+        result.maximumRelaxedRatio = maximumRatio();
+        // A bypass is a passive future hand configuration too. Prove the
+        // correction's bound does not depend on any amount of hand attenuation.
+        e->applyDipDepth(l, 0);
+        result.maximumBypassedRatio = maximumRatio();
+        return result;
+    }
+    static Relaxation syntheticHandRelaxation()
+    {
+        // Filter-domain negative control from the independent review. This is
+        // not a claim of instability in the observed public parameter grid.
+        // Hand-assisted admission used the full dip to authorize a correction
+        // that exceeded unity after the ordinary 0.4 relaxation.
+        auto l = std::make_unique<ElectryEngine::PolarisationLoop>();
+        l->loopDampingCoefficient = .01f;
+        l->loopGain = .9999f;
+        l->handLossShape = {.08f, .7f, 12.f};
+        ElectryEngine::applyDipDepth(*l, 1);
+        ElectryEngine::configureLoopLossShelf(*l, .001f, 1.f, .6f, .9999f);
+        const auto b = l->lossShelf;
+        const double b3 = l->lossShelfB3;
+        const float correctionDepth = l->lossShelfDepth;
+        Relaxation result;
+        result.established = l->lossShelfActive && l->handDipActive;
+        const auto maximumRatio = [&]()
+        {
+            double maximum = 0;
+            for (int bin = 0; bin <= 2048; ++bin)
+            {
+                const auto z = std::polar(1., -3.14159265358979323846 * bin / 2048);
+                const double a = l->loopDampingCoefficient;
+                auto h = (1 - a) / (1. - a * z) *
+                         (b.b0 + b.b1 * z + b.b2 * z * z + b3 * z * z * z) /
+                         (1. + b.a1 * z + b.a2 * z * z);
+                if (l->handDipActive)
+                {
+                    const auto &hand = l->handDip;
+                    h *= (hand.b0 + hand.b1 * z + hand.b2 * z * z) /
+                         (1. + hand.a1 * z + hand.a2 * z * z);
+                }
+                maximum = std::max(maximum, std::abs(h));
+            }
+            return maximum;
+        };
+        ElectryEngine::applyDipDepth(*l, .4f);
+        result.relaxed = l->handLossDepth == .4f;
+        result.maximumRelaxedRatio = maximumRatio();
+        ElectryEngine::applyDipDepth(*l, 0);
+        result.maximumBypassedRatio = maximumRatio();
+        result.correctionRetained =
+            l->lossShelf.b0 == b.b0 && l->lossShelf.b1 == b.b1 &&
+            l->lossShelf.b2 == b.b2 && l->lossShelf.a1 == b.a1 &&
+            l->lossShelf.a2 == b.a2 && l->lossShelfB3 == b3 &&
+            l->lossShelfDepth == correctionDepth;
+        return result;
+    }
+    struct WideBend
+    {
+        int configured = 0, invalidActive = 0, unstable = 0;
+        bool finite = true;
+    };
+    static WideBend wideSympatheticBends(double rate)
+    {
+        auto e = std::make_unique<ElectryEngine>();
+        EngineParameters p;
+        applyGuitarBuild(p, defaultGuitarBuild);
+        p.sympatheticAmount = 1;
+        p.bodyResonance = p.artifactAmount = p.pickNoise = p.fingerNoise =
+            p.releaseNoise = 0;
+        p.strumSpreadSeconds = 0;
+        e->setParameters(p);
+        e->prepare(rate, 64);
+        WideBend result;
+        std::array<float, 64> left{}, right{};
+        const auto renderAndInspect = [&](bool fixedBend)
+        {
+            const int frames = static_cast<int>(.08 * rate);
+            for (int frame = 0; frame < frames; frame += 64)
+            {
+                const int count = std::min(64, frames - frame);
+                e->process(left.data(), right.data(), count);
+                for (int i = 0; i < count; ++i)
+                    result.finite = result.finite && std::isfinite(left[i]) &&
+                                    std::isfinite(right[i]);
+                for (int stringIndex = 2; stringIndex < 8; ++stringIndex)
+                {
+                    const auto &v = e->voices_[stringIndex];
+                    if (!v.sympatheticReady)
+                        continue;
+                    ++result.configured;
+                    const auto &l = v.vertical;
+                    const auto &b = l.lossShelf;
+                    result.finite = result.finite && std::isfinite(b.z1) &&
+                                    std::isfinite(b.z2) && std::isfinite(l.lossShelfZ3);
+                    const double omega0 = 6.2831853071795864769 *
+                                          v.lastConfiguredFrequency / e->sampleRate_;
+                    const double high = std::max(std::min(3600., .32 * e->sampleRate_),
+                                                 1.5 * v.lastConfiguredFrequency);
+                    const double omegaHigh =
+                        6.2831853071795864769 * high / e->sampleRate_;
+                    if (l.lossShelfActive)
+                    {
+                        // AP fit metadata is quantized during a moving wheel.
+                        // Check input domain at a reset, fixed-bend solve and
+                        // actual denominator stability throughout the return.
+                        if (fixedBend && !(omega0 > 0 && omega0 < omegaHigh &&
+                                           omegaHigh < 3.14159265358979323846))
+                            ++result.invalidActive;
+                        const auto discriminant =
+                            std::sqrt(std::complex<double>(b.a1 * b.a1 - 4 * b.a2, 0));
+                        if (!(std::abs((-b.a1 + discriminant) / 2.) < 1 &&
+                              std::abs((-b.a1 - discriminant) / 2.) < 1))
+                            ++result.unstable;
+                    }
+                }
+            }
+        };
+        for (float bend : {84.f, 96.f, 120.f, 144.f, 168.f, 192.f})
+        {
+            e->setPitchBendSemitones(bend);
+            e->reset(); // Public reset snaps the already-authorized global bend.
+            e->setSoloStringMask(1);
+            // An unbent member voice audibly drives idle strings whose legacy
+            // global wheel is much wider. No private frequency injection.
+            e->noteOn(28, .85f, 7);
+            renderAndInspect(true);
+            e->setPitchBendSemitones(0);
+            renderAndInspect(false); // Return from fallback with running histories.
+        }
+        e->reset();
+        for (const auto &v : e->voices_)
+            result.finite = result.finite && v.vertical.lossShelf.z1 == 0 &&
+                            v.vertical.lossShelf.z2 == 0 && v.vertical.lossShelfZ3 == 0;
+        return result;
+    }
     struct Grid
     {
         int configurations = 0, active = 0, fallbacks = 0, violations = 0,
             historyChanges = 0;
+        int preDipViolations = 0;
+        double maximumPreDipRatio = 0;
         double maximum = 0, minimumDepth = 1, maximumFundamentalDecayChange = 0,
                maximumUpperDecayChange = 0;
         int limited = 0;
@@ -246,6 +475,17 @@ struct ElectryEngineTestAccess
                                             if (loop->lossShelfActive)
                                                 h *= section(loop->lossShelf, z,
                                                              loop->lossShelfB3);
+                                            // The admitted correction must retain the
+                                            // original scalar bound before the hand
+                                            // dip. Its later envelope relaxation is
+                                            // deliberately not followed by a refit.
+                                            const double preDipRatio =
+                                                std::abs(h) / loop->loopGain;
+                                            result.maximumPreDipRatio = std::max(
+                                                result.maximumPreDipRatio, preDipRatio);
+                                            if (!std::isfinite(preDipRatio) ||
+                                                preDipRatio > 1 + 1e-10)
+                                                ++result.preDipViolations;
                                             if (loop->handDipActive)
                                                 h *= section(loop->handDip, z);
                                             if (loop->materialLossDepth > 0)
@@ -373,6 +613,8 @@ int main()
                 }
         }
     const auto grid = Access::configurationGrid();
+    expect(grid.preDipViolations == 0,
+           "correction exceeds the original scalar before mutable hand attenuation");
     expect(grid.violations == 0,
            "actual style/age/gauge/pressure family has gain above unity");
     expect(grid.historyChanges == 0,
@@ -383,7 +625,9 @@ int main()
               << ", limited " << grid.limited << ", minimum depth " << grid.minimumDepth
               << ", max fundamental/upper decay change "
               << grid.maximumFundamentalDecayChange << '/'
-              << grid.maximumUpperDecayChange << '\n';
+              << grid.maximumUpperDecayChange << ", pre-dip maximum normalized gain "
+              << grid.maximumPreDipRatio << ", pre-dip violations "
+              << grid.preDipViolations << '\n';
     for (int style : {0, 1, 6})
         for (int pressure = 0; pressure < 3; ++pressure)
             std::cout << "Fallback style " << style << " pressure " << pressure * .5
@@ -410,6 +654,59 @@ int main()
             std::cout << "Correction convergence style " << int(style) << " string "
                       << stringIndex << ": " << coarse << " -> " << fine << '\n';
         }
+    for (double rate : {48000., 96000., 384000.})
+    {
+        const auto relaxation = Access::laterHandRelaxation(rate);
+        expect(relaxation.established && relaxation.relaxed,
+               "dynamic hand witness did not weaken the configured hand dip");
+        expect(relaxation.correctionRetained,
+               "dynamic hand witness unexpectedly refitted the intrinsic correction");
+        expect(relaxation.maximumRelaxedRatio <= 1 + 1e-10 &&
+                   relaxation.maximumBypassedRatio <= 1 + 1e-10,
+               "weakening a later hand dip invalidates the original scalar bound");
+        std::cout << "Later hand relaxation " << rate << " Hz: max normalized gain "
+                  << relaxation.maximumRelaxedRatio << ", bypass "
+                  << relaxation.maximumBypassedRatio << '\n';
+    }
+    const auto syntheticRelaxation = Access::syntheticHandRelaxation();
+    expect(syntheticRelaxation.established && syntheticRelaxation.relaxed &&
+               syntheticRelaxation.correctionRetained,
+           "synthetic hand-relaxation witness did not retain its admitted correction");
+    expect(syntheticRelaxation.maximumRelaxedRatio <= 1 + 1e-10 &&
+               syntheticRelaxation.maximumBypassedRatio <= 1 + 1e-10,
+           "hand-assisted admission permits gain after later dip relaxation");
+    std::cout << "Synthetic later hand relaxation: max normalized gain "
+              << syntheticRelaxation.maximumRelaxedRatio << ", bypass "
+              << syntheticRelaxation.maximumBypassedRatio << '\n';
+    const float floatPi = 3.14159265358979323846f;
+    for (const auto coordinates : {std::array<float, 2>{0, 1},
+                                   {-1, 1},
+                                   {.001f, floatPi},
+                                   {.001f, 4},
+                                   {.001f, 2 * floatPi + 1},
+                                   {2.7614f, 4.1421f},
+                                   {.1f, .1f}})
+    {
+        const auto invalid =
+            Access::transform(.6f, .9999f, coordinates[0], coordinates[1]);
+        expect(!invalid.active && invalid.invalidCorrectionCleared &&
+                   invalid.gain == .9999f,
+               "invalid bilinear coordinates replace the stable legacy fallback");
+    }
+    expect(Access::invalidDomainReturn(),
+           "invalid-domain bypass replays stale correction history on valid return");
+    for (double rate : {48000., 96000., 384000.})
+    {
+        const auto wide = Access::wideSympatheticBends(rate);
+        expect(wide.configured > 0,
+               "public wide-bend witness did not wake the idle bank");
+        expect(wide.invalidActive == 0 && wide.unstable == 0,
+               "wide global bend installs an invalid or unstable idle correction");
+        expect(wide.finite, "wide sympathetic bend or return corrupts running state");
+        std::cout << "Wide sympathetic bend " << rate << " Hz: observations "
+                  << wide.configured << ", invalid active " << wide.invalidActive
+                  << ", unstable " << wide.unstable << '\n';
+    }
     // Deliberately active total filters must be rejected if their corrected
     // response remains above unity; the certificate is not an unconditional
     // claim that every algebraic correction is passive.
