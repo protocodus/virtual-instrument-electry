@@ -7976,17 +7976,23 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             const float progress = static_cast<float>(
                 voice.refretLengthSamples - voice.refretRemainingSamples)
                 / static_cast<float>(voice.refretLengthSamples - 1);
-            // The unique degree-five fade with zero first/second derivatives
-            // at both ends is w=6t^5-15t^4+10t^3 (endpoint smoothness:
+            // Keep the legacy cubic's peak weight speed 3/2, using minimum-
+            // degree C1 velocity shoulders (3u^2-2u^3) and constant speed in
+            // between. Unit total weight gives (3/2)(1-L)=1, hence L=1/3.
+            // Integrating a shoulder gives w=u^3(2-u)/4. The complete fade
+            // is C2 at the endpoints and joins (endpoint smoothness:
             // https://dsprelated.com/freebooks/SASP/Relation_Smoothness_Roll_Off_Rate.html).
-            // For two fixed reads, |H|^2=1-4w(1-w)sin^2(omega*delta/2).
-            // Its integrated w(1-w) is 25/231 versus cubic's 9/70: less
-            // time in the comb deficit, not a shallower midpoint notch.
-            // Mirror evaluation avoids float cancellation near one, keeping
-            // the weights convex without changing the Contact clock or taps.
+            // For fixed reads |H|^2=1-4w(1-w)sin^2(omega*delta/2); integrated
+            // w(1-w)=449/3780 versus cubic's 9/70. This reduces exposure, not
+            // midpoint depth, and is not a switched-network passivity proof.
+            // Mirroring avoids float cancellation near one; the existing
+            // Contact duration and stationary read positions are unchanged.
             const float halfProgress = std::min(progress, 1.0f - progress);
-            const float halfWeight = halfProgress * halfProgress * halfProgress
-                * (10.0f + halfProgress * (6.0f * halfProgress - 15.0f));
+            const float shoulderProgress = 3.0f * halfProgress;
+            const float halfWeight = halfProgress < 1.0f / 3.0f
+                ? 0.25f * shoulderProgress * shoulderProgress * shoulderProgress
+                    * (2.0f - shoulderProgress)
+                : 1.5f * halfProgress - 0.25f;
             const float destinationWeight = progress <= 0.5f
                 ? halfWeight : 1.0f - halfWeight;
             const float sourceOffset = &loop == &voice.vertical
