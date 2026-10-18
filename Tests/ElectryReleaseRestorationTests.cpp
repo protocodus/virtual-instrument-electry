@@ -407,7 +407,7 @@ void delayedStyleBoundaryUsesTheArrivingContact()
                    "The arriving physical contact lost its reserved style");
             const bool palm = styles[1] == electry::PlayStyle::PalmMute;
             expect(palm ? state.gain == 1 && state.depth == 0 && state.restoring == 0
-                              && !state.flatRelease
+                              && state.flatRelease
                         : state.gain < 1 && state.restoring > 1 && state.flatRelease,
                    "The actual contact applied the wrong Palm/ordinary opening or projection");
             const int length = state.remaining;
@@ -438,8 +438,8 @@ void rapidPalmRetainsTheEstablishedSourceAndHistory()
         pick(*legacyControl, 28);
         auto state = Access::state(*actual, 0);
         expect(state.gain == 1 && state.depth == 0 && state.restoring == 0
-                   && !state.flatRelease,
-               "Rapid Palm no longer uses its established opening and source");
+                   && state.flatRelease,
+               "Rapid Palm no longer uses its established opening and qualified Bessel source");
         const int hold = static_cast<int>(.055 * 44100);
         const int gap = static_cast<int>(.028333 * 44100);
         for (int frame = 0; frame < hold + gap; ++frame)

@@ -6535,11 +6535,10 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         28.0f, std::min(900.0f, 0.20f * sampleRate));
     voice.excitationModalCoefficient = std::exp(
         -twoPi * articulationModalCutoff * inverseSampleRate_);
-    // Keep the established projection for separately calibrated heel, finger,
+    // Keep the established projection for the separately calibrated finger,
     // thumb and dead-hand contacts. Ordinary plucks and node-selected natural
     // harmonics use the same unit-DC Bessel projection and mean release latency.
-    const bool flatRelease = voice.playStyle != PlayStyle::PalmMute
-        && voice.playStyle != PlayStyle::Hammer
+    const bool flatRelease = voice.playStyle != PlayStyle::Hammer
         && voice.playStyle != PlayStyle::Pinch
         && voice.playStyle != PlayStyle::Dead;
     voice.excitationModalShaper.configureFromLegacyPole(
