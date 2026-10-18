@@ -156,6 +156,17 @@
 #define ELECTRY_REFERENCE_STRING_MASS 1
 #endif
 
+#ifndef ELECTRY_INTRINSIC_LOSS_FRESH
+#define ELECTRY_INTRINSIC_LOSS_FRESH 1
+#endif
+#ifndef ELECTRY_INTRINSIC_LOSS_LOWPASS
+#define ELECTRY_INTRINSIC_LOSS_LOWPASS 0
+#endif
+
+#ifndef ELECTRY_BUTTERWORTH_LOSS_SHELF
+#define ELECTRY_BUTTERWORTH_LOSS_SHELF 1
+#endif
+
 #ifndef ELECTRY_MODAL_DISPERSION_FIT
 #define ELECTRY_MODAL_DISPERSION_FIT 1
 #endif
@@ -664,6 +675,62 @@ private:
         }
     };
 
+    // Unit-area second-order release projection. The two integrator states
+    // use double so the low-string corner remains well resolved at 384 kHz.
+    // Coefficients are configured only at an excitation boundary.
+    struct ModalReleaseFilter
+    {
+        double a1 { 1.0 }, a2 { 0.0 }, a3 { 0.0 };
+        double ic1 { 0.0 }, ic2 { 0.0 };
+        OnePole contactShaper1 {}, contactShaper2 {};
+        float contactCoefficient { 0.99f };
+        bool flatRelease { true };
+        static constexpr double damping = 1.7320508075688772935;
+
+        void configureFromLegacyPole(double pole,
+                                     bool useFlatRelease = true) noexcept
+        {
+            flatRelease = useFlatRelease;
+            // Standard Bessel H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2).
+            // Match the existing release's mean latency, not its natural
+            // corner: the old cascaded poles have DC group delay 2a/(1-a),
+            // while this trapezoidal pair has sqrt(3)/(2g). Equating them
+            // gives g=sqrt(3)*(1-a)/(4a), with unit DC gain in both cases.
+            // No recording-fitted corner, Q or amplitude gain is introduced.
+            const double g = damping * (1.0 - pole) / (4.0 * pole);
+            a1 = 1.0 / (1.0 + g * (g + damping));
+            a2 = g * a1;
+            a3 = g * a2;
+        }
+        double decayPerSample() const noexcept
+        {
+            // The complex poles have radius sqrt(a2_den). Use their actual
+            // digital decay to drain Tail for the existing eight decay units.
+            const double g = a2 / a1;
+            return -0.5 * std::log((1.0 - damping * g + g * g)
+                                   / (1.0 + damping * g + g * g));
+        }
+        void reset() noexcept
+        {
+            ic1 = ic2 = 0.0;
+            contactShaper1.reset();
+            contactShaper2.reset();
+        }
+        float process(float input) noexcept
+        {
+            if (!flatRelease)
+                return contactShaper2.process(
+                    contactShaper1.process(input, contactCoefficient),
+                    contactCoefficient);
+            const double v3 = static_cast<double>(input) - ic2;
+            const double v1 = a1 * ic1 + a2 * v3;
+            const double v2 = ic2 + a2 * ic1 + a3 * v3;
+            ic1 = 2.0 * v1 - ic1;
+            ic2 = 2.0 * v2 - ic2;
+            return static_cast<float>(v2);
+        }
+    };
+
     struct DispersionAllpass
     {
         float state { 0.0f };
@@ -912,15 +979,11 @@ private:
         void setDelay(float delaySamples) noexcept;
     };
 
-    // One transverse polarisation of a string: a single-delay-loop waveguide
-    // with loop damping, stiffness dispersion, and a loop DC guard.
-    struct PolarisationLoop
+    // A fixed-size feedback filter bank, deliberately excluding ring storage.
+    // Retaining it lets a refret start with the actually sounding raw tap and
+    // filter state while its destination topology warms independently.
+    struct LoopFilterBank
     {
-        std::array<float, delayLineSize> line {};
-        int writeIndex { 0 };
-        float currentDelay { 100.0f };
-        float targetDelay { 100.0f };
-        float delayRetention { 0.98f };
         float loopGain { 0.995f };
         float loopDampingCoefficient { 0.3f };
         // Two independently fitted four-section allpass groups match the
@@ -929,6 +992,16 @@ private:
         float dispersionLowCoefficient { 0.0f };
         float dispersionHighCoefficient { 0.0f };
         OnePole damping {};
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        // Intrinsic correction: a third-order numerator over a stable
+        // two-pole denominator. All three running states survive live pitch,
+        // hand and string-parameter refits just as the one-pole does.
+        DipBiquad lossShelf{};
+        double lossShelfZ3{0.0};
+        double lossShelfB3{0.0};
+        float lossShelfDepth{1.0f};
+        bool lossShelfActive{false};
+#endif
         // Conservative intrinsic-loss curvature for the two extended-range
         // bass strings. A passive dip bends the existing two-anchor fit toward
         // linear-in-frequency material loss; both anchors stay fixed.
@@ -989,6 +1062,38 @@ private:
         DispersionAllpass dispersion6 {};
         DispersionAllpass dispersion7 {};
         DispersionAllpass dispersion8 {};
+
+    };
+
+    struct RefretFilterEndpoint
+    {
+        LoopFilterBank bank {};
+        float rawDelay { 100.0f };
+        float anchorRawDelay { 100.0f };
+        float anchorPeriod { 100.0f };
+        float anchorPhaseDelay { 0.0f };
+        float physicalPeriod { 100.0f };
+        float physicalPending { 0.0f };
+        float rawPending { 0.0f };
+        float nominalFrequency { 0.0f };
+        float nominalFret { 0.0f };
+        float configuredSemitones { 0.0f };
+        float configuredFrequency { 0.0f };
+        float configuredFret { 0.0f };
+        bool valid { false };
+    };
+
+    // One transverse polarisation of a string: a single-delay-loop waveguide
+    // with loop damping, stiffness dispersion, and a loop DC guard.
+    struct PolarisationLoop : LoopFilterBank
+    {
+        std::array<float, delayLineSize> line {};
+        int writeIndex { 0 };
+        float currentDelay { 100.0f };
+        float targetDelay { 100.0f };
+        float delayRetention { 0.98f };
+        RefretFilterEndpoint refretSource {};
+        RefretFilterEndpoint refretFrozenDestination {};
 
         void clear() noexcept;
         void scaleState(float amplitude) noexcept;
@@ -1284,9 +1389,10 @@ private:
         float attackPitchFrequencyFactor { 1.0f };
         float lastAttackPitchFrequencyFactor { 1.0f };
 #endif
-        // The principal release component is shaped with two string-scaled
-        // low-pass sections so its modal envelope approximates the 1/n^2
-        // falloff of a triangular pluck displacement. Ordinary sustained
+        // The principal release uses a string-scaled Bessel projection with
+        // the existing mean release latency and unit DC gain. Its asymptotic
+        // modal envelope approximates a triangular pluck's 1/n^2 falloff;
+        // this is not an exact triangular initial condition. Ordinary sustained
         // pick styles use a much smaller broad pulse for the physical edge;
         // deliberately percussive styles may weight that edge more strongly.
         float excitationTransientAmplitude { 0.0f };
@@ -1302,6 +1408,8 @@ private:
         // reflected excitation image is spread over the real contact width
         // instead of landing on a single point of the string.
         float excitationCombWidth { 0.0f };
+        // The legacy pole remains the physical mean-latency coordinate and
+        // drives the separate calibrated finger/thumb/dead contact path.
         float excitationModalCoefficient { 0.99f };
         // The plectrum does not leave every string equally quickly. The
         // release's own duration low-passes the excitation, and its corner
@@ -1351,8 +1459,7 @@ private:
         float noiseLengthDenominator { 1.0f };
         float excitationPulseCoefficient { 0.5f };
         OnePole excitationShaper {};
-        OnePole excitationModalShaper1 {};
-        OnePole excitationModalShaper2 {};
+        ModalReleaseFilter excitationModalShaper {};
         OnePole excitationReleaseShaper {};
         // The reflected excitation image has travelled to the pick and back
         // through the same lossy, dispersive string, so it returns darker than
@@ -1395,6 +1502,12 @@ private:
         // Symmetric history reads have no additional group delay.
         float releaseSpectralDepth { 0.0f };
         float releaseSpectralTarget { 0.0f };
+        // An ordinary plectrum opens an existing stopping hand over its actual
+        // Contact, rather than switching the old loop back to full sustain.
+        // Progress uses excitationRemaining; no independent clock is added.
+        int releaseRestoreLength { 0 };
+        float releaseRestoreStartGain { 1.0f };
+        float releaseRestoreStartDepth { 0.0f };
         bool releaseNoiseDone { true };
         // Peak of the existing displacement-energy follower since the last
         // picked attack. A note ending follows the string still under the hand,
@@ -1608,6 +1721,12 @@ private:
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
+                                       float omegaHigh, float intrinsicPole,
+                                       float intrinsicGain) noexcept;
+    static float loopLossPhaseDelay(const LoopFilterBank &loop, float omega) noexcept;
+#endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
     // requested ratio of decay times. Both the played strings' damping solve
@@ -1630,7 +1749,17 @@ private:
     // fundamental, for the current string set and build. Shared for the same
     // reason: a coupled string is the same piece of steel as a played one.
     [[nodiscard]] float highFrequencyDecayRatio(int stringIndex) const noexcept;
+    [[nodiscard]] float highFrequencyDecayRatioAtAge(int stringIndex,
+                                                     float age) const noexcept;
     [[nodiscard]] float intrinsicStringT60(int stringIndex, float liveFret) const noexcept;
+    [[nodiscard]] float intrinsicStringT60AtAge(int stringIndex, float liveFret,
+                                                float age) const noexcept;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    void configureIntrinsicLossCorrection(PolarisationLoop &loop, int stringIndex,
+                                          float liveFret, float f0, float omega0,
+                                          float omegaHigh, float t60Scale,
+                                          float gainCeiling) const noexcept;
+#endif
     void configureBassMaterialLoss(PolarisationLoop& loop, float f0, float fHigh,
                                    float intrinsicT60, float intrinsicT60High,
                                    float polarisationScale) noexcept;
@@ -1725,6 +1854,17 @@ private:
     void startExcitation(Voice& voice, float velocity, bool legato,
                          bool preservesExistingStringState) noexcept;
     [[nodiscard]] int plectrumContactSamples(const Voice& voice) const noexcept;
+    [[nodiscard]] static float refretBankPhaseDelay(
+        const LoopFilterBank& bank, float physicalPeriod) noexcept;
+    static void copyLoopFilterState(LoopFilterBank& target,
+                                     const LoopFilterBank& source) noexcept;
+    void captureRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                const PolarisationLoop& loop,
+                                float physicalPeriod) const noexcept;
+    static void retargetRefretEndpoint(RefretFilterEndpoint& endpoint,
+                                        float physicalPeriod,
+                                        float physicalPending,
+                                        float polarisationScale) noexcept;
     void beginRefretHandoff(Voice& voice, int durationSamples,
                             bool keepsUnperformedSource) noexcept;
 #if ELECTRY_ANALYTIC_RELEASE_IC

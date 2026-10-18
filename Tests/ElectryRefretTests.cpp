@@ -77,8 +77,18 @@ struct ElectryEngineTestAccess
         std::array<double, 2> ap {};
         double pole = 0;
         double gain = 0;
+        std::array<double, 5> loss{1, 0, 0, 0, 0};
+        double lossB3 = 0;
         std::array<double, 5> material {1, 0, 0, 0, 0};
         std::array<double, 5> hand {1, 0, 0, 0, 0};
+        std::array<double, 2> sourceAp {};
+        double sourcePole = 0;
+        double sourceGain = 0;
+        std::array<double, 5> sourceMaterial {1, 0, 0, 0, 0};
+        std::array<double, 5> sourceHand {1, 0, 0, 0, 0};
+        double sourcePhysicalPeriod = 0;
+        std::array<double, 5> sourceLoss {1, 0, 0, 0, 0};
+        double sourceLossB3 = 0;
     };
 
 #ifndef ELECTRY_REFRET_TEST_BASELINE
@@ -97,27 +107,42 @@ struct ElectryEngineTestAccess
     {
         auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
         auto& loop = voice.vertical;
-        // Constant disjoint interpolation neighborhoods make the two actual
-        // cubic readers independent known inputs, regardless of their fraction.
+        // Observe the actual mixed feedback write, with identity banks and
+        // no external drive. Keeping distinct disjoint neighborhoods makes
+        // both fractional reads independently known even with separate banks.
+        const float sourceDelay = loop.refretSource.valid
+            ? loop.refretSource.rawDelay
+            : loop.currentDelay + voice.refretVerticalOffset;
+        const float targetDelay = loop.refretFrozenDestination.valid
+            ? loop.refretFrozenDestination.rawDelay : loop.currentDelay;
         loop.line.fill(.25f);
         const int destination = loop.writeIndex
-                              - static_cast<int>(std::ceil(loop.currentDelay));
+                              - static_cast<int>(std::ceil(targetDelay));
         for (int offset = -1; offset <= 2; ++offset)
             loop.line[static_cast<std::size_t>((destination + offset)
                                               & (ElectryEngine::delayLineSize - 1))] = .75f;
-        const float source = loop.readFractional(
-            loop.currentDelay + voice.refretVerticalOffset);
-        const float target = loop.readFractional(loop.currentDelay);
-        // A DF-II first allpass beginning at zero stores its actual input in
-        // state. Observe that production sample, before subsequent recursive
-        // filters, rather than repeating the production fade polynomial.
-        loop.dispersion1.state = 0;
+        const float source = loop.readFractional(sourceDelay);
+        const float target = loop.readFractional(targetDelay);
+        const auto identity = [] (ElectryEngine::LoopFilterBank& bank)
+        {
+            bank = {};
+            bank.dispersionLowCoefficient = bank.dispersionHighCoefficient = 1;
+            bank.loopDampingCoefficient = 0;
+            bank.loopGain = 1;
+        };
+        identity(loop);
+        identity(loop.refretSource.bank);
+        identity(loop.refretFrozenDestination.bank);
         engine.sympatheticBus_ = engine.sympatheticBusDelayed_ = 0;
         voice.busContribution = 0;
-        engine.feedbackDrive_ = 0;
+        voice.polarisationCoupling = 0;
+        voice.releaseGain = 1;
+        voice.releaseSpectralDepth = 0;
+        engine.feedbackDrive_ = engine.bridgeCouplingInjection_ = 0;
+        const int writtenIndex = loop.writeIndex;
         ElectryEngine::RenderSums sums {};
         engine.renderVoice(voice, sums);
-        return (static_cast<double>(loop.dispersion1.state) - source)
+        return (static_cast<double>(loop.line[static_cast<std::size_t>(writtenIndex)]) - source)
              / (static_cast<double>(target) - source);
     }
 #endif
@@ -214,12 +239,238 @@ struct ElectryEngineTestAccess
             return std::array<double, 5> {biquad.b0, biquad.b1, biquad.b2,
                                           biquad.a1, biquad.a2};
         };
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        if (loop.lossShelfActive)
+        {
+            result.lossB3 = loop.lossShelfB3;
+            result.loss = coefficients(loop.lossShelf);
+        }
+#endif
         if (loop.materialLossDepth > 0)
             result.material = coefficients(loop.materialLossDip);
         if (loop.handDipActive)
             result.hand = coefficients(loop.handDip);
+        result.sourceAp = result.ap;
+        result.sourcePole = result.pole;
+        result.sourceGain = result.gain;
+        result.sourceMaterial = result.material;
+        result.sourceHand = result.hand;
+        result.sourceLoss = result.loss;
+        result.sourceLossB3 = result.lossB3;
+        result.sourcePhysicalPeriod = result.physicalPeriod + result.oldDelay - result.delay;
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+        if (voice.refretRemainingSamples > 0 && loop.refretSource.valid)
+        {
+            const auto& endpoint = loop.refretSource;
+            result.oldDelay = endpoint.rawDelay;
+            result.sourceAp = {endpoint.bank.dispersionLowCoefficient,
+                                endpoint.bank.dispersionHighCoefficient};
+            result.sourcePole = endpoint.bank.loopDampingCoefficient;
+            result.sourceGain = endpoint.bank.loopGain;
+            result.sourceMaterial = endpoint.bank.materialLossDepth > 0
+                ? coefficients(endpoint.bank.materialLossDip)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+            result.sourceHand = endpoint.bank.handDipActive
+                ? coefficients(endpoint.bank.handDip)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+            result.sourcePhysicalPeriod = endpoint.physicalPeriod - endpoint.physicalPending;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            result.sourceLoss = endpoint.bank.lossShelfActive
+                ? coefficients(endpoint.bank.lossShelf)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+            result.sourceLossB3 = endpoint.bank.lossShelfActive ? endpoint.bank.lossShelfB3 : 0;
+#endif
+        }
+        if (voice.refretRemainingSamples > 0 && loop.refretFrozenDestination.valid)
+        {
+            const auto& endpoint = loop.refretFrozenDestination;
+            result.delay = endpoint.rawDelay;
+            result.physicalPeriod = endpoint.physicalPeriod - endpoint.physicalPending;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            result.loss = endpoint.bank.lossShelfActive
+                ? coefficients(endpoint.bank.lossShelf)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+            result.lossB3 = endpoint.bank.lossShelfActive ? endpoint.bank.lossShelfB3 : 0;
+#endif
+            result.ap = {endpoint.bank.dispersionLowCoefficient,
+                          endpoint.bank.dispersionHighCoefficient};
+            result.pole = endpoint.bank.loopDampingCoefficient;
+            result.gain = endpoint.bank.loopGain;
+            result.material = endpoint.bank.materialLossDepth > 0
+                ? coefficients(endpoint.bank.materialLossDip)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+            result.hand = endpoint.bank.handDipActive
+                ? coefficients(endpoint.bank.handDip)
+                : std::array<double, 5>{1, 0, 0, 0, 0};
+        }
+#endif
         return result;
     }
+
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+    static bool banksRetired(const ElectryEngine& engine, int index)
+    {
+        const auto& v = engine.voices_[static_cast<std::size_t>(index)];
+        return v.refretRemainingSamples == 0
+            && !v.vertical.refretSource.valid && !v.horizontal.refretSource.valid
+            && !v.vertical.refretFrozenDestination.valid
+            && !v.horizontal.refretFrozenDestination.valid;
+    }
+
+    static double frozenNominalFrequency(const ElectryEngine& engine, int index)
+    {
+        const auto& endpoint = engine.voices_[static_cast<std::size_t>(index)]
+            .vertical.refretFrozenDestination;
+        return endpoint.valid ? endpoint.nominalFrequency : 0;
+    }
+
+    static double fingerFromFrequency(const ElectryEngine& engine, int index)
+    {
+        return engine.voices_[static_cast<std::size_t>(index)].legatoFromFrequency;
+    }
+
+    static bool adoptedIncomingRetainsHistory(const ElectryEngine& adopted,
+                                               const ElectryEngine& before,
+                                               int index)
+    {
+        const auto& a = adopted.voices_[static_cast<std::size_t>(index)];
+        const auto& b = before.voices_[static_cast<std::size_t>(index)];
+        const auto history = [] (const ElectryEngine::LoopFilterBank& bank)
+        {
+            return std::vector<double> {
+                bank.damping.state,
+                bank.dispersion1.state, bank.dispersion2.state,
+                bank.dispersion3.state, bank.dispersion4.state,
+                bank.dispersion5.state, bank.dispersion6.state,
+                bank.dispersion7.state, bank.dispersion8.state,
+                bank.materialLossDip.z1, bank.materialLossDip.z2,
+                bank.handDip.z1, bank.handDip.z2,
+                bank.handEnvelope, bank.handEnvelopePeak,
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+                bank.lossShelf.z1, bank.lossShelf.z2, bank.lossShelfZ3,
+#endif
+            };
+        };
+        for (int axis = 0; axis < 2; ++axis)
+        {
+            const auto& old = (axis ? b.horizontal : b.vertical).refretFrozenDestination;
+            const auto& live = axis ? a.horizontal : a.vertical;
+            if (!old.valid || live.refretFrozenDestination.valid
+                || history(old.bank) != history(live))
+                return false;
+        }
+        return true;
+    }
+
+    static void seedFeedbackWitness(ElectryEngine& engine, int index, int phase)
+    {
+        auto& v = engine.voices_[static_cast<std::size_t>(index)];
+        for (auto* loop : {&v.vertical, &v.horizontal})
+        {
+            const float axis = loop == &v.vertical ? 1.0f : .6f;
+            for (std::size_t n = 0; n < loop->line.size(); ++n)
+                loop->line[n] = axis * static_cast<float>(
+                    .012 * std::sin(.017 * static_cast<double>(n) + phase)
+                    + .007 * std::cos(.23 * static_cast<double>(n) + .4 * phase));
+            loop->dispersionLowCoefficient = phase % 2 ? -.915f : 0.0f;
+            loop->dispersionHighCoefficient = -.96f;
+            loop->loopDampingCoefficient = .83f;
+            loop->loopGain = .97f;
+            loop->damping.state = .015f * axis;
+            loop->dispersion1.state = .01f * axis;
+            loop->dispersion2.state = -.03f * axis;
+            loop->dispersion3.state = .07f * axis;
+            loop->dispersion4.state = -.11f * axis;
+            loop->dispersion5.state = .17f * axis;
+            loop->dispersion6.state = -.21f * axis;
+            loop->dispersion7.state = .23f * axis;
+            loop->dispersion8.state = -.29f * axis;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            loop->lossShelf.z1 = .000031 * axis;
+            loop->lossShelf.z2 = -.000027 * axis;
+            loop->lossShelfZ3 = .000019 * axis;
+#endif
+            loop->materialLossDip.z1 = .00017 * axis;
+            loop->materialLossDip.z2 = -.00011 * axis;
+            loop->handDip.z1 = -.00013 * axis;
+            loop->handDip.z2 = .00019 * axis;
+            loop->handEnvelope = .01f * axis;
+            loop->handEnvelopePeak = .02f * axis;
+        }
+        neutraliseFeedbackProbe(engine, index);
+    }
+
+    static void neutraliseFeedbackProbe(ElectryEngine& engine, int index)
+    {
+        auto& v = engine.voices_[static_cast<std::size_t>(index)];
+        v.excitationPhase = ElectryEngine::ExcitationPhase::Idle;
+        v.noiseRemaining = 0;
+        v.touchDepth = 0;
+        v.releasing = false;
+        v.releaseGain = 1;
+        v.releaseSpectralDepth = 0;
+        v.polarisationCoupling = 0;
+        engine.sympatheticBus_ = engine.sympatheticBusDelayed_ = 0;
+        v.busContribution = 0;
+        engine.bridgeCouplingInjection_ = engine.feedbackDrive_ = 0;
+    }
+
+    static std::array<float, 2> feedbackTick(ElectryEngine& engine, int index)
+    {
+        auto& v = engine.voices_[static_cast<std::size_t>(index)];
+        const auto written = static_cast<std::size_t>(v.vertical.writeIndex);
+        ElectryEngine::RenderSums sums {};
+        engine.renderVoice(v, sums);
+        return {v.vertical.line[written], v.horizontal.line[written]};
+    }
+
+    static bool sourceIsExactOldBank(const ElectryEngine& changed,
+                                      const ElectryEngine& old, int index,
+                                      bool checksRawDelay = true)
+    {
+        const auto& a = changed.voices_[static_cast<std::size_t>(index)];
+        const auto& b = old.voices_[static_cast<std::size_t>(index)];
+        for (int axis = 0; axis < 2; ++axis)
+        {
+            const auto& loop = axis ? a.horizontal : a.vertical;
+            const auto& prior = axis ? b.horizontal : b.vertical;
+            const auto& bank = loop.refretSource.bank;
+            if (!loop.refretSource.valid
+                || (checksRawDelay && loop.refretSource.rawDelay != prior.currentDelay)
+                || bank.dispersionLowCoefficient != prior.dispersionLowCoefficient
+                || bank.dispersionHighCoefficient != prior.dispersionHighCoefficient
+                || bank.loopDampingCoefficient != prior.loopDampingCoefficient
+                || bank.loopGain != prior.loopGain
+                || bank.damping.state != prior.damping.state
+                || bank.materialLossDip.z1 != prior.materialLossDip.z1
+                || bank.materialLossDip.z2 != prior.materialLossDip.z2
+                || bank.handDip.z1 != prior.handDip.z1
+                || bank.handDip.z2 != prior.handDip.z2)
+                return false;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            if (bank.lossShelf.z1 != prior.lossShelf.z1
+                || bank.lossShelf.z2 != prior.lossShelf.z2
+                || bank.lossShelfZ3 != prior.lossShelfZ3
+                || bank.lossShelfB3 != prior.lossShelfB3
+                || bank.lossShelfDepth != prior.lossShelfDepth
+                || bank.lossShelfActive != prior.lossShelfActive)
+                return false;
+#endif
+            const std::array<float, 8> stateA {
+                bank.dispersion1.state, bank.dispersion2.state,
+                bank.dispersion3.state, bank.dispersion4.state,
+                bank.dispersion5.state, bank.dispersion6.state,
+                bank.dispersion7.state, bank.dispersion8.state};
+            const std::array<float, 8> stateB {
+                prior.dispersion1.state, prior.dispersion2.state,
+                prior.dispersion3.state, prior.dispersion4.state,
+                prior.dispersion5.state, prior.dispersion6.state,
+                prior.dispersion7.state, prior.dispersion8.state};
+            if (stateA != stateB) return false;
+        }
+        return true;
+    }
+#endif
 
     static bool finiteString(const ElectryEngine& engine, int stringIndex)
     {
@@ -275,28 +526,40 @@ std::complex<double> readTransfer(double delay, double omega)
     return result;
 }
 
-std::complex<double> biquadTransfer(const std::array<double, 5>& b,
-                                   std::complex<double> z)
+std::complex<double> biquadTransfer(const std::array<double, 5> &b,
+                                    std::complex<double> z, double b3 = 0)
 {
-    return (b[0] + b[1] * z + b[2] * z * z)
-        / (1.0 + b[3] * z + b[4] * z * z);
+    return (b[0] + b[1] * z + b[2] * z * z + b3 * z * z * z) /
+           (1.0 + b[3] * z + b[4] * z * z);
 }
 
 std::complex<double> loopTransfer(const State& state, double frequency)
 {
     const double omega = 2 * pi * frequency / state.rate;
     const auto z = std::polar(1.0, -omega);
-    auto transfer = (1 - state.newWeight) * readTransfer(state.oldDelay, omega)
-                  + state.newWeight * readTransfer(state.delay, omega);
-    for (const double coefficient : state.ap)
+    const auto filtered = [&] (double delay, const std::array<double, 2>& ap,
+                               double pole, double gain,
+                               const std::array<double, 5>& material,
+                               const std::array<double, 5>& hand,
+                               const std::array<double, 5>& loss, double lossB3)
     {
-        const auto stage = (coefficient + z) / (1.0 + coefficient * z);
-        transfer *= stage * stage * stage * stage;
-    }
-    transfer *= state.gain * (1 - state.pole) / (1.0 - state.pole * z);
-    transfer *= biquadTransfer(state.material, z);
-    transfer *= biquadTransfer(state.hand, z);
-    return transfer;
+        auto transfer = readTransfer(delay, omega);
+        for (const double coefficient : ap)
+        {
+            const auto stage = (coefficient + z) / (1.0 + coefficient * z);
+            transfer *= stage * stage * stage * stage;
+        }
+        transfer *= gain * (1 - pole) / (1.0 - pole * z);
+        transfer *= biquadTransfer(loss, z, lossB3);
+        transfer *= biquadTransfer(material, z);
+        transfer *= biquadTransfer(hand, z);
+        return transfer;
+    };
+    return (1 - state.newWeight) * filtered(state.oldDelay, state.sourceAp,
+                    state.sourcePole, state.sourceGain, state.sourceMaterial, state.sourceHand,
+                    state.sourceLoss, state.sourceLossB3)
+        + state.newWeight * filtered(state.delay, state.ap, state.pole,
+                                     state.gain, state.material, state.hand, state.loss, state.lossB3);
 }
 
 // Lowest nonzero positive-real phase closure in the low-frequency region.
@@ -768,8 +1031,8 @@ void liveExpressionMovesBothHandoffEndpoints()
                    "Expression fixture escaped its active handoff");
             expect(after.physicalPeriod < before.physicalPeriod - 1,
                    "An active fret handoff froze global/member bend at its destination");
-            const double sourceBefore = before.physicalPeriod + before.oldDelay - before.delay;
-            const double sourceAfter = after.physicalPeriod + after.oldDelay - after.delay;
+            const double sourceBefore = before.sourcePhysicalPeriod;
+            const double sourceAfter = after.sourcePhysicalPeriod;
             expect(sourceAfter < sourceBefore - 1,
                    "An active fret handoff froze global/member bend at its source");
             expect(std::abs(sourceAfter / sourceBefore
@@ -795,8 +1058,8 @@ void liveExpressionMovesBothHandoffEndpoints()
     const auto unchanged = electry::ElectryEngineTestAccess::state(*control, 2);
     expect(after.locked && after.physicalPeriod < unchanged.physicalPeriod - .01,
            "An active fret handoff froze its live finger-vibrato coordinate");
-    expect(after.physicalPeriod + after.oldDelay - after.delay
-               < unchanged.physicalPeriod + unchanged.oldDelay - unchanged.delay - .01,
+    expect(after.sourcePhysicalPeriod
+               < unchanged.sourcePhysicalPeriod - .01,
            "Finger vibrato failed to move the source boundary period");
     expect(after.newWeight == unchanged.newWeight
                && after.transitionRemaining == before.transitionRemaining - 8,
@@ -1201,8 +1464,163 @@ void memberBendCannotRetuneTheReleasedRefret()
 }
 }
 
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+void pickedRefretPreservesActualOldFeedbackAtZeroWeight()
+{
+    constexpr std::array<int, 8> open {28, 35, 40, 45, 50, 55, 59, 64};
+    for (const double rate : {44100., 48000., 96000., 384000.})
+        for (int string = 0; string < 8; ++string)
+            for (int phase = 0; phase < 3; ++phase)
+                for (const bool sameClockReplacement : {false, true})
+                {
+                    auto changed = makeEngine(rate, string);
+                    const int note = open[static_cast<std::size_t>(string)] + 2;
+                    changed->noteOn(note, .85f);
+                    render(*changed, 64);
+                    electry::ElectryEngineTestAccess::seedFeedbackWitness(*changed, string, phase);
+                    auto old = std::make_unique<electry::ElectryEngine>(*changed);
+                    changed->noteOn(note + 1, .85f);
+                    if (sameClockReplacement) changed->noteOn(note + 2, .85f);
+                    electry::ElectryEngineTestAccess::neutraliseFeedbackProbe(*changed, string);
+                    expect(electry::ElectryEngineTestAccess::sourceIsExactOldBank(*changed, *old, string),
+                           "Refret zero-weight source changed raw tap, coefficients or running state");
+                    const auto expected = electry::ElectryEngineTestAccess::feedbackTick(*old, string);
+                    const auto actual = electry::ElectryEngineTestAccess::feedbackTick(*changed, string);
+                    expect(actual == expected,
+                           "Refret first feedback sample differs from the unretargeted old string");
+                    expect(electry::ElectryEngineTestAccess::sourceIsExactOldBank(*changed, *old, string, false),
+                           "Refret outgoing recurrence differs from the unretargeted old string");
+                }
+}
+
+void retiredRefretBanksCannotLeakIntoLaterContacts()
+{
+    for (const double rate : {44100., 48000., 96000., 384000.})
+    {
+        auto engine = makeEngine(rate, 2);
+        engine->noteOn(47, .85f);
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(59, .85f); // legacy immediate large-hop contract
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A non-handoff large jump retained a stale filter endpoint");
+        engine->noteOn(59, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A same-pitch contact inherited a stale filter endpoint");
+        engine->noteOn(60, .85f);
+        engine->noteOff(60);
+        render(*engine, static_cast<int>(rate * .03));
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A cancelled pending fret contact retained a filter endpoint");
+        engine->noteOn(59, .85f);
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(60, .85f);
+        engine->reset();
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "Reset retained a filter bank from an interrupted boundary");
+        engine->noteOn(47, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A fresh note inherited a retired filter endpoint");
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(47, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A fresh same-note repick inherited a retired filter endpoint");
+    }
+}
+
+void fingerGesturesAdoptTheAudibleQueuedEndpoint()
+{
+    for (const auto style : {electry::PlayStyle::Hammer, electry::PlayStyle::Slide})
+        for (const bool member : {false, true})
+            for (const float wideBend : {0.0f, -72.0f, 72.0f})
+            {
+                auto engine = makeEngine(48000, 2);
+                const auto id = member ? 7 : electry::ElectryEngine::legacyExpressionId;
+                engine->noteOn(47, .85f, id);
+                render(*engine, 2400);
+                electry::ElectryEngineTestAccess::seedFeedbackWitness(*engine, 2, member ? 1 : 2);
+                engine->noteOn(48, .85f, id);
+                render(*engine, 1);
+                engine->noteOn(49, .85f, id);
+                electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, wideBend);
+                render(*engine, 1);
+                const double from = electry::ElectryEngineTestAccess::frozenNominalFrequency(*engine, 2);
+                expect(from > 0, "Finger-adoption witness did not freeze an audible incoming bank");
+                const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+                auto history = std::make_unique<electry::ElectryEngine>(*engine);
+                engine->noteOn(electry::ElectryEngine::firstPlayStyleKeyswitchNote
+                                  + static_cast<int>(style), 1);
+                engine->noteOn(50, .85f, id);
+                expect(electry::ElectryEngineTestAccess::frozenNominalFrequency(*engine, 2) == 0,
+                       "A finger gesture left its adopted incoming filter bank frozen");
+                expect(electry::ElectryEngineTestAccess::fingerFromFrequency(*engine, 2) == from,
+                       "A finger gesture started at the unheard queued fret or clamped frequency");
+                const auto adopted = electry::ElectryEngineTestAccess::state(*engine, 2);
+                expect(electry::ElectryEngineTestAccess::adoptedIncomingRetainsHistory(*engine, *history, 2),
+                       "Finger adoption reset a warmed allpass, loop-loss or hand-contact history");
+                expect(!adopted.queued && !adopted.locked && adopted.transitionRemaining > 0,
+                       "Finger adoption changed the existing boundary clock or retained a queued fret");
+                if (wideBend == 0)
+                {
+                    auto a = before, b = adopted;
+                    a.newWeight = b.newWeight = 0;
+                    expect(std::abs(1200 * std::log2(frozenFundamental(b) / frozenFundamental(a))) < .00001,
+                           "Finger adoption retuned the independently owned outgoing bank");
+                }
+                electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, 0);
+                render(*engine, 24000);
+                const auto settled = electry::ElectryEngineTestAccess::state(*engine, 2);
+                expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+                       "A completed finger adoption retained a stale filter endpoint");
+                expect(destinationReachedWithOnlyEnergyAttackMotion(settled),
+                       "A queued finger adoption ratcheted pitch after a wide expression limit returned");
+            }
+}
+
+void queuedRefretPreservesBothAudibleBanks()
+{
+    for (const double rate : {44100., 48000., 96000., 384000.})
+        for (const int phase : {0, 1, 2})
+        {
+            auto changed = makeEngine(rate, 0);
+            changed->noteOn(28, .85f);
+            render(*changed, 64);
+            electry::ElectryEngineTestAccess::seedFeedbackWitness(*changed, 0, phase);
+            changed->noteOn(29, .85f);
+            electry::ElectryEngineTestAccess::neutraliseFeedbackProbe(*changed, 0);
+            const int length = electry::ElectryEngineTestAccess::state(*changed, 0).transitionRemaining;
+            for (int n = 0; n < length / 3; ++n)
+                (void) electry::ElectryEngineTestAccess::feedbackTick(*changed, 0);
+            auto old = std::make_unique<electry::ElectryEngine>(*changed);
+            changed->noteOn(30, .85f);
+            changed->noteOn(31, .85f); // coalesced latest queued target
+            electry::ElectryEngineTestAccess::neutraliseFeedbackProbe(*changed, 0);
+            const int remaining = electry::ElectryEngineTestAccess::state(*old, 0).transitionRemaining;
+            expect(electry::ElectryEngineTestAccess::state(*changed, 0).queued,
+                   "Queued-bank witness did not create a deferred fret boundary");
+            for (int n = 0; n < remaining; ++n)
+            {
+                const auto expected = electry::ElectryEngineTestAccess::feedbackTick(*old, 0);
+                const auto actual = electry::ElectryEngineTestAccess::feedbackTick(*changed, 0);
+                expect(actual == expected,
+                       "A queued refret changed a currently audible bank before its boundary");
+            }
+            expect(electry::ElectryEngineTestAccess::sourceIsExactOldBank(*changed, *old, 0),
+                   "Queued handoff did not promote the completed running incoming bank");
+            expect(electry::ElectryEngineTestAccess::feedbackTick(*changed, 0)
+                       == electry::ElectryEngineTestAccess::feedbackTick(*old, 0),
+                   "Queued handoff first sample lost the completed incoming recurrence");
+        }
+}
+#endif
+
 int main()
 {
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+    pickedRefretPreservesActualOldFeedbackAtZeroWeight();
+    queuedRefretPreservesBothAudibleBanks();
+    retiredRefretBanksCannotLeakIntoLaterContacts();
+    fingerGesturesAdoptTheAudibleQueuedEndpoint();
+#endif
     pickedPitchSettlesBeforeRelease();
     handoffHasStableEndpointTaps();
     repicksKeepTheExistingSmallAttackPitch();

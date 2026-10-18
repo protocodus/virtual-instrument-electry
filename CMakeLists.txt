@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.5 LANGUAGES C CXX)
+project(Electry VERSION 1.2.6 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -65,6 +65,12 @@ option(ELECTRY_PASSIVE_REPICK_SPRING
     "Build the default-off passive dynamic repick-contact candidate" OFF)
 option(ELECTRY_REFERENCE_STRING_MASS
     "Use the published XL wound-string reference mass" ON)
+option(ELECTRY_INTRINSIC_LOSS_FRESH
+    "Reference loss correction to a fresh string, preserving age increments" ON)
+option(ELECTRY_INTRINSIC_LOSS_LOWPASS
+    "Use maximally flat lowpass instead of bounded intrinsic shelf" OFF)
+option(ELECTRY_BUTTERWORTH_LOSS_SHELF
+    "Use the bounded fresh-string intrinsic loss correction" ON)
 option(ELECTRY_MODAL_DISPERSION_FIT
     "Use the stretched-modal dispersion fitter" ON)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
@@ -132,7 +138,10 @@ endif()
 
 target_compile_definitions(ElectryDSP PUBLIC
     ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
-    ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
+    ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>
+    ELECTRY_BUTTERWORTH_LOSS_SHELF=$<BOOL:${ELECTRY_BUTTERWORTH_LOSS_SHELF}>
+    ELECTRY_INTRINSIC_LOSS_FRESH=$<BOOL:${ELECTRY_INTRINSIC_LOSS_FRESH}>
+    ELECTRY_INTRINSIC_LOSS_LOWPASS=$<BOOL:${ELECTRY_INTRINSIC_LOSS_LOWPASS}>)
 
 if(ELECTRY_MEASURED_MODERN_CABINET)
     target_compile_definitions(ElectryDSP PUBLIC
@@ -175,7 +184,10 @@ if(NOT MSVC)
         ELECTRY_DECOUPLED_PICK_RELEASE=1
         ELECTRY_ENERGY_ATTACK_PITCH=1
         ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
-        ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>)
+        ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>
+        ELECTRY_BUTTERWORTH_LOSS_SHELF=$<BOOL:${ELECTRY_BUTTERWORTH_LOSS_SHELF}>
+        ELECTRY_INTRINSIC_LOSS_FRESH=$<BOOL:${ELECTRY_INTRINSIC_LOSS_FRESH}>
+        ELECTRY_INTRINSIC_LOSS_LOWPASS=$<BOOL:${ELECTRY_INTRINSIC_LOSS_LOWPASS}>)
     target_compile_options(ElectryDSPCxx17 PRIVATE
         -Wall -fno-exceptions -fno-rtti -fno-builtin)
 endif()
@@ -183,6 +195,9 @@ endif()
 add_executable(ElectryRenderRealismComparison Tools/RenderRealismComparison.cpp)
 target_link_libraries(ElectryRenderRealismComparison PRIVATE ElectryDSP)
 if(BUILD_TESTING)
+    add_executable(ElectryLoopLossShelfTests Tests/LoopLossShelfTests.cpp)
+    target_link_libraries(ElectryLoopLossShelfTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.LoopLossShelf COMMAND ElectryLoopLossShelfTests)
     add_executable(ElectryIdlePickupObservationTests Tests/IdlePickupObservationTests.cpp)
     target_link_libraries(ElectryIdlePickupObservationTests PRIVATE ElectryDSP)
     add_test(NAME Electry.IdlePickupObservation COMMAND ElectryIdlePickupObservationTests)
@@ -425,6 +440,16 @@ if(BUILD_TESTING)
     add_executable(ElectryRealismDecayTests Tests/RealismDecayTests.cpp)
     target_link_libraries(ElectryRealismDecayTests PRIVATE ElectryDSP)
     add_test(NAME Electry.RealismDecay COMMAND ElectryRealismDecayTests)
+
+    add_executable(ElectryRealismModalReleaseTests
+        Tests/RealismModalReleaseTests.cpp)
+    target_link_libraries(ElectryRealismModalReleaseTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.RealismModalRelease COMMAND ElectryRealismModalReleaseTests)
+
+    add_executable(ElectryReleaseRestorationTests
+        Tests/ElectryReleaseRestorationTests.cpp)
+    target_link_libraries(ElectryReleaseRestorationTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.ReleaseRestoration COMMAND ElectryReleaseRestorationTests)
 
     add_executable(ElectryEngineTests Tests/ElectryEngineTests.cpp)
     target_link_libraries(ElectryEngineTests PRIVATE ElectryDSP)

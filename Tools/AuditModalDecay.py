@@ -48,13 +48,17 @@ def transfer_and_log_derivative(row, s):
     a = row["pole"]
     h *= row["gain"] * (1 - a) / (1 - a * q)
     derivative -= a * q / (1 - a * q)
-    for coefficients in (row["material"], row["hand"]):
+    for coefficients, b3 in ((row["material"], 0), (row["hand"], 0),
+            (row.get("loss", [1,0,0,0,0]), row.get("loss_b3", 0))):
         b0, b1, b2, a1, a2 = coefficients
-        numerator = b0 + b1 * q + b2 * q * q
+        numerator = b0 + b1 * q + b2 * q * q + b3 * q * q * q
         denominator = 1 + a1 * q + a2 * q * q
         h *= numerator / denominator
-        derivative += (-b1 * q - 2 * b2 * q * q) / numerator
+        derivative += (-b1 * q - 2 * b2 * q * q - 3 * b3 * q * q * q) / numerator
         derivative -= (-a1 * q - 2 * a2 * q * q) / denominator
+    zero = row.get("loss_zero", 0)
+    h *= row.get("loss_gain", 1) * (1 - zero * q)
+    derivative += zero * q / (1 - zero * q)
     return h, derivative
 
 

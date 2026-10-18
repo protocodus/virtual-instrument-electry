@@ -4,6 +4,39 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — low-partial body and upper-band sustain
+
+Under the user's continued autonomous-selection instruction, select source
+`46f4a49127c53e148ef83f88000e1495f8e2a068` against shipping `3df6a10` for 1.2.6.
+This is an engineering selection, not a new listener vote. A standard Bessel
+release matches the old source's unit area and mean latency; a bounded
+fresh-string loss correction changes upper curvature between the existing
+anchors while preserving age and hand increments. Complete outgoing filter
+banks and owned physical coordinates protect small picked fret transitions,
+queued changes and interrupted slides/hammers. Ordinary stopped repicks use
+the existing Contact clock for finite stop opening.
+
+Keep Palm's established opening at actual arrival with its qualified Bessel
+tone. Finite Palm opening removed an old returning unmute packet, but failed
+the unchanged processed-body rail. Reject geometry and source-order attempts
+that fail other checks, and the legacy projection rollback that breaks fresh
+Palm contrast. Retain the existing large-jump choke; adding its full-bank fade
+did not consistently improve the two worst witnesses. These residual packets
+are documented limitations, not newly validated guitar body.
+
+Across all 24 frozen dry-reference body windows, H1-share error improves in
+23 and H2/H1 and H3/H1 errors each improve in 22. Five of six admitted upper
+band slopes move closer. The late Palm window, ordinary F2 upper slope,
+remaining Sire body gap and every rapid-play increase remain visible. No
+recording-derived EQ, output makeup, new fitted transition time or relaxed
+behavioral threshold is used. Complete-source tone centers are independently
+refreshed with their old margins and a separate old peak ceiling.
+
+See the [research](research/tone-body-2026-10-18.md),
+[validation](validation/tone-body-2026-10-18.md) and frozen room
+`http://127.0.0.1:8726/`. Earlier rooms remain intact. Merge is authorized only
+after all required CI and review feedback are green.
+
 ## 2026-10-18 — reduce fixed-tap handoff coloration
 
 Under the user's continued autonomous-selection instruction, select the C2
