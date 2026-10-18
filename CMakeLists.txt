@@ -70,7 +70,7 @@ option(ELECTRY_INTRINSIC_LOSS_FRESH
 option(ELECTRY_INTRINSIC_LOSS_LOWPASS
     "Use maximally flat lowpass instead of bounded intrinsic shelf" OFF)
 option(ELECTRY_BUTTERWORTH_LOSS_SHELF
-    "Build the default-off two-anchor passive loss shelf prototype" OFF)
+    "Use the bounded fresh-string intrinsic loss correction" ON)
 option(ELECTRY_MODAL_DISPERSION_FIT
     "Use the stretched-modal dispersion fitter" ON)
 set(ELECTRY_JUCE_PATH "" CACHE PATH
