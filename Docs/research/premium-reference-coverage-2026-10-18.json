@@ -1,0 +1,377 @@
+{
+  "schema": "electry-premium-reference-coverage/v1",
+  "audit_utc": "2026-10-18T19:34:02.211690+00:00",
+  "inspected_shipping_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+  "purpose": "Reference coverage and acquisition evidence only. No DSP edit, new tone measurement, model fit, or authenticity score.",
+  "goal_status": "Incomplete and unproven at the premium exact-eight, cross-genre, 95%-closeness scope.",
+  "sources": [
+    {
+      "id": "polymap",
+      "primary_urls": {
+        "paper": "https://arxiv.org/html/2608.27522v1",
+        "creator": "https://darkartguitars.com/blog/polymap",
+        "source": "https://github.com/IIP-Group/polymap",
+        "audio_index": "https://iis-people.ee.ethz.ch/~datasets/PolyMap/"
+      },
+      "instrument": {
+        "strings": 8,
+        "construction": "custom guitar by creator",
+        "sensor": "8 simultaneous Cycfi Nu pickup locations per string",
+        "gauge": null,
+        "tuning": null,
+        "scale_length_mm": null,
+        "bridge_to_sensor_mm": null,
+        "pickup_height_mm": null,
+        "per_note_articulation_annotations": false,
+        "unknown_fields": "Not supplied by the inspected primary paper and archive; photographs and third-party descriptions are not treated as measurements."
+      },
+      "licenses": {
+        "audio": "CC-BY-NC-SA-4.0, verified archive readme and LICENSE",
+        "paper": "CC-BY-4.0",
+        "plugin_and_rtl": "MIT",
+        "hardware": "CERN-OHL-P-2.0"
+      },
+      "archive": {
+        "url": "https://iis-people.ee.ethz.ch/~datasets/PolyMap/PolyMap_Audio.zip",
+        "cache_path": "build-premium-reference-audit/PolyMap_Audio.zip",
+        "bytes": 733440293,
+        "sha256": "4c2d18a5cfb7219a9cbc985384aac7196cc2a86bc764b66c708b8bbdb37c8e47",
+        "member_count": 8,
+        "members": [
+          {
+            "name": "PolyMap_Audio/",
+            "bytes": 0,
+            "compressed": 0,
+            "crc32": "00000000"
+          },
+          {
+            "name": "__MACOSX/._PolyMap_Audio",
+            "bytes": 212,
+            "compressed": 135,
+            "crc32": "f8f7339e"
+          },
+          {
+            "name": "PolyMap_Audio/readme.md",
+            "bytes": 297,
+            "compressed": 214,
+            "crc32": "9ee1c265"
+          },
+          {
+            "name": "__MACOSX/PolyMap_Audio/._readme.md",
+            "bytes": 212,
+            "compressed": 135,
+            "crc32": "f8f7339e"
+          },
+          {
+            "name": "PolyMap_Audio/LICENSE.txt",
+            "bytes": 20850,
+            "compressed": 6389,
+            "crc32": "0cc56a67"
+          },
+          {
+            "name": "__MACOSX/PolyMap_Audio/._LICENSE.txt",
+            "bytes": 212,
+            "compressed": 135,
+            "crc32": "f8f7339e"
+          },
+          {
+            "name": "PolyMap_Audio/PolyMapDemoSong64Channel.wav",
+            "bytes": 895015602,
+            "compressed": 733431458,
+            "crc32": "e6ae9800"
+          },
+          {
+            "name": "__MACOSX/PolyMap_Audio/._PolyMapDemoSong64Channel.wav",
+            "bytes": 212,
+            "compressed": 135,
+            "crc32": "f8f7339e"
+          }
+        ],
+        "wav": {
+          "member": "PolyMap_Audio/PolyMapDemoSong64Channel.wav",
+          "bytes": 895015602,
+          "sha256": "c9b7bd3bb084d2c02039a6e5e6aca4cc694869df6ee370c7882dfe6e4493c89a",
+          "zip_crc_validated_on_complete_read": true,
+          "sample_rate_hz": 48000,
+          "channels": 64,
+          "bits_per_sample": 24,
+          "format": "PCM_LE",
+          "frames": 4661536,
+          "duration_s": 97.11533333333334,
+          "data_offset_bytes": 690
+        }
+      },
+      "verification": "Complete archive downloaded without account; complete WAV member streamed for ZIP CRC and SHA-256, header parsed. No musical signal analysis, playback-derived fit, conversion to product data, or addition to listening rooms.",
+      "use_limit": "NC audio excluded from product calibration, training, samples and public reference rooms. Published pickup-position method and results remain an independent primary research lead; this audit claims no commercial audio permission."
+    },
+    {
+      "id": "longitudinal_string_ageing",
+      "primary_urls": {
+        "record": "https://zenodo.org/records/19823590",
+        "api": "https://zenodo.org/api/records/19823590",
+        "author_manuscript": "https://www.pure.ed.ac.uk/ws/portalfiles/portal/656673718/A_Longitudinal_Dataset_for_Guitar_String_Ageing.pdf"
+      },
+      "license": "CC-BY-4.0, verified live Zenodo API metadata",
+      "instrument_profiles": [
+        {
+          "performer": 1,
+          "strings": 6,
+          "guitar": "Fender Stratocaster; exact model/year unspecified",
+          "strings_product": "Ernie Ball Extra Slinky, nickel wound",
+          "gauge_inch_range": [
+            0.008,
+            0.038
+          ],
+          "interface": "Focusrite Scarlett 2i2",
+          "pickup_selector": null,
+          "controls": "Paper states selector and volume/tone fixed within performer across sessions; actual values unspecified."
+        },
+        {
+          "performer": 2,
+          "strings": 6,
+          "guitar": "Epiphone Les Paul; exact model/year unspecified",
+          "strings_product": "Elixir Super Light, nickel-plated steel",
+          "gauge_inch_range": [
+            0.009,
+            0.042
+          ],
+          "interface": "Roland UA-25EX",
+          "pickup_selector": null,
+          "controls": "Paper states selector and volume/tone fixed within performer across sessions; actual values unspecified."
+        }
+      ],
+      "archive": {
+        "url": "https://zenodo.org/api/records/19823590/files/LongiGuitarDataset.zip/content",
+        "bytes": 3732144826,
+        "published_md5": "741e3d9880901e306ffd99d84cc0ff35",
+        "whole_archive_md5_verified": false,
+        "inventory_member_count": 182,
+        "inventory_receipt": "longitudinal-file-list.json",
+        "acquisition": "HTTP byte ranges; selected members decompressed, byte-count and ZIP CRC checked, SHA-256 recorded. Entire 3.7GB archive not downloaded."
+      },
+      "selection": {
+        "selection_manifest": "longitudinal-fresh-selection.json",
+        "selection_file_timestamp_utc": "2026-10-18T19:28:36.898256+00:00",
+        "rule": "Both available performer day1 originals, selected before any candidate or source musical-signal analysis in this audit. Remaining days not downloaded. No new claim that previously available corpus was globally sealed or never observed.",
+        "selected_originals": [
+          {
+            "member": "LongiGuitarDataset/guitarist_2/day_1/12_03_26_1839 day1.wav",
+            "sha256": "5a6d213430e9cf4e91a2e4d74ffb62fbe28053b2f57a43b7ab27026a1b3542a5",
+            "bytes": 66345426,
+            "sample_rate_hz": 48000,
+            "channels": 1,
+            "bits_per_sample": 16,
+            "frames": 33172368,
+            "duration_s": 691.091,
+            "compression": "NONE",
+            "cache_path": "build-premium-reference-audit/longitudinal/LongiGuitarDataset/guitarist_2/day_1/12_03_26_1839 day1.wav",
+            "zip_member_crc32": "b63db283",
+            "zip_member_crc_verified": true,
+            "musical_signal_analyzed": false,
+            "model_comparison_performed": false,
+            "role": "new development reference; no independent held-out hardware claim"
+          },
+          {
+            "member": "LongiGuitarDataset/guitarist_1/day_1/02-260312_2001.wav",
+            "sha256": "d63b49a4f62c66eae1e361077aa5d5f9a9c8c994e7a0b65ea5c0762f2e2ea392",
+            "bytes": 100772140,
+            "sample_rate_hz": 48000,
+            "channels": 1,
+            "bits_per_sample": 24,
+            "frames": 33590483,
+            "duration_s": 699.8017291666666,
+            "compression": "NONE",
+            "cache_path": "build-premium-reference-audit/longitudinal/LongiGuitarDataset/guitarist_1/day_1/02-260312_2001.wav",
+            "zip_member_crc32": "9b7e425a",
+            "zip_member_crc_verified": true,
+            "musical_signal_analyzed": false,
+            "model_comparison_performed": false,
+            "role": "new development reference; no independent held-out hardware claim"
+          }
+        ]
+      },
+      "routine_from_primary_paper": {
+        "sessions_per_performer": 28,
+        "new_strings_on_day": 1,
+        "bpm": 60,
+        "segments": [
+          "Low E Open",
+          "Low E 12th",
+          "High E Open",
+          "High E 12th",
+          "Chromatic Low",
+          "Chromatic High",
+          "Bends",
+          "Funk Strum",
+          "Slides",
+          "Legato",
+          "Free Bird",
+          "Open Chords",
+          "Sliding Bars",
+          "Solo"
+        ],
+        "reported_low_e_open_plucks_per_session": 30
+      },
+      "metadata_gap": "Archive has only day/date/time/file CSVs, no segment start/end CSV promised by paper. Reference-only onset/segment annotation and quality masks are required before comparisons. Source pickup selector, pick force and stroke direction unknown. Two days of one player are not independent hardware holdouts.",
+      "use": "Permissive new repeated-pluck and gesture baseline opportunity, not an exact-eight or premium-model benchmark; no new tone result claimed."
+    },
+    {
+      "id": "goat",
+      "primary_urls": {
+        "paper": "https://arxiv.org/html/2509.22655v1",
+        "repo": "https://github.com/JackJamesLoth/GOAT-Dataset",
+        "api": "https://zenodo.org/api/records/15690894",
+        "record": "https://zenodo.org/records/15690894"
+      },
+      "live_access": "restricted; API files=[]; author request required; no request or account created",
+      "license": "CC-BY-NC-4.0 plus explicit research-only, no-commercial-product statement",
+      "instrument_scope": "Core six-string EADGBe; Strandberg79.83minutes in standard tuning, not exact-eight.",
+      "annotation_limit": "Tablature/string/fret and techniques provided, but paper explicitly excludes dynamics from tablature/MIDI; dynamics only in DI recording.",
+      "disposition": "No audio acquired; no independent product-calibration rights inferred from paper license."
+    },
+    {
+      "id": "existing_freesound_eight_string",
+      "primary_urls": [
+        "https://freesound.org/people/cabled_mess/packs/29585/",
+        "https://freesound.org/people/minus_28_and_falling/sounds/557299/"
+      ],
+      "license": "CC0 per individual source pages already documented in reference ladder",
+      "live_access": "Primary pages still require login for original downloads. Public compressed previews are exploratory only; no new files or account acquired.",
+      "coverage": "F#-string ordinary chromatic one-shots, and Drop-E open/muted/ghost phrase. Make, gauge, pickup and controlled articulation metadata remain absent. No new permissive premium exact-eight source found in this audit."
+    },
+    {
+      "id": "cycfi_v2_independent_sensor_family",
+      "primary_urls": [
+        "https://www.cycfi.com/projects/nu-capsule/",
+        "https://www.cycfi.com/projects/nu-v2-capsule/"
+      ],
+      "licenses": {
+        "hardware": "CC-BY-SA-4.0",
+        "software": "MIT"
+      },
+      "published_v2_specs": {
+        "coil_dc_resistance_ohm_range": [
+          320,
+          350
+        ],
+        "coil_inductance_mH": 12,
+        "coil_capacitance_pF": 54,
+        "coil_turns": 1300,
+        "output_impedance_ohm": 10000,
+        "manufacturer_reported_frequency_response_hz": [
+          20,
+          20000
+        ]
+      },
+      "availability": "Manufacturer response graph, actual preamp schematic and dimension drawings publicly available.",
+      "scope": "Independent broad-band active sensor family. Not an EMG808 or FishmanFluence model. Do not mix older v1 text/specification units with v2 schematic. No circuit implemented by this audit."
+    }
+  ],
+  "coverage_requirements": [
+    {
+      "requirement": "Premium conventional eight-string dry DI with known hardware and recording chain",
+      "evidence": "Missing; conventional SG/P1/P3 are six-string and PolyMap is a custom broad-band sensor with missing setup metadata and NC audio.",
+      "status": "not_proven"
+    },
+    {
+      "requirement": "Authentic tone across register, dynamics, pickup types and articulation depths",
+      "evidence": "Existing limited directional comparisons plus engineering rails; fresh acquisition has not been analyzed.",
+      "status": "incomplete"
+    },
+    {
+      "requirement": "Realistic repicks, note transitions, legato, muting, bends and expressive phrases",
+      "evidence": "Engineering tests and limited real P3/P1 directions do not establish held-out full-performance parity.",
+      "status": "incomplete"
+    },
+    {
+      "requirement": "Metal, djent, rock, blues and broader genre coverage",
+      "evidence": "No held-out premium exact-eight cross-genre corpus or completed perceptual evaluation.",
+      "status": "missing"
+    },
+    {
+      "requirement": "95% close and market-leading authenticity",
+      "evidence": "No defined validated similarity scale or blinded response cohort; feature improvement percentages and confidence levels are not authenticity percentages.",
+      "status": "not_proven"
+    }
+  ],
+  "measurement_protocol_next": {
+    "reference_selection": "Freeze source-only pitch/string/articulation/segment annotations and all quality exclusions before candidate access; hold out whole player/guitar clusters and phrases. Same recording repetitions test repeatability, not hardware generalization.",
+    "tone": [
+      "Tracked H1/H2/H3 and upper partial ratios at attack/body/held windows",
+      "ERB-band shape, upper-band decay slope/curvature and noise floor",
+      "Modal decay fit quality/censoring, inharmonicity, beating and attack-pitch relaxation"
+    ],
+    "behaviour": [
+      "Same-note repick continuity, onset-to-peak and transient windows across stroke directions",
+      "Same-string semitone/large changes, intentional slide/hammer pitch and energy continuity",
+      "Rapid Palm/open/Dead changes, release/choke tails and bend/vibrato behaviour"
+    ],
+    "render_controls": "Unchanged shipping A versus isolated candidate B with same production events, seed, controls, rate and block; one constant alignment and whole-crop RMS gain, shared peak headroom, no EQ/timewarp/per-hit gain or candidate-dependent mask. Separate dry and identically calibrated common-reamp evaluation.",
+    "95_percent": "Do not derive a scalar from unrelated feature improvements. One possible future registered operational target is95% held-out feature-cell coverage within real-repeat prediction regions, with cluster-aware uncertainty and no averaging away critical domain failures. That would measure coverage under its explicit protocol; it would not equal95% subjective similarity.",
+    "listening": "Existing blind contract remains unrun without qualified listeners and lawful held-out audio. Extend to premium exact-eight cross-genre source discrimination/naturalness and licensed same-score competitors before broad authenticity or market claims."
+  },
+  "receipts": {
+    "polymap-archive-receipt.json": {
+      "cache_path": "build-premium-reference-audit/polymap-archive-receipt.json",
+      "bytes": 1709,
+      "sha256": "7c6cdda93cd3e4ed41b790630da2e4cc056dca8971cb9c354ed993d2dc59d6b3"
+    },
+    "polymap-readme.md": {
+      "cache_path": "build-premium-reference-audit/polymap-readme.md",
+      "bytes": 1882,
+      "sha256": "d86dc033b5ad133b7f6c067d80a72811a313d77452861eb6f0b3e760aab9b0c4"
+    },
+    "polymap-wave-header.json": {
+      "cache_path": "build-premium-reference-audit/polymap-wave-header.json",
+      "bytes": 172,
+      "sha256": "5276174150131143359cfd9b84ed64dcae45e1f237efeb6dd3f55c6638a72c55"
+    },
+    "longitudinal-zenodo.json": {
+      "cache_path": "build-premium-reference-audit/longitudinal-zenodo.json",
+      "bytes": 3926,
+      "sha256": "caea983c207a245c4fdfa9a7241c619f7eb95e5aadc2c97e8c7bda0fcdbc1e5c"
+    },
+    "longitudinal-file-list.json": {
+      "cache_path": "build-premium-reference-audit/longitudinal-file-list.json",
+      "bytes": 33703,
+      "sha256": "395c207e65d2bf4ce591e77bedc977e7f2c8e5517388e363b3468108ff303308"
+    },
+    "longitudinal-range-receipt.json": {
+      "cache_path": "build-premium-reference-audit/longitudinal-range-receipt.json",
+      "bytes": 3739,
+      "sha256": "3f3b6e2424990e6dc85ff574f645f99d719d7d41e2f357fe17337f65ca063be0"
+    },
+    "longitudinal-fresh-selection.json": {
+      "cache_path": "build-premium-reference-audit/longitudinal-fresh-selection.json",
+      "bytes": 803,
+      "sha256": "c2e8d2287f65995d75498839ddbcd791a0770468b99755d08651aacd4a14f5ee"
+    },
+    "longitudinal-fresh-wave-info.json": {
+      "cache_path": "build-premium-reference-audit/longitudinal-fresh-wave-info.json",
+      "bytes": 696,
+      "sha256": "f103c812c6bf26900a4c7fb612fce252e299a8702c5cad80c27e670ab6e9978f"
+    },
+    "longitudinal-paper.pdf": {
+      "cache_path": "build-premium-reference-audit/longitudinal-paper.pdf",
+      "bytes": 383164,
+      "sha256": "9a2ccbde6fd177a0b3023ab944a02efd157525b475fd5959deb8f282b60e97c4"
+    },
+    "goat-zenodo.json": {
+      "cache_path": "build-premium-reference-audit/goat-zenodo.json",
+      "bytes": 4204,
+      "sha256": "639045a550149b5060336cd06fe4fc352d538b4522b9174a418cb234cccd3064"
+    },
+    "polymap-github-readme.md": {
+      "cache_path": "build-premium-reference-audit/polymap-github-readme.md",
+      "bytes": 704,
+      "sha256": "0bbebec49f1ee06653400adaf56298732f4ffbf62c526c043b4bb33b8dd685c2"
+    },
+    "polymap-file-tree.json": {
+      "cache_path": "build-premium-reference-audit/polymap-file-tree.json",
+      "bytes": 38272,
+      "sha256": "82bd1a1bdcf2c1855add74d3d3cdfb7e294db5a8d1810e00fd8c98c15e2a1c8d"
+    }
+  },
+  "no_external_audio_in_git_or_product": true,
+  "no_new_reference_tone_measurements": true
+}

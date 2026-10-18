@@ -1,0 +1,2063 @@
+{
+  "schema": "electry-ultrasonic-cause-frozen-summary/v1",
+  "frozen_utc": "2026-10-18T21:08:44.019135+00:00",
+  "source_commit": "95e5c1b2db1d393d9550c2c5e910d189169b0db0",
+  "previous_rejection_manifest_sha256": "5f7c3ec21951801ccf2bba1f6df98dd9d1e37545fc25e8b4e9f093bbe236fbed",
+  "protocol_sha256": "3df0d5c45e1a7817bfa23960462e01ee4f8815080ce93e89659233244173b8c1",
+  "analysis_method_sha256": "2d35e8b41386da3fa0139a3887b3bc7207ce7e970fb0617c5afef162a222beb6",
+  "analysis_results_sha256": "e018bc87b5bdb30f63b87ca00e0112bea574db5bde70330f67cb4509584565db",
+  "classification": "The failing48k Hann maximum is overwhelmingly an already-present modeled pre-decimator baseband component. Output FIR folding/roundoff and low H1-H3 Hann leakage do not account for it. A contact-noise control diagnostic reduces its maximum substantially. This does not certify physical harmonic/noise correctness, exclude every upstream nonlinear/numerical artifact, invalidate the unchanged guard, or approve the product candidate.",
+  "exact_fixture_reproduced": true,
+  "all11_internal_capture_host_pcm_bit_identities": true,
+  "shared_internal_clock_comparisons": [
+    {
+      "variant": "off",
+      "same_internal_rate": 192000,
+      "internal_trace_96host_vs_native192host_bit_identical": true,
+      "max_absolute_difference": 0.0,
+      "relative_rms_difference": 0.0
+    },
+    {
+      "variant": "on",
+      "same_internal_rate": 192000,
+      "internal_trace_96host_vs_native192host_bit_identical": true,
+      "max_absolute_difference": 0.0,
+      "relative_rms_difference": 0.0
+    }
+  ],
+  "synthetic_fold_witnesses": [
+    {
+      "tone_internal_hz": 123.47,
+      "host_probe_hz": 123.47,
+      "taper": "hann",
+      "base": {
+        "real": -0.024064075991473543,
+        "imag": 0.09706153561093661,
+        "magnitude_dbfs": -19.999990685054986
+      },
+      "image": {
+        "real": -7.329911523789082e-15,
+        "imag": -9.599083443003518e-15,
+        "magnitude_dbfs": -278.36033999502087
+      },
+      "direct": {
+        "real": -0.024064075991480242,
+        "imag": 0.09706153561092741,
+        "magnitude_dbfs": -19.999990685055625
+      },
+      "identity_absolute_complex_error": 7.487899271890174e-16
+    },
+    {
+      "tone_internal_hz": 123.47,
+      "host_probe_hz": 123.47,
+      "taper": "bh",
+      "base": {
+        "real": -0.024064207582306978,
+        "imag": 0.09706136499135237,
+        "magnitude_dbfs": -20.000002318894772
+      },
+      "image": {
+        "real": -1.6321085285775156e-09,
+        "imag": 5.256875188096605e-10,
+        "magnitude_dbfs": -175.31634114015728
+      },
+      "direct": {
+        "real": -0.02406420921441485,
+        "imag": 0.09706136551703995,
+        "magnitude_dbfs": -20.000002240461725
+      },
+      "identity_absolute_complex_error": 6.580709574640279e-16
+    },
+    {
+      "tone_internal_hz": 18123.47,
+      "host_probe_hz": 5876.529999999999,
+      "taper": "hann",
+      "base": {
+        "real": -3.0526085487485285e-12,
+        "imag": 3.7122005259193807e-13,
+        "magnitude_dbfs": -230.24282281826606
+      },
+      "image": {
+        "real": -0.051616825810155594,
+        "imag": 0.08564872032233235,
+        "magnitude_dbfs": -20.000000000187157
+      },
+      "direct": {
+        "real": -0.05161682581321474,
+        "imag": 0.08564872032269966,
+        "magnitude_dbfs": -20.00000000002268
+      },
+      "identity_absolute_complex_error": 7.618450483466171e-15
+    },
+    {
+      "tone_internal_hz": 18123.47,
+      "host_probe_hz": 5876.529999999999,
+      "taper": "bh",
+      "base": {
+        "real": -9.252980282898017e-11,
+        "imag": 1.6321431180663813e-09,
+        "magnitude_dbfs": -175.73089936551918
+      },
+      "image": {
+        "real": -0.05161682749909773,
+        "imag": 0.08564871890674362,
+        "magnitude_dbfs": -20.000000029776103
+      },
+      "direct": {
+        "real": -0.05161682759163414,
+        "imag": 0.08564872053888284,
+        "magnitude_dbfs": -19.999999904206742
+      },
+      "identity_absolute_complex_error": 7.671002916296167e-15
+    }
+  ],
+  "renders": [
+    {
+      "variant": "off",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "exact-fixture",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 145.88484483507187,
+        "peak_dbfs": -40.52801847932685,
+        "top_dbfs": -186.41286331439872,
+        "peak_frequency_hz": 328.9769339152996,
+        "top_frequency_hz": 12331.531964983138,
+        "original_guard_pass": true,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.83544921875,
+            587.95166015625,
+            660.2783203125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.4350386244358386e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.3232119644722715e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 2.6400979474633247e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.52801847933055,
+            "high_maximum_dbfs": -186.41281533262344,
+            "high_maximum_frequency_hz": 12331.531964983138
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -40.52801846273772,
+            "high_maximum_dbfs": -186.6821955170842,
+            "high_maximum_frequency_hz": 12331.531964983138
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -212.83625460352684,
+            "high_maximum_dbfs": -207.70740221294557,
+            "high_maximum_frequency_hz": 21118.398445885003
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.52672578550244,
+            "high_maximum_dbfs": -277.91272459400454,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.5280184762698,
+            "high_maximum_dbfs": -273.6236013925899,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12331.531964983138,
+            "complex_components": {
+              "native": {
+                "real": 4.6381067061057485e-10,
+                "imag": 1.1528844372079038e-10,
+                "magnitude_dbfs": -186.41281533262344
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 4.511959796911861e-10,
+                "imag": 1.0534079027888573e-10,
+                "magnitude_dbfs": -186.6821955170842
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 1.2614690925492594e-11,
+                "imag": 9.94765346466102e-12,
+                "magnitude_dbfs": -215.88235155195076
+              },
+              "H1_H3_nuisance": {
+                "real": 8.454542765642981e-15,
+                "imag": 8.807242171171577e-15,
+                "magnitude_dbfs": -278.266773203119
+              },
+              "all_under1k_nuisance": {
+                "real": 1.014120584771384e-14,
+                "imag": 1.1368458187668059e-14,
+                "magnitude_dbfs": -276.343512480664
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.383374956915375,
+            "high_maximum_dbfs": -182.32860745110497,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.38337493807775,
+            "high_maximum_dbfs": -182.38510584044278,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -210.6606069007286,
+            "high_maximum_dbfs": -206.06191537209605,
+            "high_maximum_frequency_hz": 21118.398445885003
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.40087701105065,
+            "high_maximum_dbfs": -195.8145563880982,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.38337469528246,
+            "high_maximum_dbfs": -191.57095288890912,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 17260.14737516981,
+            "complex_components": {
+              "native": {
+                "real": 5.2969952986162e-10,
+                "imag": 5.517209738733674e-10,
+                "magnitude_dbfs": -182.32860745110497
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 5.297414653796226e-10,
+                "imag": 5.447850772276629e-10,
+                "magnitude_dbfs": -182.38510584044278
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -4.1935493329198175e-14,
+                "imag": 6.9358966119971025e-12,
+                "magnitude_dbfs": -223.17778902580534
+              },
+              "H1_H3_nuisance": {
+                "real": 1.1689747928620866e-10,
+                "imag": 3.1780788621339543e-12,
+                "magnitude_dbfs": -198.64068827063863
+              },
+              "all_under1k_nuisance": {
+                "real": 1.5492492105167341e-10,
+                "imag": 1.4920421453409142e-11,
+                "magnitude_dbfs": -196.1574786483401
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": [
+        {
+          "probe_selected_by": "native",
+          "taper": "hann",
+          "frequency_hz": 12331.531964983138,
+          "native": {
+            "real": 4.6381067060285064e-10,
+            "imag": 1.1528844046961029e-10,
+            "magnitude_dbfs": -186.4128153470132
+          },
+          "baseband_channel_double": {
+            "real": 4.511932026327414e-10,
+            "imag": 1.053421132106983e-10,
+            "magnitude_dbfs": -186.6822405757853
+          },
+          "folding_image_channel_double": {
+            "real": 5.4915094415825e-18,
+            "imag": -2.0630443520238417e-16,
+            "magnitude_dbfs": -313.7067526319213
+          },
+          "same_taps_double_sum": {
+            "real": 4.511959796946702e-10,
+            "imag": 1.0534079457249351e-10,
+            "magnitude_dbfs": -186.68219549872052
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 1.261469090818044e-11,
+            "imag": 9.947645897116775e-12,
+            "magnitude_dbfs": -215.88235409282473
+          },
+          "exact_identity_absolute_error": 2.9864509043812416e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 2.9864509043812416e-15
+        },
+        {
+          "probe_selected_by": "same_float_taps_double_accumulation",
+          "taper": "hann",
+          "frequency_hz": 12331.531964983138,
+          "native": {
+            "real": 4.6381067060285064e-10,
+            "imag": 1.1528844046961029e-10,
+            "magnitude_dbfs": -186.4128153470132
+          },
+          "baseband_channel_double": {
+            "real": 4.511932026327414e-10,
+            "imag": 1.053421132106983e-10,
+            "magnitude_dbfs": -186.6822405757853
+          },
+          "folding_image_channel_double": {
+            "real": 5.4915094415825e-18,
+            "imag": -2.0630443520238417e-16,
+            "magnitude_dbfs": -313.7067526319213
+          },
+          "same_taps_double_sum": {
+            "real": 4.511959796946702e-10,
+            "imag": 1.0534079457249351e-10,
+            "magnitude_dbfs": -186.68219549872052
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 1.261469090818044e-11,
+            "imag": 9.947645897116775e-12,
+            "magnitude_dbfs": -215.88235409282473
+          },
+          "exact_identity_absolute_error": 2.9864509043812416e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 2.9864509043812416e-15
+        },
+        {
+          "probe_selected_by": "native_minus_double_FIR_roundoff",
+          "taper": "hann",
+          "frequency_hz": 21118.398445885003,
+          "native": {
+            "real": -2.5401361610757014e-11,
+            "imag": 3.119071196173475e-11,
+            "magnitude_dbfs": -207.90997410818073
+          },
+          "baseband_channel_double": {
+            "real": -2.229323287070323e-12,
+            "imag": -3.0172838471701554e-12,
+            "magnitude_dbfs": -228.51586028749156
+          },
+          "folding_image_channel_double": {
+            "real": -1.2466552593429955e-13,
+            "imag": 8.789981150019634e-14,
+            "magnitude_dbfs": -256.332433672416
+          },
+          "same_taps_double_sum": {
+            "real": -2.355284670994667e-12,
+            "imag": -2.9301017916956855e-12,
+            "magnitude_dbfs": -228.4976986966079
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -2.3046076939762347e-11,
+            "imag": 3.4120813753430435e-11,
+            "magnitude_dbfs": -207.7074022118563
+          },
+          "exact_identity_absolute_error": 1.4813580400526877e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.4813580400538617e-15
+        },
+        {
+          "probe_selected_by": "native",
+          "taper": "bh",
+          "frequency_hz": 17260.14737516981,
+          "native": {
+            "real": 5.296995298583777e-10,
+            "imag": 5.51720973865696e-10,
+            "magnitude_dbfs": -182.3286074511933
+          },
+          "baseband_channel_double": {
+            "real": 5.134025491481457e-10,
+            "imag": 6.603980390215828e-10,
+            "magnitude_dbfs": -181.55083317396827
+          },
+          "folding_image_channel_double": {
+            "real": 1.6337588472883284e-11,
+            "imag": -1.156129757127963e-10,
+            "magnitude_dbfs": -198.65399742817522
+          },
+          "same_taps_double_sum": {
+            "real": 5.297414653469622e-10,
+            "imag": 5.44785077240665e-10,
+            "magnitude_dbfs": -182.38510584059645
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -4.193548858453591e-14,
+            "imag": 6.935896625031048e-12,
+            "magnitude_dbfs": -223.17778900951933
+          },
+          "exact_identity_absolute_error": 1.327799025038012e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.327799025038012e-15
+        },
+        {
+          "probe_selected_by": "same_float_taps_double_accumulation",
+          "taper": "bh",
+          "frequency_hz": 17260.14737516981,
+          "native": {
+            "real": 5.296995298583777e-10,
+            "imag": 5.51720973865696e-10,
+            "magnitude_dbfs": -182.3286074511933
+          },
+          "baseband_channel_double": {
+            "real": 5.134025491481457e-10,
+            "imag": 6.603980390215828e-10,
+            "magnitude_dbfs": -181.55083317396827
+          },
+          "folding_image_channel_double": {
+            "real": 1.6337588472883284e-11,
+            "imag": -1.156129757127963e-10,
+            "magnitude_dbfs": -198.65399742817522
+          },
+          "same_taps_double_sum": {
+            "real": 5.297414653469622e-10,
+            "imag": 5.44785077240665e-10,
+            "magnitude_dbfs": -182.38510584059645
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -4.193548858453591e-14,
+            "imag": 6.935896625031048e-12,
+            "magnitude_dbfs": -223.17778900951933
+          },
+          "exact_identity_absolute_error": 1.327799025038012e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.327799025038012e-15
+        },
+        {
+          "probe_selected_by": "native_minus_double_FIR_roundoff",
+          "taper": "bh",
+          "frequency_hz": 21118.398445885003,
+          "native": {
+            "real": -1.0816052370154681e-11,
+            "imag": 2.048935130353093e-10,
+            "magnitude_dbfs": -193.75735042393814
+          },
+          "baseband_channel_double": {
+            "real": -5.2710702362436083e-11,
+            "imag": 1.989599863461317e-10,
+            "magnitude_dbfs": -193.73008224741764
+          },
+          "folding_image_channel_double": {
+            "real": 7.477262808748511e-11,
+            "imag": -3.142200870297674e-11,
+            "magnitude_dbfs": -201.81887081071187
+          },
+          "same_taps_double_sum": {
+            "real": 2.2060236359558746e-11,
+            "imag": 1.675373981419009e-10,
+            "magnitude_dbfs": -195.44311237795657
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -3.2876288729713427e-11,
+            "imag": 3.7356114893408395e-11,
+            "magnitude_dbfs": -206.0619153698608
+          },
+          "exact_identity_absolute_error": 1.7859948105228373e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.7859948105228373e-15
+        }
+      ]
+    },
+    {
+      "variant": "off",
+      "host_rate": 96000,
+      "internal_rate": 192000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "oversampling_factor": 2,
+        "condition": "exact-fixture",
+        "frames": 96000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 19200,
+        "dft_frames": 65536,
+        "below_peak_db": 152.96408037561966,
+        "peak_dbfs": -40.586419523022606,
+        "top_dbfs": -193.55049989864227,
+        "peak_frequency_hz": 328.9769339152996,
+        "top_frequency_hz": 13897.539274240931,
+        "original_guard_pass": true,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 2.6799520056974218e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.58641952303455,
+            "high_maximum_dbfs": -193.5504765438381,
+            "high_maximum_frequency_hz": 13897.539274240931
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13897.539274240931,
+            "complex_components": {
+              "native": {
+                "real": 1.1291598526203728e-10,
+                "imag": -1.772066025777899e-10,
+                "magnitude_dbfs": -193.5504765438381
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.45140924071816,
+            "high_maximum_dbfs": -188.55688488911147,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12148.619315415413,
+            "complex_components": {
+              "native": {
+                "real": -1.4810609520853078e-10,
+                "imag": 3.42753890079624e-10,
+                "magnitude_dbfs": -188.55688488911147
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "off",
+      "host_rate": 192000,
+      "internal_rate": 192000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 192000,
+        "internal_rate": 192000,
+        "oversampling_factor": 1,
+        "condition": "exact-fixture",
+        "frames": 192000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 38400,
+        "dft_frames": 131072,
+        "below_peak_db": 153.13510121758404,
+        "peak_dbfs": -40.58679963727066,
+        "top_dbfs": -193.72190085485468,
+        "peak_frequency_hz": 328.9769339152996,
+        "top_frequency_hz": 13897.539274240931,
+        "original_guard_pass": true,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 2.6997961216484504e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.586799637249186,
+            "high_maximum_dbfs": -193.72189701097165,
+            "high_maximum_frequency_hz": 13897.539274240931
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13897.539274240931,
+            "complex_components": {
+              "native": {
+                "real": 2.0466719909537917e-10,
+                "imag": 2.3553143162224872e-11,
+                "magnitude_dbfs": -193.72189701097165
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.45221181404009,
+            "high_maximum_dbfs": -191.2112886581682,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13488.314722148776,
+            "complex_components": {
+              "native": {
+                "real": -8.682392323932077e-11,
+                "imag": -2.6100276262902206e-10,
+                "magnitude_dbfs": -191.2112886581682
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "exact-fixture",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 128.8624478840212,
+        "peak_dbfs": -40.0092272558453,
+        "top_dbfs": -168.87167513986654,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12424.018454720512,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.10302734375,
+            587.95166015625,
+            660.46142578125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.5547941958326515e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.15509972922856e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.1637334438304995e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.00922725585025,
+            "high_maximum_dbfs": -168.87167464271067,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -40.00922725330159,
+            "high_maximum_dbfs": -168.88435898229216,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -213.38653892780962,
+            "high_maximum_dbfs": -207.34146748681218,
+            "high_maximum_frequency_hz": 14753.61168104341
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.009455076204226,
+            "high_maximum_dbfs": -276.7886787116342,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.00922726690056,
+            "high_maximum_dbfs": -272.1779828175307,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12424.018454720512,
+            "complex_components": {
+              "native": {
+                "real": 3.486996866752941e-09,
+                "imag": -8.986904876279035e-10,
+                "magnitude_dbfs": -168.87167464271067
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 3.485074599945792e-09,
+                "imag": -8.850029457409128e-10,
+                "magnitude_dbfs": -168.88435898229216
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 1.9222668281463986e-12,
+                "imag": -1.3687541870969484e-11,
+                "magnitude_dbfs": -217.18866796907014
+              },
+              "H1_H3_nuisance": {
+                "real": 1.036684938665071e-14,
+                "imag": -4.560579275147349e-16,
+                "magnitude_dbfs": -279.6786674773948
+              },
+              "all_under1k_nuisance": {
+                "real": 1.918912546854606e-14,
+                "imag": 3.3036643105080143e-15,
+                "magnitude_dbfs": -274.2120413523981
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.966209539817385,
+            "high_maximum_dbfs": -175.7928371009276,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.96620954024539,
+            "high_maximum_dbfs": -175.70545555511217,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -213.665969536362,
+            "high_maximum_dbfs": -205.86900676758316,
+            "high_maximum_frequency_hz": 14753.61168104341
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.99651553634231,
+            "high_maximum_dbfs": -194.61063774171154,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.96620959335834,
+            "high_maximum_dbfs": -190.11186750414427,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13488.314722148776,
+            "complex_components": {
+              "native": {
+                "real": 1.2456816954431992e-09,
+                "imag": -1.0406184865533875e-09,
+                "magnitude_dbfs": -175.7928371009276
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 1.2575113650134265e-09,
+                "imag": -1.052055616326154e-09,
+                "magnitude_dbfs": -175.70545555511217
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -1.1829669521019677e-11,
+                "imag": 1.1437129720744503e-11,
+                "magnitude_dbfs": -215.6743311111719
+              },
+              "H1_H3_nuisance": {
+                "real": 6.190058447467488e-11,
+                "imag": -7.945043574005566e-11,
+                "magnitude_dbfs": -199.93788443391497
+              },
+              "all_under1k_nuisance": {
+                "real": 1.489466172381361e-10,
+                "imag": -1.7024318500769254e-10,
+                "magnitude_dbfs": -192.91002942875713
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": [
+        {
+          "probe_selected_by": "native",
+          "taper": "hann",
+          "frequency_hz": 12424.018454720512,
+          "native": {
+            "real": 3.4869968667671354e-09,
+            "imag": -8.986904876950755e-10,
+            "magnitude_dbfs": -168.8716746426371
+          },
+          "baseband_channel_double": {
+            "real": 3.4850749625209053e-09,
+            "imag": -8.850036519989928e-10,
+            "magnitude_dbfs": -168.88435771347275
+          },
+          "folding_image_channel_double": {
+            "real": -8.707603195539788e-16,
+            "imag": -2.0764057419367813e-16,
+            "magnitude_dbfs": -300.961841851812
+          },
+          "same_taps_double_sum": {
+            "real": 3.485074599951773e-09,
+            "imag": -8.850029460979288e-10,
+            "magnitude_dbfs": -168.88435898206586
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 1.9222668153624062e-12,
+            "imag": -1.3687541597146779e-11,
+            "magnitude_dbfs": -217.18866814058998
+          },
+          "exact_identity_absolute_error": 1.0453786909647332e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.0453786909647332e-15
+        },
+        {
+          "probe_selected_by": "same_float_taps_double_accumulation",
+          "taper": "hann",
+          "frequency_hz": 12424.018454720512,
+          "native": {
+            "real": 3.4869968667671354e-09,
+            "imag": -8.986904876950755e-10,
+            "magnitude_dbfs": -168.8716746426371
+          },
+          "baseband_channel_double": {
+            "real": 3.4850749625209053e-09,
+            "imag": -8.850036519989928e-10,
+            "magnitude_dbfs": -168.88435771347275
+          },
+          "folding_image_channel_double": {
+            "real": -8.707603195539788e-16,
+            "imag": -2.0764057419367813e-16,
+            "magnitude_dbfs": -300.961841851812
+          },
+          "same_taps_double_sum": {
+            "real": 3.485074599951773e-09,
+            "imag": -8.850029460979288e-10,
+            "magnitude_dbfs": -168.88435898206586
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 1.9222668153624062e-12,
+            "imag": -1.3687541597146779e-11,
+            "magnitude_dbfs": -217.18866814058998
+          },
+          "exact_identity_absolute_error": 1.0453786909647332e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.0453786909647332e-15
+        },
+        {
+          "probe_selected_by": "native_minus_double_FIR_roundoff",
+          "taper": "hann",
+          "frequency_hz": 14753.61168104341,
+          "native": {
+            "real": 2.6873129663865753e-11,
+            "imag": 6.919661074611373e-12,
+            "magnitude_dbfs": -211.13482875421968
+          },
+          "baseband_channel_double": {
+            "real": 2.251657704939667e-11,
+            "imag": -3.580687032958721e-11,
+            "magnitude_dbfs": -207.4735853777165
+          },
+          "folding_image_channel_double": {
+            "real": 5.264725748445753e-16,
+            "imag": 1.6174258523674241e-15,
+            "magnitude_dbfs": -295.3861557529865
+          },
+          "same_taps_double_sum": {
+            "real": 2.2516554095102685e-11,
+            "imag": -3.580518347654306e-11,
+            "magnitude_dbfs": -207.47388112554034
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 4.356575568763068e-12,
+            "imag": 4.2724844551154436e-11,
+            "magnitude_dbfs": -207.34146748383154
+          },
+          "exact_identity_absolute_error": 5.537960086055318e-16,
+          "native_equal_base_plus_image_plus_roundoff_error": 5.537960086055318e-16
+        },
+        {
+          "probe_selected_by": "native",
+          "taper": "bh",
+          "frequency_hz": 13488.314722148776,
+          "native": {
+            "real": 1.2456816954585207e-09,
+            "imag": -1.0406184865109821e-09,
+            "magnitude_dbfs": -175.79283710101012
+          },
+          "baseband_channel_double": {
+            "real": 1.3514276673029655e-09,
+            "imag": -9.185676586967905e-10,
+            "magnitude_dbfs": -175.73468686151583
+          },
+          "folding_image_channel_double": {
+            "real": -9.391650286797887e-11,
+            "imag": -1.334889809430193e-10,
+            "magnitude_dbfs": -195.74472014473756
+          },
+          "same_taps_double_sum": {
+            "real": 1.257511365005262e-09,
+            "imag": -1.052055616528299e-09,
+            "magnitude_dbfs": -175.70545555445818
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -1.1829669546741346e-11,
+            "imag": 1.1437130017316973e-11,
+            "magnitude_dbfs": -215.67433099259372
+          },
+          "exact_identity_absolute_error": 1.0425860148949766e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.0425860148949766e-15
+        },
+        {
+          "probe_selected_by": "same_float_taps_double_accumulation",
+          "taper": "bh",
+          "frequency_hz": 13488.314722148776,
+          "native": {
+            "real": 1.2456816954585207e-09,
+            "imag": -1.0406184865109821e-09,
+            "magnitude_dbfs": -175.79283710101012
+          },
+          "baseband_channel_double": {
+            "real": 1.3514276673029655e-09,
+            "imag": -9.185676586967905e-10,
+            "magnitude_dbfs": -175.73468686151583
+          },
+          "folding_image_channel_double": {
+            "real": -9.391650286797887e-11,
+            "imag": -1.334889809430193e-10,
+            "magnitude_dbfs": -195.74472014473756
+          },
+          "same_taps_double_sum": {
+            "real": 1.257511365005262e-09,
+            "imag": -1.052055616528299e-09,
+            "magnitude_dbfs": -175.70545555445818
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": -1.1829669546741346e-11,
+            "imag": 1.1437130017316973e-11,
+            "magnitude_dbfs": -215.67433099259372
+          },
+          "exact_identity_absolute_error": 1.0425860148949766e-15,
+          "native_equal_base_plus_image_plus_roundoff_error": 1.0425860148949766e-15
+        },
+        {
+          "probe_selected_by": "native_minus_double_FIR_roundoff",
+          "taper": "bh",
+          "frequency_hz": 14753.61168104341,
+          "native": {
+            "real": 1.2847782758290459e-10,
+            "imag": 2.1450292957450704e-10,
+            "magnitude_dbfs": -192.0399451416045
+          },
+          "baseband_channel_double": {
+            "real": 6.083797947695276e-11,
+            "imag": 2.3987832394916183e-10,
+            "magnitude_dbfs": -192.12944464992324
+          },
+          "folding_image_channel_double": {
+            "real": 6.35850640789514e-11,
+            "imag": -7.609399390171789e-11,
+            "magnitude_dbfs": -200.07298225209524
+          },
+          "same_taps_double_sum": {
+            "real": 1.2442244660890217e-10,
+            "imag": 1.6378450301939433e-10,
+            "magnitude_dbfs": -193.73594866493556
+          },
+          "native_FIR_arithmetic_residual": {
+            "real": 4.055380974002411e-12,
+            "imag": 5.0718426555112705e-11,
+            "magnitude_dbfs": -205.86900676863368
+          },
+          "exact_identity_absolute_error": 6.215022274929537e-16,
+          "native_equal_base_plus_image_plus_roundoff_error": 6.215022274929537e-16
+        }
+      ]
+    },
+    {
+      "variant": "on",
+      "host_rate": 96000,
+      "internal_rate": 192000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "oversampling_factor": 2,
+        "condition": "exact-fixture",
+        "frames": 96000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 19200,
+        "dft_frames": 65536,
+        "below_peak_db": 121.21166235837012,
+        "peak_dbfs": -40.085411418458705,
+        "top_dbfs": -161.29707377682882,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12611.077582579399,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.047239696321332e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.08541141844847,
+            "high_maximum_dbfs": -161.29707462399907,
+            "high_maximum_frequency_hz": 12611.077582579399
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12611.077582579399,
+            "complex_components": {
+              "native": {
+                "real": 7.296822747381065e-09,
+                "imag": 4.575735226470871e-09,
+                "magnitude_dbfs": -161.29707462399907
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.043226519869535,
+            "high_maximum_dbfs": -168.01699434519122,
+            "high_maximum_frequency_hz": 12611.077582579399
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12611.077582579399,
+            "complex_components": {
+              "native": {
+                "real": 3.613411026706397e-09,
+                "imag": 1.6523605908640702e-09,
+                "magnitude_dbfs": -168.01699434519122
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 192000,
+      "internal_rate": 192000,
+      "condition": "exact-fixture",
+      "exact_original_cpp": {
+        "host_rate": 192000,
+        "internal_rate": 192000,
+        "oversampling_factor": 1,
+        "condition": "exact-fixture",
+        "frames": 192000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 38400,
+        "dft_frames": 131072,
+        "below_peak_db": 121.23479803715499,
+        "peak_dbfs": -40.08694372125933,
+        "top_dbfs": -161.3217417584143,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12611.077582579399,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 2.528154871451342e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.086943721248254,
+            "high_maximum_dbfs": -161.3217415408638,
+            "high_maximum_frequency_hz": 12611.077582579399
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12611.077582579399,
+            "complex_components": {
+              "native": {
+                "real": 7.994208560114017e-09,
+                "imag": 3.139023437813272e-09,
+                "magnitude_dbfs": -161.3217415408638
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.044751323193985,
+            "high_maximum_dbfs": -167.90046348082666,
+            "high_maximum_frequency_hz": 12611.077582579399
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12611.077582579399,
+            "complex_components": {
+              "native": {
+                "real": 3.927173827675102e-09,
+                "imag": 8.908849481688755e-10,
+                "magnitude_dbfs": -167.90046348082666
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "off",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "all-incidental-off",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "all-incidental-off",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 146.34145077104094,
+        "peak_dbfs": -40.508490447022666,
+        "top_dbfs": -186.84994121806363,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12331.531964983138,
+        "original_guard_pass": true,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0,
+          "pickNoise": 0,
+          "fingerNoise": 0,
+          "bodyResonance": 0,
+          "sympatheticAmount": 0
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.65234375,
+            587.95166015625,
+            660.2783203125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.444800355554892e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.3211302768721964e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 2.8077796639702313e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.508490447027576,
+            "high_maximum_dbfs": -186.84988755529804,
+            "high_maximum_frequency_hz": 12331.531964983138
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -40.50849045129056,
+            "high_maximum_dbfs": -186.6319080750182,
+            "high_maximum_frequency_hz": 12331.531964983138
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -223.401374301047,
+            "high_maximum_dbfs": -208.09865567904254,
+            "high_maximum_frequency_hz": 13189.323676804292
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.508643382110144,
+            "high_maximum_dbfs": -277.5490796910804,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.5084904537683,
+            "high_maximum_dbfs": -273.69675888675437,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12331.531964983138,
+            "complex_components": {
+              "native": {
+                "real": 4.502132215214259e-10,
+                "imag": 6.205979669251398e-11,
+                "magnitude_dbfs": -186.84988755529804
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 4.6183802865904514e-10,
+                "imag": 6.22921857087999e-11,
+                "magnitude_dbfs": -186.6319080750182
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -1.162480709860131e-11,
+                "imag": -2.3238900740968547e-13,
+                "magnitude_dbfs": -218.69054967012613
+              },
+              "H1_H3_nuisance": {
+                "real": 8.58673564421121e-15,
+                "imag": 8.655013358696309e-15,
+                "magnitude_dbfs": -278.2786054810205
+              },
+              "all_under1k_nuisance": {
+                "real": 1.0160219959949509e-14,
+                "imag": 1.1365506238051735e-14,
+                "magnitude_dbfs": -276.33754903293993
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.474816615611644,
+            "high_maximum_dbfs": -182.29478258269967,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -40.47481662138712,
+            "high_maximum_dbfs": -182.36376211679297,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -219.70480900215927,
+            "high_maximum_dbfs": -207.11023407564537,
+            "high_maximum_frequency_hz": 13189.323676804292
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.49641346085511,
+            "high_maximum_dbfs": -195.42660051448098,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.47481687898846,
+            "high_maximum_dbfs": -191.64189801578135,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 17260.14737516981,
+            "complex_components": {
+              "native": {
+                "real": 5.342250527744103e-10,
+                "imag": 5.515025689421542e-10,
+                "magnitude_dbfs": -182.29478258269967
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 5.336047944789255e-10,
+                "imag": 5.436243795428624e-10,
+                "magnitude_dbfs": -182.36376211679297
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 6.202582605946808e-13,
+                "imag": 7.878189385247183e-12,
+                "magnitude_dbfs": -222.04463466111437
+              },
+              "H1_H3_nuisance": {
+                "real": 1.1634656675220517e-10,
+                "imag": 4.6422815529116014e-12,
+                "magnitude_dbfs": -198.6780198809046
+              },
+              "all_under1k_nuisance": {
+                "real": 1.5437712393888423e-10,
+                "imag": 1.455966251883791e-11,
+                "magnitude_dbfs": -196.18988220196036
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "all-incidental-off",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "all-incidental-off",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 138.8445107610762,
+        "peak_dbfs": -39.9535126360574,
+        "top_dbfs": -178.79802339713362,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12424.018454720512,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0,
+          "pickNoise": 0,
+          "fingerNoise": 0,
+          "bodyResonance": 0,
+          "sympatheticAmount": 0
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.10302734375,
+            587.95166015625,
+            660.46142578125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.5423844832790094e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.4676039822590923e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.24872780366455e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.9535126360623,
+            "high_maximum_dbfs": -178.79802034949176,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.95351262977029,
+            "high_maximum_dbfs": -178.84448287122768,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -215.22386833410883,
+            "high_maximum_dbfs": -206.31178127768953,
+            "high_maximum_frequency_hz": 21276.786434229143
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.953739918187054,
+            "high_maximum_dbfs": -276.85733992147357,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.953512646824706,
+            "high_maximum_dbfs": -272.2484142407346,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12424.018454720512,
+            "complex_components": {
+              "native": {
+                "real": 1.148182325480776e-09,
+                "imag": 2.313278555715204e-11,
+                "magnitude_dbfs": -178.79802034949176
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 1.1422031829623405e-09,
+                "imag": 1.3972037817450213e-11,
+                "magnitude_dbfs": -178.84448287122768
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 5.979142555559091e-12,
+                "imag": 9.160747751840232e-12,
+                "magnitude_dbfs": -219.22016722862793
+              },
+              "H1_H3_nuisance": {
+                "real": 1.0371637327329502e-14,
+                "imag": -3.3999835684688697e-16,
+                "magnitude_dbfs": -279.67838900538817
+              },
+              "all_under1k_nuisance": {
+                "real": 1.913133521270031e-14,
+                "imag": 3.321466168113914e-15,
+                "magnitude_dbfs": -274.2361242981213
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.91070510624612,
+            "high_maximum_dbfs": -181.91023192278803,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.910705101681565,
+            "high_maximum_dbfs": -181.75993071959684,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -215.60161397699844,
+            "high_maximum_dbfs": -206.0125879001811,
+            "high_maximum_frequency_hz": 21276.786434229143
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.94091812336963,
+            "high_maximum_dbfs": -194.68144746060761,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.91070516800379,
+            "high_maximum_dbfs": -190.17997703995428,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 17260.14737516981,
+            "complex_components": {
+              "native": {
+                "real": 6.998817529468043e-10,
+                "imag": 3.928108937806791e-10,
+                "magnitude_dbfs": -181.91023192278803
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 7.055491130367009e-10,
+                "imag": 4.1111781226488823e-10,
+                "magnitude_dbfs": -181.75993071959684
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -5.6673601064766984e-12,
+                "imag": -1.8306918503743303e-11,
+                "magnitude_dbfs": -214.35023726376556
+              },
+              "H1_H3_nuisance": {
+                "real": 8.891743667173888e-11,
+                "imag": 1.3363359218216088e-11,
+                "magnitude_dbfs": -200.92325889192983
+              },
+              "all_under1k_nuisance": {
+                "real": 1.945472837768149e-10,
+                "imag": 1.4685887298287882e-11,
+                "magnitude_dbfs": -194.194819138643
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "artifact-off",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "artifact-off",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 129.12827315613498,
+        "peak_dbfs": -40.00540516742455,
+        "top_dbfs": -169.13367832355954,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12424.018454720512,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.10302734375,
+            587.95166015625,
+            660.46142578125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.5357206670179686e-09,
+        "FIR_arithmetic_residual_raw_peak": 3.342345222812071e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.341253897282235e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -40.00540516742952,
+            "high_maximum_dbfs": -169.13367776969056,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -40.0054051696879,
+            "high_maximum_dbfs": -169.16012539163714,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -221.2556211758218,
+            "high_maximum_dbfs": -207.55685847688233,
+            "high_maximum_frequency_hz": 21597.135049979508
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.00563285354866,
+            "high_maximum_dbfs": -276.7745598851943,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -40.00540517850038,
+            "high_maximum_dbfs": -272.1806639686445,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12424.018454720512,
+            "complex_components": {
+              "native": {
+                "real": 3.404552678625942e-09,
+                "imag": -7.852868131400644e-10,
+                "magnitude_dbfs": -169.13367776969056
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 3.3903197920816273e-09,
+                "imag": -7.995435457401855e-10,
+                "magnitude_dbfs": -169.16012539163714
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 1.4232886527706175e-11,
+                "imag": 1.4256732571906258e-11,
+                "magnitude_dbfs": -213.9165640570532
+              },
+              "H1_H3_nuisance": {
+                "real": 1.0363555528894599e-14,
+                "imag": -4.700380437681767e-16,
+                "magnitude_dbfs": -279.6808998723408
+              },
+              "all_under1k_nuisance": {
+                "real": 1.9189222480889298e-14,
+                "imag": 3.3186036819065483e-15,
+                "magnitude_dbfs": -274.2108656085812
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.96239663646681,
+            "high_maximum_dbfs": -175.2246171682374,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.9623966397125,
+            "high_maximum_dbfs": -175.14585770814764,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -220.28154953589805,
+            "high_maximum_dbfs": -206.56430652149393,
+            "high_maximum_frequency_hz": 21597.135049979508
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.992695800807596,
+            "high_maximum_dbfs": -194.59737041473863,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.96239668899587,
+            "high_maximum_dbfs": -190.1145863581565,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13488.314722148776,
+            "complex_components": {
+              "native": {
+                "real": 1.3859417222854648e-09,
+                "imag": -1.0402151972044894e-09,
+                "magnitude_dbfs": -175.2246171682374
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 1.3850498085562787e-09,
+                "imag": -1.0674611508336842e-09,
+                "magnitude_dbfs": -175.14585770814764
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 8.919136953662306e-13,
+                "imag": 2.7245953628644815e-11,
+                "magnitude_dbfs": -211.28930823375498
+              },
+              "H1_H3_nuisance": {
+                "real": 6.174586275164238e-11,
+                "imag": -7.930670113875359e-11,
+                "magnitude_dbfs": -199.95588147057163
+              },
+              "all_under1k_nuisance": {
+                "real": 1.491159944383205e-10,
+                "imag": -1.703863662704644e-10,
+                "magnitude_dbfs": -192.90161302526573
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "contact-noise-off",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "contact-noise-off",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 138.39165263741225,
+        "peak_dbfs": -39.99819314231479,
+        "top_dbfs": -178.38984577972707,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12424.018454720512,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0,
+          "fingerNoise": 0,
+          "bodyResonance": 0.3499999940395355,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.10302734375,
+            587.95166015625,
+            660.46142578125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.5292735182960007e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.3898268863842276e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.8729737682090834e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.99819314231971,
+            "high_maximum_dbfs": -178.38984294816524,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.99819313177754,
+            "high_maximum_dbfs": -178.52078309488985,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -212.97932590345022,
+            "high_maximum_dbfs": -208.08130183816186,
+            "high_maximum_frequency_hz": 21597.135049979508
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.99842065292479,
+            "high_maximum_dbfs": -276.78404937544923,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.99819315310566,
+            "high_maximum_dbfs": -272.2014358998099,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12424.018454720512,
+            "complex_components": {
+              "native": {
+                "real": 1.203670376344184e-09,
+                "imag": 1.3677889544180322e-12,
+                "magnitude_dbfs": -178.38984294816524
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 1.1856456706807005e-09,
+                "imag": 6.193557993030647e-12,
+                "magnitude_dbfs": -178.52078309488985
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 1.802470561023557e-11,
+                "imag": -4.825769021174913e-12,
+                "magnitude_dbfs": -214.58198600144428
+              },
+              "H1_H3_nuisance": {
+                "real": 1.041601392357217e-14,
+                "imag": -4.0986819935875077e-16,
+                "magnitude_dbfs": -279.6392495160222
+              },
+              "all_under1k_nuisance": {
+                "real": 1.9156903865658874e-14,
+                "imag": 3.2307939405439936e-15,
+                "magnitude_dbfs": -274.231693417973
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.95538231028691,
+            "high_maximum_dbfs": -182.8051647705361,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.95538230214435,
+            "high_maximum_dbfs": -182.5478927330659,
+            "high_maximum_frequency_hz": 17260.14737516981
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -214.03505046591218,
+            "high_maximum_dbfs": -206.86017042394343,
+            "high_maximum_frequency_hz": 21597.135049979508
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.98562156581138,
+            "high_maximum_dbfs": -194.6062965067659,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.95538237356074,
+            "high_maximum_dbfs": -190.13299464971337,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 17260.14737516981,
+            "complex_components": {
+              "native": {
+                "real": 6.608273443483263e-10,
+                "imag": 2.9578866468823425e-10,
+                "magnitude_dbfs": -182.8051647705361
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 6.76183283612858e-10,
+                "imag": 3.145635443001197e-10,
+                "magnitude_dbfs": -182.5478927330659
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -1.535593929553927e-11,
+                "imag": -1.877487965493299e-11,
+                "magnitude_dbfs": -212.3040042985197
+              },
+              "H1_H3_nuisance": {
+                "real": 8.872010343229552e-11,
+                "imag": 1.3689393320605187e-11,
+                "magnitude_dbfs": -200.93737369498885
+              },
+              "all_under1k_nuisance": {
+                "real": 1.9390452892715687e-10,
+                "imag": 1.5139477604774236e-11,
+                "magnitude_dbfs": -194.22184666524953
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    },
+    {
+      "variant": "on",
+      "host_rate": 48000,
+      "internal_rate": 96000,
+      "condition": "body-off",
+      "exact_original_cpp": {
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "condition": "body-off",
+        "frames": 48000,
+        "internal_trace_pcm_identity": true,
+        "dft_start": 9600,
+        "dft_frames": 32768,
+        "below_peak_db": 129.12534516099856,
+        "peak_dbfs": -39.96255264488541,
+        "top_dbfs": -169.08789780588396,
+        "peak_frequency_hz": 440.2735407795367,
+        "top_frequency_hz": 12424.018454720512,
+        "original_guard_pass": false,
+        "other_controls": {
+          "stringAge": 0.30000001192092896,
+          "pickPosition": 0.18000000715255737,
+          "tone": 0.699999988079071,
+          "artifactAmount": 0.18000000715255737,
+          "pickNoise": 0.5,
+          "fingerNoise": 0.4000000059604645,
+          "bodyResonance": 0,
+          "sympatheticAmount": 0.20000000298023224
+        }
+      },
+      "diagnostics": {
+        "low_partial_fit": {
+          "observed_frequencies_hz": [
+            41.19873046875,
+            61.70654296875,
+            82.3974609375,
+            110.04638671875,
+            123.779296875,
+            146.8505859375,
+            164.97802734375,
+            185.48583984375,
+            196.10595703125,
+            220.0927734375,
+            247.1923828125,
+            293.701171875,
+            329.9560546875,
+            392.2119140625,
+            440.36865234375,
+            493.10302734375,
+            587.95166015625,
+            660.46142578125,
+            741.5771484375,
+            981.99462890625
+          ],
+          "design_columns": 82,
+          "rank": 82
+        },
+        "FIR_arithmetic_residual_raw_rms": 1.5466348635897585e-09,
+        "FIR_arithmetic_residual_raw_peak": 2.6759031268586142e-08,
+        "direct_DFT_vs_cpp_recurrence_max_absolute_amplitude_error": 3.884686661140772e-15
+      },
+      "tapers": {
+        "hann": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.96255264489035,
+            "high_maximum_dbfs": -169.08789726515585,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.962552657482675,
+            "high_maximum_dbfs": -169.08179341640755,
+            "high_maximum_frequency_hz": 12424.018454720512
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -216.63868959824757,
+            "high_maximum_dbfs": -206.98694572858997,
+            "high_maximum_frequency_hz": 22587.41196385318
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.96278088261189,
+            "high_maximum_dbfs": -276.8722441712398,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.9625526558717,
+            "high_maximum_dbfs": -272.2146887628423,
+            "high_maximum_frequency_hz": 12058.18294334036
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 12424.018454720512,
+            "complex_components": {
+              "native": {
+                "real": 3.4161897299165468e-09,
+                "imag": -8.16497313340952e-10,
+                "magnitude_dbfs": -169.08789726515585
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 3.4205105340559832e-09,
+                "imag": -8.089989104789735e-10,
+                "magnitude_dbfs": -169.08179341640755
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": -4.320804160661151e-12,
+                "imag": -7.49840280626802e-12,
+                "magnitude_dbfs": -221.25544894610925
+              },
+              "H1_H3_nuisance": {
+                "real": 1.0334607413232481e-14,
+                "imag": -3.6640232732906703e-16,
+                "magnitude_dbfs": -279.7086647622888
+              },
+              "all_under1k_nuisance": {
+                "real": 1.9178280975231383e-14,
+                "imag": 3.3801692378570578e-15,
+                "magnitude_dbfs": -274.21095017554387
+              }
+            }
+          }
+        },
+        "bh": {
+          "native": {
+            "at_cpp_peak_frequency_dbfs": -39.91949532973171,
+            "high_maximum_dbfs": -175.6271077868118,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "same_float_taps_double_accumulation": {
+            "at_cpp_peak_frequency_dbfs": -39.91949535048562,
+            "high_maximum_dbfs": -175.63664990951855,
+            "high_maximum_frequency_hz": 13488.314722148776
+          },
+          "native_minus_double_FIR_roundoff": {
+            "at_cpp_peak_frequency_dbfs": -212.3534363781797,
+            "high_maximum_dbfs": -205.68477265191504,
+            "high_maximum_frequency_hz": 22587.41196385318
+          },
+          "H1_H3_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.94982769179437,
+            "high_maximum_dbfs": -194.69502478308044,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "all_under1k_nuisance": {
+            "at_cpp_peak_frequency_dbfs": -39.919495383373956,
+            "high_maximum_dbfs": -190.14857332870622,
+            "high_maximum_frequency_hz": 12148.619315415413
+          },
+          "at_native_high_maximum": {
+            "frequency_hz": 13488.314722148776,
+            "complex_components": {
+              "native": {
+                "real": 1.2506660313975463e-09,
+                "imag": -1.083016796462738e-09,
+                "magnitude_dbfs": -175.6271077868118
+              },
+              "same_float_taps_double_accumulation": {
+                "real": 1.2496848833660469e-09,
+                "imag": -1.0813747661077441e-09,
+                "magnitude_dbfs": -175.63664990951855
+              },
+              "native_minus_double_FIR_roundoff": {
+                "real": 9.811480042578415e-13,
+                "imag": -1.6420302812660757e-12,
+                "magnitude_dbfs": -234.36647697164003
+              },
+              "H1_H3_nuisance": {
+                "real": 6.253055076830744e-11,
+                "imag": -7.986822363636529e-11,
+                "magnitude_dbfs": -199.87626709263134
+              },
+              "all_under1k_nuisance": {
+                "real": 1.4955165857329728e-10,
+                "imag": -1.7070786828042225e-10,
+                "magnitude_dbfs": -192.88134799678193
+              }
+            }
+          }
+        }
+      },
+      "fold_decomposition": []
+    }
+  ],
+  "limits": [
+    "No production patch, guard alteration, floor lowering, reclassification of prior frozen result or real-guitar render.",
+    "Double FIR is diagnostic, not a proposed precision/filter change; exact native PCM retained.",
+    "A finite-window folding channel can itself contain spectral leakage; neither frequency>12k nor rate change alone proves an alias defect.",
+    "Low-partial nuisance is an estimated lower-bound comparator, not a calibrated source or complete low-band physical decomposition.",
+    "Different internal rates change sample-clock interpolation, stochastic forcing and other numerical trajectories despite fixed static controls.",
+    "No audible defect or invalid-contract conclusion follows from these extremely quiet absolute levels alone.",
+    "Hann fold/image estimate at the failing bin is near double cancellation scale; do not report its ~-301dBFS estimate as resolved signal. Identity residual is about1e-15 absolute, still negligible relative to~3.6e-9 native amplitude.",
+    "Incidental-path public-control zeroing is a nonlinear diagnostic, not an independent additive noise stem or variance subtraction.",
+    "H1-H3/all-under1k reconstructions do not isolate every possible1-12k leakage contribution. BH supports surviving upper energy but has its own endpoint leakage, particularly near quiet baseline levels.",
+    "The original48k guard still fails; no guard, source pin, threshold, floor, coefficient, gain, productdefault or real-reference admission has changed.",
+    "No Longitudinal/SG reference renders were made in this diagnostic. Root decides any subsequent research-only comparison separately."
+  ]
+}

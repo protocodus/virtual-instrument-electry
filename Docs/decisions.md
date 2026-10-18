@@ -4,6 +4,122 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-19 — known-Neck body gap and differential cooling
+
+Continue under the standing autonomous instruction without inventing a listener
+vote. A new source-only mask and actual released-engine comparison cover all
+46 original E/A chromatic notes from the documented Neck-pickup Guitar-TECHS
+P2 recording. Primary H2/H1 and H3/H1 paired errors are +12.786/+19.607dB;
+matched H1 is −3.045dB. All four existing-control contexts, all qualified
+denominators and every unqualified row remain in the
+[comparison](research/p2-known-neck-body-2026-10-19.md). Mid-pick contexts
+help some notes but do not identify a reference hand position or justify a
+new default. The local room is http://127.0.0.1:8741/room/.
+
+A separately frozen post-hoc derivation shows faster relative H2/H3 cooling
+in the recorded finite intervals. Retain the strong envelope curvature and
+unknown acoustic-age offset: these are not intrinsic modal T60 measurements.
+Independent source, model, PCM, arithmetic and room checks pass. Correct the
+dataset attribution to its five listed creators and actual record DOI while
+preserving prior frozen records.
+
+The [material-loss study](research/wound-loss-hypothesis-2026-10-19.md)
+finds a positive fixed-open effective model, with all 115 H1–H3 predictions
+dissipative. Nineteen negative per-cell diagnostic decompositions do not
+invalidate that model; they show it cannot exactly represent every legacy
+voiced target with two positive loss coordinates. Material identification
+and a causal production implementation remain unqualified. No source gain,
+EQ, per-fret material fit, default, threshold or authenticity claim follows.
+Published 1.2.6 and the established note-change/repick implementation remain
+unchanged.
+
+## 2026-10-18 — correct documented pickup settings before a new source law
+
+Continue autonomous evaluation with all candidates retained and no invented
+listener vote. The primary Guitar-TECHS paper specifies P3 Both/max controls;
+supersede earlier selector-unknown caveats without rewriting frozen audio or
+numeric evidence. Testing those documented controls across all four original
+phrases reduces H1-share error .611749 → .420666, with further separately
+declared stock-hardware contexts. Substantial body error remains, F5 overshoots,
+and both admitted upper-band slopes worsen in every changed context. Keep
+the corrected context as evidence, not a global default or DSP improvement.
+The [full comparison](research/p3-documented-settings-2026-10-18.md) and
+[four-phrase room](http://127.0.0.1:8729/) retain every setting and regression.
+
+A separate [physical-field study](research/static-field-early-body-2026-10-18.md)
+tests complete stiff static equilibrium with instantaneous and finite force
+unloading through production magnetics/electronics. All original/hook controls
+reproduce exactly, and independent force/work/measurement checks pass. The
+early-body result is mixed: some HB ratios improve, SC near-bridge ratios
+worsen, and matched fundamental/body power generally falls. Neither lossless
+field qualifies a new source, attack, repick, fret change or upper sustain.
+Preserve the C1 pulse terminology correction and both frozen protocols.
+
+Published1.2.6, Source, defaults, source pins and test thresholds stay unchanged.
+No source gain, control-position fit, EQ or authenticity percentage is licensed.
+
+## 2026-10-18 — upper-loss ablation improves tails but worsens upper level
+
+Under the standing autonomous-evaluation instruction, retain `95e5c1b` as
+research only. A separate diagnostic classifies its exact ultrasonic-floor
+maximum as surviving pre-decimator baseband signal, strongly dependent on
+the contact-noise path. Output-decimator folding, FIR arithmetic and estimated
+low-partial window leakage do not explain that maximum. The failed source cap is
+still recorded; this does not prove physical correctness or all-engine alias
+freedom, and no fixture or threshold is changed.
+
+After that diagnosis, the prospectively frozen comparison uses all sixty
+dry plucks at each of two fixed public pick settings. Every new shipping A
+raw file and recomputed baseline observation reproduces its prior freeze
+exactly. All 130 prequalified upper prefixes remain admitted and pass the
+unchanged observability checks. Most 1.5–4 kHz slopes improve and all sixteen
+paired Strat 4–8 kHz slopes improve, but the Les Paul 1.5–4 kHz level becomes
+too strong in 215 of 216 windows at each pick setting. Lower body and
+H1/H2/H3 barely change. Do not promote slower decay as a universal tone fix
+or fit an intermediate damping factor to conceal this tradeoff.
+
+The [whole-score report](research/upper-loss-ablation-2026-10-18.md) retains
+every regression and the control/hardware uncertainty. The local room is
+`http://127.0.0.1:8728/`, with a separate key; no user vote is claimed.
+Published `6c83ff4` remains unchanged. All 25 original Engine failures remain;
+the prospective performance plan is preserved without rendering after the
+tone rejection. Source/readout weighting and loss need separate physical
+qualification. The [modal decay audit](research/upper-modal-decay-2026-10-18.md)
+and [force/contact work balance](research/force-contact-work-balance-2026-10-18.md)
+provide bounded diagnostics, not a new playable source or authenticity claim.
+
+## 2026-10-18 — separate lower body, control setup and failed source hypotheses
+
+Continue under the user's autonomous-evaluation instruction without claiming
+a new listener vote. Keep published `6c83ff4` unchanged at this checkpoint.
+In the new two-player, thirty-pluck-per-player dry comparison, Bridge H1/H2
+are deficient at Pick Position .18 while absolute H3 is much closer. Changing
+only the existing control to fixed .5 reduces H1 error from about −8 dB to
+−1.4/−1.2 dB. This is a control-identifiability result, not an inferred hand
+position or a promoted global default. Every selector hypothesis remains
+disclosed, including Both/Neck H3 regressions. A/B copies are in the local
+room `http://127.0.0.1:8727/`, with a separate mechanism key.
+
+Reject standalone common-time pickup `875f58b`: correct steady observation
+does not qualify its forced-startup boost. Actual seam-history followup
+`2f34c9c` removes that boost and restores behavior rails, but worsens SG Both
+body and upper sustain and retains one evaluation pin. Reject upper-loss
+prototype `95e5c1b`: C++17/Fx/Refret pass, but one unchanged ultrasonic-floor
+guard fails in addition to source pins. No gain, threshold or fixture repair,
+default change, or full-corpus promotion is licensed by these results.
+
+Keep original source masks and numeric slopes frozen. A separate stricter
+observability audit admits thirty/twenty-seven complete Bridge prefixes at
+1.5–4 kHz and eight Strat prefixes at 4–8 kHz for future candidates; no prefix
+is shortened to pass. Real narrowband trough/recovery is confirmed, but
+conditional multi-component fits identify neither a physical polarization
+split nor a new detune/sign. Ringing repicks remain part of the evidence.
+
+See [dry-tone measurements](research/dry-guitar-tone-baseline-2026-10-18.md),
+[state/source qualification](research/string-field-initialization-2026-10-18.md),
+[control audit](research/tone-identifiability-2026-10-18.md) and
+[reference provenance](research/premium-reference-coverage-2026-10-18.md).
+
 ## 2026-10-18 — low-partial body and upper-band sustain
 
 Under the user's continued autonomous-selection instruction, select source
