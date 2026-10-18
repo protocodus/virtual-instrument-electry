@@ -1485,6 +1485,8 @@ void ElectryEngine::reset()
     heldExpressionIds_.fill(legacyExpressionId);
     for (auto& counts : outstandingNoteOffs_)
         counts.fill(0);
+    for (auto& flags : broadcastNoteOffs_)
+        flags.reset();
     tremoloPickingPhase_ = 0.0;
 
     smoothedParameters_ = sanitise(targetParameters_);
@@ -2620,6 +2622,25 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
             }
         }
 
+        bool existingOwner = false;
+        bool duplicatePhysicalIdentity = false;
+        for (int oldString = 0; oldString < stringCount; ++oldString)
+        {
+            const auto oldIndex = static_cast<std::size_t>(oldString);
+            if (heldNoteCounts_[oldIndex] <= 0
+                || heldMidiNotes_[oldIndex] != midiNote
+                || heldExpressionIds_[oldIndex] != expressionId)
+                continue;
+            existingOwner = true;
+            duplicatePhysicalIdentity |= oldString != stringIndex;
+        }
+        auto broadcast = broadcastNoteOffs_[
+            static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
+        if (! existingOwner)
+            broadcast = false;
+        else if (duplicatePhysicalIdentity)
+            broadcast = true;
+
         if (heldMidiNotes_[heldIndex] == midiNote
             && heldExpressionIds_[heldIndex] == expressionId)
             heldNoteCounts_[heldIndex] = std::min(
@@ -2653,6 +2674,8 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         return;
     auto& outstanding = outstandingNoteOffs_[
         static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
+    auto broadcast = broadcastNoteOffs_[
+        static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
     std::uint32_t currentOwners = 0;
     for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
     {
@@ -2661,13 +2684,16 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
             && heldExpressionIds_[index] == expressionId)
             currentOwners += static_cast<std::uint32_t>(heldNoteCounts_[index]);
     }
-    if (outstanding > currentOwners)
+    if (outstanding > currentOwners && (! broadcast || currentOwners == 0))
     {
         // Consume a displaced older identity before touching its replacement.
         --outstanding;
+        if (currentOwners == 0)
+            broadcast = false;
         return;
     }
 
+    bool remainingOwner = false;
     for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
     {
         const auto index = static_cast<std::size_t>(stringIndex);
@@ -2683,6 +2709,7 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         if (heldNoteCounts_[index] > 1)
         {
             --heldNoteCounts_[index];
+            remainingOwner = true;
             if (voice.active && voice.midiNote == midiNote
                 && voice.expressionId == expressionId)
                 voice.keyDownCount = heldNoteCounts_[index];
@@ -2706,6 +2733,8 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         else
             beginVoiceRelease(voice);
     }
+    if (! remainingOwner || outstanding == 0)
+        broadcast = false;
     if (! hasHeldFrettedFinger())
         resetVibratoOnset();
 }
@@ -2717,6 +2746,8 @@ void ElectryEngine::allNotesOff()
     heldExpressionIds_.fill(legacyExpressionId);
     for (auto& counts : outstandingNoteOffs_)
         counts.fill(0);
+    for (auto& flags : broadcastNoteOffs_)
+        flags.reset();
     for (auto& voice : voices_)
     {
         if (! voice.active)

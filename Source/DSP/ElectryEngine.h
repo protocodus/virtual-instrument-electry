@@ -110,6 +110,7 @@
 #include "DspMath.h"
 
 #include <array>
+#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -1928,12 +1929,18 @@ private:
     std::array<ExpressionId, stringCount> heldExpressionIds_ {};
     // A string can be stolen and return to the same MIDI identity before its
     // older Note Off arrives (A -> B -> A). Per-string counts alone forget
-    // that older owner. Consume matching offs in FIFO order per pitch/member
-    // channel, independently of the current physical allocation. Picking-hand
-    // repicks add no MIDI owner. A 32-bit saturating count also retains stolen
-    // owners after the per-string 16-bit overlap limit has been reached.
+    // that older owner. For one physical identity, consume displaced owners
+    // before the returning owner. Picking-hand repicks add no MIDI owner. A
+    // 32-bit saturating count also retains stolen owners after the per-string
+    // 16-bit overlap limit has been reached.
     std::array<std::array<std::uint32_t, 128>, expressionPitchBendCount>
         outstandingNoteOffs_ {};
+    // Explicit string masks can duplicate one legacy identity across strings.
+    // MIDI supplies no per-string owner ID in that case: preserve the existing
+    // broadcast end for that live group rather than infer an ordering from the
+    // aggregate count. Once its last physical owner leaves, a later unique
+    // identity again receives displaced-owner protection.
+    std::array<std::bitset<128>, expressionPitchBendCount> broadcastNoteOffs_ {};
     // The visible B0 gesture is one picking wrist, not eight clocks. Its
     // phase is measured in strokes so a rate change takes effect immediately
     // without resetting time or accumulating integer-sample drift.

@@ -4684,6 +4684,113 @@ void testOverlappingSameNoteOffKeepsLatestRepickHeld()
            "the final matching Note Off did not release the Palm repick");
 }
 
+void testMaskedDuplicateIdentityKeepsBroadcastNoteOff()
+{
+    auto engine = std::make_unique<ElectryEngine>();
+    engine->prepare(48000.0, 64);
+    const auto on = [&] (int stringIndex, int note)
+    {
+        engine->setSoloStringMask(1u << stringIndex);
+        engine->noteOn(note, 0.8f);
+    };
+    // The same legacy MIDI identity can explicitly occupy two strings. An
+    // ordinary Note Off broadcasts to each surviving matching string even
+    // when the newer duplicate has already moved to a different pitch.
+    for (const bool moveOlder : { false, true })
+        for (const bool sustain : { false, true })
+        {
+            engine->reset();
+            on(0, 40);
+            on(2, 40);
+            const int moved = moveOlder ? 0 : 2;
+            const int remaining = moveOlder ? 2 : 0;
+            on(moved, 43);
+            engine->setSustainPedal(sustain);
+            engine->noteOff(40);
+            const auto released = TestAccess::snapshot(*engine, remaining);
+            expect(! released.keyDown
+                       && (sustain ? released.sustained : released.releasing),
+                   "a displaced masked duplicate suppressed the surviving broadcast end");
+            expect(TestAccess::snapshot(*engine, moved).keyDown,
+                   "masked duplicate end released the replacement pitch");
+            engine->noteOff(40); // The displaced duplicate's remaining end.
+            engine->noteOff(43);
+            engine->setSustainPedal(false);
+        }
+
+    engine->reset();
+    on(0, 40);
+    on(0, 40);
+    on(2, 40);
+    on(2, 43);
+    engine->noteOff(40);
+    expect(TestAccess::snapshot(*engine, 0).keyDown,
+           "broadcast end discarded both owners on its surviving string");
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown,
+           "second broadcast end did not release the surviving overlap");
+    engine->noteOff(40);
+    engine->noteOff(43);
+
+    // Once every physical duplicate is gone, later unique owners again use
+    // displaced-note protection, including a return before old ends arrive.
+    for (const int clearMode : { 0, 1, 2, 3 })
+    {
+        engine->reset();
+        on(0, 40);
+        on(2, 40);
+        if (clearMode == 0)
+        {
+            on(0, 43);
+            on(2, 45);
+        }
+        else if (clearMode == 1)
+            engine->allNotesOff();
+        else if (clearMode == 2)
+            engine->reset();
+        else
+        {
+            on(2, 43);
+            engine->noteOff(40);
+            expect(! TestAccess::snapshot(*engine, 0).keyDown,
+                   "broadcast did not retire its final live duplicate");
+        }
+        on(0, 40);
+        on(0, 43);
+        on(0, 40);
+        const int staleEnds = clearMode == 0 ? 3 : clearMode == 3 ? 2 : 1;
+        for (int old = 0; old < staleEnds; ++old)
+        {
+            engine->noteOff(40);
+            expect(TestAccess::snapshot(*engine, 0).keyDown,
+                   "a historical duplicate group disabled later unique-owner protection");
+        }
+        engine->noteOff(40);
+        expect(! TestAccess::snapshot(*engine, 0).keyDown,
+               "final unique owner retained historical duplicate state");
+    }
+
+    // A legacy owner on another string is a different identity from an MPE
+    // member. It must neither enable broadcast nor consume the member's ends.
+    engine->reset();
+    on(0, 40);
+    engine->setSoloStringMask(1u << 2);
+    engine->noteOn(40, 0.8f, 3);
+    engine->noteOn(43, 0.8f, 3);
+    engine->noteOn(40, 0.8f, 3);
+    engine->noteOff(40, 3);
+    expect(TestAccess::snapshot(*engine, 0).keyDown
+               && TestAccess::snapshot(*engine, 2).keyDown,
+           "a separate legacy identity disabled MPE returning-owner protection");
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown
+               && TestAccess::snapshot(*engine, 2).keyDown,
+           "legacy broadcast crossed into a different MPE member");
+    engine->noteOff(40, 3);
+    expect(! TestAccess::snapshot(*engine, 2).keyDown,
+           "MPE final end was retained after the legacy broadcast");
+}
+
 void testDisplacedMidiOwnersDoNotReleaseReturningPitch()
 {
     for (const double rate : { 48000.0, 96000.0, 384000.0 })
@@ -22862,8 +22969,14 @@ void testCpuGuardrail()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--duplicate-ownership-only")
+    {
+        testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
+        return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     if (argc == 2 && std::string(argv[1]) == "--ownership-only")
     {
+        testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
         testOverlappingSameNoteOffKeepsLatestRepickHeld();
         testDisplacedMidiOwnersDoNotReleaseReturningPitch();
         testHeldStringRepickKeys();
@@ -22927,6 +23040,7 @@ int main(int argc, char** argv)
     testSoloStringKeyswitches();
     testOverlappingSameNoteOffKeepsLatestRepickHeld();
     testDisplacedMidiOwnersDoNotReleaseReturningPitch();
+    testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
     testHeldStringRepickKeys();
     testHeldTremoloPickingGesture();
     testHammerLatchedRepicksUsePickingHand();
