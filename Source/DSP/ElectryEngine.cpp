@@ -5747,7 +5747,6 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     }
     voice.pendingContactPreservesRing = false;
     (void) velocity; // The note-on velocity is cached in velocityProfile.
-    (void) preservesExistingStringState; // Candidate-only repick classification.
     const auto& parameters = smoothedParameters_;
     const float sampleRate = static_cast<float>(sampleRate_);
     const auto& profile = voice.velocityProfile;
@@ -6247,6 +6246,21 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     const int contactSamples = plectrumContact
         ? std::max(plectrumContactSamples(voice),
                    voice.refretRemainingSamples) : 0;
+
+    // Note ownership may have changed during strum lookahead, but the old
+    // stopping hand is opened only by this physical plectrum contact. Keep
+    // its starting gain and spectrum together through the existing Contact.
+    voice.releaseRestoreLength = contactSamples > 1
+        && preservesExistingStringState
+        && (voice.releaseGain != 1.0f || voice.releaseSpectralDepth != 0.0f)
+            ? contactSamples : 0;
+    voice.releaseRestoreStartGain = voice.releaseGain;
+    voice.releaseRestoreStartDepth = voice.releaseSpectralDepth;
+    if (contactSamples <= 1)
+    {
+        voice.releaseGain = 1.0f;
+        voice.releaseSpectralDepth = 0.0f;
+    }
 
     // Contact loss is a total attenuation over the complete pick/string
     // engagement, not ten percent every oversampled frame. The old 0.90
@@ -7135,9 +7149,13 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         voice.slideDelayStep = 0.0f;
         voice.slideDelayRampRemaining = 0;
     }
-    voice.releaseGain = 1.0f;
+    if (! wasRinging || ! plectrumContacts(playStyle, false))
+    {
+        voice.releaseGain = 1.0f;
+        voice.releaseSpectralDepth = 0.0f;
+        voice.releaseRestoreLength = 0;
+    }
     voice.releaseGainTarget = 1.0f;
-    voice.releaseSpectralDepth = 0.0f;
     voice.releaseSpectralTarget = 0.0f;
     voice.releaseGainCoefficient = 0.0f;
     if (! wasRinging)
@@ -7266,6 +7284,7 @@ void ElectryEngine::legatoRetarget(Voice& voice, int midiNote, float velocity,
     voice.releaseGainTarget = 1.0f;
     voice.releaseSpectralDepth = 0.0f;
     voice.releaseSpectralTarget = 0.0f;
+    voice.releaseRestoreLength = 0;
     voice.artifactCollisionRemaining = 0;
     if (! travellingContact)
     {
@@ -7438,6 +7457,7 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     stopLegatoTravel(voice);
 
     const bool wasAlreadyReleasing = voice.releasing;
+    voice.releaseRestoreLength = 0;
 
     // A strum spreads the pick across the strings by up to 280 ms. If the key
     // is lifted before the pick arrives, it never lands: leaving the countdown
@@ -7541,7 +7561,8 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
     // the requested style alone cannot identify which hand is present yet.
     // 0.75 is a conservative voicing depth; the positive-weight spatial
     // average is contractive at every frequency and introduces no phase lag.
-    voice.releaseSpectralDepth = 0.0f;
+    // A Note Off during hand opening continues from the actual contact
+    // depth; dropping it to zero would remove the old stop for one sample.
     voice.releaseSpectralTarget = (voice.dampingStyle == PlayStyle::Sustain
                                    || voice.dampingStyle == PlayStyle::PalmMute)
         ? 0.75f * (1.0f - voice.livePalmContact)
@@ -7655,6 +7676,9 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.releaseSpectralDepth = 0.0f;
     voice.releaseSpectralTarget = 0.0f;
     voice.releaseGainCoefficient = 0.0f;
+    voice.releaseRestoreLength = 0;
+    voice.releaseRestoreStartGain = 1.0f;
+    voice.releaseRestoreStartDepth = 0.0f;
     voice.releaseMotionPeak = 0.0f;
     voice.articulationMakeupCurrent = 1.0f;
     voice.legatoBlend = 1.0f;
@@ -8347,6 +8371,29 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     }
 #endif
 
+    // Restore an old stopped string before these loop reads. The first and
+    // last Contact samples retain the exact old/new endpoints; the standard
+    // minimum-jerk weight has zero first and second endpoint derivatives.
+    if (voice.releaseRestoreLength > 0
+        && voice.excitationPhase == ExcitationPhase::Contact)
+    {
+        const float progress = static_cast<float>(voice.releaseRestoreLength
+                                                   - voice.excitationRemaining)
+                             / static_cast<float>(voice.releaseRestoreLength - 1);
+        const float halfProgress = std::min(progress, 1.0f - progress);
+        const float halfWeight = halfProgress * halfProgress * halfProgress
+            * (10.0f + halfProgress * (6.0f * halfProgress - 15.0f));
+        const float weight = progress <= 0.5f ? halfWeight : 1.0f - halfWeight;
+        voice.releaseGain = lerp(voice.releaseRestoreStartGain, 1.0f, weight);
+        voice.releaseSpectralDepth = voice.releaseRestoreStartDepth * (1.0f - weight);
+        if (voice.excitationRemaining <= 1)
+        {
+            voice.releaseGain = 1.0f;
+            voice.releaseSpectralDepth = 0.0f;
+            voice.releaseRestoreLength = 0;
+        }
+    }
+
     // Loop reads and the damping/dispersion chain.
     const auto advanceLoop = [&] (PolarisationLoop& loop,
                                   float compensatedPeriod,
@@ -8356,7 +8403,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         {
             const float boundaryDelay = loop.currentDelay + delayOffset;
             float boundary = loop.readFractional(boundaryDelay);
-            if (voice.releasing && voice.releaseSpectralDepth > 0.0f)
+            if (voice.releaseSpectralDepth > 0.0f)
             {
                 // Apply the same symmetric stopping-hand average separately
                 // to each boundary before mixing. All reads keep their own
