@@ -23,6 +23,7 @@ struct ElectryEngineTestAccess
         std::array<double, 5> material;
         bool handActive;
         std::array<double, 5> hand;
+        std::array<double, 5> loss {1, 0, 0, 0, 0};
     };
 
     static Response inspect(ElectryEngine& engine, int stringIndex, double frequency)
@@ -30,10 +31,19 @@ struct ElectryEngineTestAccess
         const auto& loop = engine.voices_[static_cast<std::size_t>(stringIndex)].vertical;
         const auto& b = loop.materialLossDip;
         const auto& h = loop.handDip;
-        return { engine.sampleRate_, frequency,
+        Response result { engine.sampleRate_, frequency,
                  loop.loopDampingCoefficient, loop.loopGain,
                  loop.materialLossDepth, { b.b0, b.b1, b.b2, b.a1, b.a2 },
                  loop.handDipActive, { h.b0, h.b1, h.b2, h.a1, h.a2 } };
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        if (loop.lossShelfActive)
+        {
+            result.coefficient = 0;
+            const auto& loss = loop.lossShelf;
+            result.loss = {loss.b0, loss.b1, loss.b2, loss.a1, loss.a2};
+        }
+#endif
+        return result;
     }
 
     static Response configure(ElectryEngine& engine, int stringIndex)
@@ -145,6 +155,7 @@ double magnitude(const Access::Response& r, double hz)
         return std::abs((b[0] + b[1] * z + b[2] * z * z)
                         / (1.0 + b[3] * z + b[4] * z * z));
     };
+    result *= section(r.loss);
     if (r.depth > 0) result *= section(r.material);
     if (r.handActive) result *= section(r.hand);
     return result;

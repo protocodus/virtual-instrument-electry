@@ -953,10 +953,19 @@ struct ElectryEngineTestAccess
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
         ElectryEngine::handLossResponse(loop.materialLossDepth,
             loop.materialLossShape, omega, materialMagnitude, materialPhase);
+        double lossMagnitude = ElectryEngine::onePoleMagnitude(
+            loop.loopDampingCoefficient, omega);
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        if (loop.lossShelfActive)
+        {
+            const auto z = std::polar(1.0, -static_cast<double>(omega));
+            const auto& b = loop.lossShelf;
+            lossMagnitude = std::abs((b.b0 + b.b1 * z + b.b2 * z * z)
+                / (1.0 + b.a1 * z + b.a2 * z * z));
+        }
+#endif
         const double perRoundTrip = materialMagnitude * loop.loopGain
-            * ElectryEngine::onePoleMagnitude(
-                loop.loopDampingCoefficient, omega)
-            * handMagnitude * fittedMagnitude;
+            * lossMagnitude * handMagnitude * fittedMagnitude;
         if (! (perRoundTrip > 0.0 && perRoundTrip < 1.0))
             return 0.0;
         return -3.0 * period / (rate * std::log10(perRoundTrip));
@@ -1543,8 +1552,12 @@ struct ElectryEngineTestAccess
 #else
             constexpr float fittedDelay = 0.0f;
 #endif
-            const float phaseDelay = ElectryEngine::onePolePhaseDelay(
-                    loop.loopDampingCoefficient, omega)
+            const float phaseDelay =
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+                ElectryEngine::loopLossPhaseDelay(loop, omega)
+#else
+                ElectryEngine::onePolePhaseDelay(loop.loopDampingCoefficient, omega)
+#endif
                 + fittedDelay + dipDelay
                 + 4.0f * ElectryEngine::allpassPhaseDelay(
                     loop.dispersionLowCoefficient, omega)
@@ -1613,6 +1626,10 @@ struct ElectryEngineTestAccess
                 return std::arg((b.b0 + b.b1 * z + b.b2 * z * z)
                                 / (1.0 + b.a1 * z + b.a2 * z * z));
             };
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            if (loop.lossShelfActive)
+                filterPhase = std::arg(interpolator) + biquadPhase(loop.lossShelf);
+#endif
             if (loop.materialLossDepth > 0.0f)
                 filterPhase += biquadPhase(loop.materialLossDip);
             if (loop.handDipActive)

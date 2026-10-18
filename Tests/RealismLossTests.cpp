@@ -64,6 +64,10 @@ struct ElectryEngineTestAccess
                                   / (1.0 + b.a1 * z + b.a2 * z * z));
                 };
                 double m = loop->loopGain * pole(loop->loopDampingCoefficient, hz);
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+                if (loop->lossShelfActive)
+                    m = loop->loopGain * section(loop->lossShelf);
+#endif
                 if (loop->handDipActive) m *= section(loop->handDip);
                 if (loop->materialLossDepth > 0) m *= section(loop->materialLossDip);
                 return m;

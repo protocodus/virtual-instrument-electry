@@ -156,6 +156,10 @@
 #define ELECTRY_REFERENCE_STRING_MASS 1
 #endif
 
+#ifndef ELECTRY_BUTTERWORTH_LOSS_SHELF
+#define ELECTRY_BUTTERWORTH_LOSS_SHELF 0
+#endif
+
 #ifndef ELECTRY_MODAL_DISPERSION_FIT
 #define ELECTRY_MODAL_DISPERSION_FIT 1
 #endif
@@ -974,6 +978,12 @@ private:
         float dispersionLowCoefficient { 0.0f };
         float dispersionHighCoefficient { 0.0f };
         OnePole damping {};
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+        // Fixed two-anchor passive shelf; its two running states survive live
+        // pitch, hand and string-parameter refits just as the one-pole does.
+        DipBiquad lossShelf {};
+        bool lossShelfActive { false };
+#endif
         // Conservative intrinsic-loss curvature for the two extended-range
         // bass strings. A passive dip bends the existing two-anchor fit toward
         // linear-in-frequency material loss; both anchors stay fixed.
@@ -1652,6 +1662,12 @@ private:
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+    static void configureLoopLossShelf(PolarisationLoop& loop, float omega0,
+                                      float omegaHigh) noexcept;
+    static float loopLossPhaseDelay(const PolarisationLoop& loop,
+                                    float omega) noexcept;
+#endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
     // requested ratio of decay times. Both the played strings' damping solve
