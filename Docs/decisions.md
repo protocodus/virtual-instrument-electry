@@ -4,6 +4,36 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — reduce fixed-tap handoff coloration
+
+Under the user's continued autonomous-selection instruction, select the C2
+two-tap candidate B `7d29d0e7be7f2e2afb7f5b8b4bb35285671fe8bd` against current
+shipping A `d5fc768412b0d6441f34a70c4e98658e0d1bf5b4`. This is an engineering
+selection, not a new listener vote. Minimum-degree C1 velocity shoulders join
+the old cubic's maximum speed to rest, producing C2 endpoints and joins. Unit
+total weight derives a shoulder width of one third of Contact, without a new
+fitted timing constant. The duration and both fixed read positions remain.
+
+The ideal frozen-response cancellation deficit integrates 7.6% lower, while
+the midpoint notch remains. The tested quintic `c6dae72` achieves 15.8% but
+raises peak fade speed 25% and changes upper-spectrum energy more in rapid
+playing. Select the more conservative curve under the user's attack-quality
+priority; real-DI attacks, descending phrases, rapid controls and existing
+state tests remain separate evidence. Neither curve is a global transient
+improvement or switched-network passivity proof. Reject the three-tap
+Bernstein alternative analytically: relieving the first notch creates deeper
+holes at other partials and increases average broadband loss. Do not boost
+feedback gain to normalize a cancellation zero.
+
+Fresh-note and same-pitch controls show persistent color differences outside
+the handoff. Pickup and string construction materially change the comparison:
+the SG bridge control is close where the Sire phrase pairing is not. This
+does not license a global fundamental boost, source-specific EQ, or changed
+default pickup/build. See the [research](research/refret-coloration-2026-10-18.md),
+[dry color analysis](research/dry-guitar-color-2026-10-18.md) and
+[validation](validation/refret-coloration-2026-10-18.md). The new room is
+`http://127.0.0.1:8725/`; the quintic room at 8724 and all earlier rooms remain frozen.
+
 ## 2026-10-18 — select fixed-tap picked fret handoffs
 
 The user explicitly requested an autonomous fix for the ordinary picked

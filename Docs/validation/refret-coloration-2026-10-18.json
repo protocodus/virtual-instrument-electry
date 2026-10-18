@@ -1,0 +1,225 @@
+{
+  "schema": "electry-refret-coloration-selection/v1",
+  "baseline_revision": "d5fc768412b0d6441f34a70c4e98658e0d1bf5b4",
+  "selected_source_revision": "7d29d0e7be7f2e2afb7f5b8b4bb35285671fe8bd",
+  "selected_version": "1.2.5",
+  "source_tree": "16bf4095331b9390aa0ae6ab499eea77498d1fb9",
+  "source_equivalent_prototype": "6b08b9aed8ab6299ce94f6a99d5e81b56f57c264",
+  "quintic_alternative_revision": "c6dae7218720bd748f2a61aae99fe3867bb4050d",
+  "selection": "Engineering selection under explicit autonomous direction, prioritizing natural attacks; no human listening vote. C2 velocity shoulders preserve the legacy continuous maximum fade slope, Contact duration and two endpoints.",
+  "ideal_integrated_deficit_ratio": "449/486",
+  "ideal_integrated_deficit_reduction_percent": 7.61316872427984,
+  "midpoint_notch_remaining": true,
+  "time_varying_passivity_proven": false,
+  "current_tone_gap_solved": false,
+  "tests": {
+    "unit_suites": 38,
+    "audio_suite": {
+      "serial_parallel_demo_count": 23,
+      "bit_identical": true
+    },
+    "embedded": "arm64/x86_64 C++17 with exceptions/RTTI disabled",
+    "sanitizers": [
+      "Electry.ElectryEngine",
+      "Electry.Refret"
+    ],
+    "refret_assertions": 132409,
+    "refret_failures": 0,
+    "same_test_baseline_failures": 2198,
+    "same_test_quintic_failures": 2208,
+    "float_audit": {
+      "min_length": 4,
+      "max_length": 1536,
+      "samples": 1180410,
+      "bounds_violations": 0,
+      "monotonicity_violations": 0,
+      "minimum_weight": 0,
+      "maximum_weight": 1,
+      "maximum_symmetry_error": 1.1920928955078125e-07,
+      "minimum_integrated_deficit_ratio": 0.9238682971096799,
+      "maximum_integrated_deficit_ratio": 0.9763392081218014,
+      "maximum_ratio_length": 4
+    }
+  },
+  "actual_stress": {
+    "cases_per_engine": 72,
+    "engines": 3,
+    "all_checked_state_and_audio_finite": true,
+    "limitations": "Finite diagnostic with body/noise/artifacts/sympathetic controls zero; no indefinite-growth proof or calibrated realism score. Selected curve is not uniformly lower in HF/step.",
+    "twenty_hz_max_normalized_hf_change_db": {
+      "quintic": 0.751,
+      "selected": 0.265
+    },
+    "twenty_hz_max_normalized_step_change_db": {
+      "quintic": 0.42,
+      "selected": 0.278
+    }
+  },
+  "real_phrase_attack_ranges": {
+    "attack_-5_10ms": {
+      "matched_step_B_over_A": [
+        0.991762118800309,
+        1.0000901379071185
+      ],
+      "matched_high8k_change_db": [
+        -0.01024315372241638,
+        0.004149685263211016
+      ],
+      "raw_rms_B_over_A": [
+        0.9996955885403408,
+        1.004345489064722
+      ],
+      "matched_rms_B_over_A": [
+        0.9988236683466274,
+        1.0031640456750133
+      ]
+    },
+    "onset_0_30ms": {
+      "matched_step_B_over_A": [
+        0.991762118800309,
+        1.0000987715270175
+      ],
+      "matched_high8k_change_db": [
+        -0.010307567589346868,
+        0.030340669344677156
+      ],
+      "raw_rms_B_over_A": [
+        0.9997121632888851,
+        1.004172499087408
+      ],
+      "matched_rms_B_over_A": [
+        0.9988236683466275,
+        1.002991259191285
+      ]
+    },
+    "following_20_80ms": {
+      "matched_step_B_over_A": [
+        0.992526755120036,
+        1.0000987715270175
+      ],
+      "matched_high8k_change_db": [
+        -0.010320605102178283,
+        0.0854333650261804
+      ],
+      "raw_rms_B_over_A": [
+        0.9996811461501929,
+        1.003713024258015
+      ],
+      "matched_rms_B_over_A": [
+        0.9988211157435868,
+        1.002532324856678
+      ]
+    }
+  },
+  "independent_metrics": {
+    "values": 1008,
+    "maximum_absolute_error": 5.35682609381638e-14
+  },
+  "room": {
+    "url": "http://127.0.0.1:8725/",
+    "wav_count": 38,
+    "max_RMS_spread_db": 7.366914189788076e-08,
+    "max_constant_gain_error_FS": 1.6866945806714995e-07,
+    "sources": "Four real-DI phrase triples, six performance pairs, seven isolated real/shipping pairs. Source audio remains external to Git.",
+    "previous_rooms_frozen": true
+  },
+  "tracked_source": {
+    "Source/DSP/ElectryEngine.cpp": "9166879464980713f69424a31b0b17280713efc47e2772cd9ecff5f9aa0d4bc6",
+    "Source/DSP/ElectryEngine.h": "ca6ba95c514022feccc9e34cc6b7f8c05d04f01e5c4b31f90919679b69c88438",
+    "Tests/ElectryRefretTests.cpp": "47213aee5167c4fce3e5769a4388b35f2478eff3861508815cf6bf3044eaff0f",
+    "CMakeLists.txt": "5b6b13f8b91920094c5daa4a1c06d93901f9c650d448bbdc4149258943278629"
+  },
+  "evidence": [
+    {
+      "path": "build-coloration-review/evidence/coloration-engineering-report.json",
+      "sha256": "5d39c46f0e092145e11a68f5b2eeeac41b3cb0c1d0de2073b2a4bcfb549115eb"
+    },
+    {
+      "path": "build-coloration-review/evidence/audio-stress-expanded-analysis.json",
+      "sha256": "d46050e7fd3a89c96f4577832eadf03e6a2fd945b99a453068ac7b757a7f281c"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-selected-unit.log",
+      "sha256": "3fa50a8adca426978fec3877c6843e8905b388ef90e928ae5cc0bf347bf66df7"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-selected-audio.log",
+      "sha256": "826ee0ef9bac7ebca7d3cd038d620f591219a4815e36d1e60fb71f293324a39f"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-selected-sanitize.log",
+      "sha256": "66ea2ba70fe7afbc426c78ca9de1f51f6521e6f417d4f9514cd038c795b070cc"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-selected-build.log",
+      "sha256": "d175ed002dad0894e9887a017c4c24ea3d9833b1edece927762fcdf5f74fc273"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-selected-sanitize-build.log",
+      "sha256": "eb7205142883d9acf0678bd23defc8353164d5f8f0d47fdd3b72920455eb8470"
+    },
+    {
+      "path": "build-coloration-review/evidence/weight-test-shoulder.log",
+      "sha256": "fd7226c73251ff21346cfe1aabceb00d8989a2c6c98f82c2f8a99c32374299ac"
+    },
+    {
+      "path": "build-coloration-review/evidence/weight-test-shoulder-baseline.log",
+      "sha256": "f6a07daa3884a405262efb9946246715ae9dac5ce4ce36859b8c3ca02c7cced9"
+    },
+    {
+      "path": "build-coloration-review/evidence/weight-test-shoulder-quintic.log",
+      "sha256": "5db222109c0c78e6a52355cad4245be87e166988c887d2514500f1b5c0ca443b"
+    },
+    {
+      "path": "build-coloration-review/evidence/float-weight-audit-shoulder.json",
+      "sha256": "2c0f7bfcf29c8fcdb9f534e40f6a9b2e851bef28c0ea823c57ef73fc080e48f7"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-phrase-attack-analysis.json",
+      "sha256": "2b7183e357af19d4a2d79b4f94d1f91d7e9d4f4d5bdaa35d9b259480f5cd837b"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-color-comparison.json",
+      "sha256": "811d58d3d30cd8a2c57a1bbedd73b4e388246813f6a426e6dfc7c49a6252cc0f"
+    },
+    {
+      "path": "build-coloration-review/evidence/room-integrity-final-7d29d0e7.json",
+      "sha256": "d3f31f6d6089338068263b843ae0bec1fe170ed1b92c9fab7a06783709608588"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-phrase-independent-audit.json",
+      "sha256": "9e04549aab5d53f7b0c58ca996f823bfdafc456ca9df858de1156f47c7625288"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-slope-independent-identity.json",
+      "sha256": "54969383aec4e14e9ee5ded02ebc1d46ba777345829924c160582707c6a132ef"
+    },
+    {
+      "path": "build-coloration-review/evidence/final-slope-prototype-binding.json",
+      "sha256": "d81bdf7c1ca3296f2e658da6bf2d1324c613da0511df652bd311f626093fd766"
+    },
+    {
+      "path": "build-coloration-review/evidence/slope-vs-quintic-actual-phrase-audit.json",
+      "sha256": "453dfaf4a876f7fab92d03722a40f5e5dce91c2bd332c33697f860411d965b3e"
+    },
+    {
+      "path": "build-coloration-review/final-room/phrases/measurements.json",
+      "sha256": "4b1cee32e88cec8928f7308883a336a46c4b03afeadbf21b0298b283b7ab13e0"
+    },
+    {
+      "path": "build-coloration-review/final-room/performance/measurements.json",
+      "sha256": "517f1b16811871c39358dbbad6ab29f0fb7551bf3c50bf8fed0d4d792f7ec5ad"
+    },
+    {
+      "path": "build-coloration-review/final-room/listen/measurements.json",
+      "sha256": "d6fdd5b59342c04c23044340040b7f7e678bf56daf459706688bcfcde6a656d5"
+    }
+  ],
+  "hosted_checks_and_reviews": "Separate latest-head PR merge gate; see pull request for actual hosted status. Not inferred from local passes.",
+  "limits": [
+    "Remaining two-tap midpoint comb coloration.",
+    "Persistent source-dependent harmonic/decay gaps and hardware/force/stop confounds; no corrective EQ or default-build fit.",
+    "Registered artifact proxies do not establish human preference or universal artifact-free performance.",
+    "No Reason-host playback or Rack adapter pin/package work."
+  ]
+}
