@@ -1,0 +1,102 @@
+{
+  "schema": "electry-performance-validation/v1",
+  "recorded_utc": "2026-10-18T10:16:51.285431+00:00",
+  "shipping_revision": "aab8bcaac863739a086c5178dead3c2ea432cdf1",
+  "selected_dsp_revision": "f64631bb9b635aea3e45094acbf127f7b1ac6105",
+  "version": "1.2.3",
+  "selected_change": "Retain displaced MIDI owners for unique physical identities and preserve legacy broadcast ends for explicitly duplicated identities.",
+  "storage_bytes_per_engine": 8976,
+  "storage_bytes_Double": 17952,
+  "source_sha256": {
+    "Source/DSP/ElectryEngine.cpp": "b825bc9711c0316f29e0ed6a353d4ba197ac0ebbca2b049f08940b9ce7bbdf91",
+    "Source/DSP/ElectryEngine.h": "fb857fdb1e74e8bbc52e849a78182247777abe4629db4dbc9eb2a526dcfd14e4",
+    "Tests/ElectryEngineTests.cpp": "063e0818a5cb8395c058b849596a1cf9009b8976dabc2020a4854324d3383666",
+    "Tools/RenderDemos.cpp": "a531a207e5750c1493b86142c1ec89fff6ba2bdc1df46ce98e98114174934548"
+  },
+  "validation": {
+    "all_target_build_exit": 0,
+    "cxx17_embedded_fnoexceptions_build_exit": 0,
+    "expanded_duplicate_only_exit": 0,
+    "ownership_only_exit": 0,
+    "complete_unit_tests": "36/36 passed",
+    "complete_unit_wall_seconds": 83.63,
+    "parallel_audio_test": "1/1 passed, all23scores serial/parallel exact and strengthened owner rail",
+    "parallel_audio_wall_seconds": 25.65,
+    "python": "build-real-dry-review/python312/bin/python, NumPy1.26.4 SciPy1.14.1"
+  },
+  "regression_witnesses": {
+    "original_main_new_ownership_assertion_failures": 147,
+    "intermediate_candidate_new_duplicate_assertion_failures": 5,
+    "focused_final_exit_codes": {
+      "duplicate-ownership-only": 0,
+      "ownership-only": 0
+    }
+  },
+  "score_lifetime": {
+    "corrected_scores": [
+      3,
+      15,
+      17,
+      18,
+      21,
+      22
+    ],
+    "old_DSP_audio_identical_scores": 22,
+    "compared_scores": 23,
+    "intentional_changed_score": 21,
+    "old_release_frame": 389844,
+    "old_steal_frame": 424240,
+    "sample_rate": 44100,
+    "old_unintended_hold_seconds": 0.7799546485260771
+  },
+  "comparison_rooms": {
+    "URL": "http://127.0.0.1:8721/",
+    "real_DI_phrases": 2,
+    "real_note_references": 7,
+    "model_performance_probes": 6,
+    "WAVs": 39,
+    "gain_policy": "One whole-file RMS gain per take plus common sample-peak headroom; no per-note fit, EQ, warping or pitch shift.",
+    "final_integrity_status": "pass",
+    "maximum_RMS_spread_db": 3.900699852010803e-08,
+    "maximum_constant_gain_error_FS": 1.6764851529238456e-07,
+    "sample_peak_limit": 0.94,
+    "manifest_hashes": {
+      "performance": "eb5d9efe662ad1d16d180be55268c4f89239b92dfdbcc21f5f599036debbb8f6",
+      "phrases": "7b9b414917dcba87c2cbe6b934148a5abb47529d95540ba8fb92945b218ceeda",
+      "listen": "f9363014dbc1e8937e28a77270c9fe8599442b7aa42f9bbeb9109690c77df281"
+    }
+  },
+  "unselected_trials": [
+    "Group-delay-aware loss mapping: unchanged Palm loss rail failure; frozen before user performance priority.",
+    "Abrupt ordinary-refret delay retune and Contact-duration ramp: pitch lag improves, phase-dependent old-state transient grows; incomplete state transport/lifecycle not promoted."
+  ],
+  "evidence": {
+    "build-real-dry-review/performance-audit/duplicate-broadcast/receipt.json": {
+      "sha256": "1be9a88d9e54940b878f8131e1ad356fc99a76cfc64c3e84b78ce00b1a922752"
+    },
+    "build-real-dry-review/evidence/room-integrity-final-f64631b.json": {
+      "sha256": "df267bed3ebd7ea785cf3cf98aad7c9331f1a79086b61241d91778b7cbc41909"
+    },
+    "build-real-dry-review/performance-audit/demo-owner-balance/old-dsp-final-balanced-score-audio-equality.json": {
+      "sha256": "415492b062e1084994d1d580e4fd303f40ecb9b8c0f6a1cbfdaf165292fd8eb2"
+    },
+    "build-real-dry-review/evidence/refret-equal-crop-context.json": {
+      "sha256": "bfb808468072b9770e1e0292cda2f5cd9ca29ce05ba12e83e95a6c8a6a518476"
+    },
+    "Docs/research/performance-reference-selection-2026-10-18.json": {
+      "sha256": "66bbbf8ff5bcc5240f60ec294c7f1d0c73a624d775b3b0f98adf57d6c606217e"
+    }
+  },
+  "review": {
+    "independent_actionable_issue": "Explicit duplicate ordering could swallow older surviving owner end.",
+    "status": "Corrected and independently reproduced/re-reviewed; no remaining actionable issue reported.",
+    "pull_request": "https://github.com/protocodus/virtual-instrument-electry/pull/4"
+  },
+  "limits": [
+    "Licensed six-string DI sources constrain descriptive performance comparisons, not exact-eight geometry, force or calibration.",
+    "Same-recording repeated phrase is a structural repeat, not independent hardware holdout.",
+    "Reference audio is not incorporated into instrument/runtime assets.",
+    "Local browser automation disabled: HTTP/decode/JavaScript checks are not interactive browser or Reason-host listening validation.",
+    "Python snapshot builder not independently validated on Windows; CMake platform tests run in hosted CI."
+  ]
+}

@@ -8,6 +8,9 @@ import tempfile
 
 def main():
     renderer = str(Path(sys.argv[1]).resolve())
+    # A string steal must not hide an unmatched score start, and an appended
+    # take cannot borrow the parent's unrelated Note Off to pass that rail.
+    subprocess.run([renderer, "--score-ownership-self-test"], check=True, timeout=10)
     with tempfile.TemporaryDirectory(prefix="electry-parallel-") as temporary:
         root = Path(temporary)
         # Bad worker arguments must fail before creating an output directory.

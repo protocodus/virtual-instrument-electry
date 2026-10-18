@@ -194,6 +194,7 @@ struct ElectryEngineTestAccess
         bool active { false };
         bool keyDown { false };
         bool releasing { false };
+        bool sustained { false };
         int stringIndex { -1 };
         int midiNote { -1 };
         ElectryEngine::ExpressionId expressionId {
@@ -293,6 +294,7 @@ struct ElectryEngineTestAccess
         result.active = voice.active;
         result.keyDown = voice.keyDown;
         result.releasing = voice.releasing;
+        result.sustained = voice.sustained;
         result.stringIndex = voice.stringIndex;
         result.midiNote = voice.midiNote;
         result.expressionId = voice.expressionId;
@@ -4680,6 +4682,254 @@ void testOverlappingSameNoteOffKeepsLatestRepickHeld()
     const auto afterLatestOff = TestAccess::snapshot(engine, stringIndex);
     expect(! afterLatestOff.keyDown && afterLatestOff.releasing,
            "the final matching Note Off did not release the Palm repick");
+}
+
+void testMaskedDuplicateIdentityKeepsBroadcastNoteOff()
+{
+    auto engine = std::make_unique<ElectryEngine>();
+    engine->prepare(48000.0, 64);
+    const auto on = [&] (int stringIndex, int note)
+    {
+        engine->setSoloStringMask(1u << stringIndex);
+        engine->noteOn(note, 0.8f);
+    };
+    // The same legacy MIDI identity can explicitly occupy two strings. An
+    // ordinary Note Off broadcasts to each surviving matching string even
+    // when the newer duplicate has already moved to a different pitch.
+    for (const bool moveOlder : { false, true })
+        for (const bool sustain : { false, true })
+        {
+            engine->reset();
+            on(0, 40);
+            on(2, 40);
+            const int moved = moveOlder ? 0 : 2;
+            const int remaining = moveOlder ? 2 : 0;
+            on(moved, 43);
+            engine->setSustainPedal(sustain);
+            engine->noteOff(40);
+            const auto released = TestAccess::snapshot(*engine, remaining);
+            expect(! released.keyDown
+                       && (sustain ? released.sustained : released.releasing),
+                   "a displaced masked duplicate suppressed the surviving broadcast end");
+            expect(TestAccess::snapshot(*engine, moved).keyDown,
+                   "masked duplicate end released the replacement pitch");
+            engine->noteOff(40); // The displaced duplicate's remaining end.
+            engine->noteOff(43);
+            engine->setSustainPedal(false);
+        }
+
+    engine->reset();
+    on(0, 40);
+    on(0, 40);
+    on(2, 40);
+    on(2, 43);
+    engine->noteOff(40);
+    expect(TestAccess::snapshot(*engine, 0).keyDown,
+           "broadcast end discarded both owners on its surviving string");
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown,
+           "second broadcast end did not release the surviving overlap");
+    engine->noteOff(40);
+    engine->noteOff(43);
+
+    // Once every physical duplicate is gone, later unique owners again use
+    // displaced-note protection, including a return before old ends arrive.
+    for (const int clearMode : { 0, 1, 2, 3 })
+    {
+        engine->reset();
+        on(0, 40);
+        on(2, 40);
+        if (clearMode == 0)
+        {
+            on(0, 43);
+            on(2, 45);
+        }
+        else if (clearMode == 1)
+            engine->allNotesOff();
+        else if (clearMode == 2)
+            engine->reset();
+        else
+        {
+            on(2, 43);
+            engine->noteOff(40);
+            expect(! TestAccess::snapshot(*engine, 0).keyDown,
+                   "broadcast did not retire its final live duplicate");
+        }
+        on(0, 40);
+        on(0, 43);
+        on(0, 40);
+        const int staleEnds = clearMode == 0 ? 3 : clearMode == 3 ? 2 : 1;
+        for (int old = 0; old < staleEnds; ++old)
+        {
+            engine->noteOff(40);
+            expect(TestAccess::snapshot(*engine, 0).keyDown,
+                   "a historical duplicate group disabled later unique-owner protection");
+        }
+        engine->noteOff(40);
+        expect(! TestAccess::snapshot(*engine, 0).keyDown,
+               "final unique owner retained historical duplicate state");
+    }
+
+    // A legacy owner on another string is a different identity from an MPE
+    // member. It must neither enable broadcast nor consume the member's ends.
+    engine->reset();
+    on(0, 40);
+    engine->setSoloStringMask(1u << 2);
+    engine->noteOn(40, 0.8f, 3);
+    engine->noteOn(43, 0.8f, 3);
+    engine->noteOn(40, 0.8f, 3);
+    engine->noteOff(40, 3);
+    expect(TestAccess::snapshot(*engine, 0).keyDown
+               && TestAccess::snapshot(*engine, 2).keyDown,
+           "a separate legacy identity disabled MPE returning-owner protection");
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown
+               && TestAccess::snapshot(*engine, 2).keyDown,
+           "legacy broadcast crossed into a different MPE member");
+    engine->noteOff(40, 3);
+    expect(! TestAccess::snapshot(*engine, 2).keyDown,
+           "MPE final end was retained after the legacy broadcast");
+}
+
+void testDisplacedMidiOwnersDoNotReleaseReturningPitch()
+{
+    for (const double rate : { 48000.0, 96000.0, 384000.0 })
+        for (const auto style : { PlayStyle::Sustain, PlayStyle::PalmMute,
+                                  PlayStyle::Hammer, PlayStyle::Slide })
+            for (const ElectryEngine::ExpressionId expression : { 0u, 3u })
+                for (const bool batched : { false, true })
+                {
+                    auto engine = std::make_unique<ElectryEngine>();
+                    engine->prepare(rate, 64);
+                    engine->setSoloStringMask(1);
+                    engine->setVibrato(0.7f);
+                    engine->setExpressionPitchBend(expression, 0.5f);
+                    engine->noteOn(styleKeyswitch(style), 1.0f);
+                    const auto on = [&] (int note)
+                    {
+                        if (batched)
+                        {
+                            const std::array events {
+                                ElectryEngine::NoteOnEvent { note, 0.85f, expression }
+                            };
+                            engine->noteOnChord(events);
+                        }
+                        else
+                            engine->noteOn(note, 0.85f, expression);
+                    };
+                    on(40);
+                    StereoBuffer first(128);
+                    renderInto(*engine, first, 64);
+                    on(43);
+                    StereoBuffer middle(128);
+                    renderInto(*engine, middle, 64);
+                    on(40);
+                    StereoBuffer returnContact(64);
+                    renderInto(*engine, returnContact, 64);
+                    auto noStaleOff = std::make_unique<ElectryEngine>(*engine);
+                    const auto before = TestAccess::snapshot(*engine, 0);
+                    const float beforeLegato = TestAccess::legatoBlend(*engine, 0);
+                    const std::string context = std::to_string(static_cast<int>(rate))
+                        + " Hz style " + std::to_string(static_cast<int>(style))
+                        + " expression " + std::to_string(expression)
+                        + (batched ? " batched" : " scalar");
+                    expect(before.keyDown && before.midiNote == 40,
+                           context + " did not establish the returning A owner");
+                    engine->noteOff(40, expression);
+                    const auto after = TestAccess::snapshot(*engine, 0);
+                    expect(after.keyDown && ! after.releasing
+                               && after.expressionPitchBendFrozen
+                                    == before.expressionPitchBendFrozen
+                               && after.vibratoSemitones == before.vibratoSemitones
+                               && TestAccess::legatoBlend(*engine, 0) == beforeLegato,
+                           context + " stale A off changed the returning finger");
+                    StereoBuffer actual(256), reference(256);
+                    renderInto(*engine, actual, 64);
+                    renderInto(*noStaleOff, reference, 64);
+                    expect(actual.left == reference.left && actual.right == reference.right,
+                           context + " stale A off changed the performed waveform");
+                    engine->noteOff(43, expression);
+                    renderInto(*engine, actual, 64);
+                    renderInto(*noStaleOff, reference, 64);
+                    expect(actual.left == reference.left && actual.right == reference.right,
+                           context + " stale B off changed the performed waveform");
+                    engine->noteOff(40, expression);
+                    const auto released = TestAccess::snapshot(*engine, 0);
+                    expect(! released.keyDown && released.releasing,
+                           context + " final A off did not release its owner");
+                }
+
+    auto engine = std::make_unique<ElectryEngine>();
+    engine->prepare(48000.0, 64);
+    for (const bool reset : { false, true })
+    {
+        engine->setSoloStringMask(1);
+        engine->noteOn(40, 0.8f);
+        engine->noteOn(40, 0.8f);
+        engine->noteOn(43, 0.8f);
+        engine->noteOn(40, 0.8f);
+        engine->setSustainPedal(true);
+        engine->noteOff(40);
+        engine->noteOff(40);
+        expect(TestAccess::snapshot(*engine, 0).keyDown,
+               "two displaced A owners released the newer A under sustain");
+        engine->noteOff(40);
+        const auto sustained = TestAccess::snapshot(*engine, 0);
+        expect(! sustained.keyDown && sustained.sustained,
+               "the final returning A off did not reach sustain ownership");
+        if (reset)
+            engine->reset();
+        else
+            engine->allNotesOff();
+        engine->setSustainPedal(false);
+        engine->setSoloStringMask(1);
+        engine->noteOn(40, 0.8f);
+        engine->noteOff(40);
+        expect(! TestAccess::snapshot(*engine, 0).keyDown,
+               "panic/reset retained a displaced MIDI owner");
+    }
+
+    // An explicit mask can put a legacy identity on two strings. Preserve
+    // the established broadcast release behavior rather than changing it as
+    // a side effect of protecting displaced owners.
+    engine->reset();
+    engine->setSoloStringMask(1u << 2);
+    engine->noteOn(40, 0.8f);
+    engine->setSoloStringMask(1);
+    engine->noteOn(40, 0.8f);
+    expect(TestAccess::snapshot(*engine, 0).keyDown
+               && TestAccess::snapshot(*engine, 2).keyDown,
+           "masked duplicate identity did not occupy both strings");
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown
+               && ! TestAccess::snapshot(*engine, 2).keyDown,
+           "identity ledger changed the existing broadcast Note Off contract");
+
+    engine->reset();
+    engine->setSoloStringMask(1u << 7); // MIDI 40 cannot sound on high E.
+    engine->noteOn(40, 0.8f);
+    engine->setSoloStringMask(1);
+    engine->noteOn(40, 0.8f);
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown,
+           "a rejected allocation created a phantom MIDI owner");
+
+    // The string's overlap counter saturates at 65535. An additional accepted
+    // start and a stolen/returning identity still need distinct matching ends.
+    engine->reset();
+    engine->setSoloStringMask(1);
+    for (int owner = 0; owner < 65536; ++owner)
+        engine->noteOn(40, 0.8f);
+    engine->noteOn(43, 0.8f);
+    engine->noteOn(40, 0.8f);
+    for (int owner = 0; owner < 65536; ++owner)
+        engine->noteOff(40);
+    expect(TestAccess::snapshot(*engine, 0).keyDown,
+           "saturated displaced owners released the new A prematurely");
+    engine->noteOff(43);
+    engine->noteOff(40);
+    expect(! TestAccess::snapshot(*engine, 0).keyDown,
+           "saturated Note On stream left a stuck returning note");
 }
 
 void testHeldStringRepickKeys()
@@ -22719,6 +22969,20 @@ void testCpuGuardrail()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--duplicate-ownership-only")
+    {
+        testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
+        return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+    if (argc == 2 && std::string(argv[1]) == "--ownership-only")
+    {
+        testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
+        testOverlappingSameNoteOffKeepsLatestRepickHeld();
+        testDisplacedMidiOwnersDoNotReleaseReturningPitch();
+        testHeldStringRepickKeys();
+        testChordAssignmentIsPermutationInvariant();
+        return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     if (argc == 2 && std::string(argv[1]) == "--dispersion-contract-only")
     {
         testAdvancedDispersionAndBodyConductance();
@@ -22775,6 +23039,8 @@ int main(int argc, char** argv)
     testKeyswitchesSelectStylesSilently();
     testSoloStringKeyswitches();
     testOverlappingSameNoteOffKeepsLatestRepickHeld();
+    testDisplacedMidiOwnersDoNotReleaseReturningPitch();
+    testMaskedDuplicateIdentityKeepsBroadcastNoteOff();
     testHeldStringRepickKeys();
     testHeldTremoloPickingGesture();
     testHammerLatchedRepicksUsePickingHand();

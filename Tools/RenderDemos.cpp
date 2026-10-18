@@ -182,12 +182,19 @@ public:
 
     void noteOn(int note, float velocity)
     {
+        recordNoteOn(note, velocity);
         const std::array<ElectryEngine::NoteOnEvent, 1> event {{
             { note, velocity }
         }};
         engine_->noteOnChord(event);
     }
-    void noteOff(int note) { engine_->noteOff(note); }
+    void noteOff(int note)
+    {
+        if (ElectryEngine::isPlayableNote(note)
+            && midiOwners_[static_cast<std::size_t>(note)] > 0)
+            --midiOwners_[static_cast<std::size_t>(note)];
+        engine_->noteOff(note);
+    }
     void pitchBend(float bipolar) { engine_->setPitchBend(bipolar); }
     void resonance(float amount) { engine_->setResonance(amount); }
     // The visible momentary fretting-hand gesture.
@@ -205,14 +212,17 @@ public:
         std::vector<ElectryEngine::NoteOnEvent> events;
         events.reserve(notes.size());
         for (const int note : notes)
+        {
+            recordNoteOn(note, velocity);
             events.push_back({ note, velocity });
+        }
         engine_->noteOnChord(events);
     }
 
     void releaseChord(std::initializer_list<int> notes)
     {
         for (const int note : notes)
-            engine_->noteOff(note);
+            noteOff(note);
     }
 
     // One note held for `holdSeconds`, then `gapSeconds` of silence after the
@@ -262,6 +272,7 @@ public:
 
     void append(const Take& other)
     {
+        appendedNotesReleased_ = appendedNotesReleased_ && other.allNotesReleased();
         left_.insert(left_.end(), other.left_.begin(), other.left_.end());
         right_.insert(right_.end(), other.right_.begin(), other.right_.end());
     }
@@ -319,6 +330,13 @@ public:
 
     [[nodiscard]] bool allNotesReleased() const noexcept
     {
+        // A stolen physical string can hide an unmatched MIDI start. Validate
+        // the imperative score independently of the engine's voice ownership;
+        // returning to that pitch must not require an invented Note Off.
+        if (! appendedNotesReleased_
+            || std::any_of(midiOwners_.begin(), midiOwners_.end(),
+                           [] (int owners) { return owners != 0; }))
+            return false;
         std::array<electry::StringVisualState, ElectryEngine::stringCount> states;
         engine_->getStringVisualState(states);
         return std::none_of(states.begin(), states.end(), [] (const auto& state)
@@ -328,6 +346,14 @@ public:
     }
 
 private:
+    void recordNoteOn(int note, float velocity) noexcept
+    {
+        if (ElectryEngine::isPlayableNote(note) && std::isfinite(velocity)
+            && velocity > 0.0f)
+            ++midiOwners_[static_cast<std::size_t>(note)];
+    }
+    std::array<int, 128> midiOwners_ {};
+    bool appendedNotesReleased_ { true };
     // Offline workers have small platform-default stacks. Keep the large
     // delay lines and prepared circuit tables in each take's own heap storage.
     std::unique_ptr<ElectryEngine> engine_ = std::make_unique<ElectryEngine>();
@@ -405,6 +431,7 @@ Take renderPlayStyles()
                 take.noteOn(40, 0.75f);
                 take.wait(0.28);
                 take.noteOff(40);
+                take.noteOff(40); // The initial and returning E2 each own an end.
                 take.noteOff(43);
                 take.noteOff(45);
                 take.wait(0.06);
@@ -1024,6 +1051,7 @@ Take renderMuteAndDeadAudition()
     take.wait(0.26);
     take.noteOff(31);
     take.releaseChord({ 28, 40 });
+    take.noteOff(28); // Initial octave bass plus the returning pull-off.
     take.wait(0.20);
 
     take.style(PlayStyle::Dead);
@@ -1228,7 +1256,8 @@ Take renderExtendedTechniqueSolo()
         take.noteOn(note, 0.82f);
         take.wait(0.12);
     }
-    for (const int note : { 64, 67, 69, 72, 74 })
+    // Repeated pitches in this legato run still have distinct MIDI owners.
+    for (const int note : { 64, 64, 67, 67, 69, 69, 72, 72, 74 })
         take.noteOff(note);
     take.wait(0.12);
 
@@ -1374,7 +1403,7 @@ Take renderSyncopatedDjentStudy()
         take.noteOn(note, 0.80f);
         take.wait(0.105);
     }
-    for (const int note : { 64, 67, 71, 72, 74, 76, 79 })
+    for (const int note : { 64, 64, 67, 71, 71, 72, 74, 76, 79 })
         take.noteOff(note);
     take.wait(0.22);
 
@@ -1582,7 +1611,7 @@ Take renderBluesRockLeadStudy()
         take.noteOn(note, 0.68f);
         take.wait(0.18);
     }
-    for (const int note : { 62, 64, 67, 69 })
+    for (const int note : { 62, 64, 64, 64, 67, 67, 69 })
         take.noteOff(note);
     take.wait(0.20);
 
@@ -1717,7 +1746,7 @@ Take renderTremoloPickingStudy()
     take.noteOn(30, 0.82f);
     take.wait(1.25);
     take.endTremoloPicking();
-    take.releaseChord({ 30, 35, 40 });
+    take.releaseChord({ 28, 30, 35, 40 }); // Include the slide's original E1 owner.
     take.wait(2.0);
     take.fadeOut(0.9);
     return take;
@@ -2070,6 +2099,24 @@ RenderResult renderDemo(const Demo& demo, const std::filesystem::path& directory
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--score-ownership-self-test")
+    {
+        Take incomplete(EngineParameters {}, FxParameters {}, false);
+        incomplete.noteOn(28, 0.8f);
+        incomplete.wait(0.01);
+        incomplete.noteOn(30, 0.8f); // Displace E1 without ending its MIDI key.
+        incomplete.noteOff(30);
+        incomplete.wait(0.2);
+        if (incomplete.allNotesReleased())
+            return 1;
+        Take parent(EngineParameters {}, FxParameters {}, false);
+        parent.append(incomplete);
+        parent.noteOff(28); // A different take cannot end the child's owner.
+        if (parent.allNotesReleased())
+            return 1;
+        incomplete.noteOff(28);
+        return incomplete.allNotesReleased() ? 0 : 1;
+    }
     std::vector<std::string> arguments(argv + 1, argv + argc);
     bool smoke = false;
     bool haveDirectory = false;

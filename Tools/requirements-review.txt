@@ -1,0 +1,4 @@
+# Offline listening-pack integrity tests and descriptive reference analysis.
+# Tested together; these are development/research dependencies, not plug-in runtime dependencies.
+numpy==1.26.4
+scipy==1.14.1

@@ -53,6 +53,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Build universal plug-in and run every tier
         run: ./scripts/build-macos.sh
@@ -148,6 +153,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Install JUCE Linux dependencies
         run: |
@@ -212,6 +222,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       # Embed the Release C++ runtime so the ZIP needs no redistributable.
       - name: Build and run every tier

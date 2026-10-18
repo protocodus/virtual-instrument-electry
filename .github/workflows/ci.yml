@@ -25,6 +25,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       - name: Install JUCE Linux dependencies
         run: |
@@ -132,6 +137,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       # Clearing the committed screenshot first is what makes the check after
       # the build meaningful: the file can only be there afterwards because this
@@ -178,6 +188,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Tools/requirements-review.txt
+
+      - name: Install listening and analysis test dependencies
+        run: python -m pip install -r Tools/requirements-review.txt
 
       # Embed the Release C++ runtime so the ZIP works without a separate
       # Visual C++ redistributable installation.
