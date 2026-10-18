@@ -144,6 +144,15 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.5 — In development — Smoother fret handoffs
+
+Picked fret changes use a smoother two-tap fade to spend less time in the
+handoff's cancellation region, keeping the existing Contact duration and
+stationary pitch endpoints. Repeated picks retain their existing attack.
+The remaining midpoint comb notch and hardware-dependent dry-guitar tone
+differences are documented in the
+[coloration analysis and comparisons](Docs/validation/refret-coloration-2026-10-18.md).
+
 ### 1.2.4 — In development — Picked fret transitions
 
 Small picked changes on a ringing string hand off between stationary old- and

@@ -7,8 +7,27 @@
 #include <iostream>
 #include <iomanip>
 #include <memory>
+#include <limits>
 #include <string>
 #include <vector>
+
+namespace
+{
+double expectedBoundaryWeight(double progress)
+{
+    // Independently integrate the fixed 3/2 peak-speed construction: direct
+    // double polynomials at each shoulder, with a constant-speed center.
+    const auto shoulder = [] (double t)
+    {
+        return 13.5 * t * t * t - 20.25 * t * t * t * t;
+    };
+    if (progress < 1.0 / 3)
+        return shoulder(progress);
+    if (progress > 2.0 / 3)
+        return 1 - shoulder(1 - progress);
+    return 1.5 * progress - .25;
+}
+}
 
 // The transfer-function observer below is independent of the production
 // fractional reader. It evaluates the actual Lagrange FIR at a complex
@@ -61,6 +80,47 @@ struct ElectryEngineTestAccess
         std::array<double, 5> material {1, 0, 0, 0, 0};
         std::array<double, 5> hand {1, 0, 0, 0, 0};
     };
+
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+    static void isolateBoundaryReadProbe(ElectryEngine& engine, int stringIndex,
+                                         int duration)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        engine.beginRefretHandoff(voice, duration, true);
+        voice.excitationPhase = ElectryEngine::ExcitationPhase::Idle;
+        voice.noiseRemaining = 0;
+        voice.touchDepth = 0;
+        voice.releasing = false;
+    }
+
+    static double renderObservedBoundaryWeight(ElectryEngine& engine, int stringIndex)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        auto& loop = voice.vertical;
+        // Constant disjoint interpolation neighborhoods make the two actual
+        // cubic readers independent known inputs, regardless of their fraction.
+        loop.line.fill(.25f);
+        const int destination = loop.writeIndex
+                              - static_cast<int>(std::ceil(loop.currentDelay));
+        for (int offset = -1; offset <= 2; ++offset)
+            loop.line[static_cast<std::size_t>((destination + offset)
+                                              & (ElectryEngine::delayLineSize - 1))] = .75f;
+        const float source = loop.readFractional(
+            loop.currentDelay + voice.refretVerticalOffset);
+        const float target = loop.readFractional(loop.currentDelay);
+        // A DF-II first allpass beginning at zero stores its actual input in
+        // state. Observe that production sample, before subsequent recursive
+        // filters, rather than repeating the production fade polynomial.
+        loop.dispersion1.state = 0;
+        engine.sympatheticBus_ = engine.sympatheticBusDelayed_ = 0;
+        voice.busContribution = 0;
+        engine.feedbackDrive_ = 0;
+        ElectryEngine::RenderSums sums {};
+        engine.renderVoice(voice, sums);
+        return (static_cast<double>(loop.dispersion1.state) - source)
+             / (static_cast<double>(target) - source);
+    }
+#endif
 
     static void setLiveBend(ElectryEngine& engine, int stringIndex, bool member, float semitones)
     {
@@ -134,7 +194,16 @@ struct ElectryEngineTestAccess
             const double progress = static_cast<double>(voice.refretLengthSamples
                                                         - voice.refretRemainingSamples)
                                   / (voice.refretLengthSamples - 1);
+#if defined(ELECTRY_REFRET_TEST_CUBIC_HANDOFF)
             result.newWeight = progress * progress * (3 - 2 * progress);
+#elif defined(ELECTRY_REFRET_TEST_QUINTIC_HANDOFF)
+            result.newWeight = progress * progress * progress
+                * (6 * progress * progress - 15 * progress + 10);
+#else
+            // Direct double shoulders are independent of the production
+            // mirrored float evaluation; use them in the full loop observer.
+            result.newWeight = expectedBoundaryWeight(progress);
+#endif
         }
 #endif
         result.ap = {loop.dispersionLowCoefficient, loop.dispersionHighCoefficient};
@@ -1058,6 +1127,62 @@ void queuedNewFretCannotApplyTheFutureWristBeforeContact()
                 }
 }
 
+void renderedBoundaryWeightsReduceColorWithoutChangingTheClock()
+{
+#ifndef ELECTRY_REFRET_TEST_BASELINE
+    for (const int length : {4, 52, 151, 288, 603, 1151})
+    {
+        auto engine = makeEngine(48000, 2);
+        engine->noteOn(47, .85f);
+        render(*engine, 9600);
+        engine->noteOn(50, .85f);
+        electry::ElectryEngineTestAccess::isolateBoundaryReadProbe(*engine, 2, length);
+        double previous = -1;
+        double measuredDeficit = 0;
+        double expectedDeficit = 0;
+        double cubicDeficit = 0;
+        const double numericalTolerance = 16 * std::numeric_limits<float>::epsilon();
+        for (int sample = 0; sample < length; ++sample)
+        {
+            const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(before.transitionRemaining == length - sample,
+                   "Changing fade color changed the physical handoff clock");
+            const double weight = electry::ElectryEngineTestAccess::renderObservedBoundaryWeight(
+                *engine, 2);
+            expect(std::isfinite(weight) && weight >= -numericalTolerance
+                       && weight <= 1 + numericalTolerance,
+                   "The actual feedback read left the convex source/destination interval");
+            expect(weight + numericalTolerance >= previous,
+                   "The actual feedback read reversed its boundary handoff");
+            if (sample == 0 || sample + 1 == length)
+                expect(std::abs(weight - (sample == 0 ? 0 : 1)) < numericalTolerance,
+                       "The actual feedback read lost an exact boundary endpoint");
+            const double progress = static_cast<double>(sample) / (length - 1);
+            const double expected = expectedBoundaryWeight(progress);
+            expect(std::abs(weight - expected) < numericalTolerance,
+                   "The rendered feedback sample differs from the independent C2 transfer");
+            const double cubic = progress * progress * (3 - 2 * progress);
+            measuredDeficit += weight * (1 - weight);
+            expectedDeficit += expected * (1 - expected);
+            cubicDeficit += cubic * (1 - cubic);
+            previous = weight;
+        }
+        const auto finished = electry::ElectryEngineTestAccess::state(*engine, 2);
+        expect(finished.transitionRemaining == 0 && !finished.locked && !finished.queued,
+               "The C2 boundary fade changed completion/ownership semantics");
+        // For any fixed complex pair, coherent energy deficit is proportional
+        // to w(1-w). This checks actual rendered weights across the entire
+        // finite contact against the exact independent shoulder construction.
+        // Its continuous integral is 449/3780, versus cubic's 9/70; use the
+        // actual finite sum rather than a fitted reduction threshold. This is
+        // not a claim of switched-network passivity.
+        expect(std::abs(measuredDeficit - expectedDeficit) < length * numericalTolerance
+                   && measuredDeficit < cubicDeficit,
+               "The actual finite contact differs from the derived lower-deficit construction");
+    }
+#endif
+}
+
 void memberBendCannotRetuneTheReleasedRefret()
 {
     auto engine = makeEngine(48000, 2);
@@ -1095,6 +1220,7 @@ int main()
     queuedFretKeepsItsLengthOutOfTheExpressionFollower();
     clippedExpressionTargetsReturnToTheirOwnFret();
     queuedNewFretCannotApplyTheFutureWristBeforeContact();
+    renderedBoundaryWeightsReduceColorWithoutChangingTheClock();
     memberBendCannotRetuneTheReleasedRefret();
     std::cout << std::setprecision(9) << "48 picked refrets at physical Release: max absolute "
               << largestReleaseError << " cents; live energy-pitch span "
