@@ -9892,10 +9892,29 @@ void testVelocityDynamicRange()
                + " fell from " + std::to_string(dropFrom) + " to "
                + std::to_string(dropTo) + " dBFS)");
 
-    // The loudest stroke must stay where it is: this is a dynamic range that
-    // grows downwards, not an output-level change.
-    expect(std::abs(atFull - (-25.690)) <= 1.5,
-           "full velocity moved away from its calibrated level ("
+    // The unit-area Bessel release deliberately changes the source crest.
+    // This is an exact-source snapshot, not a recording fit or output makeup:
+    // immutable 7a7b76f, both fresh shelf ON and OFF, measures -28.134267 dBFS.
+    // See Docs/validation/tone-source-snapshots-2026-10-18.md for the receipt.
+    constexpr double fullVelocityReference =
+#if ELECTRY_ENERGY_ATTACK_PITCH && ELECTRY_MEASURED_BODY_RESPONSE \
+    && ELECTRY_DECOUPLED_PICK_RELEASE && ELECTRY_REFERENCE_STRING_MASS \
+    && ELECTRY_MODAL_DISPERSION_FIT && ELECTRY_INTRINSIC_LOSS_FRESH \
+    && !ELECTRY_INTRINSIC_LOSS_LOWPASS \
+    && !ELECTRY_ANALYTIC_RELEASE_IC && !ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2 \
+    && !ELECTRY_POSITIONED_FRET_COLLISION && !ELECTRY_MEASURED_PICKUP_FLUX \
+    && !ELECTRY_PASSIVE_REPICK_SPRING
+        -28.134267;
+#else
+        -25.690;
+#endif
+    expect(std::abs(atFull - fullVelocityReference) <= 1.5,
+           "full velocity moved away from its calibrated source level ("
+               + std::to_string(atFull) + " dBFS)");
+    // Keep the previous absolute headroom ceiling independently of the new
+    // quieter source center and its unchanged +/-1.5 dB snapshot tolerance.
+    expect(atFull <= -25.690 + 1.5,
+           "full velocity exceeded the original calibrated headroom ceiling ("
                + std::to_string(atFull) + " dBFS)");
 
     // The decoupling must not be implemented by flattening the attack into
@@ -21630,7 +21649,34 @@ void testHumbuckerTwoCoilNotch()
         // worth a decibel, so the comparison stops there.
         struct Partial { int index; double decibels; };
         const std::array<Partial, 16> reference {{
-#if ELECTRY_ENERGY_ATTACK_PITCH
+#if ELECTRY_ENERGY_ATTACK_PITCH && ELECTRY_MEASURED_BODY_RESPONSE \
+    && ELECTRY_DECOUPLED_PICK_RELEASE && ELECTRY_REFERENCE_STRING_MASS \
+    && ELECTRY_MODAL_DISPERSION_FIT && ELECTRY_INTRINSIC_LOSS_FRESH \
+    && !ELECTRY_INTRINSIC_LOSS_LOWPASS \
+    && !ELECTRY_ANALYTIC_RELEASE_IC && !ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2 \
+    && !ELECTRY_POSITIONED_FRET_COLLISION && !ELECTRY_MEASURED_PICKUP_FLUX \
+    && !ELECTRY_PASSIVE_REPICK_SPRING
+            // Independently rendered immutable 7a7b76f: the unit-area Bessel
+            // release and fresh intrinsic loss reshape the complete source.
+            // Same render/window and tolerances; see the receipt beside the
+            // full-velocity snapshot. Historical experiment branches follow.
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+            { 1, 16.795460 }, { 2, 21.488759 }, { 3, 22.846729 },
+            { 4, 22.953386 }, { 6, 20.291901 }, { 8, 12.883658 },
+            { 10, 1.575484 }, { 12, -3.814916 }, { 14, -5.490530 },
+            { 16, -13.459567 }, { 18, -31.613060 }, { 20, -42.554969 },
+            { 22, -65.476212 }, { 24, -56.636366 }, { 26, -58.920651 },
+            { 28, -71.191858 },
+#else
+            // Independently observed same source with the loss shelf OFF.
+            { 1, 16.796780 }, { 2, 21.368975 }, { 3, 22.527630 },
+            { 4, 22.360548 }, { 6, 18.950681 }, { 8, 10.565945 },
+            { 10, -1.909530 }, { 12, -8.549170 }, { 14, -11.502024 },
+            { 16, -20.492729 }, { 18, -36.591298 }, { 20, -46.306936 },
+            { 22, -67.720509 }, { 24, -59.763648 }, { 26, -61.610781 },
+            { 28, -73.552067 },
+#endif
+#elif ELECTRY_ENERGY_ATTACK_PITCH
             // September 11 whole-source snapshot with continuous six-cent
             // attack relaxation and wound-pick texture. A fixed FFT bin is
             // not a stationary pickup response when the string pitch moves;
@@ -21783,7 +21829,38 @@ void testHumbuckerTwoCoilNotch()
         // coil, for notes 28, 40 and 64.
         struct Reference { int midiNote; double humbucker[2]; double single[2]; };
         const std::array<Reference, 3> shipping {{
-#if ELECTRY_ENERGY_ATTACK_PITCH
+#if ELECTRY_ENERGY_ATTACK_PITCH && ELECTRY_MEASURED_BODY_RESPONSE \
+    && ELECTRY_DECOUPLED_PICK_RELEASE && ELECTRY_REFERENCE_STRING_MASS \
+    && ELECTRY_MODAL_DISPERSION_FIT && ELECTRY_INTRINSIC_LOSS_FRESH \
+    && !ELECTRY_INTRINSIC_LOSS_LOWPASS \
+    && !ELECTRY_ANALYTIC_RELEASE_IC && !ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2 \
+    && !ELECTRY_POSITIONED_FRET_COLLISION && !ELECTRY_MEASURED_PICKUP_FLUX \
+    && !ELECTRY_PASSIVE_REPICK_SPRING
+            // Exact complete-source octave centers from the same immutable
+            // receipt as the partial array; pickup contrast and every band
+            // tolerance below remain independent and unchanged.
+#if ELECTRY_BUTTERWORTH_LOSS_SHELF
+#if defined(__x86_64__) || defined(_M_X64)
+            // This one band is a numerical-floor snapshot. Independent x86
+            // observation is -97.841925 dB, versus ARM's -101.661721 dB;
+            // retain the same 2.5 dB tolerance on each architecture.
+            { 28, { -77.986615, -116.883549 }, { -56.222811, -97.841925 } },
+#else
+            { 28, { -77.986615, -116.883549 }, { -56.222811, -101.661721 } },
+#endif
+            { 40, { -80.627380, -109.177478 }, { -60.738876, -90.609262 } },
+            { 64, { -63.992394, -108.992003 }, { -46.006788, -86.334175 } },
+#else
+#if defined(__x86_64__) || defined(_M_X64)
+            // Same independent x86 floor observation with the shelf OFF.
+            { 28, { -78.029855, -117.929920 }, { -56.228658, -97.853588 } },
+#else
+            { 28, { -78.029855, -117.929920 }, { -56.228658, -101.615803 } },
+#endif
+            { 40, { -82.141781, -119.006878 }, { -61.744175, -103.346830 } },
+            { 64, { -70.541553, -120.050498 }, { -52.526547, -101.526967 } },
+#endif
+#elif ELECTRY_ENERGY_ATTACK_PITCH
 #if ELECTRY_REFERENCE_STRING_MASS && ELECTRY_MODAL_DISPERSION_FIT
             // Whole-source centers from the exact combined development
             // candidate. Keep all band tolerances and contrast rails.
