@@ -5550,9 +5550,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
             amplitude *= 0.88f;
             pulseMs *= 1.2f;
             pulseCutoff *= 0.72f;
-            // Engaging the bridge heel does not move the picking hand. Keep
-            // the explicit Pick Position, with the hand's absorption handled
-            // independently in the release and feedback-loss paths.
+            pluckFraction *= 0.8f;
             noiseLevel *= 1.5f;
             // Keep more of the string's low modal body after retiring the
             // stacked finite heel, while the steady hand supplies the decay.
