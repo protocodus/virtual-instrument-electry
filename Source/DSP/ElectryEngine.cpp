@@ -547,6 +547,9 @@ float ElectryEngine::HalfbandDecimator::output() const noexcept
 void ElectryEngine::PolarisationLoop::clear() noexcept
 {
     line.fill(0.0f);
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    seamHistory.fill(0.0f);
+#endif
     writeIndex = 0;
     refretSource.valid = refretFrozenDestination.valid = false;
     damping.reset();
@@ -579,6 +582,9 @@ void ElectryEngine::PolarisationLoop::clear() noexcept
 
 void ElectryEngine::PolarisationLoop::scaleState(float amplitude) noexcept
 {
+    // A choke changes the CURRENT spatial state; actual past q head writes
+    // remain immutable. The observer hears the new head state after its
+    // declared causal delay. Explicit retirement/reset clears both histories.
     for (auto& sample : line)
         sample *= amplitude;
     const auto scaleBank = [amplitude] (LoopFilterBank& bank)
@@ -7925,6 +7931,12 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.vibratoSemitones = 0.0f;
     if (! hasHeldFrettedFinger())
         resetVibratoOnset();
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    // Once the voice retires its cursor stops advancing. Discard unheard past
+    // q samples so later reuse cannot revive a frozen observation timeline.
+    voice.vertical.seamHistory.fill(0.0f);
+    voice.horizontal.seamHistory.fill(0.0f);
+#endif
     // Every retained filter state must clear with the voice, or a silenced
     // string could leak residue into a later, otherwise identical render and
     // break the engine's determinism contract.
@@ -9100,6 +9112,13 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                            & (delayLineSize - 1))] = verticalTotal;
     horizontal.line[static_cast<std::size_t>(horizontal.writeIndex
                                              & (delayLineSize - 1))] = horizontalTotal;
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    // Record before image-side writes edit past-labelled spatial cells.
+    vertical.seamHistory[static_cast<std::size_t>(vertical.writeIndex
+                                                  & (delayLineSize - 1))] = verticalTotal;
+    horizontal.seamHistory[static_cast<std::size_t>(horizontal.writeIndex
+                                                    & (delayLineSize - 1))] = horizontalTotal;
+#endif
 
     // The pluck-position comb: the same excitation is scattered with opposite
     // sign one comb delay behind the write head, exactly as the second
@@ -9205,16 +9224,23 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                  OnePole& emfLowpass, float& previousFlux,
                                  float artifactWeight, float noiseWeight)
     {
-        const float verticalTap = vertical.readTap(delayTap);
-        const float horizontalTap = horizontal.readTap(delayTap);
+        const auto read = [&] (const PolarisationLoop& loop, const DelayTap& tap)
+        {
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            if (voice.pickupCommonTimeValid) return loop.readSeamTap(tap);
+#endif
+            return loop.readTap(tap);
+        };
+        const float verticalTap = read(vertical, delayTap);
+        const float horizontalTap = read(horizontal, delayTap);
         const float verticalDirect =
 #if ELECTRY_COMMON_TIME_PICKUP
-            voice.pickupCommonTimeValid ? vertical.readTap(directTap) :
+            voice.pickupCommonTimeValid ? read(vertical, directTap) :
 #endif
             verticalTotal;
         const float horizontalDirect =
 #if ELECTRY_COMMON_TIME_PICKUP
-            voice.pickupCommonTimeValid ? horizontal.readTap(directTap) :
+            voice.pickupCommonTimeValid ? read(horizontal, directTap) :
 #endif
             horizontalTotal;
         const float centre = 0.85f * (verticalDirect
@@ -9507,6 +9533,10 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
                       + 0.25f * feedbackDrive_ * feedbackHandScale_;
     loop.line[static_cast<std::size_t>(loop.writeIndex & (delayLineSize - 1))]
         = total;
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    loop.seamHistory[static_cast<std::size_t>(loop.writeIndex & (delayLineSize - 1))]
+        = total;
+#endif
     // An idle string is observed by the same spatial pickup model as a played
     // string: separate neck/bridge positions, finite coil aperture and the
     // humbucker's two-coil spacing. At sympathetic levels its magnetic map is
@@ -9519,10 +9549,17 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
                                  CoilPairSum& coilPair,
                                  float& previousFlux, OnePole& emfLowpass)
     {
-        const float reflected = pickupCombDepth * loop.readTap(pickupTap);
+        const auto read = [&] (const DelayTap& tap)
+        {
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            if (voice.pickupCommonTimeValid) return loop.readSeamTap(tap);
+#endif
+            return loop.readTap(tap);
+        };
+        const float reflected = pickupCombDepth * read(pickupTap);
         const float direct =
 #if ELECTRY_COMMON_TIME_PICKUP
-            voice.pickupCommonTimeValid ? loop.readTap(directTap) :
+            voice.pickupCommonTimeValid ? read(directTap) :
 #endif
             total;
         const float tap = aperture.process(

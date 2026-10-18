@@ -127,8 +127,21 @@
 #define ELECTRY_COMMON_TIME_PICKUP 0
 #endif
 
+// Causality diagnostic: record actual head-written q samples separately from
+// the spatial ring's later writeAdd/choke edits. Not a physical scatter model.
+#ifndef ELECTRY_PICKUP_SEAM_HISTORY
+#define ELECTRY_PICKUP_SEAM_HISTORY 0
+#endif
+#if ELECTRY_PICKUP_SEAM_HISTORY && !ELECTRY_COMMON_TIME_PICKUP
+#error "Seam-history observation requires common-time pickup geometry"
+#endif
+
 #ifndef ELECTRY_ANALYTIC_RELEASE_IC
 #define ELECTRY_ANALYTIC_RELEASE_IC 0
+#endif
+
+#if ELECTRY_PICKUP_SEAM_HISTORY && ELECTRY_ANALYTIC_RELEASE_IC
+#error "Analytic initial conditions have no qualified seam-history completion"
 #endif
 
 #ifndef ELECTRY_DECOUPLED_PICK_RELEASE
@@ -1095,6 +1108,11 @@ private:
     struct PolarisationLoop : LoopFilterBank
     {
         std::array<float, delayLineSize> line {};
+#if ELECTRY_PICKUP_SEAM_HISTORY
+        // Immutable past head writes, sharing the existing cursor. Current
+        // spatial edits never modify this causal observation history.
+        std::array<float, delayLineSize> seamHistory {};
+#endif
         int writeIndex { 0 };
         float currentDelay { 100.0f };
         float targetDelay { 100.0f };
@@ -1151,6 +1169,18 @@ private:
                  + tap.c2 * line[static_cast<std::size_t>((index + 1) & mask)]
                  + tap.c3 * line[static_cast<std::size_t>((index + 2) & mask)];
         }
+
+#if ELECTRY_PICKUP_SEAM_HISTORY
+        [[nodiscard]] float readSeamTap(const DelayTap& tap) const noexcept
+        {
+            constexpr int mask = delayLineSize - 1;
+            const int index = writeIndex - tap.offset;
+            return tap.c0 * seamHistory[static_cast<std::size_t>((index - 1) & mask)]
+                 + tap.c1 * seamHistory[static_cast<std::size_t>(index & mask)]
+                 + tap.c2 * seamHistory[static_cast<std::size_t>((index + 1) & mask)]
+                 + tap.c3 * seamHistory[static_cast<std::size_t>((index + 2) & mask)];
+        }
+#endif
 
         void writeAdd(float offsetSamples, float value) noexcept;
     };

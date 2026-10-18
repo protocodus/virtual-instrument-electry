@@ -69,8 +69,16 @@ struct ElectryEngineTestAccess
                 const double phase = -omega * history;
                 loop.line[static_cast<std::size_t>((loop.writeIndex - history) & mask)]
                     = static_cast<float>(imaginary ? std::sin(phase) : std::cos(phase));
+#if ELECTRY_PICKUP_SEAM_HISTORY
+                loop.seamHistory[static_cast<std::size_t>((loop.writeIndex - history) & mask)]
+                    = loop.line[static_cast<std::size_t>((loop.writeIndex - history) & mask)];
+#endif
             }
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            return loop.readSeamTap(tap);
+#else
             return loop.readTap(tap);
+#endif
         };
         const double real = read(false), imag = read(true);
         return {real, imag};
@@ -114,8 +122,13 @@ struct ElectryEngineTestAccess
         v.vertical.writeIndex = 997;
         constexpr int mask = Engine::delayLineSize - 1;
         for (int history = 0; history < Engine::delayLineSize; ++history)
-            v.vertical.line[static_cast<std::size_t>((v.vertical.writeIndex - history) & mask)]
-                = static_cast<float>(std::cos(omega * history));
+        {
+            const auto index = static_cast<std::size_t>((v.vertical.writeIndex - history) & mask);
+            v.vertical.line[index] = static_cast<float>(std::cos(omega * history));
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            v.vertical.seamHistory[index] = v.vertical.line[index];
+#endif
+        }
         const auto transfer = [&](bool neck)
         {
             std::complex<double> d{1, 0}, r;
@@ -196,6 +209,12 @@ struct ElectryEngineTestAccess
                 = static_cast<float>(amplitude * std::cos(omega * history));
             v.horizontal.line[static_cast<std::size_t>(index)]
                 = .35f * v.vertical.line[static_cast<std::size_t>(index)];
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            v.vertical.seamHistory[static_cast<std::size_t>(index)]
+                = v.vertical.line[static_cast<std::size_t>(index)];
+            v.horizontal.seamHistory[static_cast<std::size_t>(index)]
+                = v.horizontal.line[static_cast<std::size_t>(index)];
+#endif
         }
         const int warm = static_cast<int>(std::ceil(g.window + g.coilDelay)) + 8;
         constexpr int count = 256;
@@ -228,13 +247,40 @@ struct ElectryEngineTestAccess
         (void) expected;
         return result;
     }
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    static bool seamHistoryIsImmutablePast()
+    {
+        auto loop = std::make_unique<Engine::PolarisationLoop>();
+        for (std::size_t i = 0; i < loop->seamHistory.size(); ++i)
+        {
+            loop->line[i] = .2f * static_cast<float>(std::cos(.013 * i));
+            loop->seamHistory[i] = .3f * static_cast<float>(std::sin(.017 * i));
+        }
+        const auto past = loop->seamHistory;
+        loop->writeAdd(17.375f, -.41f);
+        const bool sideWritePreservedPast = loop->seamHistory == past;
+        loop->scaleState(.28f);
+        const bool chokePreservedPast = loop->seamHistory == past;
+        const auto copy = std::make_unique<Engine::PolarisationLoop>(*loop);
+        const bool copyRetainedPast = copy->seamHistory == past;
+        loop->clear();
+        const bool clearDiscardedPast = std::all_of(loop->seamHistory.begin(),
+            loop->seamHistory.end(), [](float value) { return value == 0; });
+        return sideWritePreservedPast && chokePreservedPast
+            && copyRetainedPast && clearDiscardedPast;
+    }
+#endif
     static bool resetClearsObservation(Engine& e, int string)
     {
         e.reset();
         const auto& v = e.voices_[static_cast<std::size_t>(string)];
         const auto zero = [](const auto& values)
         { return std::all_of(values.begin(), values.end(), [](auto value) { return value == 0; }); };
-        return zero(v.apertureNeck.cumulativeHistory) && zero(v.apertureBridge.cumulativeHistory)
+        return
+#if ELECTRY_PICKUP_SEAM_HISTORY
+            zero(v.vertical.seamHistory) && zero(v.horizontal.seamHistory) &&
+#endif
+            zero(v.apertureNeck.cumulativeHistory) && zero(v.apertureBridge.cumulativeHistory)
             && v.apertureNeck.cumulative == 0 && v.apertureBridge.cumulative == 0
             && v.apertureNeck.writeIndex == 0 && v.apertureBridge.writeIndex == 0
             && zero(v.coilPairNeck.history) && zero(v.coilPairBridge.history)
@@ -391,6 +437,9 @@ int main()
                     expect(Access::refitRetainsHistory(*e, 2), "Pickup time refit erased populated observation histories");
                     expect(Access::resetClearsObservation(*e, 2), "Reset retained spatial pickup observation histories");
                 }
+#if ELECTRY_PICKUP_SEAM_HISTORY
+    expect(Access::seamHistoryIsImmutablePast(), "Side-write/choke/copy/clear violated actual past seam-history semantics");
+#endif
     expect(legacyPhaseError > .5, "The legacy-phase negative control did not expose the missing anchor phase");
 #if ELECTRY_COMMON_TIME_PICKUP
     expect(outsideDomain > 0, "The extreme-expression domain witness was not exercised");
