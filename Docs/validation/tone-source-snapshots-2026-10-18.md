@@ -72,3 +72,25 @@ with the shelf both on and off. The pickup fixture also passes in both states
 on native ARM and the x86_64 build under Rosetta. Binary, final test-file and
 verification-log hashes are recorded in the JSON. No DSP source was edited
 by this snapshot refresh.
+
+## Final source confirmation
+
+The same tracked observer was rerun against immutable final DSP source
+`46f4a49127c53e148ef83f88000e1495f8e2a068`, after the finite Palm hand-opening
+change. With the intrinsic loss shelf both on and off, all 16 partial
+magnitudes, 12 octave magnitudes and the full-velocity peak are exactly
+unchanged from the retained `7a7b76f` observations at their 17-digit precision.
+The maximum difference from the active rounded test centers is
+`4.79964178e-7` dB with the shelf on and `4.78701821e-7` dB with it off.
+Both observer runs report zero failures with the existing refreshed assertions.
+
+The complete Engine suite passes on native ARM for both states. The pickup
+fixture also passes for both on the final x86_64 binaries under Rosetta. The
+JSON's `final_source_confirmation` records these fresh receipts, final source
+and test-file hashes, binaries and verification logs. The original shipping
+and `7a7b76f` receipts, including their original 0/18/13 failure counts, remain
+unchanged. This confirmation changes no DSP source, test, center or tolerance.
+
+To reproduce the final observations, use the two commands above with
+`--revision 46f4a49127c53e148ef83f88000e1495f8e2a068` and fresh output
+directories.

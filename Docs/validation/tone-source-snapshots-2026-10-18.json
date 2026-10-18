@@ -401,5 +401,152 @@
       }
     ],
     "source_changes_in_refresh": false
+  },
+  "final_source_confirmation": {
+    "revision": "46f4a49127c53e148ef83f88000e1495f8e2a068",
+    "source_hashes": {
+      "Source/DSP/ElectryEngine.cpp": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567",
+      "Source/DSP/ElectryEngine.h": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20"
+    },
+    "final_test_file_sha256": "7b46f0174c0f10601b9d6712606680440aea693e2c5dcf9679eb264e6649cabe",
+    "purpose": "Renew source binding after the finite Palm hand-opening change; no source, tests, centers or tolerances are changed by this confirmation.",
+    "original_shipping_and_7a_observations_retained_unchanged": true,
+    "comparison_protocol": "Compare the 16 partial magnitudes, 12 octave magnitudes and full-velocity peak at 17-digit observation precision against the retained7a receipts; independently preprocess the current test file with the observer feature flags and compare the active rounded pins.",
+    "states": {
+      "default": {
+        "receipt": {
+          "schema": "electry-source-snapshot-observation/v1",
+          "revision": "46f4a49127c53e148ef83f88000e1495f8e2a068",
+          "defines": {},
+          "original_test_sha256": "7b46f0174c0f10601b9d6712606680440aea693e2c5dcf9679eb264e6649cabe",
+          "observer_sha256": "306ab71c3f592753add97245530148117ab24fc68848cb2fbe0124f78b53d709",
+          "script_sha256": "504c0af373c65cb8b6fc4540b1191523150a5815410dd4a39d9c8d11c9cd8f27",
+          "build_receipt_sha256": "7e67c6027e9b36444bfb94dbe014b37d27823069ec150b2c7397b71be9313050",
+          "stdout_sha256": "87ac2e294bb247456e20aea789ec4554278bb5956ceb6e7af2ac725c6298f53c",
+          "stderr_sha256": "03bed107e8a72b2976380fcac0737a99a2556afdda128054074e74bf8b134f7f",
+          "observations": [
+            "SNAPSHOT partial 1 16.795459796866435",
+            "SNAPSHOT partial 2 21.488759037891839",
+            "SNAPSHOT partial 3 22.846729344912347",
+            "SNAPSHOT partial 4 22.953385881084344",
+            "SNAPSHOT partial 6 20.291901133867952",
+            "SNAPSHOT partial 8 12.88365826979263",
+            "SNAPSHOT partial 10 1.5754839306957469",
+            "SNAPSHOT partial 12 -3.8149160309724746",
+            "SNAPSHOT partial 14 -5.490529520035822",
+            "SNAPSHOT partial 16 -13.459567454241208",
+            "SNAPSHOT partial 18 -31.613060435996069",
+            "SNAPSHOT partial 20 -42.554968876025796",
+            "SNAPSHOT partial 22 -65.476212090267765",
+            "SNAPSHOT partial 24 -56.636365755512593",
+            "SNAPSHOT partial 26 -58.92065080724646",
+            "SNAPSHOT partial 28 -71.191857989458654",
+            "PROBE humbucker chord 2-16k/sub-500 ratio: -68.689712503537507 dB",
+            "PROBE note 28 4000-8000 Hz: humbucker -77.986614672326468 dB (was -77.986615), single coil -56.222811089211156 dB (was -56.222811)",
+            "PROBE note 28 8000-16000 Hz: humbucker -116.88354902002276 dB (was -116.883549), single coil -101.66172072462281 dB (was -101.661721)",
+            "PROBE note 40 4000-8000 Hz: humbucker -80.627380298141475 dB (was -80.627380000000002), single coil -60.738876191814711 dB (was -60.738875999999998)",
+            "PROBE note 40 8000-16000 Hz: humbucker -109.17747833778456 dB (was -109.17747799999999), single coil -90.609262379306088 dB (was -90.609262000000001)",
+            "PROBE note 64 4000-8000 Hz: humbucker -63.992393973277039 dB (was -63.992393999999997), single coil -46.006788135541228 dB (was -46.006788)",
+            "PROBE note 64 8000-16000 Hz: humbucker -108.99200323254767 dB (was -108.992003), single coil -86.33417455930207 dB (was -86.334175000000002)",
+            "SNAPSHOT velocity -46.574215228982247 -31.549390905394819 -28.134267000347233",
+            "PROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.8591903596914712/-13.368527965367374/-21.5729527234516 dB; first-to-repick contextual RMSE 4.3740917626723546 dB",
+            "SNAPSHOT original_failures 0"
+          ],
+          "limits": "Original assertions are retained; reported failures require classification. This is an independent exact-source observation, not a test waiver or physical fit."
+        },
+        "original_diagnostics": [
+          "PROBE dead attack 1.43709 dB"
+        ],
+        "binary_sha256": "4a08102667a2ad43d4bb132626ddab65873babf2a71ce6ef96fd071530fdb8da",
+        "measured_values_compared": 29,
+        "max_abs_difference_from_7a_db": 0.0,
+        "max_abs_difference_from_active_rounded_pin_db": 4.799641777353258e-07
+      },
+      "loss-off": {
+        "receipt": {
+          "schema": "electry-source-snapshot-observation/v1",
+          "revision": "46f4a49127c53e148ef83f88000e1495f8e2a068",
+          "defines": {
+            "ELECTRY_BUTTERWORTH_LOSS_SHELF": 0
+          },
+          "original_test_sha256": "7b46f0174c0f10601b9d6712606680440aea693e2c5dcf9679eb264e6649cabe",
+          "observer_sha256": "306ab71c3f592753add97245530148117ab24fc68848cb2fbe0124f78b53d709",
+          "script_sha256": "504c0af373c65cb8b6fc4540b1191523150a5815410dd4a39d9c8d11c9cd8f27",
+          "build_receipt_sha256": "832fbaa9e625e861aaf13742236c06bbe899ceece3a0f60a3c4c203102925771",
+          "stdout_sha256": "db967d9335abf6f03f0adfa13507c2310d52767865dabd4e452f28793742e091",
+          "stderr_sha256": "03bed107e8a72b2976380fcac0737a99a2556afdda128054074e74bf8b134f7f",
+          "observations": [
+            "SNAPSHOT partial 1 16.796780362603236",
+            "SNAPSHOT partial 2 21.368975129954336",
+            "SNAPSHOT partial 3 22.527629637333987",
+            "SNAPSHOT partial 4 22.360548386980899",
+            "SNAPSHOT partial 6 18.950680919633498",
+            "SNAPSHOT partial 8 10.565945113038955",
+            "SNAPSHOT partial 10 -1.9095299876253125",
+            "SNAPSHOT partial 12 -8.5491699561268462",
+            "SNAPSHOT partial 14 -11.502024368691776",
+            "SNAPSHOT partial 16 -20.492729377259668",
+            "SNAPSHOT partial 18 -36.591297736423144",
+            "SNAPSHOT partial 20 -46.306936458991224",
+            "SNAPSHOT partial 22 -67.720509419156997",
+            "SNAPSHOT partial 24 -59.763647623475805",
+            "SNAPSHOT partial 26 -61.610780809762254",
+            "SNAPSHOT partial 28 -73.552066600306873",
+            "PROBE humbucker chord 2-16k/sub-500 ratio: -69.792722979340311 dB",
+            "PROBE note 28 4000-8000 Hz: humbucker -78.029854661567654 dB (was -78.029854999999998), single coil -56.228657771339805 dB (was -56.228658000000003)",
+            "PROBE note 28 8000-16000 Hz: humbucker -117.92992012530465 dB (was -117.92992), single coil -101.61580292278116 dB (was -101.615803)",
+            "PROBE note 40 4000-8000 Hz: humbucker -82.14178123195606 dB (was -82.141780999999995), single coil -61.744175410554021 dB (was -61.744174999999998)",
+            "PROBE note 40 8000-16000 Hz: humbucker -119.00687752129818 dB (was -119.006878), single coil -103.34683013141404 dB (was -103.34683)",
+            "PROBE note 64 4000-8000 Hz: humbucker -70.541552652569948 dB (was -70.541552999999993), single coil -52.5265469160382 dB (was -52.526547000000001)",
+            "PROBE note 64 8000-16000 Hz: humbucker -120.05049785842829 dB (was -120.050498), single coil -101.52696699408965 dB (was -101.526967)",
+            "SNAPSHOT velocity -46.574215228982247 -31.549390905394819 -28.134267000347233",
+            "PROBE stateful two-pass Open/Palm/Dead/Dead E1 medians: -6.8591903596914712/-13.368527965367374/-21.5729527234516 dB; first-to-repick contextual RMSE 4.3740917626723546 dB",
+            "SNAPSHOT original_failures 0"
+          ],
+          "limits": "Original assertions are retained; reported failures require classification. This is an independent exact-source observation, not a test waiver or physical fit."
+        },
+        "original_diagnostics": [
+          "PROBE dead attack 1.43709 dB"
+        ],
+        "binary_sha256": "554f9128308904cc25a86ff352f17d8353a0329be27fa90d1321a5e6a4a1b183",
+        "measured_values_compared": 29,
+        "max_abs_difference_from_7a_db": 0.0,
+        "max_abs_difference_from_active_rounded_pin_db": 4.787018212937255e-07
+      }
+    },
+    "verification": [
+      {
+        "state": "default",
+        "architecture": "arm64",
+        "scope": "full Engine suite",
+        "exit_code": 0,
+        "binary_sha256": "058a8b2e0ded5d562e531b836b20abc012593aea68957207057ef69753fb3862",
+        "log_sha256": "77e1cacd4d9a01170343a7ed10c4a8c54e8a6d156f7d16b298a149831884f9cb"
+      },
+      {
+        "state": "default",
+        "architecture": "x86_64 under Rosetta",
+        "scope": "--pickup-only",
+        "exit_code": 0,
+        "binary_sha256": "058a8b2e0ded5d562e531b836b20abc012593aea68957207057ef69753fb3862",
+        "log_sha256": "7fcda1cf1d1bb06c68ac4fc4254189644639c0f75620e027b27de6780ac8e2f6"
+      },
+      {
+        "state": "loss-off",
+        "architecture": "arm64",
+        "scope": "full Engine suite",
+        "exit_code": 0,
+        "binary_sha256": "ce8675b127fb035de4689a1c241426e9df2da14778c467d8611bf59a233d797f",
+        "log_sha256": "04c9ae360e0c09947f89ae49795deb34b7150e7454fa8f4ff55ede7d1872d810"
+      },
+      {
+        "state": "loss-off",
+        "architecture": "x86_64 under Rosetta",
+        "scope": "--pickup-only",
+        "exit_code": 0,
+        "binary_sha256": "ce8675b127fb035de4689a1c241426e9df2da14778c467d8611bf59a233d797f",
+        "log_sha256": "1cb824df758673f41513288fd1e2bc59e1d17cbd4bc3a1fe3ae76127d76c69e1"
+      }
+    ]
   }
 }
