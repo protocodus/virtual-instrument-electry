@@ -96,5 +96,19 @@
     "Palm finite opening and large-jump fade prototypes withheld; known old packets remain.",
     "Fixed-filter certificate is not a whole-instrument LTV passivity proof.",
     "Moving-pressure runtime stress exceeded some block deadlines; no global real-time guarantee."
-  ]
+  ],
+  "final_loss_grid": {
+    "log_sha256": "51ed280cad6984dd5b2eff9a1be343805d6a0e2937f83058941deb56a1602cda",
+    "checks": 303446,
+    "failures": 0,
+    "loops": 7776,
+    "active_eligible": 5832,
+    "limited": 105,
+    "minimum_depth": 0.562069,
+    "hard_fallbacks": 0,
+    "pre_dip_violations": 0,
+    "maximum_fundamental_nominal_t60_relative_change": 0.00390349,
+    "maximum_upper_nominal_t60_relative_change": 0.0210967,
+    "interpretation": "Full correction matches traversal anchors; limited affine depth adds small loss. Actual modal T60 also depends on loop group delay."
+  }
 }
