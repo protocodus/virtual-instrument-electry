@@ -675,9 +675,9 @@ private:
         void configure(double frequency, double rate) noexcept
         {
             constexpr double piDouble = 3.1415926535897932384626433832795;
-            // H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2): standard Bessel pole
+            // H(s)=wn^2/(s^2+sqrt(2)*wn*s+wn^2): standard Butterworth pole
             // shape, retaining the existing natural frequency and DC gain.
-            constexpr double damping = 1.7320508075688772935;
+            constexpr double damping = 1.4142135623730950488;
             const double g = std::tan(piDouble * frequency / rate);
             a1 = 1.0 / (1.0 + g * (g + damping));
             a2 = g * a1;
