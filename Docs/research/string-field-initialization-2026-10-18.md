@@ -189,3 +189,8 @@ Primary sources:
 - [Smith, ideal plucked string and traveling initial conditions](https://www.dsprelated.com/freebooks/pasp/Ideal_Plucked_String.html).
 - [Smith, lossy and dispersive digital-waveguide theory](https://www.dsprelated.com/freebooks/pasp/Digital_Waveguide_Theory.html).
 - [Paiva, Pakarinen and Välimäki, Acoustics and Modeling of Pickups](https://research.aalto.fi/en/publications/acoustics-and-modeling-of-pickups/), JAES 60(10), 2012, pp. 768–782; [author manuscript](https://www.researchgate.net/publication/234034228_Acoustics_and_Modeling_of_Pickups).
+
+The [force and contact work-balance follow-up](force-contact-work-balance-2026-10-18.md)
+derives an ideal velocity-wave force port, zero-velocity static release and
+passive contact on a ringing field, with explicit source-work and storage
+checks. It does not qualify a production source or actuator trajectory.
