@@ -1206,6 +1206,17 @@ private:
         int refretRemainingSamples { 0 };
         bool refretQueued { false };
         bool refretDelayLocked { false };
+        // Tension expression keeps its ordinary six-ms follower while the
+        // fret coordinate is locked. Full-period targets separate wave-speed
+        // motion from a queued fret's unrelated length change.
+        float refretExpressionSemitones { 0.0f };
+        float refretDestinationPeriod { 0.0f };
+        float refretSourcePeriod { 0.0f };
+        float refretDestinationPending { 0.0f };
+        float refretSourcePending { 0.0f };
+        float refretDestinationUnclampedPeriod { 0.0f };
+        float refretSourceUnclampedPeriod { 0.0f };
+        int refretTrackedMidiNote { -1 };
         // The physical slide already has a smooth finger trajectory. Carry its
         // control-tick period change across the following samples separately
         // from the ordinary bend follower, so that follower does not add a

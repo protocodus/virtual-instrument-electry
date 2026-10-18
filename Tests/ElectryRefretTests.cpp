@@ -26,8 +26,24 @@ struct ElectryEngineTestAccess
         int phase = 0;
         int note = -1;
         int pending = 0;
+        int dampingStyle = 0;
+        int playStyle = 0;
+        bool strokeIsUp = false;
+        float velocity = 0;
+        bool pendingStroke = false;
+        int pendingStyle = 0;
+        bool pendingUp = false;
+        float pendingVelocity = 0;
+        std::uint64_t strokeOrder = 0;
+        std::uint64_t pendingOrder = 0;
+        std::uint32_t noiseState = 0;
+        int excitationRemaining = 0;
+        double pendingAttackEnergy = 0;
+        double pendingAttackScale = 0;
         double rate = 0;
         double targetFrequency = 0;
+        double physicalPeriod = 0;
+        double targetDelay = 0;
         double delay = 0;
         double oldDelay = 0;
         double newWeight = 1;
@@ -46,6 +62,26 @@ struct ElectryEngineTestAccess
         std::array<double, 5> hand {1, 0, 0, 0, 0};
     };
 
+    static void setLiveBend(ElectryEngine& engine, int stringIndex, bool member, float semitones)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        if (member)
+        {
+            engine.expressionPitchBendTargets_[7] = semitones;
+            engine.snapExpressionPitchBendToTarget(7);
+        }
+        else
+            engine.pitchBendSemitones_ = engine.pitchBendTarget_ = semitones;
+        if (voice.active) engine.configureVoicePitch(voice, false);
+    }
+
+    static void setLiveVibrato(ElectryEngine& engine, int stringIndex, float semitones)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
+        voice.vibratoSemitones = semitones;
+        engine.configureVoicePitch(voice, false);
+    }
+
     static State state(const ElectryEngine& engine, int stringIndex)
     {
         const auto& voice = engine.voices_[static_cast<std::size_t>(stringIndex)];
@@ -61,11 +97,28 @@ struct ElectryEngineTestAccess
             result.loopEnergy += static_cast<double>(sample) * sample;
 #if ELECTRY_ENERGY_ATTACK_PITCH
         result.attackTension = voice.attackPitchTensionRatio;
+        result.pendingAttackEnergy = voice.pendingAttackPitchEnergyJoules;
+        result.pendingAttackScale = voice.pendingAttackPitchElasticScalePerJoule;
 #endif
         result.pending = voice.startDelaySamples;
+        result.dampingStyle = static_cast<int>(voice.dampingStyle);
+        result.playStyle = static_cast<int>(voice.playStyle);
+        result.strokeIsUp = voice.strokeIsUp;
+        result.velocity = voice.velocity;
+        result.pendingStroke = voice.pendingRepick.active;
+        result.pendingStyle = static_cast<int>(voice.pendingRepick.playStyle);
+        result.pendingUp = voice.pendingRepick.strokeIsUp;
+        result.pendingVelocity = voice.pendingRepick.velocity;
+        result.strokeOrder = voice.startOrder;
+        result.pendingOrder = voice.pendingRepick.startOrder;
+        result.noiseState = voice.noiseState;
+        result.excitationRemaining = voice.excitationRemaining;
         result.rate = engine.sampleRate_;
         result.targetFrequency = engine.sampleRate_ / voice.lastCompensatedPeriod;
+        result.physicalPeriod = loop.currentDelay + voice.lastCompensatedPeriod
+                              - voice.compensatedPeriodVertical;
         result.delay = loop.currentDelay;
+        result.targetDelay = loop.targetDelay;
         result.oldDelay = result.delay;
         // The opt-in baseline build links this same observer to frozen 1.2.3
         // headers/library to prove the old pitch-lag failures. Normal CI
@@ -612,6 +665,399 @@ void incomingLargeJumpRetainsTheHeardMixtureAndLegacyChoke()
            "Queued large destination left non-finite waveguide state");
 }
 
+void liveExpressionMovesBothHandoffEndpoints()
+{
+    for (const bool member : {false, true})
+        for (const bool alreadyMoving : {false, true})
+        {
+            auto engine = makeEngine(48000, 2);
+            electry::EngineParameters parameters;
+            parameters.pickHardness = 0;
+            parameters.bendTimeSeconds = .04f;
+            parameters.pickNoise = parameters.fingerNoise = parameters.releaseNoise = 0;
+            parameters.artifactAmount = parameters.sympatheticAmount = parameters.bodyResonance = 0;
+            engine->setParameters(parameters);
+            const auto id = static_cast<electry::ElectryEngine::ExpressionId>(member ? 7 : 0);
+            engine->noteOn(47, .85f, id);
+            render(*engine, 9600);
+            const auto bend = [&] {
+                if (member) engine->setExpressionPitchBend(id, 24);
+                else engine->setPitchBendSemitones(24);
+            };
+            if (alreadyMoving) { bend(); render(*engine, 32); }
+            engine->noteOn(48, .85f, id);
+            const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(before.locked && before.transitionRemaining > 96,
+                   "Expression fixture did not enter a sufficiently long handoff");
+            if (alreadyMoving)
+                expect(before.physicalPeriod - before.rate / before.targetFrequency > 1,
+                       "Starting a fret instantly consumed an already moving bend");
+            else bend();
+            render(*engine, 48);
+            const auto after = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(after.locked && after.transitionRemaining > 0,
+                   "Expression fixture escaped its active handoff");
+            expect(after.physicalPeriod < before.physicalPeriod - 1,
+                   "An active fret handoff froze global/member bend at its destination");
+            const double sourceBefore = before.physicalPeriod + before.oldDelay - before.delay;
+            const double sourceAfter = after.physicalPeriod + after.oldDelay - after.delay;
+            expect(sourceAfter < sourceBefore - 1,
+                   "An active fret handoff froze global/member bend at its source");
+            expect(std::abs(sourceAfter / sourceBefore
+                          - after.physicalPeriod / before.physicalPeriod) < .001,
+                   "A tension bend moved the two boundary periods inconsistently");
+        }
+
+    // Isolate the finger-vibrato coordinate at a control boundary. This uses
+    // the real pitch solve and original per-sample follower; it avoids making
+    // the test depend on the random finger phase or shared onset ramp.
+    auto vibrato = makeEngine(48000, 2);
+    vibrato->noteOn(47, .85f);
+    render(*vibrato, 9600);
+    vibrato->noteOn(48, .85f);
+    render(*vibrato, 1); // Begin just after a control tick.
+    auto control = std::make_unique<electry::ElectryEngine>(*vibrato);
+    const auto before = electry::ElectryEngineTestAccess::state(*vibrato, 2);
+    electry::ElectryEngineTestAccess::setLiveVibrato(*vibrato, 2, .5f);
+    const auto configured = electry::ElectryEngineTestAccess::state(*vibrato, 2);
+    render(*vibrato, 4);
+    render(*control, 4);
+    const auto after = electry::ElectryEngineTestAccess::state(*vibrato, 2);
+    const auto unchanged = electry::ElectryEngineTestAccess::state(*control, 2);
+    expect(after.locked && after.physicalPeriod < unchanged.physicalPeriod - .01,
+           "An active fret handoff froze its live finger-vibrato coordinate");
+    expect(after.physicalPeriod + after.oldDelay - after.delay
+               < unchanged.physicalPeriod + unchanged.oldDelay - unchanged.delay - .01,
+           "Finger vibrato failed to move the source boundary period");
+    expect(after.newWeight == unchanged.newWeight
+               && after.transitionRemaining == before.transitionRemaining - 8,
+           "Tension expression restarted the fret handoff clock");
+    const double requestedDelta = configured.rate / configured.targetFrequency
+                               - before.rate / before.targetFrequency;
+    const double performedFraction = 1 - std::exp(-8 / (.006 * before.rate));
+    const double expected = configured.physicalPeriod + requestedDelta * performedFraction;
+    expect(std::abs(after.physicalPeriod - expected) < .002,
+           "Finger vibrato lost the established six-ms tension follower: measured "
+               + std::to_string(after.physicalPeriod) + ", expected " + std::to_string(expected));
+}
+
+void queuedFretKeepsItsLengthOutOfTheExpressionFollower()
+{
+    auto engine = makeEngine(48000, 2);
+    engine->noteOn(47, .85f);
+    render(*engine, 9600);
+    engine->noteOn(48, .85f);
+    render(*engine, 8);
+    const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+    engine->noteOn(50, .85f);
+    const auto queued = electry::ElectryEngineTestAccess::state(*engine, 2);
+    render(*engine, 16);
+    const auto held = electry::ElectryEngineTestAccess::state(*engine, 2);
+    expect(queued.queued && held.queued && held.locked,
+           "Queued-expression fixture did not retain the heard boundary mixture");
+    expect(std::abs(1200 * std::log2(held.physicalPeriod / before.physicalPeriod)) < 1,
+           "A queued fret entered the tension-only follower");
+    engine->setPitchBendSemitones(24);
+    render(*engine, 16);
+    const auto bent = electry::ElectryEngineTestAccess::state(*engine, 2);
+    expect(bent.physicalPeriod < held.physicalPeriod - .01,
+           "A queued fret froze the live tension-only follower");
+    expect(electry::ElectryEngineTestAccess::finiteString(*engine, 2),
+           "Queued expression left non-finite waveguide state");
+
+    // Both MPE components can approach the documented wide safety limits.
+    // Exercise them through overlapping queued destinations and rate changes.
+    for (const double rate : {48000., 384000.})
+    {
+        auto wide = makeEngine(rate, 2);
+        wide->noteOn(47, .8f, 7);
+        render(*wide, static_cast<int>(rate / 5));
+        for (int index = 0; index < 12; ++index)
+        {
+            wide->noteOn(48 + index % 3, .8f, 7);
+            wide->setExpressionPitchBend(7, index % 2 ? -192 : 192);
+            wide->setExpressionMasterPitchBend(7, index % 2 ? -192 : 192);
+            wide->snapExpressionPitchBendToTarget(7);
+            render(*wide, 8);
+            const auto state = electry::ElectryEngineTestAccess::state(*wide, 2);
+            expect(std::isfinite(state.delay) && std::isfinite(state.oldDelay)
+                       && std::isfinite(state.physicalPeriod)
+                       && electry::ElectryEngineTestAccess::finiteString(*wide, 2),
+                   "Wide MPE bend through a queued fret left non-finite state");
+        }
+        wide->reset();
+    }
+}
+
+void clippedExpressionTargetsReturnToTheirOwnFret()
+{
+    for (const bool member : {false, true})
+        for (const int direction : {-1, 1})
+        {
+            auto engine = makeEngine(48000, 2);
+            const auto id = static_cast<electry::ElectryEngine::ExpressionId>(member ? 7 : 0);
+            electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, direction * 96.f);
+            engine->noteOn(47, .85f, id);
+            render(*engine, 9600);
+            // Moving further into an already pinned range creates no debt.
+            electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, direction * 192.f);
+            render(*engine, 4);
+            engine->noteOn(48, .85f, id);
+            auto pinned = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(pinned.locked && pinned.delay == pinned.targetDelay,
+                   "An outward already-clipped bend invented a pending pitch movement: member "
+                       + std::to_string(member) + ", direction " + std::to_string(direction)
+                       + ", delay " + std::to_string(pinned.delay) + ", target " + std::to_string(pinned.targetDelay));
+            render(*engine, 1); // Keep the next few samples clear of control ticks.
+            pinned = electry::ElectryEngineTestAccess::state(*engine, 2);
+            electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, 0);
+            const auto centred = electry::ElectryEngineTestAccess::state(*engine, 2);
+            render(*engine, 4);
+            const auto moved = electry::ElectryEngineTestAccess::state(*engine, 2);
+            const double requestedDelta = centred.rate / centred.targetFrequency
+                                        - pinned.rate / pinned.targetFrequency;
+            const double expected = centred.physicalPeriod + requestedDelta
+                * (1 - std::exp(-8 / (.006 * centred.rate)));
+            expect(std::abs(moved.physicalPeriod - expected) < .05,
+                   "Leaving a pitch clamp ratcheted toward the opposite limit: measured "
+                       + std::to_string(moved.physicalPeriod) + ", expected " + std::to_string(expected));
+            expect(moved.locked && std::isfinite(moved.oldDelay)
+                       && electry::ElectryEngineTestAccess::finiteString(*engine, 2),
+                   "A clipped-expression exit disrupted the active handoff");
+        }
+}
+
+void sameClockLargeReplacementChokesOnlyTheActualFretChange()
+{
+    for (const bool pickingHandRepick : {false, true})
+    {
+        // Zero seed gives an immediate public command, so no hidden
+        // performance pre-roll can postpone the repick beyond the handoff.
+        auto engine = makeEngine(48000, 2, electry::PlayStyle::Sustain, 0, 0);
+        engine->noteOn(47, .85f);
+        render(*engine, 9600);
+        const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+        engine->noteOn(51, .85f);
+        const auto intermediate = electry::ElectryEngineTestAccess::state(*engine, 2);
+        expect(intermediate.loopEnergy == before.loopEnergy,
+               "The first small same-clock move unexpectedly choked the string");
+        engine->noteOn(55, .85f); // 51 was never rendered: the source is still 47.
+        const auto replaced = electry::ElectryEngineTestAccess::state(*engine, 2);
+        expect(replaced.transitionRemaining > 0
+                   && replaced.transitionRemaining == replaced.transitionLength
+                   && replaced.newWeight == 0 && !replaced.queued,
+               "Same-clock large replacement lost its unheard source boundary");
+        constexpr double retainedEnergy = .28 * .28;
+        expect(before.loopEnergy > 0
+                   && std::abs(replaced.loopEnergy / before.loopEnergy
+                               - retainedEnergy) < 1e-6,
+               "Same-clock small hops bypassed the established net large-jump choke");
+#if ELECTRY_ENERGY_ATTACK_PITCH
+        expect(before.attackTension > 0
+                   && std::abs(replaced.attackTension / before.attackTension
+                               - retainedEnergy) < 1e-6,
+               "Same-clock net large replacement missed the attack-tension choke");
+#endif
+        engine->noteOn(pickingHandRepick
+                           ? electry::ElectryEngine::firstRepickNote + 2 : 55,
+                       .85f);
+        const auto repicked = electry::ElectryEngineTestAccess::state(*engine, 2);
+        expect(repicked.loopEnergy == replaced.loopEnergy
+                   && repicked.attackTension == replaced.attackTension,
+               "An unheard same-destination repick applied a second fret-change choke");
+        expect(repicked.transitionRemaining == replaced.transitionRemaining
+                   && repicked.newWeight == replaced.newWeight && !repicked.queued,
+               "An unheard same-destination repick replaced the source boundary");
+        const auto released = firstRelease(*engine, 2, 4800);
+        expect(released.note == 55 && released.transitionRemaining == 0
+                   && !released.queued && !released.locked && released.newWeight == 1,
+               "Same-clock net large destination did not finish before picked Release");
+        expect(destinationReachedWithOnlyEnergyAttackMotion(released),
+               "Same-clock net large destination retained interval-sized pitch lag");
+        expect(electry::ElectryEngineTestAccess::finiteString(*engine, 2),
+               "Same-clock large replacement left non-finite waveguide state");
+    }
+}
+
+// An unheard intermediate destination must not turn a return to the original
+// source into a new large physical jump.
+void sameClockReturnDoesNotChokeAnUnperformedFret()
+{
+    auto engine = makeEngine(48000, 2, electry::PlayStyle::Sustain, 0, 0);
+    engine->noteOn(47, .85f);
+    render(*engine, 9600);
+    const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+    engine->noteOn(51, .85f);
+    engine->noteOn(47, .85f);
+    const auto returned = electry::ElectryEngineTestAccess::state(*engine, 2);
+    expect(returned.loopEnergy == before.loopEnergy
+               && returned.attackTension == before.attackTension,
+           "An unheard intermediate fret caused a spurious choke on returning to source");
+    const auto released = firstRelease(*engine, 2, 4800);
+    expect(released.transitionRemaining == 0 && !released.queued && !released.locked,
+           "Same-clock return retained an unfinished handoff at picked Release");
+    expect(electry::ElectryEngineTestAccess::finiteString(*engine, 2),
+           "Same-clock return left non-finite waveguide state");
+}
+
+void queuedRepickCannotReplaceTheSoundingStrokeBeforeContact()
+{
+    for (const double rate : {48000.0, 96000.0, 384000.0})
+        for (const int gesture : {0, 1, 2})
+        {
+            const auto initial = gesture == 2 ? electry::PlayStyle::PalmMute
+                                              : electry::PlayStyle::Sustain;
+            auto engine = makeEngine(rate, 2, initial, 0, 0);
+            engine->noteOn(47, .85f);
+            render(*engine, static_cast<int>(.2 * rate));
+            engine->noteOn(48, .85f);
+            const auto fresh = electry::ElectryEngineTestAccess::state(*engine, 2);
+            const int oversampling = static_cast<int>(std::lround(fresh.rate / rate));
+            render(*engine, std::max(1, fresh.transitionLength / (4 * oversampling)));
+            engine->noteOn(49, .8f);
+            render(*engine, 1);
+            auto reference = std::make_unique<electry::ElectryEngine>(*engine);
+            const auto command = gesture == 1
+                ? electry::ElectryEngine::firstKeyswitchNote
+                      + static_cast<int>(electry::PickStyle::Up)
+                : electry::ElectryEngine::firstPlayStyleKeyswitchNote
+                      + static_cast<int>(gesture == 2 ? electry::PlayStyle::Sustain
+                                                    : electry::PlayStyle::PalmMute);
+            engine->noteOn(command, 1);
+            reference->noteOn(command, 1);
+            engine->noteOn(electry::ElectryEngine::firstRepickNote + 2, .8f);
+            const auto pending = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(pending.queued && pending.pending > oversampling,
+                   "Queued immediate repick missed the zero-natural-delay fixture");
+            // Delay counts internal samples; stop before its physical contact.
+            const int frames = (pending.pending - 1) / oversampling;
+            for (int frame = 0; frame < frames; ++frame)
+            {
+                float left[1], right[1], refLeft[1], refRight[1];
+                engine->process(left, right, 1);
+                reference->process(refLeft, refRight, 1);
+                expect(left[0] == refLeft[0] && right[0] == refRight[0],
+                       "Queued repick changed the sounding stroke before contact");
+            }
+            const auto released = firstRelease(*engine, 2, static_cast<int>(.1 * rate));
+            expect(released.note == 49 && released.transitionRemaining == 0
+                       && !released.queued && !released.locked,
+                   "Deferred repick failed to reach its latest physical picked Release");
+        }
+}
+// A new fret changes geometry immediately, but its queued bridge hand must
+// remain the one physically present until the pick arrives.
+
+void newQueuedFretRetainsThePresentHandUntilContact()
+{
+    for (const double rate : {48000.0, 96000.0, 384000.0})
+        for (const auto initial : {electry::PlayStyle::Sustain, electry::PlayStyle::PalmMute})
+        {
+            auto engine = makeEngine(rate, 2, initial, 0, 0);
+            engine->noteOn(47, .85f);
+            render(*engine, static_cast<int>(.2 * rate));
+            engine->noteOn(48, .85f);
+            const auto fresh = electry::ElectryEngineTestAccess::state(*engine, 2);
+            const int oversampling = static_cast<int>(std::lround(fresh.rate / rate));
+            render(*engine, std::max(1, fresh.transitionLength / (4 * oversampling)));
+            const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+            const auto requested = initial == electry::PlayStyle::Sustain
+                ? electry::PlayStyle::PalmMute : electry::PlayStyle::Sustain;
+            engine->noteOn(electry::ElectryEngine::firstPlayStyleKeyswitchNote
+                              + static_cast<int>(requested), 1);
+            engine->noteOn(49, .8f);
+            const auto queued = electry::ElectryEngineTestAccess::state(*engine, 2);
+            expect(queued.queued && queued.pending > 0,
+                   "New queued refret did not wait for the existing audible boundary");
+            expect(queued.dampingStyle == before.dampingStyle,
+                   "New queued refret replaced the present bridge hand before contact");
+            const auto released = firstRelease(*engine, 2, static_cast<int>(.1 * rate));
+            expect(released.dampingStyle == static_cast<int>(requested),
+                   "New queued refret failed to apply its requested bridge hand at contact");
+        }
+}
+
+void queuedNewFretCannotApplyTheFutureWristBeforeContact()
+{
+    for (const double rate : {48000.0, 96000.0, 384000.0})
+        for (const int gesture : {0, 1, 2, 3})
+            for (const bool textured : {false, true})
+                for (const bool newMember : {false, true})
+                {
+                    const auto initial = gesture == 2 ? electry::PlayStyle::PalmMute
+                                                      : electry::PlayStyle::Sustain;
+                    auto engine = makeEngine(rate, 2, initial, 0, 0);
+                    if (textured)
+                    {
+                        electry::EngineParameters parameters;
+                        electry::applyGuitarBuild(parameters, electry::defaultGuitarBuild);
+                        parameters.strumSpreadSeconds = 0;
+                        parameters.sympatheticAmount = parameters.bodyResonance = 0;
+                        engine->setParameters(parameters);
+                    }
+                    const electry::ElectryEngine::ExpressionId member = newMember ? 7 : 0;
+                    engine->noteOn(47, .85f, member);
+                    render(*engine, static_cast<int>(.2 * rate));
+                    engine->noteOn(48, .85f, member);
+                    const auto fresh = electry::ElectryEngineTestAccess::state(*engine, 2);
+                    const int oversampling = static_cast<int>(std::lround(fresh.rate / rate));
+                    render(*engine, std::max(1, fresh.transitionLength / (4 * oversampling)));
+                    if (newMember)
+                    {
+                        engine->noteOn(49, .8f, member);
+                        render(*engine, 1);
+                    }
+                    auto reference = std::make_unique<electry::ElectryEngine>(*engine);
+                    const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+                    const auto requested = gesture == 0 ? electry::PlayStyle::PalmMute
+                        : electry::PlayStyle::Sustain;
+                    if (gesture != 1)
+                        engine->noteOn(electry::ElectryEngine::firstPlayStyleKeyswitchNote
+                                           + static_cast<int>(requested), 1);
+                    else
+                        engine->noteOn(electry::ElectryEngine::firstKeyswitchNote
+                                           + static_cast<int>(electry::PickStyle::Up), 1);
+                    const float velocity = gesture == 3 ? .45f : .8f;
+                    const electry::ElectryEngine::ExpressionId incoming = newMember ? 8 : 0;
+                    engine->noteOn(49, velocity, incoming);
+                    reference->noteOn(49, .8f, incoming);
+                    const auto queued = electry::ElectryEngineTestAccess::state(*engine, 2);
+                    const auto control = electry::ElectryEngineTestAccess::state(*reference, 2);
+                    expect(queued.queued && queued.pending > oversampling
+                               && queued.pending == control.pending && queued.pendingStroke,
+                           "New queued wrist missed the positive-wait same-geometry fixture");
+                    expect(queued.playStyle == before.playStyle
+                               && queued.strokeIsUp == before.strokeIsUp
+                               && queued.velocity == before.velocity
+                               && queued.strokeOrder == before.strokeOrder
+                               && queued.noiseState == before.noiseState
+                               && queued.phase == before.phase
+                               && queued.excitationRemaining == before.excitationRemaining
+                               && queued.pendingAttackEnergy == before.pendingAttackEnergy
+                               && queued.pendingAttackScale == before.pendingAttackScale,
+                           "New queued wrist replaced the previous Contact before arrival");
+                    expect(queued.pendingStyle == static_cast<int>(requested)
+                               && queued.pendingUp == (gesture == 1)
+                               && queued.pendingVelocity == velocity,
+                           "New queued wrist did not reserve its complete requested stroke");
+                    // Both sides receive the same fret geometry now. Only the
+                    // future wrist differs, so every pre-contact sample agrees.
+                    const int frames = (std::min(queued.pending, control.pending) - 1)
+                                     / oversampling;
+                    const auto actual = samples(*engine, frames, 1);
+                    const auto unchanged = samples(*reference, frames, 1);
+                    expect(actual == unchanged,
+                           "Future queued wrist changed same-geometry audio before contact");
+                    const auto released = firstRelease(*engine, 2, static_cast<int>(.1 * rate));
+                    expect(released.playStyle == static_cast<int>(requested)
+                               && released.strokeIsUp == (gesture == 1)
+                               && released.velocity == velocity
+                               && released.strokeOrder == queued.pendingOrder
+                               && !released.pendingStroke && released.note == 49,
+                           "Queued wrist failed to install its reserved stroke at contact");
+                }
+}
+
 void memberBendCannotRetuneTheReleasedRefret()
 {
     auto engine = makeEngine(48000, 2);
@@ -641,6 +1087,14 @@ int main()
     unperformedAndQueuedDestinationsKeepTheSoundingBoundary();
     delayedCancellationPedalAndResetClearPendingOwnership();
     incomingLargeJumpRetainsTheHeardMixtureAndLegacyChoke();
+    sameClockLargeReplacementChokesOnlyTheActualFretChange();
+    sameClockReturnDoesNotChokeAnUnperformedFret();
+    queuedRepickCannotReplaceTheSoundingStrokeBeforeContact();
+    newQueuedFretRetainsThePresentHandUntilContact();
+    liveExpressionMovesBothHandoffEndpoints();
+    queuedFretKeepsItsLengthOutOfTheExpressionFollower();
+    clippedExpressionTargetsReturnToTheirOwnFret();
+    queuedNewFretCannotApplyTheFutureWristBeforeContact();
     memberBendCannotRetuneTheReleasedRefret();
     std::cout << std::setprecision(9) << "48 picked refrets at physical Release: max absolute "
               << largestReleaseError << " cents; live energy-pitch span "

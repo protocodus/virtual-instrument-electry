@@ -4496,6 +4496,79 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
             static_cast<float>(delayLineSize - 8));
     }
 
+    const float expressionSemitones = bend + vibrato;
+    const float expressionPeriodRatio = expressionSemitones == voice.refretExpressionSemitones
+        ? 1.0f : std::exp2(
+            (voice.refretExpressionSemitones - expressionSemitones) / 12.0f);
+    const float minimumExpressionPeriod = 1.0f / 0.24f;
+    const float maximumExpressionPeriod = static_cast<float>(sampleRate_) / 20.0f;
+    const auto clampExpressionPeriod = [&] (float value)
+    {
+        value = clampf(value, minimumExpressionPeriod, maximumExpressionPeriod);
+#if ELECTRY_ENERGY_ATTACK_PITCH
+        value /= voice.attackPitchFrequencyFactor;
+#endif
+        return clampf(value, minimumExpressionPeriod, maximumExpressionPeriod);
+    };
+    const float unclampedExpressionPeriod = static_cast<float>(sampleRate_) / unclampedF0;
+    if (forceDelayJump || voice.refretDestinationPeriod <= 0.0f)
+    {
+        voice.refretDestinationPeriod = voice.lastCompensatedPeriod;
+        voice.refretSourcePeriod = voice.lastCompensatedPeriod;
+        voice.refretDestinationPending = 0.0f;
+        voice.refretSourcePending = 0.0f;
+        voice.refretDestinationUnclampedPeriod = unclampedExpressionPeriod;
+        voice.refretSourceUnclampedPeriod = unclampedExpressionPeriod;
+        voice.refretTrackedMidiNote = voice.midiNote;
+    }
+    else if (voice.refretDelayLocked)
+    {
+        if (expressionSemitones != voice.refretExpressionSemitones)
+        {
+            // Retain the unclamped wave-speed coordinate. Multiplying an
+            // already pinned period would ratchet to the opposite limit when
+            // a wide wheel/member bend returns to centre.
+            const float destination = voice.refretDestinationUnclampedPeriod
+                * expressionPeriodRatio;
+            const float source = voice.refretSourceUnclampedPeriod
+                * expressionPeriodRatio;
+            const float destinationDelta = clampExpressionPeriod(destination)
+                - clampExpressionPeriod(voice.refretDestinationUnclampedPeriod);
+            const float sourceDelta = clampExpressionPeriod(source)
+                - clampExpressionPeriod(voice.refretSourceUnclampedPeriod);
+            voice.refretDestinationPending += destinationDelta;
+            voice.refretSourcePending += sourceDelta;
+            voice.refretDestinationPeriod += destinationDelta;
+            voice.refretSourcePeriod += sourceDelta;
+            voice.refretDestinationUnclampedPeriod = destination;
+            voice.refretSourceUnclampedPeriod = source;
+        }
+    }
+    else
+    {
+        // Keep expression-only residue while ordinary bends run. A new fret
+        // rescales that residue; it does not consume a bend already in flight.
+        const float destination = voice.lastCompensatedPeriod;
+        const float previousExpressionPeriod = clampExpressionPeriod(
+            unclampedExpressionPeriod / expressionPeriodRatio);
+        const float geometryRatio = previousExpressionPeriod
+            / voice.refretDestinationPeriod;
+        voice.refretDestinationPending *= geometryRatio;
+        if (expressionSemitones != voice.refretExpressionSemitones)
+            voice.refretDestinationPending += clampExpressionPeriod(unclampedExpressionPeriod)
+                - previousExpressionPeriod;
+        voice.refretSourceUnclampedPeriod = voice.refretTrackedMidiNote != voice.midiNote
+            ? voice.refretDestinationUnclampedPeriod * expressionPeriodRatio
+            : unclampedExpressionPeriod;
+        voice.refretDestinationUnclampedPeriod = unclampedExpressionPeriod;
+        voice.refretDestinationPeriod = destination;
+        voice.refretSourcePeriod = destination + voice.refretVerticalOffset;
+        voice.refretSourcePending = voice.refretDestinationPending
+            * (voice.refretSourcePeriod / destination);
+        voice.refretTrackedMidiNote = voice.midiNote;
+    }
+    voice.refretExpressionSemitones = expressionSemitones;
+
     // This is the coefficient of the memoryless two-by-two scattering matrix
     // at the seam, not a per-sample loss. Solving it from the sounding period at
     // the 96 kHz reference clock preserves the nominal linear-with-f0 voicing
@@ -5157,8 +5230,32 @@ void ElectryEngine::beginRefretHandoff(Voice& voice, int durationSamples,
         + (keepsUnperformedSource ? voice.refretVerticalOffset : 0.0f);
     const float horizontalSource = voice.horizontal.currentDelay
         + (keepsUnperformedSource ? voice.refretHorizontalOffset : 0.0f);
-    voice.vertical.currentDelay = voice.vertical.targetDelay;
-    voice.horizontal.currentDelay = voice.horizontal.targetDelay;
+    const bool hasPreviousHandoff = voice.refretRemainingSamples > 0 || voice.refretQueued;
+    const float sourceUnclampedPeriod = hasPreviousHandoff && ! keepsUnperformedSource
+        ? voice.refretDestinationUnclampedPeriod : voice.refretSourceUnclampedPeriod;
+    const float minimumPeriod = 1.0f / 0.24f;
+    const float maximumPeriod = static_cast<float>(sampleRate_) / 20.0f;
+    const float pendingFraction = clampf(voice.refretDestinationPeriod > 0.0f
+        ? voice.refretDestinationPending / voice.refretDestinationPeriod : 0.0f,
+        1.0f - maximumPeriod / minimumPeriod,
+        1.0f - minimumPeriod / maximumPeriod);
+    voice.refretDestinationUnclampedPeriod = static_cast<float>(sampleRate_)
+        / (voice.baseFrequency * std::exp2(
+               (legatoPitchOffset(voice) + voice.refretExpressionSemitones) / 12.0f));
+    voice.refretSourceUnclampedPeriod = sourceUnclampedPeriod;
+    voice.refretTrackedMidiNote = voice.midiNote;
+    voice.refretDestinationPeriod = voice.lastCompensatedPeriod;
+    voice.refretDestinationPending = voice.refretDestinationPeriod * pendingFraction;
+    const float sourceActualPeriod = voice.lastCompensatedPeriod
+        + verticalSource - voice.vertical.targetDelay;
+    voice.refretSourcePeriod = sourceActualPeriod / (1.0f - pendingFraction);
+    voice.refretSourcePending = voice.refretSourcePeriod - sourceActualPeriod;
+    voice.vertical.currentDelay = clampf(
+        voice.vertical.targetDelay - voice.refretDestinationPending,
+        4.0f, static_cast<float>(delayLineSize - 8));
+    voice.horizontal.currentDelay = clampf(
+        voice.horizontal.targetDelay - voice.refretDestinationPending * 1.00023f,
+        4.0f, static_cast<float>(delayLineSize - 8));
     voice.refretVerticalOffset = verticalSource - voice.vertical.currentDelay;
     voice.refretHorizontalOffset = horizontalSource - voice.horizontal.currentDelay;
     voice.refretLengthSamples = std::max(4, durationSamples);
@@ -6254,8 +6351,18 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     const int fret = midiNote - spec.openMidiNote;
 
     const bool wasRinging = voice.active;
-    const bool pickedFretChange = wasRinging && voice.midiNote != midiNote
-        && plectrumContacts(playStyle, false);
+    const bool fretChanged = wasRinging && voice.midiNote != midiNote;
+    const bool pickedFretChange = fretChanged && plectrumContacts(playStyle, false);
+    // Finishing an already audible boundary is physical pick travel too.
+    // Decide that wait before the delayed-repick and damping paths inspect
+    // it, so a queued wrist cannot replace the hand that is still ringing.
+    const bool waitsForSoundingBoundary = voice.refretRemainingSamples > 0
+        && (voice.refretQueued
+            || (pickedFretChange
+                && voice.refretRemainingSamples < voice.refretLengthSamples));
+    if (waitsForSoundingBoundary)
+        startDelaySamples = std::max(startDelaySamples,
+                                     voice.refretRemainingSamples);
     // A delayed pending contact captured this at scheduling time. `active`
     // alone is insufficient: a fresh strummed voice is active throughout its
     // silent pre-roll and may receive another same-note reservation there.
@@ -6346,6 +6453,135 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         voice.pendingRepick = {
             true, velocity, playStyle, strokeIsUp, strokeVariationState,
             ++noteSequence_, sameHeldFinger, expressionId
+        };
+        return;
+    }
+
+    const auto configureGeometry = [&] ()
+    {
+        // A delayed fret retarget still contains the preceding stroke. Keep that
+        // ring under the hand that is physically present; the scheduled style is
+        // restored by startExcitation() when its contact actually arrives.
+        if (! wasRinging)
+            voice.palmContactInitialized = false;
+        const PlayStyle dampingStyle = wasRinging && startDelaySamples > 0
+            && lastHandContactClock_ >= 0
+                ? lastHandContactPlayStyle_ : voice.playStyle;
+        configureVoiceDamping(voice, dampingStyle, voice.baseFrequency,
+                              static_cast<float>(voice.fret));
+        configureVoicePitch(voice, ! wasRinging);
+        configureVoicePickups(voice);
+
+        // An unheard destination is only a reservation. Consecutive Note Ons at
+        // one timestamp must classify their final jump from the retained sounding
+        // source, rather than treating each unperformed intermediate fret as real.
+        const bool handoffUnheard = voice.refretRemainingSamples > 0
+            && voice.refretRemainingSamples == voice.refretLengthSamples;
+        const float jumpSourceDelay = voice.vertical.currentDelay
+            + (handoffUnheard ? voice.refretVerticalOffset : 0.0f);
+        const float relativeJump = wasRinging
+            ? scalarAbs(voice.vertical.targetDelay - jumpSourceDelay)
+                / std::max(jumpSourceDelay, 1.0f)
+            : 0.0f;
+        const bool largePitchJump = relativeJump > 0.25f;
+        if (! wasRinging)
+        {
+            voice.refretVerticalOffset = 0.0f;
+            voice.refretHorizontalOffset = 0.0f;
+            voice.refretLengthSamples = 0;
+            voice.refretRemainingSamples = 0;
+            voice.refretQueued = false;
+            voice.refretDelayLocked = false;
+        }
+        else if (pickedFretChange
+                 && (! largePitchJump || voice.refretRemainingSamples > 0))
+        {
+            const bool handoffAlreadyHeard = voice.refretRemainingSamples > 0
+                && voice.refretRemainingSamples < voice.refretLengthSamples;
+            if (handoffAlreadyHeard)
+            {
+                // A second fret cannot replace a partly heard two-tap mixture
+                // with one tap. Finish that finite boundary contact, then move to
+                // the latest destination. The new pick waits at most the previous
+                // contact's remainder; repeated requests coalesce to one target.
+                voice.refretQueued = true;
+                voice.refretDelayLocked = true;
+                startDelaySamples = std::max(startDelaySamples,
+                                             voice.refretRemainingSamples);
+            }
+            else
+            {
+                beginRefretHandoff(voice, plectrumContactSamples(voice),
+                                    voice.refretRemainingSamples > 0);
+            }
+        }
+
+        // Large jumps already reached their destination instantly and have a
+        // separate retained-energy contract. Keep that established choke: the
+        // unattenuated large-hop alternative increased attack peaks and energy.
+        // An unheard or queued destination can remain far from the sounding
+        // endpoint after its fret change has already paid this choke. A repick at
+        // that same destination adds contact, not another fret move.
+        if (wasRinging && largePitchJump
+            && (voice.refretRemainingSamples == 0 || fretChanged))
+        {
+            constexpr float retainedAmplitude = 0.28f;
+            for (auto* loop : { &voice.vertical, &voice.horizontal })
+                loop->scaleState(retainedAmplitude);
+            constexpr float retainedEnergy =
+                retainedAmplitude * retainedAmplitude;
+            voice.outputEnergy *= retainedEnergy;
+#if ELECTRY_ENERGY_ATTACK_PITCH
+            voice.attackPitchTensionRatio *= retainedEnergy;
+            configureVoicePitch(voice, false);
+#endif
+            if (voice.refretRemainingSamples == 0)
+            {
+                voice.vertical.currentDelay = voice.vertical.targetDelay;
+                voice.horizontal.currentDelay = voice.horizontal.targetDelay;
+            }
+            // An already heard boundary mixture keeps its endpoints through the
+            // same attenuation. Its queued destination follows at the independent
+            // handoff boundary, rather than adding another read-head jump here.
+        }
+    };
+
+    if (reservedStartOrder == 0 && waitsForSoundingBoundary)
+    {
+        // The new fret is already under the finger, but its wrist is still
+        // travelling behind the audible boundary contact. Reserve that whole
+        // stroke rather than applying its style, force, noise or excitation
+        // to the preceding Contact. The normal pending path installs it once.
+        const std::uint64_t contactOrder = ++noteSequence_;
+        voice.keyDown = true;
+        voice.keyDownCount = 1;
+        voice.sustained = false;
+        voice.releasing = false;
+        voice.midiNote = midiNote;
+        voice.expressionId = expressionId;
+        voice.expressionPitchBendFrozen = false;
+        voice.frozenExpressionPitchBendSemitones = 0.0f;
+        voice.fret = std::clamp(fret, 0, fretCount);
+        voice.baseFrequency = midiToHz(static_cast<float>(midiNote));
+        voice.legatoBlend = 1.0f;
+        voice.legatoFromFrequency = 0.0f;
+        voice.legatoUsesLengthTrajectory = false;
+        voice.slideDelayPending = 0.0f;
+        voice.slideDelayStep = 0.0f;
+        voice.slideDelayRampRemaining = 0;
+        voice.sympatheticReady = false;
+        // Finger identity changes with the fret now. Its deterministic seed
+        // uses the reserved order without replacing the still-sounding wrist.
+        const std::uint64_t soundingOrder = voice.startOrder;
+        voice.startOrder = contactOrder;
+        seedVibratoFinger(voice);
+        voice.startOrder = soundingOrder;
+        configureGeometry();
+        voice.startDelaySamples = std::max(1, startDelaySamples);
+        voice.pendingContactPreservesRing = true;
+        voice.pendingRepick = {
+            true, velocity, playStyle, strokeIsUp, strokeVariationState,
+            contactOrder, true, expressionId
         };
         return;
     }
@@ -6504,84 +6740,7 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         voice.palmImpactState = 0.0f;
     }
 
-    // A delayed fret retarget still contains the preceding stroke. Keep that
-    // ring under the hand that is physically present; the scheduled style is
-    // restored by startExcitation() when its contact actually arrives.
-    if (! wasRinging)
-        voice.palmContactInitialized = false;
-    const PlayStyle dampingStyle = wasRinging && startDelaySamples > 0
-        && lastHandContactClock_ >= 0
-            ? lastHandContactPlayStyle_ : voice.playStyle;
-    configureVoiceDamping(voice, dampingStyle, voice.baseFrequency,
-                          static_cast<float>(voice.fret));
-    configureVoicePitch(voice, ! wasRinging);
-    configureVoicePickups(voice);
-
-    const float relativeJump = wasRinging
-        ? scalarAbs(voice.vertical.targetDelay - voice.vertical.currentDelay)
-            / std::max(voice.vertical.currentDelay, 1.0f)
-        : 0.0f;
-    const bool largePitchJump = relativeJump > 0.25f;
-    if (! wasRinging)
-    {
-        voice.refretVerticalOffset = 0.0f;
-        voice.refretHorizontalOffset = 0.0f;
-        voice.refretLengthSamples = 0;
-        voice.refretRemainingSamples = 0;
-        voice.refretQueued = false;
-        voice.refretDelayLocked = false;
-    }
-    else if (pickedFretChange
-             && (! largePitchJump || voice.refretRemainingSamples > 0))
-    {
-        const bool handoffAlreadyHeard = voice.refretRemainingSamples > 0
-            && voice.refretRemainingSamples < voice.refretLengthSamples;
-        if (handoffAlreadyHeard)
-        {
-            // A second fret cannot replace a partly heard two-tap mixture
-            // with one tap. Finish that finite boundary contact, then move to
-            // the latest destination. The new pick waits at most the previous
-            // contact's remainder; repeated requests coalesce to one target.
-            voice.refretQueued = true;
-            voice.refretDelayLocked = true;
-            startDelaySamples = std::max(startDelaySamples,
-                                         voice.refretRemainingSamples);
-        }
-        else
-        {
-            beginRefretHandoff(voice, plectrumContactSamples(voice),
-                                voice.refretRemainingSamples > 0);
-        }
-    }
-
-    // Large jumps already reached their destination instantly and have a
-    // separate retained-energy contract. Keep that established choke: the
-    // unattenuated large-hop alternative increased attack peaks and energy.
-    // A queued destination can remain far from the sounding endpoint even
-    // after its fret change has already paid this choke. A picking-hand
-    // repick at that same destination adds contact, not another fret move.
-    if (wasRinging && largePitchJump
-        && (! voice.refretQueued || pickedFretChange))
-    {
-        constexpr float retainedAmplitude = 0.28f;
-        for (auto* loop : { &voice.vertical, &voice.horizontal })
-            loop->scaleState(retainedAmplitude);
-        constexpr float retainedEnergy =
-            retainedAmplitude * retainedAmplitude;
-        voice.outputEnergy *= retainedEnergy;
-#if ELECTRY_ENERGY_ATTACK_PITCH
-        voice.attackPitchTensionRatio *= retainedEnergy;
-        configureVoicePitch(voice, false);
-#endif
-        if (voice.refretRemainingSamples == 0)
-        {
-            voice.vertical.currentDelay = voice.vertical.targetDelay;
-            voice.horizontal.currentDelay = voice.horizontal.targetDelay;
-        }
-        // An already heard boundary mixture keeps its endpoints through the
-        // same attenuation. Its queued destination follows at the independent
-        // handoff boundary, rather than adding another read-head jump here.
-    }
+    configureGeometry();
 
     // A strummed chord's later strings are already fretted and choked, but the
     // pick has not reached them yet. The audio-rate render countdown fires the
@@ -7098,6 +7257,14 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.refretRemainingSamples = 0;
     voice.refretQueued = false;
     voice.refretDelayLocked = false;
+    voice.refretExpressionSemitones = 0.0f;
+    voice.refretDestinationPeriod = 0.0f;
+    voice.refretSourcePeriod = 0.0f;
+    voice.refretDestinationPending = 0.0f;
+    voice.refretSourcePending = 0.0f;
+    voice.refretDestinationUnclampedPeriod = 0.0f;
+    voice.refretSourceUnclampedPeriod = 0.0f;
+    voice.refretTrackedMidiNote = -1;
     voice.touchDepth = 0.0f;
     voice.touchHoldRemaining = 0;
     voice.touchFraction = 0.0f;
@@ -8360,7 +8527,34 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                         - voice.slideDelayPending * 1.00023f;
     // Target-anchored form makes the stored coefficient the one-sample pole;
     // updateVoiceControl() snaps only the final float-rounding residue.
-    if (! voice.refretDelayLocked)
+    if (voice.refretDelayLocked)
+    {
+        // Bend, member/master expression and finger vibrato change wave speed
+        // at both endpoints, without scanning the intervening fret lengths.
+        if (voice.refretDestinationPending != 0.0f
+            || voice.refretSourcePending != 0.0f)
+        {
+            const float destinationStep = (1.0f - vertical.delayRetention)
+                * voice.refretDestinationPending;
+            const float sourceStep = (1.0f - vertical.delayRetention)
+                * voice.refretSourcePending;
+            const float verticalSource = vertical.currentDelay
+                + voice.refretVerticalOffset;
+            const float horizontalSource = horizontal.currentDelay
+                + voice.refretHorizontalOffset;
+            vertical.currentDelay = clampf(vertical.currentDelay + destinationStep,
+                4.0f, static_cast<float>(delayLineSize - 8));
+            horizontal.currentDelay = clampf(
+                horizontal.currentDelay + destinationStep * 1.00023f,
+                4.0f, static_cast<float>(delayLineSize - 8));
+            voice.refretVerticalOffset = clampf(verticalSource + sourceStep,
+                4.0f, static_cast<float>(delayLineSize - 8)) - vertical.currentDelay;
+            voice.refretHorizontalOffset = clampf(
+                horizontalSource + sourceStep * 1.00023f,
+                4.0f, static_cast<float>(delayLineSize - 8)) - horizontal.currentDelay;
+        }
+    }
+    else
     {
         vertical.currentDelay = verticalFollowerTarget
             + vertical.delayRetention
@@ -8369,6 +8563,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             + horizontal.delayRetention
                 * (horizontal.currentDelay - horizontalFollowerTarget);
     }
+    voice.refretDestinationPending *= vertical.delayRetention;
+    voice.refretSourcePending *= vertical.delayRetention;
     if (voice.refretRemainingSamples > 0
         && --voice.refretRemainingSamples == 0)
     {
