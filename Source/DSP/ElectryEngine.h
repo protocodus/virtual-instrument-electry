@@ -671,9 +671,14 @@ private:
     {
         double a1 { 1.0 }, a2 { 0.0 }, a3 { 0.0 };
         double ic1 { 0.0 }, ic2 { 0.0 };
+        OnePole contactShaper1 {}, contactShaper2 {};
+        float contactCoefficient { 0.99f };
+        bool flatRelease { true };
 
-        void configure(double frequency, double rate) noexcept
+        void configure(double frequency, double rate,
+                       bool useFlatRelease = true) noexcept
         {
+            flatRelease = useFlatRelease;
             constexpr double piDouble = 3.1415926535897932384626433832795;
             // H(s)=wn^2/(s^2+sqrt(2)*wn*s+wn^2): standard Butterworth pole
             // shape, retaining the existing natural frequency and DC gain.
@@ -683,9 +688,18 @@ private:
             a2 = g * a1;
             a3 = g * a2;
         }
-        void reset() noexcept { ic1 = ic2 = 0.0; }
+        void reset() noexcept
+        {
+            ic1 = ic2 = 0.0;
+            contactShaper1.reset();
+            contactShaper2.reset();
+        }
         float process(float input) noexcept
         {
+            if (!flatRelease)
+                return contactShaper2.process(
+                    contactShaper1.process(input, contactCoefficient),
+                    contactCoefficient);
             const double v3 = static_cast<double>(input) - ic2;
             const double v1 = a1 * ic1 + a2 * v3;
             const double v2 = ic2 + a2 * ic1 + a3 * v3;
