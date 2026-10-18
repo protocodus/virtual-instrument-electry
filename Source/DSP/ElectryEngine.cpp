@@ -1423,7 +1423,15 @@ float ElectryEngine::highFrequencyDecayRatioAtAge(int stringIndex,
     // Ray direct-colour bank; this path has no material termination-loss
     // law, and Size, Shape and Construction remain inactive. This constant is
     // the shipping-Build baseline, not another material law.
+#if ! ELECTRY_STRING_ONLY_UPPER_LOSS
     highRatio *= 0.86f * 0.58f;
+#else
+    // Default-off research comparison: omit only the legacy global structural
+    // multiplier after the measured-body path made those controls neutral.
+    // This separates the existing string/age/gauge upper-loss hypothesis from
+    // that baked-in structural voicing; it does not establish double counting
+    // or a measured string-only law. Keep all other losses and gains unchanged.
+#endif
 #endif
     return highRatio;
 }
