@@ -91,10 +91,10 @@ def package(row, plan_dir, folders, destination, score_path, expected_events, an
                 anchors[group] = {"latency_frames": detected - rate // 4 + nominal_onset - onset,
                                   "reference_id": row["id"], "rate": rate,
                                   "midi_to_audio_offset_s": row["midi_to_audio_offset_s"]}
-            elif row["alignment_role"] != "repeat-check":
+            elif row["alignment_role"] not in ("repeat-check", "transfer-check"):
                 raise ValueError("Unknown phrase alignment role")
             if group not in anchors or anchors[group]["rate"] != rate or anchors[group]["midi_to_audio_offset_s"] != row["midi_to_audio_offset_s"]:
-                raise ValueError("Repeat needs an earlier same-rate frozen development anchor")
+                raise ValueError("Phrase check needs an earlier same-rate frozen development anchor")
             crop_start = rate // 4 + anchors[group]["latency_frames"] - nominal_onset
         if crop_start < 0 or crop_start + len(reference) > len(audio):
             raise ValueError("Insufficient shared model crop padding")
@@ -108,6 +108,7 @@ def package(row, plan_dir, folders, destination, score_path, expected_events, an
         detail.update(raw_path=str(raw), raw_sha256=dry.sha(raw), alignment=alignments[name])
     result = {"id": row["id"], "title": row["title"], "rate": rate, "frames": len(reference),
               "onset_frame": onset, "tracks": facts, "reference": row, "model_render": receipts,
+              "reference_plan_directory": str(plan_dir.resolve()),
               "score_path": str(score_path), "score_sha256": dry.sha(score_path), "shared_headroom_gain": headroom,
               "alignment_anchor": anchors[row["alignment_group"]],
               "source_onset_prediction": {"expected_frame_after_crop": nominal_onset,

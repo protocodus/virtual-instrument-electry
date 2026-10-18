@@ -30,12 +30,13 @@ class PhraseComparisonTests(unittest.TestCase):
         self.assertAlmostEqual(events[4][3], 105 / 127)
         self.assertEqual(events[-1][1], 0)  # No fabricated end-of-crop NoteOff.
 
-    def test_repeat_uses_shared_development_latency_and_preserves_source_residual(self):
+    def test_checks_share_development_latency_and_preserve_source_residual(self):
         rate = 48000
         burst = (.2 * np.cos(2 * np.pi * 100 * np.arange(4000) / rate)).astype(np.float32)
-        source = np.zeros(96000, np.float32)
+        source = np.zeros(144000, np.float32)
         source[24000:28000] = burst
         source[72023:76023] = burst  # Known +23-frame repeat timing residual.
+        source[120047:124047] = burst  # A different phrase keeps its +47-frame residual.
         path = self.folder / "source.wav"; wavfile.write(path, rate, source)
         base = {"id": "anchor", "title": "Synthetic", "path": str(path), "sha256": tool.dry.sha(path),
                 "channel": 0, "crop_start_frame": 20000, "crop_frames": 20000, "onset_frame": 24000,
@@ -48,8 +49,13 @@ class PhraseComparisonTests(unittest.TestCase):
         repeat = copy.deepcopy(base)
         repeat.update(id="repeat", crop_start_frame=68000, onset_frame=72023, alignment_role="repeat-check")
         repeat["events"][0]["time_s"] = 1.5; repeat["events"][1]["time_s"] = 1.6
+        transfer = copy.deepcopy(base)
+        transfer.update(id="transfer", crop_start_frame=116000, onset_frame=120047,
+                        alignment_role="transfer-check")
+        transfer["events"][0].update(time_s=2.5, note=48)
+        transfer["events"][1].update(time_s=2.6, note=48)
         anchors = {}
-        for row in (base, repeat):
+        for row, residual in ((base, 0), (repeat, 23), (transfer, 47)):
             score = self.folder / (row["id"] + ".tsv")
             events = tool.score_events(row, rate, score)
             models = {}
@@ -65,7 +71,7 @@ class PhraseComparisonTests(unittest.TestCase):
             real = result["tracks"]["Reference"]["alignment"]["onset_frame_after_crop"]
             a = result["tracks"]["A"]["alignment"]
             b = result["tracks"]["B"]["alignment"]
-            self.assertEqual(a["onset_frame_after_crop"] - real, 0 if row is base else -23)
+            self.assertEqual(a["onset_frame_after_crop"] - real, -residual)
             self.assertEqual(b["onset_frame_after_crop"] - a["onset_frame_after_crop"], 20)
             self.assertEqual(a["crop_start_frame"], b["crop_start_frame"])
 
