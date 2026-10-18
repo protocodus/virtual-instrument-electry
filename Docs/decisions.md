@@ -4,6 +4,38 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — separate lower body, control setup and failed source hypotheses
+
+Continue under the user's autonomous-evaluation instruction without claiming
+a new listener vote. Keep published `6c83ff4` unchanged at this checkpoint.
+In the new two-player, thirty-pluck-per-player dry comparison, Bridge H1/H2
+are deficient at Pick Position .18 while absolute H3 is much closer. Changing
+only the existing control to fixed .5 reduces H1 error from about −8 dB to
+−1.4/−1.2 dB. This is a control-identifiability result, not an inferred hand
+position or a promoted global default. Every selector hypothesis remains
+disclosed, including Both/Neck H3 regressions. A/B copies are in the local
+room `http://127.0.0.1:8727/`, with a separate mechanism key.
+
+Reject standalone common-time pickup `875f58b`: correct steady observation
+does not qualify its forced-startup boost. Actual seam-history followup
+`2f34c9c` removes that boost and restores behavior rails, but worsens SG Both
+body and upper sustain and retains one evaluation pin. Reject upper-loss
+prototype `95e5c1b`: C++17/Fx/Refret pass, but one unchanged ultrasonic-floor
+guard fails in addition to source pins. No gain, threshold or fixture repair,
+default change, or full-corpus promotion is licensed by these results.
+
+Keep original source masks and numeric slopes frozen. A separate stricter
+observability audit admits thirty/twenty-seven complete Bridge prefixes at
+1.5–4 kHz and eight Strat prefixes at 4–8 kHz for future candidates; no prefix
+is shortened to pass. Real narrowband trough/recovery is confirmed, but
+conditional multi-component fits identify neither a physical polarization
+split nor a new detune/sign. Ringing repicks remain part of the evidence.
+
+See [dry-tone measurements](research/dry-guitar-tone-baseline-2026-10-18.md),
+[state/source qualification](research/string-field-initialization-2026-10-18.md),
+[control audit](research/tone-identifiability-2026-10-18.md) and
+[reference provenance](research/premium-reference-coverage-2026-10-18.md).
+
 ## 2026-10-18 — low-partial body and upper-band sustain
 
 Under the user's continued autonomous-selection instruction, select source
