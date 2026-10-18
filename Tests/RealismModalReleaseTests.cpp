@@ -233,7 +233,8 @@ void actualReleaseAndTailUseTheProjection()
                     Access::isolateSource(*engine, stringNote[0]);
                     BilinearReference reference(initial.g);
                     float releaseState = 0, legacyState1 = 0, legacyState2 = 0;
-                    const bool ordinaryProjection = style != electry::PlayStyle::Hammer
+                    const bool ordinaryProjection = style != electry::PlayStyle::PalmMute
+                        && style != electry::PlayStyle::Hammer
                         && style != electry::PlayStyle::Pinch && style != electry::PlayStyle::Dead;
                     expect(initial.flatRelease == ordinaryProjection,
                            "A separately calibrated contact used the ordinary source projection" + label);
@@ -290,7 +291,7 @@ void actualReleaseAndTailUseTheProjection()
                     expect(maxTailError < tolerance,
                            "Actual source Tail differs from the same continuous filter state" + label);
                     expect(legacyIdentical,
-                           "A finger/thumb/dead-hand source differs bitwise from its established two poles" + label);
+                           "A heel/finger/thumb/dead-hand source differs bitwise from its established two poles" + label);
                     expect(releaseSamples == initial.remaining && tailSamples == initial.tailLength
                                && Access::source(*engine, stringNote[0]).phase == 0,
                            "Changing modal shape changed the existing Release/Tail clock" + label);

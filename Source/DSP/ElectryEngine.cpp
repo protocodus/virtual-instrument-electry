@@ -6565,10 +6565,13 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         28.0f, std::min(900.0f, 0.20f * sampleRate));
     voice.excitationModalCoefficient = std::exp(
         -twoPi * articulationModalCutoff * inverseSampleRate_);
-    // Keep the established projection for the separately calibrated finger,
-    // thumb and dead-hand contacts. Ordinary plucks and node-selected natural
-    // harmonics use the same unit-DC Bessel projection and mean release latency.
-    const bool flatRelease = voice.playStyle != PlayStyle::Hammer
+    // Keep the established projection for heel-shaped, finger, thumb and
+    // dead-hand contacts. The free-string projection has not qualified their
+    // joint source/hand spectrum; in particular it darkens rapid Palm body.
+    // Ordinary plucks and node-selected natural harmonics use the unit-DC
+    // Bessel projection at the same mean release latency.
+    const bool flatRelease = voice.playStyle != PlayStyle::PalmMute
+        && voice.playStyle != PlayStyle::Hammer
         && voice.playStyle != PlayStyle::Pinch
         && voice.playStyle != PlayStyle::Dead;
     voice.excitationModalShaper.configureFromLegacyPole(
