@@ -3,7 +3,7 @@
 The unit-area, equal-mean-delay Bessel release and fresh-string intrinsic loss
 correction intentionally change the complete picked source. The single-coil
 partial and octave fixtures include that source, so their previous centers no
-longer describe the selected engine. They are regression snapshots, not pickup
+longer describe the combined candidate. They are regression snapshots, not pickup
 measurements or targets fitted to dry recordings. Pickup topology, notch depth,
 dark-versus-bright contrast, low-register body, velocity dynamics and all other
 behavioral tests remain separate requirements.
@@ -21,8 +21,8 @@ source hashes are in [the accompanying JSON](tone-source-snapshots-2026-10-18.js
 | Immutable source state | Original snapshot failures | Other failures in these three fixtures |
 | --- | ---: | ---: |
 | Shipping `3df6a10` | 0 | 0 |
-| Selected `7a7b76f`, shelf on | 18 | 0 |
-| Selected `7a7b76f`, shelf off | 13 | 0 |
+| Combined candidate `7a7b76f`, shelf on | 18 | 0 |
+| Combined candidate `7a7b76f`, shelf off | 13 | 0 |
 
 The refresh replaces 16 complete-source partial centers and 12 octave centers
 for each independently observed state. The partial tolerances remain 0.75 dB
