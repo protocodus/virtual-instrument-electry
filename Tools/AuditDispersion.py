@@ -33,6 +33,7 @@ import tempfile
 
 OBSERVER = r'''
 #include "DSP/ElectryEngine.h"
+#include <algorithm>
 #include <cmath>
 #include <chrono>
 #include <iomanip>

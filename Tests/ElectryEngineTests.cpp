@@ -21510,7 +21510,10 @@ void testHumbuckerTwoCoilNotch()
 #if ELECTRY_REFERENCE_STRING_MASS && ELECTRY_MODAL_DISPERSION_FIT
             // Whole-source centers from the exact combined development
             // candidate. Keep all band tolerances and contrast rails.
-            { 28, { -76.4927, -110.879 }, { -53.830035, -96.4860 } },
+            // The E1 8--16 kHz center was also refreshed after Windows CI
+            // exposed the retained legacy center: macOS measures -95.0943
+            // dB and MSVC -93.642014 dB, inside the unchanged 2.5 dB rail.
+            { 28, { -76.4927, -110.879 }, { -53.830035, -95.0943 } },
             { 40, { -85.2438, -115.187 }, { -61.664437, -101.924184 } },
             { 64, { -72.8765, -118.131 }, { -52.7207, -105.864615 } },
 #elif ELECTRY_MODAL_DISPERSION_FIT
