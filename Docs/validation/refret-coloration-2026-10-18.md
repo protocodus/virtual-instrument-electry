@@ -58,8 +58,10 @@ and are not runtime excitation. Attribution and source hashes remain in the
 The [current dry color analysis](../research/dry-guitar-color-2026-10-18.md)
 compares held, fresh and repicked notes plus seven isolated controls. The
 Sire phrase pairing has a persistent low/mid harmonic imbalance even before
-any fret change; the SG bridge pairing is much closer. Construction, pickup
-position/selector, string type, unknown human force and release remain
+any fret change; the SG bridge pairing is much closer. The later
+[documented-settings comparison](../research/p3-documented-settings-2026-10-18.md)
+confirms P3 Both/max controls and quantifies the original Bridge mismatch.
+Construction, exact pickup geometry, string type, unknown human force and release remain
 confounds. These observations do not identify global corrective gains or
 justify changing the instrument's default build. The fade change leaves that
 larger tonal question open.

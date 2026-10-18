@@ -21,9 +21,13 @@ authenticity percentage.
 
 P3 comparisons use the heavy extended instrument at Guitar Build .8, scale
 .85, gauge 1, pickup type .32, tone .7 and the default Pick Position .18.
-The complete resolved engine parameters are in the JSON. Reference Sire T7
-pickup selector, hand position, force and string age are unidentified. The
-model's explicitly selected Bridge is a declared comparison hypothesis.
+The complete resolved engine parameters are in the JSON. A subsequent primary
+paper audit confirms that the Sire T7 used Both with maximum tone/volume;
+hand position, force and string age remain unidentified. The original model's
+Bridge is a context with a documented selector mismatch. The
+[corrected comparison](p3-documented-settings-2026-10-18.md) preserves the old
+audio and masks while testing the documented controls separately. The frozen
+JSON's earlier selector-unknown caveat is superseded by that correction.
 
 Pick Position is independent of Guitar Build. Its numeric midpoint .5 was
 included in a public-control envelope and then held fixed across all four P3

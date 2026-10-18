@@ -194,3 +194,10 @@ The [force and contact work-balance follow-up](force-contact-work-balance-2026-1
 derives an ideal velocity-wave force port, zero-velocity static release and
 passive contact on a ringing field, with explicit source-work and storage
 checks. It does not qualify a production source or actuator trajectory.
+
+The later [physical-field tone diagnostic](static-field-early-body-2026-10-18.md)
+tests complete stiff static equilibrium and prescribed finite force unloading
+through the actual magnetic/electrical output. Independent work and field
+checks pass, but early body/ratio results are mixed, so neither formulation is
+promoted. Stiff-PDE propagation is distinguished from the earlier ideal
+flexible-string hard-front audit; no attack or repick qualification follows.

@@ -201,3 +201,10 @@ baseband signal, with strong contact-noise-path dependence. The failure remains
 recorded. A separate research-only whole-score comparison is permitted after
 that diagnosis; its protocol preserves the original controls, windows and
 qualification mask and does not waive the guard or approve production.
+
+The subsequent [static-field/finite-unloading study](static-field-early-body-2026-10-18.md)
+uses a separate first-note early-body scope and retains all regressions. It
+does not replace this whole-score baseline or qualify a universal source fix.
+The [documented Sire-settings correction](p3-documented-settings-2026-10-18.md)
+resolves that separate reference's Both/max controls; the two Longitudinal
+players' selector settings remain unknown.

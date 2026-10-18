@@ -4,6 +4,31 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-18 — correct documented pickup settings before a new source law
+
+Continue autonomous evaluation with all candidates retained and no invented
+listener vote. The primary Guitar-TECHS paper specifies P3 Both/max controls;
+supersede earlier selector-unknown caveats without rewriting frozen audio or
+numeric evidence. Testing those documented controls across all four original
+phrases reduces H1-share error .611749 → .420666, with further separately
+declared stock-hardware contexts. Substantial body error remains, F5 overshoots,
+and both admitted upper-band slopes worsen in every changed context. Keep
+the corrected context as evidence, not a global default or DSP improvement.
+The [full comparison](research/p3-documented-settings-2026-10-18.md) and
+[four-phrase room](http://127.0.0.1:8729/) retain every setting and regression.
+
+A separate [physical-field study](research/static-field-early-body-2026-10-18.md)
+tests complete stiff static equilibrium with instantaneous and finite force
+unloading through production magnetics/electronics. All original/hook controls
+reproduce exactly, and independent force/work/measurement checks pass. The
+early-body result is mixed: some HB ratios improve, SC near-bridge ratios
+worsen, and matched fundamental/body power generally falls. Neither lossless
+field qualifies a new source, attack, repick, fret change or upper sustain.
+Preserve the C1 pulse terminology correction and both frozen protocols.
+
+Published1.2.6, Source, defaults, source pins and test thresholds stay unchanged.
+No source gain, control-position fit, EQ or authenticity percentage is licensed.
+
 ## 2026-10-18 — upper-loss ablation improves tails but worsens upper level
 
 Under the standing autonomous-evaluation instruction, retain `95e5c1b` as
