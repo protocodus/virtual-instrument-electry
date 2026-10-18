@@ -6014,11 +6014,11 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         -twoPi * clampf(pulseCutoff, 300.0f, 0.45f * sampleRate) * inverseSampleRate_);
 
     // Project the pick release onto the string modes instead of treating it
-    // as a broadband impulse. Two string-scaled low-pass sections supply the
-    // 1/n^2 high-mode falloff of a triangular released displacement while the
+    // as a broadband impulse. A string-scaled second-order projection supplies
+    // the asymptotic 1/n^2 falloff of a triangular released displacement while the
     // position comb below retains the actual pluck location. The separate
     // broad path supplies the plectrum edge, not the sustained tone.
-    // Keep the two-pole curve in harmonic-number coordinates. A pre-bent
+    // Keep the release-time coordinate tied to the sounding period. A pre-bent
     // plectrum or settled-source finger contact already has a sounding period
     // different from the written note; using that same period here transports
     // the established unbent spectrum instead of tilting it with the mismatch.
@@ -6034,7 +6034,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         -twoPi * articulationModalCutoff * inverseSampleRate_);
     // Keep the established projection for the separately calibrated finger,
     // thumb and dead-hand contacts. Ordinary plucks and node-selected natural
-    // harmonics use the same unit-area, maximally flat release approximation.
+    // harmonics use the same unit-DC Bessel projection and mean release latency.
     const bool flatRelease = voice.playStyle != PlayStyle::Hammer
         && voice.playStyle != PlayStyle::Pinch
         && voice.playStyle != PlayStyle::Dead;

@@ -1340,9 +1340,10 @@ private:
         float attackPitchFrequencyFactor { 1.0f };
         float lastAttackPitchFrequencyFactor { 1.0f };
 #endif
-        // The principal release component is shaped with two string-scaled
-        // low-pass sections so its modal envelope approximates the 1/n^2
-        // falloff of a triangular pluck displacement. Ordinary sustained
+        // The principal release uses a string-scaled Bessel projection with
+        // the existing mean release latency and unit DC gain. Its asymptotic
+        // modal envelope approximates a triangular pluck's 1/n^2 falloff;
+        // this is not an exact triangular initial condition. Ordinary sustained
         // pick styles use a much smaller broad pulse for the physical edge;
         // deliberately percussive styles may weight that edge more strongly.
         float excitationTransientAmplitude { 0.0f };
@@ -1358,6 +1359,8 @@ private:
         // reflected excitation image is spread over the real contact width
         // instead of landing on a single point of the string.
         float excitationCombWidth { 0.0f };
+        // The legacy pole remains the physical mean-latency coordinate and
+        // drives the separate calibrated finger/thumb/dead contact path.
         float excitationModalCoefficient { 0.99f };
         // The plectrum does not leave every string equally quickly. The
         // release's own duration low-passes the excitation, and its corner
