@@ -152,6 +152,8 @@ string. Wound strings now use published XL reference masses for their light
 gauges; the heavier gauge morph remains an explicit geometric-similarity
 hypothesis. The selected dispersion fitter scores stretched modes rather than
 two harmonic anchors; cached trigonometry bounds its extra setup cost.
+Saved patches use canonical parameter values so restoring a factory rig
+preserves its serialized state exactly without altering live controls.
 No release package has been published for this development work.
 
 ### 1.2.1 — 2026-10-17 — Click-free bends and slides

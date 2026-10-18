@@ -1477,6 +1477,16 @@ void ElectryAudioProcessor::discardUiMidiEvents() noexcept
 void ElectryAudioProcessor::getStateInformation (juce::MemoryBlock& destinationData)
 {
     auto state = parameters.copyState();
+    // APVTS can retain a default reached through normalised conversion a ULP
+    // away from the range's snapped value (-6 dB was one such case). Restore
+    // validates with snapToLegalValue, so use that same representation on the
+    // copied tree before the first save. Never quantise the live audio values.
+    for (auto child : state)
+        if (const auto* parameter = parameters.getParameter (
+                child.getProperty ("id").toString()))
+            child.setProperty ("value", parameter->getNormalisableRange()
+                .snapToLegalValue (static_cast<float> (child.getProperty ("value"))),
+                nullptr);
     state.setProperty (factoryProgramProperty,
                        currentProgram.load (std::memory_order_relaxed), nullptr);
     state.setProperty (pickStyleProperty,
