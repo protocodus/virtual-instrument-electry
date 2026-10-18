@@ -174,7 +174,8 @@ guard. ON gives −168.872 dBFS above 12 kHz, 128.862 dB below the spectral
 peak; the guard requires below −180 dBFS or more than 150 dB below peak.
 OFF passes at −186.413 dBFS. This very quiet guard failure does not establish
 audible aliasing, but it remains a failed contract. No threshold or fixture
-was changed, and no real-reference render was started after that failure.
+was changed, and no real-reference render was started in the original
+rejection pass.
 
 The [source/pickup investigation](string-field-initialization-2026-10-18.md)
 separately rejects a causal pickup-history candidate that repairs its attack
@@ -193,3 +194,10 @@ The room is a control comparison and does not promote a new DSP/default.
 A subsequent [fixed-bank modal audit](upper-modal-decay-2026-10-18.md)
 separates the existing upper string loss from source weighting and observed
 band slopes. It introduces no new damping coefficient or production change.
+
+The subsequent [ultrasonic diagnosis](ultrasonic-floor-diagnosis-2026-10-18.md)
+classifies the exact failed maximum as surviving modeled pre-decimator
+baseband signal, with strong contact-noise-path dependence. The failure remains
+recorded. A separate research-only whole-score comparison is permitted after
+that diagnosis; its protocol preserves the original controls, windows and
+qualification mask and does not waive the guard or approve production.
