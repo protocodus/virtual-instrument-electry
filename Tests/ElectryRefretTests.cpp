@@ -308,6 +308,27 @@ struct ElectryEngineTestAccess
     }
 
 #ifndef ELECTRY_REFRET_TEST_BASELINE
+    static bool banksRetired(const ElectryEngine& engine, int index)
+    {
+        const auto& v = engine.voices_[static_cast<std::size_t>(index)];
+        return v.refretRemainingSamples == 0
+            && !v.vertical.refretSource.valid && !v.horizontal.refretSource.valid
+            && !v.vertical.refretFrozenDestination.valid
+            && !v.horizontal.refretFrozenDestination.valid;
+    }
+
+    static double frozenNominalFrequency(const ElectryEngine& engine, int index)
+    {
+        const auto& endpoint = engine.voices_[static_cast<std::size_t>(index)]
+            .vertical.refretFrozenDestination;
+        return endpoint.valid ? endpoint.nominalFrequency : 0;
+    }
+
+    static double fingerFromFrequency(const ElectryEngine& engine, int index)
+    {
+        return engine.voices_[static_cast<std::size_t>(index)].legatoFromFrequency;
+    }
+
     static void seedFeedbackWitness(ElectryEngine& engine, int index, int phase)
     {
         auto& v = engine.voices_[static_cast<std::size_t>(index)];
@@ -1437,6 +1458,85 @@ void pickedRefretPreservesActualOldFeedbackAtZeroWeight()
                 }
 }
 
+void retiredRefretBanksCannotLeakIntoLaterContacts()
+{
+    for (const double rate : {44100., 48000., 96000., 384000.})
+    {
+        auto engine = makeEngine(rate, 2);
+        engine->noteOn(47, .85f);
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(59, .85f); // legacy immediate large-hop contract
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A non-handoff large jump retained a stale filter endpoint");
+        engine->noteOn(59, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A same-pitch contact inherited a stale filter endpoint");
+        engine->noteOn(60, .85f);
+        engine->noteOff(60);
+        render(*engine, static_cast<int>(rate * .03));
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A cancelled pending fret contact retained a filter endpoint");
+        engine->noteOn(59, .85f);
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(60, .85f);
+        engine->reset();
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "Reset retained a filter bank from an interrupted boundary");
+        engine->noteOn(47, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A fresh note inherited a retired filter endpoint");
+        render(*engine, static_cast<int>(rate * .02));
+        engine->noteOn(47, .85f);
+        expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+               "A fresh same-note repick inherited a retired filter endpoint");
+    }
+}
+
+void fingerGesturesAdoptTheAudibleQueuedEndpoint()
+{
+    for (const auto style : {electry::PlayStyle::Hammer, electry::PlayStyle::Slide})
+        for (const bool member : {false, true})
+            for (const float wideBend : {0.0f, -72.0f, 72.0f})
+            {
+                auto engine = makeEngine(48000, 2);
+                const auto id = member ? 7 : electry::ElectryEngine::legacyExpressionId;
+                engine->noteOn(47, .85f, id);
+                render(*engine, 2400);
+                engine->noteOn(48, .85f, id);
+                render(*engine, 1);
+                engine->noteOn(49, .85f, id);
+                electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, wideBend);
+                render(*engine, 1);
+                const double from = electry::ElectryEngineTestAccess::frozenNominalFrequency(*engine, 2);
+                expect(from > 0, "Finger-adoption witness did not freeze an audible incoming bank");
+                const auto before = electry::ElectryEngineTestAccess::state(*engine, 2);
+                engine->noteOn(electry::ElectryEngine::firstPlayStyleKeyswitchNote
+                                  + static_cast<int>(style), 1);
+                engine->noteOn(50, .85f, id);
+                expect(electry::ElectryEngineTestAccess::frozenNominalFrequency(*engine, 2) == 0,
+                       "A finger gesture left its adopted incoming filter bank frozen");
+                expect(electry::ElectryEngineTestAccess::fingerFromFrequency(*engine, 2) == from,
+                       "A finger gesture started at the unheard queued fret or clamped frequency");
+                const auto adopted = electry::ElectryEngineTestAccess::state(*engine, 2);
+                expect(!adopted.queued && !adopted.locked && adopted.transitionRemaining > 0,
+                       "Finger adoption changed the existing boundary clock or retained a queued fret");
+                if (wideBend == 0)
+                {
+                    auto a = before, b = adopted;
+                    a.newWeight = b.newWeight = 0;
+                    expect(std::abs(1200 * std::log2(frozenFundamental(b) / frozenFundamental(a))) < .00001,
+                           "Finger adoption retuned the independently owned outgoing bank");
+                }
+                electry::ElectryEngineTestAccess::setLiveBend(*engine, 2, member, 0);
+                render(*engine, 24000);
+                const auto settled = electry::ElectryEngineTestAccess::state(*engine, 2);
+                expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
+                       "A completed finger adoption retained a stale filter endpoint");
+                expect(destinationReachedWithOnlyEnergyAttackMotion(settled),
+                       "A queued finger adoption ratcheted pitch after a wide expression limit returned");
+            }
+}
+
 void queuedRefretPreservesBothAudibleBanks()
 {
     for (const double rate : {44100., 48000., 96000., 384000.})
@@ -1479,6 +1579,8 @@ int main()
 #ifndef ELECTRY_REFRET_TEST_BASELINE
     pickedRefretPreservesActualOldFeedbackAtZeroWeight();
     queuedRefretPreservesBothAudibleBanks();
+    retiredRefretBanksCannotLeakIntoLaterContacts();
+    fingerGesturesAdoptTheAudibleQueuedEndpoint();
 #endif
     pickedPitchSettlesBeforeRelease();
     handoffHasStableEndpointTaps();

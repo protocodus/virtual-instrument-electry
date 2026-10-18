@@ -1075,6 +1075,11 @@ private:
         float physicalPeriod { 100.0f };
         float physicalPending { 0.0f };
         float rawPending { 0.0f };
+        float nominalFrequency { 0.0f };
+        float nominalFret { 0.0f };
+        float configuredSemitones { 0.0f };
+        float configuredFrequency { 0.0f };
+        float configuredFret { 0.0f };
         bool valid { false };
     };
 
