@@ -1,5 +1,9 @@
 # Documented Sire settings and lower body — 2026-10-18
 
+The later [known-Neck E/A comparison](p2-known-neck-body-2026-10-19.md)
+confirms a substantial lower-body and relative-cooling gap with a documented
+selector. It does not alter this frozen four-phrase evidence.
+
 Documented Both selection and maximum tone explain part of the earlier Sire body deficit. Every held-window H1 share and H2/H1/H3/H1 absolute ratio error improves relative to the old heavy Bridge context, but large residual errors remain. Both original upper-band slopes worsen in every changed context. This is a comparator-context study, with no DSP mechanism/default change or percent-authenticity score.
 
 A is the original heavy Bridge/type.32/tone.7 context. B changes only documented Both/max-tone; C adds the manufacturer-supported stock single-coil hypothesis; D adds25.5-inch conventional scale and gauge.5 (.046667-inch lowE versus recorded .046), an approximate .010-like hardware hypothesis. Pick.18 and unknown age.30 stay fixed. Type1 is not a measured Sire transfer, and exact installed pickup/geometry/loading, pickpoint and force remain unknown.

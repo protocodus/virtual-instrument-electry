@@ -4,6 +4,35 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-19 — known-Neck body gap and differential cooling
+
+Continue under the standing autonomous instruction without inventing a listener
+vote. A new source-only mask and actual released-engine comparison cover all
+46 original E/A chromatic notes from the documented Neck-pickup Guitar-TECHS
+P2 recording. Primary H2/H1 and H3/H1 paired errors are +12.786/+19.607dB;
+matched H1 is −3.045dB. All four existing-control contexts, all qualified
+denominators and every unqualified row remain in the
+[comparison](research/p2-known-neck-body-2026-10-19.md). Mid-pick contexts
+help some notes but do not identify a reference hand position or justify a
+new default. The local room is http://127.0.0.1:8741/room/.
+
+A separately frozen post-hoc derivation shows faster relative H2/H3 cooling
+in the recorded finite intervals. Retain the strong envelope curvature and
+unknown acoustic-age offset: these are not intrinsic modal T60 measurements.
+Independent source, model, PCM, arithmetic and room checks pass. Correct the
+dataset attribution to its five listed creators and actual record DOI while
+preserving prior frozen records.
+
+The [material-loss study](research/wound-loss-hypothesis-2026-10-19.md)
+finds a positive fixed-open effective model, with all 115 H1–H3 predictions
+dissipative. Nineteen negative per-cell diagnostic decompositions do not
+invalidate that model; they show it cannot exactly represent every legacy
+voiced target with two positive loss coordinates. Material identification
+and a causal production implementation remain unqualified. No source gain,
+EQ, per-fret material fit, default, threshold or authenticity claim follows.
+Published 1.2.6 and the established note-change/repick implementation remain
+unchanged.
+
 ## 2026-10-18 — correct documented pickup settings before a new source law
 
 Continue autonomous evaluation with all candidates retained and no invented

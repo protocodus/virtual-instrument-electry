@@ -1,5 +1,9 @@
 # Dry guitar body and upper sustain — 2026-10-18
 
+See the later [known-Neck E/A comparison](p2-known-neck-body-2026-10-19.md)
+for selector-documented body measurements and a separately qualified finite
+lower-partial cooling diagnostic. Original baseline files remain frozen.
+
 The new dry recordings confirm that Electry can lack lower body at its current
 near-bridge picking position. Much of that difference changes with the existing
 Pick Position control: a fixed midpoint setting brings Bridge H1/H2 much closer
