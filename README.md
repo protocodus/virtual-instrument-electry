@@ -19,8 +19,8 @@ Blues Rock Lead play with **FX** on, the other two as a dry DI.
 
 | # | Preset | Demo | Length | Peak |
 | --- | --- | --- | --- | --- |
-| 1 | Factory Default | [01-factory-default.mp3](Docs/audio/01-factory-default.mp3) | 19.1 s | -16.9 dBFS |
-| 2 | Drop-E Metal | [02-drop-e-metal.mp3](Docs/audio/02-drop-e-metal.mp3) | 13.6 s | -13.4 dBFS |
+| 1 | Factory Default | [01-factory-default.mp3](Docs/audio/01-factory-default.mp3) | 19.1 s | -16.8 dBFS |
+| 2 | Drop-E Metal | [02-drop-e-metal.mp3](Docs/audio/02-drop-e-metal.mp3) | 13.6 s | -13.1 dBFS |
 | 3 | Mute / Dead DI | [03-mute-dead-di.mp3](Docs/audio/03-mute-dead-di.mp3) | 14.5 s | -6.0 dBFS |
 | 4 | Blues Rock Lead | [04-blues-rock-lead.mp3](Docs/audio/04-blues-rock-lead.mp3) | 13.0 s | -9.5 dBFS |
 
@@ -57,24 +57,24 @@ real-recording boundaries and blind-study plan live in the
 | File | Rendered peak | Normalisation applied |
 | --- | --- | --- |
 | `01-range-open-strings.wav` | −13.3 dBFS | +10.3 dB |
-| `02-range-full-fretboard.wav` | −17.2 dBFS | +14.2 dB |
-| `03-play-styles.wav` | −17.4 dBFS | +14.4 dB |
+| `02-range-full-fretboard.wav` | −17.0 dBFS | +14.0 dB |
+| `03-play-styles.wav` | −18.8 dBFS | +15.8 dB |
 | `04-drop-e-rhythm-dry.wav` | −10.7 dBFS | +7.7 dB |
 | `05-drop-e-rhythm-amp.wav` | −12.7 dBFS | +9.7 dB |
-| `06-lead-amp-delay-room.wav` | −11.9 dBFS | +8.9 dB |
+| `06-lead-amp-delay-room.wav` | −12.0 dBFS | +9.0 dB |
 | `07-pickups-and-tone.wav` | −13.6 dBFS | +10.6 dB |
-| `08-sympathetic-strum-stereo.wav` | −15.7 dBFS | +12.7 dB |
+| `08-sympathetic-strum-stereo.wav` | −15.8 dBFS | +12.8 dB |
 | `09-guitar-build-contrasts.wav` | −10.0 dBFS | +7.0 dB |
 | `10-velocity-dynamics.wav` | −13.5 dBFS | +10.5 dB |
 | `11-power-chords-dry.wav` | −9.0 dBFS | +6.0 dB |
-| `12-power-chords-amp.wav` | −12.6 dBFS | +9.6 dB |
+| `12-power-chords-amp.wav` | −12.5 dBFS | +9.5 dB |
 | `13-long-rhythm-arrangement.wav` | −12.9 dBFS | +9.9 dB |
-| `14-whammy-and-feedback.wav` | −12.9 dBFS | +9.9 dB |
+| `14-whammy-and-feedback.wav` | −13.0 dBFS | +10.0 dB |
 | `15-mute-and-dead-audition.wav` | −13.5 dBFS | +10.5 dB |
 | `16-mute-and-dead-metal.wav` | −13.6 dBFS | +10.6 dB |
 | `17-extended-technique-solo.wav` | −12.2 dBFS | +9.2 dB |
-| `18-syncopated-djent-study.wav` | −12.4 dBFS | +9.4 dB |
-| `19-modern-metalcore-study.wav` | −12.2 dBFS | +9.2 dB |
+| `18-syncopated-djent-study.wav` | −12.3 dBFS | +9.3 dB |
+| `19-modern-metalcore-study.wav` | −12.4 dBFS | +9.4 dB |
 | `20-odd-meter-prog-study.wav` | −5.7 dBFS | +2.7 dB |
 | `21-blues-rock-lead-study.wav` | −9.9 dBFS | +6.9 dB |
 | `22-tremolo-picking-study.wav` | −13.4 dBFS | +10.4 dB |
@@ -175,7 +175,7 @@ distribution builds arrived during 1.2.0 development.
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 70](https://github.com/protocodus/virtual-instrument-electry/actions/runs/39054097195/artifacts/12110425694)**, built from [`cfa058e02140`](https://github.com/protocodus/virtual-instrument-electry/commit/cfa058e021403835f80709c73d4e88d948142bc5). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 74](https://github.com/protocodus/virtual-instrument-electry/actions/runs/39103437026/artifacts/12127699076)**, built from [`4ac1c156222c`](https://github.com/protocodus/virtual-instrument-electry/commit/4ac1c156222c983dbac8ff6204fbdd985b086b1a). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 This link downloads the complete binary package set, including the plug-ins and
