@@ -17,6 +17,11 @@ struct ElectryEngineTestAccess
         e.configureSympatheticString(v);
         v.sympatheticReady = true;
         v.pickupTapNeck = v.pickupTapBridge;
+#if ELECTRY_COMMON_TIME_PICKUP
+        // Coincident sensors share both rays at the same observation time.
+        v.pickupDirectTapNeck = v.pickupDirectTapBridge;
+        v.pickupReflectedTapNeck = v.pickupReflectedTapBridge;
+#endif
         v.apertureNeck = v.apertureBridge;
         v.coilPairNeck = v.coilPairBridge;
         e.neckPathActive_ = e.bridgePathActive_ = true;

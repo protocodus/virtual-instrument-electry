@@ -717,7 +717,7 @@ void ElectryEngine::seedReleasedDisplacement(
 
 void ElectryEngine::primeReleasedPickupHistory(
     Voice& voice, const DelayTap& tap, FractionalMovingAverage& aperture,
-    CoilPairSum& coilPair) noexcept
+    CoilPairSum& coilPair, const DelayTap* directTap) noexcept
 {
     // Coil spacing and aperture are spatial filters factored into causal time
     // delays using x = c t. A non-uniform released triangle therefore cannot
@@ -761,9 +761,9 @@ void ElectryEngine::primeReleasedPickupHistory(
         };
         const float verticalTap = component(tap, verticalRail);
         const float horizontalTap = component(tap, horizontalRail);
-        const float centre = 0.85f * (component(verticalLoopTap, verticalRail)
+        const float centre = 0.85f * (component(directTap != nullptr ? *directTap : verticalLoopTap, verticalRail)
                                       - pickupCombDepth * verticalTap)
-                           + 0.35f * (component(horizontalLoopTap, horizontalRail)
+                           + 0.35f * (component(directTap != nullptr ? *directTap : horizontalLoopTap, horizontalRail)
                                       - pickupCombDepth * horizontalTap);
         const float reflected = pickupCombDepth
             * (0.85f * verticalTap + 0.35f * horizontalTap);
@@ -5049,10 +5049,45 @@ void ElectryEngine::configurePickupGeometry(Voice& voice,
                                     parameters.pickupType);
 
     const float maximumTapDelay = static_cast<float>(delayLineSize - 8);
-    voice.pickupTapBridge.setDelay(pickupTapDelaySamples(
-        bridgeDistance, soundingLength, period, maximumTapDelay));
-    voice.pickupTapNeck.setDelay(pickupTapDelaySamples(
-        neckDistance, soundingLength, period, maximumTapDelay));
+    const float bridgeRoundTrip = pickupTapDelaySamples(
+        bridgeDistance, soundingLength, period, maximumTapDelay);
+    const float neckRoundTrip = pickupTapDelaySamples(
+        neckDistance, soundingLength, period, maximumTapDelay);
+    voice.pickupTapBridge.setDelay(bridgeRoundTrip);
+    voice.pickupTapNeck.setDelay(neckRoundTrip);
+
+#if ELECTRY_COMMON_TIME_PICKUP
+    // Paiva, Pakarinen and Valimaki, JAES60(10), Eq.12--15:
+    // H_x(w)=exp(+jw*x/c)-r*exp(-jw*x/c), up to ONE shared source delay.
+    // https://research.aalto.fi/en/publications/acoustics-and-modeling-of-pickups/
+    // The legacy q(t)-r*q(t-2x/c) omits the position-dependent advance;
+    // mixing its anchors therefore mixes different physical field times.
+    // Realize the advance causally using the existing travelling-wave ring:
+    // q(t-T+x/c)-r*q(t-T-x/c), T=max(x_neck,x_bridge)/c+4/Fs.
+    // Four samples are the existing cubic tap's causal guard, not a tone fit.
+    // Coil spacing and aperture keep their shared additional causal offsets.
+    // Local unpitched contact-voltage transients keep their event-time path;
+    // their interaction with this field latency needs separate qualification.
+    // Isolate time alignment from the legacy geometry's fraction/memory and
+    // four-sample floor guards: x_eff/c is half its ACTUAL two-way tap.
+    // A separate change would be needed to revise those geometric limits.
+    const double neckTravel = 0.5 * std::max(4.0f, neckRoundTrip);
+    const double bridgeTravel = 0.5 * std::max(4.0f, bridgeRoundTrip);
+    const double commonTime = std::max(neckTravel, bridgeTravel) + 4.0;
+    voice.pickupCommonTimeValid = std::isfinite(commonTime)
+        && neckTravel >= 0.0 && bridgeTravel >= 0.0
+        && commonTime + std::max(neckTravel, bridgeTravel) <= maximumTapDelay;
+    if (voice.pickupCommonTimeValid)
+    {
+        voice.pickupDirectTapNeck.setDelay(static_cast<float>(commonTime - neckTravel));
+        voice.pickupReflectedTapNeck.setDelay(static_cast<float>(commonTime + neckTravel));
+        voice.pickupDirectTapBridge.setDelay(static_cast<float>(commonTime - bridgeTravel));
+        voice.pickupReflectedTapBridge.setDelay(static_cast<float>(commonTime + bridgeTravel));
+    }
+    // Outside the representable time domain the renderers explicitly use the
+    // legacy bounded taps. Independently clipping the two rays would silently
+    // manufacture a phase relation that Eq.12 does not describe.
+#endif
 
     // Magnetic aperture: a true finite rectangular spatial window. Its
     // temporal length is Fs*w/c, where c is transverse wave speed. This has
@@ -8484,12 +8519,30 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             voice.excitationPolarity * voice.horizontalWeight);
         if (neckPathActive_)
             primeReleasedPickupHistory(
-                voice, voice.pickupTapNeck,
-                voice.apertureNeck, voice.coilPairNeck);
+                voice,
+#if ELECTRY_COMMON_TIME_PICKUP
+                voice.pickupCommonTimeValid ? voice.pickupReflectedTapNeck : voice.pickupTapNeck,
+#else
+                voice.pickupTapNeck,
+#endif
+                voice.apertureNeck, voice.coilPairNeck
+#if ELECTRY_COMMON_TIME_PICKUP
+                , voice.pickupCommonTimeValid ? &voice.pickupDirectTapNeck : nullptr
+#endif
+                );
         if (bridgePathActive_)
             primeReleasedPickupHistory(
-                voice, voice.pickupTapBridge,
-                voice.apertureBridge, voice.coilPairBridge);
+                voice,
+#if ELECTRY_COMMON_TIME_PICKUP
+                voice.pickupCommonTimeValid ? voice.pickupReflectedTapBridge : voice.pickupTapBridge,
+#else
+                voice.pickupTapBridge,
+#endif
+                voice.apertureBridge, voice.coilPairBridge
+#if ELECTRY_COMMON_TIME_PICKUP
+                , voice.pickupCommonTimeValid ? &voice.pickupDirectTapBridge : nullptr
+#endif
+                );
         voice.analyticReleaseAmplitude = 0.0f;
         analyticReleaseSeeded = true;
     }
@@ -9143,6 +9196,9 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     // and contact-noise blend weights differ between the two anchors. One
     // shared lambda replaces the two copies of that chain.
     const auto readPickup = [&] (const DelayTap& delayTap,
+#if ELECTRY_COMMON_TIME_PICKUP
+                                 const DelayTap& directTap,
+#endif
                                  FractionalMovingAverage& aperture,
                                  CoilPairSum& coilPair,
                                  float drive, float driveInverse,
@@ -9151,9 +9207,19 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     {
         const float verticalTap = vertical.readTap(delayTap);
         const float horizontalTap = horizontal.readTap(delayTap);
-        const float centre = 0.85f * (verticalTotal
+        const float verticalDirect =
+#if ELECTRY_COMMON_TIME_PICKUP
+            voice.pickupCommonTimeValid ? vertical.readTap(directTap) :
+#endif
+            verticalTotal;
+        const float horizontalDirect =
+#if ELECTRY_COMMON_TIME_PICKUP
+            voice.pickupCommonTimeValid ? horizontal.readTap(directTap) :
+#endif
+            horizontalTotal;
+        const float centre = 0.85f * (verticalDirect
                                       - pickupCombDepth * verticalTap)
-                           + 0.35f * (horizontalTotal
+                           + 0.35f * (horizontalDirect
                                       - pickupCombDepth * horizontalTap)
                            + artifactWeight * artifactPickup;
         const float reflected = pickupCombDepth
@@ -9182,13 +9248,27 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     };
 
     if (neckPathActive_)
-        neckSignal = readPickup(voice.pickupTapNeck, voice.apertureNeck,
+        neckSignal = readPickup(
+#if ELECTRY_COMMON_TIME_PICKUP
+                                 voice.pickupCommonTimeValid ? voice.pickupReflectedTapNeck : voice.pickupTapNeck,
+                                 voice.pickupDirectTapNeck,
+#else
+                                 voice.pickupTapNeck,
+#endif
+                                 voice.apertureNeck,
                                  voice.coilPairNeck, magneticDriveNeck_,
                                  magneticDriveNeckInverse_, voice.emfLowpassNeck,
                                  voice.previousFluxNeck, 0.55f, 0.09f);
 
     if (bridgePathActive_)
-        bridgeSignal = readPickup(voice.pickupTapBridge, voice.apertureBridge,
+        bridgeSignal = readPickup(
+#if ELECTRY_COMMON_TIME_PICKUP
+                                   voice.pickupCommonTimeValid ? voice.pickupReflectedTapBridge : voice.pickupTapBridge,
+                                   voice.pickupDirectTapBridge,
+#else
+                                   voice.pickupTapBridge,
+#endif
+                                   voice.apertureBridge,
                                    voice.coilPairBridge, magneticDriveBridge_,
                                    magneticDriveBridgeInverse_,
                                    voice.emfLowpassBridge, voice.previousFluxBridge,
@@ -9432,13 +9512,21 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     // humbucker's two-coil spacing. At sympathetic levels its magnetic map is
     // linear, so no extra nonlinear solve is needed here.
     const auto readPickup = [&] (const DelayTap& pickupTap,
+#if ELECTRY_COMMON_TIME_PICKUP
+                                 const DelayTap& directTap,
+#endif
                                  FractionalMovingAverage& aperture,
                                  CoilPairSum& coilPair,
                                  float& previousFlux, OnePole& emfLowpass)
     {
         const float reflected = pickupCombDepth * loop.readTap(pickupTap);
+        const float direct =
+#if ELECTRY_COMMON_TIME_PICKUP
+            voice.pickupCommonTimeValid ? loop.readTap(directTap) :
+#endif
+            total;
         const float tap = aperture.process(
-            coilPair.process(total - reflected, reflected));
+            coilPair.process(direct - reflected, reflected));
         const float flux = voice.fluxScale * tap;
         const float emf = emfLowpass.process(
             (flux - previousFlux) * emfScale_, emfLowpassCoefficient_);
@@ -9449,11 +9537,23 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
     float bridgeSignal = 0.0f;
     if (neckPathActive_)
         neckSignal = readPickup(
-            voice.pickupTapNeck, voice.apertureNeck, voice.coilPairNeck,
+#if ELECTRY_COMMON_TIME_PICKUP
+            voice.pickupCommonTimeValid ? voice.pickupReflectedTapNeck : voice.pickupTapNeck,
+            voice.pickupDirectTapNeck,
+#else
+            voice.pickupTapNeck,
+#endif
+            voice.apertureNeck, voice.coilPairNeck,
             voice.previousFluxNeck, voice.emfLowpassNeck);
     if (bridgePathActive_)
         bridgeSignal = readPickup(
-            voice.pickupTapBridge, voice.apertureBridge,
+#if ELECTRY_COMMON_TIME_PICKUP
+            voice.pickupCommonTimeValid ? voice.pickupReflectedTapBridge : voice.pickupTapBridge,
+            voice.pickupDirectTapBridge,
+#else
+            voice.pickupTapBridge,
+#endif
+            voice.apertureBridge,
             voice.coilPairBridge, voice.previousFluxBridge,
             voice.emfLowpassBridge);
     loop.writeIndex = (loop.writeIndex + 1) & (delayLineSize - 1);

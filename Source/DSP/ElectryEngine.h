@@ -120,6 +120,13 @@
 #include <span>
 #endif
 
+// Experimental common-time spatial field observation (Paiva Eq.12--15).
+// OFF preserves the published observation exactly. Joint qualification with
+// ANALYTIC_RELEASE_IC is pending; this does not repair that initializer.
+#ifndef ELECTRY_COMMON_TIME_PICKUP
+#define ELECTRY_COMMON_TIME_PICKUP 0
+#endif
+
 #ifndef ELECTRY_ANALYTIC_RELEASE_IC
 #define ELECTRY_ANALYTIC_RELEASE_IC 0
 #endif
@@ -1535,6 +1542,15 @@ private:
         // Pickup taps and per-string pickup colouring.
         DelayTap pickupTapNeck {};
         DelayTap pickupTapBridge {};
+#if ELECTRY_COMMON_TIME_PICKUP
+        // Legacy two-way taps above remain the physical geometry oracle.
+        // These four taps observe both anchors at one causal field time.
+        DelayTap pickupDirectTapNeck {}, pickupReflectedTapNeck {};
+        DelayTap pickupDirectTapBridge {}, pickupReflectedTapBridge {};
+        // Extreme unsupported time coordinates fall back explicitly to the
+        // bounded legacy reader instead of independently clipping two rays.
+        bool pickupCommonTimeValid { false };
+#endif
         FractionalMovingAverage apertureNeck {};
         FractionalMovingAverage apertureBridge {};
         CoilPairSum coilPairNeck {};
@@ -1887,7 +1903,8 @@ private:
                                          float polarityAndWeight) noexcept;
     static void primeReleasedPickupHistory(
         Voice& voice, const DelayTap& tap,
-        FractionalMovingAverage& aperture, CoilPairSum& coilPair) noexcept;
+        FractionalMovingAverage& aperture, CoilPairSum& coilPair,
+        const DelayTap* directTap = nullptr) noexcept;
 #endif
     [[nodiscard]] static bool plectrumContacts(PlayStyle style, bool legato) noexcept;
     void drawStrokeVariation(Voice& voice, std::uint32_t state) noexcept;

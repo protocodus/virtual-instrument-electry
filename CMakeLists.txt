@@ -59,6 +59,8 @@ option(ELECTRY_ENERGY_ATTACK_PITCH
     "Use the bounded energy-derived common attack-pitch relaxation" ON)
 option(ELECTRY_POSITIONED_FRET_COLLISION
     "Build the default-off unilateral following-fret scatter experiment" OFF)
+option(ELECTRY_COMMON_TIME_PICKUP
+    "Build the default-off common-time spatial pickup observation experiment" OFF)
 option(ELECTRY_MEASURED_PICKUP_FLUX
     "Build the default-off measurement-fitted pickup flux-linkage candidate" OFF)
 option(ELECTRY_PASSIVE_REPICK_SPRING
@@ -137,6 +139,7 @@ if(ELECTRY_PASSIVE_REPICK_SPRING)
 endif()
 
 target_compile_definitions(ElectryDSP PUBLIC
+    ELECTRY_COMMON_TIME_PICKUP=$<BOOL:${ELECTRY_COMMON_TIME_PICKUP}>
     ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
     ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>
     ELECTRY_BUTTERWORTH_LOSS_SHELF=$<BOOL:${ELECTRY_BUTTERWORTH_LOSS_SHELF}>
@@ -183,6 +186,7 @@ if(NOT MSVC)
         ELECTRY_MEASURED_BODY_RESPONSE=1
         ELECTRY_DECOUPLED_PICK_RELEASE=1
         ELECTRY_ENERGY_ATTACK_PITCH=1
+        ELECTRY_COMMON_TIME_PICKUP=$<BOOL:${ELECTRY_COMMON_TIME_PICKUP}>
         ELECTRY_REFERENCE_STRING_MASS=$<BOOL:${ELECTRY_REFERENCE_STRING_MASS}>
         ELECTRY_MODAL_DISPERSION_FIT=$<BOOL:${ELECTRY_MODAL_DISPERSION_FIT}>
         ELECTRY_BUTTERWORTH_LOSS_SHELF=$<BOOL:${ELECTRY_BUTTERWORTH_LOSS_SHELF}>
@@ -198,6 +202,9 @@ if(BUILD_TESTING)
     add_executable(ElectryLoopLossShelfTests Tests/LoopLossShelfTests.cpp)
     target_link_libraries(ElectryLoopLossShelfTests PRIVATE ElectryDSP)
     add_test(NAME Electry.LoopLossShelf COMMAND ElectryLoopLossShelfTests)
+    add_executable(ElectryCommonTimePickupTests Tests/CommonTimePickupTests.cpp)
+    target_link_libraries(ElectryCommonTimePickupTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.CommonTimePickup COMMAND ElectryCommonTimePickupTests)
     add_executable(ElectryIdlePickupObservationTests Tests/IdlePickupObservationTests.cpp)
     target_link_libraries(ElectryIdlePickupObservationTests PRIVATE ElectryDSP)
     add_test(NAME Electry.IdlePickupObservation COMMAND ElectryIdlePickupObservationTests)
