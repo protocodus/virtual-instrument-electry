@@ -6974,8 +6974,7 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
 
     const auto configureGeometry = [&] ()
     {
-        if (wasRinging && pickedFretChange
-            && voice.refretRemainingSamples == 0)
+        if (wasRinging && voice.refretRemainingSamples == 0)
         {
             for (auto* loop : { &voice.vertical, &voice.horizontal })
             {
@@ -7088,8 +7087,24 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
 #endif
             if (voice.refretRemainingSamples == 0)
             {
+                // The retained-energy choke remains instantaneous and exact,
+                // but its filter memories still belong to the outgoing raw
+                // boundary. Hand them to the new fixed endpoint over the same
+                // contact clock instead of reinterpreting them through its
+                // unrelated dispersion/loss topology in one sample.
+                beginRefretHandoff(voice, plectrumContactSamples(voice), false);
+                const float verticalSource = voice.vertical.currentDelay
+                    + voice.refretVerticalOffset;
+                const float horizontalSource = voice.horizontal.currentDelay
+                    + voice.refretHorizontalOffset;
+                // Preserve the legacy large-hop destination timing: the new
+                // endpoint is already at target, including any prior follower
+                // residue. The outgoing endpoint keeps its own expression.
                 voice.vertical.currentDelay = voice.vertical.targetDelay;
                 voice.horizontal.currentDelay = voice.horizontal.targetDelay;
+                voice.refretVerticalOffset = verticalSource - voice.vertical.currentDelay;
+                voice.refretHorizontalOffset = horizontalSource - voice.horizontal.currentDelay;
+                voice.refretDestinationPending = 0.0f;
             }
             // An already heard boundary mixture keeps its endpoints through the
             // same attenuation. Its queued destination follows at the independent

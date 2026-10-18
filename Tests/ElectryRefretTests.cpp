@@ -362,6 +362,17 @@ struct ElectryEngineTestAccess
         return true;
     }
 
+    static void chokeStoredState(ElectryEngine& engine, int index)
+    {
+        auto& voice = engine.voices_[static_cast<std::size_t>(index)];
+        voice.vertical.scaleState(.28f);
+        voice.horizontal.scaleState(.28f);
+        voice.outputEnergy *= .28f * .28f;
+#if ELECTRY_ENERGY_ATTACK_PITCH
+        voice.attackPitchTensionRatio *= .28f * .28f;
+#endif
+    }
+
     static void seedFeedbackWitness(ElectryEngine& engine, int index, int phase)
     {
         auto& v = engine.voices_[static_cast<std::size_t>(index)];
@@ -1493,6 +1504,34 @@ void pickedRefretPreservesActualOldFeedbackAtZeroWeight()
                 }
 }
 
+void largeRefretPreservesTheChokedOutgoingRecurrence()
+{
+    constexpr std::array<int, 8> open {28, 35, 40, 45, 50, 55, 59, 64};
+    for (const double rate : {44100., 48000., 96000., 384000.})
+        for (int string = 0; string < 8; ++string)
+            for (int phase = 0; phase < 3; ++phase)
+            {
+                auto changed = makeEngine(rate, string);
+                const int note = open[static_cast<std::size_t>(string)] + 2;
+                changed->noteOn(note, .85f);
+                render(*changed, 64);
+                electry::ElectryEngineTestAccess::seedFeedbackWitness(*changed, string, phase);
+                auto old = std::make_unique<electry::ElectryEngine>(*changed);
+                electry::ElectryEngineTestAccess::chokeStoredState(*old, string);
+                changed->noteOn(note + 12, .85f);
+                electry::ElectryEngineTestAccess::neutraliseFeedbackProbe(*changed, string);
+                const auto state = electry::ElectryEngineTestAccess::state(*changed, string);
+                expect(state.delay == state.targetDelay && state.newWeight == 0
+                           && state.transitionRemaining > 0,
+                       "A large handoff changed its immediate target timing or source endpoint");
+                expect(electry::ElectryEngineTestAccess::sourceIsExactOldBank(*changed, *old, string),
+                       "A large refret reinterpreted the choked outgoing state through new filters");
+                expect(electry::ElectryEngineTestAccess::feedbackTick(*changed, string)
+                           == electry::ElectryEngineTestAccess::feedbackTick(*old, string),
+                       "A large refret first feedback sample differs from the exact .28 old string");
+            }
+}
+
 void retiredRefretBanksCannotLeakIntoLaterContacts()
 {
     for (const double rate : {44100., 48000., 96000., 384000.})
@@ -1500,9 +1539,13 @@ void retiredRefretBanksCannotLeakIntoLaterContacts()
         auto engine = makeEngine(rate, 2);
         engine->noteOn(47, .85f);
         render(*engine, static_cast<int>(rate * .02));
-        engine->noteOn(59, .85f); // legacy immediate large-hop contract
+        engine->noteOn(59, .85f);
+        const auto large = electry::ElectryEngineTestAccess::state(*engine, 2);
+        expect(large.delay == large.targetDelay && large.transitionRemaining > 0,
+               "A large jump moved its destination through a pitch follower");
+        render(*engine, static_cast<int>(rate * .03));
         expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
-               "A non-handoff large jump retained a stale filter endpoint");
+               "A completed large jump retained a stale filter endpoint");
         engine->noteOn(59, .85f);
         expect(electry::ElectryEngineTestAccess::banksRetired(*engine, 2),
                "A same-pitch contact inherited a stale filter endpoint");
@@ -1618,6 +1661,7 @@ int main()
 #ifndef ELECTRY_REFRET_TEST_BASELINE
     pickedRefretPreservesActualOldFeedbackAtZeroWeight();
     queuedRefretPreservesBothAudibleBanks();
+    largeRefretPreservesTheChokedOutgoingRecurrence();
     retiredRefretBanksCannotLeakIntoLaterContacts();
     fingerGesturesAdoptTheAudibleQueuedEndpoint();
 #endif
