@@ -9,7 +9,9 @@
     "Source/DSP/ElectryEngine.cpp": "1c546f643a72ef2ea13a7e276859fccdc1a4fa84ad60156a23572b0ffc4a90de",
     "Source/DSP/ElectryEngine.h": "8bc4a602c7bbfa56a1ee0297b47b0d7425e4dc97c9f173123b08299d333b3cbc",
     "Tests/ElectryRefretTests.cpp": "b18f6614461f1ce6d6de18b94ac9eedb6093d9f3ec16a70d97116c759a22bcca",
-    "Tools/AnalyzeRefretComparisons.py": "c34689903c0cdb62273f42302789748e3689469490fb288bc9108e7e0776582b"
+    "Tools/AnalyzeRefretComparisons.py": "2124c8b47f70cfb9ae5f23f84dc3152b1380ba43ab3dabd062c29474055266af",
+    "Tests/AnalyzeRefretComparisonsTests.py": "3beb40559ceb19e8eaab02345d289354fa7052cc1c09f81492b29bda75c5e64c",
+    ".github/workflows/ci.yml": "adcf1c1ad2fc1f1622b44d0df7bfd1d02ae69143edd984286c6d321e3eb0a433"
   },
   "checks": {
     "unit_suites": 38,
@@ -22,13 +24,20 @@
     "baseline_assertion_failures": 62,
     "baseline_release_pitch_cases_failed": 48,
     "without_queued_repick_guard_failures": 1,
-    "analysis_protocol_tests": 7,
+    "analysis_protocol_tests": 20,
     "release_phase": {
       "cases": 48,
       "max_absolute_cents": 2.98849861,
       "max_unexplained_residue_cents": 6.36684769e-05,
       "existing_attack_energy_span_cents": 6,
       "meaning": "Frozen complex full-loop state; not instantaneous acoustic pitch."
+    },
+    "analysis_previous_tool_accepted_targeted_mutations": 9,
+    "analysis_fixed_tool_rejects_targeted_mutations": 9,
+    "local_asan_ubsan_refret": {
+      "passed": true,
+      "duration_seconds": 2.1,
+      "assertions": 63111
     }
   },
   "comparisons": {
@@ -73,19 +82,28 @@
   "working_evidence_sha256": {
     "performance/measurements.json": "c6b734c2f1a89500447fb2ca7635b9b3e52d60e9168833124650fbb531e8c3d3",
     "phrases/measurements.json": "7ab7bc30e276bf552d14afc04bde9634c0b01700c6e95096cbe7488266a6cb9c",
-    "evidence/phrase-analysis-final.json": "8fcf1db7afe5ad8386fedd2af47480034ef6bcad1532f31a33460ad6d7efd6a0",
-    "evidence/phrase-analysis-independent-audit.json": "f4a8bd4b6d821546563567e18893ad29ff346a310c1ca0c5f811df3946601ec9",
+    "evidence/phrase-analysis-final.json": "864817c6cf6d24112a823ce4581bb9a5797b6b34f777d95a8718cf53eeda5836",
+    "evidence/phrase-analysis-independent-audit.json": "2fc4105963570439198efe345a8817d5ee8adc408d45e53bf6c44c646edadeaa",
     "evidence/room-integrity-final-60f7bec.json": "a35049909395af0a35f3f8c1a49d4153fe9914b133ce7f01b1de0bbb88713a35",
     "evidence/refret-unit-observation.json": "2125253bb33b613932a7d1fe6776108689032d4305edf45abd4a182ef2af8d1c",
     "evidence/final-source-validation.json": "57d7819472b6d47d75050021b18856dc08a5d9e058d6c4391cab1ebb04faf1a5",
-    "evidence/controlled-performance.json": "f228fe53d00a24376376130c13ab74db9010f072da35ccd6e856782c5622dc7d"
+    "evidence/controlled-performance.json": "f228fe53d00a24376376130c13ab74db9010f072da35ccd6e856782c5622dc7d",
+    "evidence/room-integrity-review-fixed-60f7bec.json": "aca15db04f7482c7421965540482dcb93e3b3ce93b26a879ad45f64a100e3ac6",
+    "evidence/room-integrity-score-bound-final-60f7bec.json": "518dd084bbd6c6674b20a54da389f29a8f09466b9456fd0d50b6bcfe46159bb3",
+    "evidence/score-binding-review-fix.json": "2f51ccc44b45f34d2ce4402a807bbff24b93df0c5a8376e8aaa63cf300c0d1da"
   },
   "validation_logs_sha256": {
     "unit-final-after-space.log": "6bb149de18d9756450756bede3c3fc83fcc72e8866617df337d7b50599a21475",
     "audio-final-after-space.log": "7595436dca833d619c385923cb1aea7cd48e5412160083ad21f8e1b36e48a673",
     "unit-final-focused.log": "1a4115265b5832f3ccc69ce351e2a0d52425edd61c026eac69a5e83571abf113",
     "build-comment-only-final.log": "574b0f1c9550ce53ea5eaa85a9977465dba6aff1b94d44e4c3d9b13c43bac6ca",
-    "refret-comment-only-final.log": "414fc3d857cfc9bf8880bc41082563b7eb8c1485fff83a0f93cb5f98e8eecc4b"
+    "refret-comment-only-final.log": "414fc3d857cfc9bf8880bc41082563b7eb8c1485fff83a0f93cb5f98e8eecc4b",
+    "configure-refret-sanitize.log": "36c3044b576b5fa167b8fb9c035406374fad16c1dec08714f5429a33d8e0c7eb",
+    "build-refret-sanitize.log": "f38141a63701a4f96d143bcf895fc142dd628b584ee5e738f94716ef961ab13c",
+    "refret-sanitize.log": "264c21469338aa4a10030acfa940f0584048612f5acd702b3c24a2001bd10041",
+    "analyzer-review-fix-tests.log": "7c03863240f2a009348630a3c1efb2aeffcf924dc7bbbc59672a993da6116f08",
+    "phrase-review-fix-tests.log": "121a8c46dc569fa3abc871d569cfafceb86973dc072049bcc17035cad2deb335",
+    "review-fix-focused.log": "785c0a97b5395a25bcca868159c5f239a3e43cdccc62eddf6709399ce9acab99"
   },
   "limits": [
     "Six-string Sire T7 performance references; player, force, geometry and pickup loading differ.",
@@ -95,5 +113,18 @@
     "No candidate-specific crop, per-note alignment or per-window gain; later source timing residuals remain.",
     "No subjective vote, interactive browser audio QA or Reason-host playback claim."
   ],
-  "hosted_checks": "Reported on the associated pull request; merge only after all latest-head checks succeed and feedback is addressed."
+  "hosted_checks": "Reported on the associated pull request; merge only after all latest-head checks succeed and feedback is addressed.",
+  "pull_request": "https://github.com/protocodus/virtual-instrument-electry/pull/5",
+  "review_followup": {
+    "sanitizer_execution_filter_commit": "a717d82d31208399da7d841617fc43866a852935",
+    "score_binding_commit": "1f0426aba4e3a1cf8597f15b9bc9cd64038eacd3",
+    "changes": [
+      "Execute Electry.Refret in sanitizer CI, in addition to building it.",
+      "Bind source annotations independently to frozen numeric TSV rows, every model receipt and the shared absolute timing anchor.",
+      "Accept annotated source NoteOff release velocities while preserving the renderer zero-value contract."
+    ],
+    "dsp_changed": false,
+    "wav_rerendered": false,
+    "audio_metrics_changed": false
+  }
 }

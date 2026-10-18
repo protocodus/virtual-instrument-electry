@@ -86,6 +86,10 @@ gets one constant whole-crop RMS trim plus shared sample-peak headroom.
 
 `Tools/AnalyzeRefretComparisons.py` independently verifies source and model
 hashes, source-plan path resolution, identical scores and shared crops. It
+derives every numeric score row from the source annotations, checks the frozen
+TSV and each render receipt, and binds the absolute origin to the shared timing
+anchor. Original NoteOff release velocities remain annotations; the renderer
+uses zero because its NoteOff API has no velocity. It
 reports every annotated attack in fixed −5..+10 ms, 0..30 ms and 20..80 ms
 windows: maximum adjacent-sample step, causal fourth-order 8 kHz high-pass
 RMS, window RMS and peak. Both raw and whole-crop-matched values are kept so
@@ -142,7 +146,12 @@ python Tools/AnalyzeRefretComparisons.py \
 Local validation passes all 38 unit suites, all 23 serial/parallel demo WAVs
 with byte determinism, and the embedded C++17 target with its restricted flags.
 The final focused rerun also passes the strengthened manual-repick regression
-and both source-path/analysis suites. The exact final test file produces 62
+and both source-path/analysis suites. All 20 observer protocol tests pass;
+nine targeted annotation/score mutations accepted by the previous observer
+are rejected. PR review also identified a sanitizer execution-filter omission:
+`Electry.Refret` is now included, and an actual local ASan/UBSan run passes.
+These review fixes leave the DSP and all 24 listening WAVs unchanged.
+The exact final test file produces 62
 failures against frozen baseline, including every one of the 48 release-pitch
 cases. Removing only the queued-repick guard produces one targeted failure.
 
@@ -161,7 +170,7 @@ pass `node --check`, and all eight static navigation targets return HTTP 200.
 All WAV hashes are identical across the source-comment-only amendment.
 The [machine receipt](refret-handoff-2026-10-18.json) binds the final source,
 logs, independent observers and immutable comparison manifests. Hosted CI
-and review status are recorded on the linked pull request.
+and review status are recorded on [PR #5](https://github.com/protocodus/virtual-instrument-electry/pull/5).
 
 Working evidence is retained in `build-refret-review/`, including the rejected
 unchoked large-jump renders. The machine receipt binds the final source,
