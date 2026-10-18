@@ -1,0 +1,1613 @@
+{
+  "schema": "electry-output-decimator-error-contract-research/v1",
+  "date": "2026-10-18",
+  "status": {
+    "research_only": true,
+    "production_fixture_changed": false,
+    "production_source_or_defaults_changed": false,
+    "original_total_signal_failure_retained": true,
+    "candidate95": "Rejected independently on absolute-tone tradeoff; passing this prototype does not approve it.",
+    "tone_rejection_record": "upper-loss-ablation-2026-10-18.md",
+    "generic_input_independent_150db_guarantee": false
+  },
+  "source": {
+    "shipping_decimator_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+    "frozen_trace_experiment_commit": "95e5c1b2db1d393d9550c2c5e910d189169b0db0",
+    "source24_sha256": {
+      "Source/DSP/DspCompatibility.h": "2231bb969c0683cba01a787fa2c8d44ea8952f23c47b315f5966edd4f0155e28",
+      "Source/DSP/DspMath.h": "fbe4c96d53e3f067f3d64af2c5de750215c2be79fa648122c3bc444a18d24c7c",
+      "Source/DSP/ElectryEngine.cpp": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567",
+      "Source/DSP/ElectryEngine.h": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20",
+      "Source/DSP/ElectryFx.cpp": "77d222b1efcf4bfbf81dc3c534dfcf4bfd32db81dcecf5b2003a2b6c348abc51",
+      "Source/DSP/ElectryFx.h": "477f5a425e148051d7fa9e357635956077eb53f3ea071049a34ca2e851054282",
+      "Source/DSP/ElectryPerformer.cpp": "309e1a7637ff8b3cfae444e6f36f9cc97c15d41107e8ea343d881fedcd0566ce",
+      "Source/DSP/ElectryPerformer.h": "7884c6d58c7777f14ef01850b73f6fa976ca79179f4f4067ae1c1937ff5ec09c",
+      "Source/DSP/ElectryVisuals.cpp": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb",
+      "Source/DSP/ElectryVisuals.h": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75",
+      "Source/DSP/FrozenTables/PhaseCalibrationEcc81.inc": "593283526f91beff6534fa059217f25c3585c8ba0d7f018bdb022a09986df11d",
+      "Source/DSP/FrozenTables/PhaseCalibrationEcc83.inc": "79068c278916de38b5cd537cc5ab1c21121a969afb6a7439dae80df3984144ad",
+      "Source/DSP/FrozenTables/PhaseMath.inc": "cc9ec28d05342669d0b399751bb3ed9af63ab8da0259d42bab79c4abefa1f349",
+      "Source/DSP/FrozenTables/PowerCalibration6L6.inc": "e1d9bd0154cb7f865bd9e9e641c273c7f1575e09a4c62efe7f364cba6873aebc",
+      "Source/DSP/FrozenTables/PowerCalibrationEl34.inc": "dd2bcedc2ab44883d55c2e6876628973c0966072334575b74c320b574d85dd50",
+      "Source/DSP/FrozenTables/PowerGrid.inc": "f53c9dd72a005e8a0968459132873f7a69f97bab5b85d9424252a163d5c62e78",
+      "Source/DSP/FrozenTables/PowerTable6L6.inc": "d0bb32ee6b2fd11e6f747120477830d00767427b3f148d6c0bfb7dc4586eb90d",
+      "Source/DSP/FrozenTables/PowerTableEl34.inc": "411960efa85456c29d8795a138e731fd1d9ce27267708cb60323802588a8cbaa",
+      "Source/DSP/FrozenTables/TriodeTransfer.inc": "ad1241cf1dd2c5b0dcdcc222ba0aecc3fd19be12d5ff31de757e43d815be949c",
+      "Source/DSP/ModernCabinetIR.h": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f",
+      "Source/PluginEditor.cpp": "3881b30dee8dff7b79096d0c0e51421f193f0d27d67854d71e4d44dc29b0fb5a",
+      "Source/PluginEditor.h": "f97aea49af7c369f6b1daf5eea77dab88de71001e157d2c407728d20b6168412",
+      "Source/PluginProcessor.cpp": "e31e11d5712e2feedf3a19d8bfd844d06f5ff9cfe94a15924d681a06c0c09daf",
+      "Source/PluginProcessor.h": "bcf809cc149cf6a9bb3ff3bc3e73c992b1f893c9505f39c0b54c145d7ca35ad2"
+    },
+    "baseline_root_capture_identity": "OFF host/internal traces reproduced byte-exact from shipping source at 48 kHz and 96 kHz by capture from actual public process history."
+  },
+  "prospective_freeze": {
+    "protocol_frozen_utc": "2026-10-18T21:13:25.120845+00:00",
+    "implementation_plan_frozen_utc": "2026-10-18T21:17:06.107912+00:00",
+    "supplemental_baseband_plan_frozen_utc": "2026-10-18T21:19:06.394953+00:00",
+    "primary_results_completed_utc": "2026-10-18T21:17:11.249938+00:00",
+    "intent": "Explicit scope change from all high-band output to aggregate output-decimator error; unchanged numeric rails do not preserve former meaning."
+  },
+  "method": {
+    "primary_fixture": "Original eight-open-note chord 28/35/40/45/50/55/59/64, native 48 kHz/block 512/default seed/1 second; unchanged controls from testHumbuckerTwoCoilNotch.",
+    "primary_window": {
+      "start_host_sample": 9600,
+      "samples": 32768,
+      "taper": "symmetric Hann sin(pi*j/(N-1))^2",
+      "normalization": "4/(N-1), coherent amplitude dBFS"
+    },
+    "higher_rate_scope": "96 kHz diagnostics retain physical window: start 19200, length 65536. Native 192 kHz cases have no output decimator and are not applicable.",
+    "frequency_grid": {
+      "first_hz": 40.0,
+      "multiplier": 1.0075,
+      "upper_exclusive_hz": 23500.0,
+      "count": 854,
+      "original_subset": "f > 12000 Hz",
+      "added_scope": "All 854 original grid frequencies"
+    },
+    "reference": "Same actual float32 pre-decimator input and exact float32 production 63-tap FIR coefficients, independently convolved using double sums; no gain, source fit or sinus subtraction.",
+    "finite_window_equations": {
+      "z": "double-filtered internal sequence; host sample j uses z[2j+1]",
+      "U_m": "z[2s+1+m] * sin(pi*m/(2*(N-1)))^2 * 4/(N-1), m=0..2N-2",
+      "B_f": "0.5*sum(U_m*exp(-i*pi*f*m/Fs_host))",
+      "I_f": "0.5*sum(U_m*(-1)^m*exp(-i*pi*f*m/Fs_host))",
+      "F_f": "B_f+I_f, double-filtered host DFT",
+      "Y_f": "native host DFT with same grid/window/normalization",
+      "arithmetic": "Y_f-F_f",
+      "aggregate": "E_f=Y_f-B_f=I_f+(Y_f-F_f); take magnitude only after complex addition/subtraction"
+    },
+    "relative_denominator": "Maximum magnitude of actual native full-output DFT on the complete 854-frequency grid, never an error-only or fitted denominator.",
+    "rails": {
+      "operator": "OR",
+      "relative_below_peak_db_strictly_greater_than": 150.0,
+      "absolute_dbfs_strictly_less_than": -180.0
+    },
+    "components_note": "Component maxima occur independently and are not summed in dB. Full complex spectra are hash-bound below. B/I are finite-window channels that can contain window leakage, not a unique physical decomposition.",
+    "fir": {
+      "taps": 63,
+      "nonzero_taps": 31,
+      "tap_storage": "float32",
+      "reference_products_and_sums": "float64",
+      "float32_little_endian_coefficient_sha256": "c9856b3f990271bf0eca1dba5aaff50c5db1e5cf9fefb045c106a627693b5f4a"
+    }
+  },
+  "results": {
+    "applicable_engine_cases": 9,
+    "applicable_engine_cases_pass_both_error_subsets": 9,
+    "total_measurement_cases": 15,
+    "native_1to1_not_applicable": [
+      {
+        "name": "off-192000-exact-fixture",
+        "reason": "Native 1:1 output, no output decimator; input/host identical, not evidence of 2:1 alias rejection."
+      },
+      {
+        "name": "on-192000-exact-fixture",
+        "reason": "Native 1:1 output, no output decimator; input/host identical, not evidence of 2:1 alias rejection."
+      }
+    ],
+    "measurements": [
+      {
+        "name": "off-48000-exact-fixture",
+        "kind": "immutable-engine-fixture",
+        "variant": "off",
+        "condition": "exact-fixture",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -40.52801847933055,
+        "original_total_above12k": {
+          "maximum_dbfs": -186.41281533237233,
+          "below_full_output_peak_db": 145.88479685304176,
+          "frequency_hz": 12331.531964983138,
+          "rail_pass": true
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -207.67753556142137,
+            "below_full_output_peak_db": 167.14951708209077,
+            "frequency_hz": 21118.398445885003,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -206.86013151042454,
+            "below_full_output_peak_db": 166.33211303109397,
+            "frequency_hz": 5543.654657182906,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -186.68220809349765,
+              "frequency_hz": 12331.531964983138
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -222.10072845921044,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -207.7074022153746,
+              "frequency_hz": 21118.398445885003
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.52801846273768,
+              "frequency_hz": 328.9769339152996
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -222.10072845921044,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.86006546279242,
+              "frequency_hz": 5543.654657182906
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.940560153363745e-19
+      },
+      {
+        "name": "on-48000-exact-fixture",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "exact-fixture",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -40.00922725585025,
+        "original_total_above12k": {
+          "maximum_dbfs": -168.87167464267904,
+          "below_full_output_peak_db": 128.8624473868288,
+          "frequency_hz": 12424.018454720512,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -207.34116392011006,
+            "below_full_output_peak_db": 167.33193666425984,
+            "frequency_hz": 14753.61168104341,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -206.74784384072808,
+            "below_full_output_peak_db": 166.73861658487783,
+            "frequency_hz": 433.7429977693715,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -168.88435672886686,
+              "frequency_hz": 12424.018454720512
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -228.26579582632573,
+              "frequency_hz": 23099.449887873205
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -207.34146748708156,
+              "frequency_hz": 14753.61168104341
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.00922725330163,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -228.26579582632573,
+              "frequency_hz": 23099.449887873205
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.7478430315703,
+              "frequency_hz": 433.7429977693715
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.940560153363745e-19
+      },
+      {
+        "name": "off-48000-all-incidental-off",
+        "kind": "immutable-engine-fixture",
+        "variant": "off",
+        "condition": "all-incidental-off",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -40.508490447027576,
+        "original_total_above12k": {
+          "maximum_dbfs": -186.84988755513913,
+          "below_full_output_peak_db": 146.34139710811155,
+          "frequency_hz": 12331.531964983138,
+          "rail_pass": true
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -208.0988937978378,
+            "below_full_output_peak_db": 167.59040335081022,
+            "frequency_hz": 13189.323676804292,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -207.92052816990815,
+            "below_full_output_peak_db": 167.4120377228806,
+            "frequency_hz": 118.19332197772789,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -186.6319196596639,
+              "frequency_hz": 12331.531964983138
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -223.0332694391059,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -208.0986556744187,
+              "frequency_hz": 13189.323676804292
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.5084904512906,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -223.0332694391059,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -207.9205271087278,
+              "frequency_hz": 118.19332197772789
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 4.84869951806108e-19
+      },
+      {
+        "name": "on-48000-all-incidental-off",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "all-incidental-off",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -39.9535126360623,
+        "original_total_above12k": {
+          "maximum_dbfs": -178.798020349252,
+          "below_full_output_peak_db": 138.84450771318967,
+          "frequency_hz": 12424.018454720512,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -206.3297069744923,
+            "below_full_output_peak_db": 166.37619433843,
+            "frequency_hz": 21276.786434229143,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -206.3297069744923,
+            "below_full_output_peak_db": 166.37619433843,
+            "frequency_hz": 21276.786434229143,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -178.8444751096065,
+              "frequency_hz": 12424.018454720512
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -222.53404881049283,
+              "frequency_hz": 23272.695762032254
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.31178128277415,
+              "frequency_hz": 21276.786434229143
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -39.953512629770316,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -222.53404881049283,
+              "frequency_hz": 23272.695762032254
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.31178128277415,
+              "frequency_hz": 21276.786434229143
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.940560153363745e-19
+      },
+      {
+        "name": "on-48000-artifact-off",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "artifact-off",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -40.00540516742952,
+        "original_total_above12k": {
+          "maximum_dbfs": -169.13367776967235,
+          "below_full_output_peak_db": 129.12827260224282,
+          "frequency_hz": 12424.018454720512,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -207.518360802416,
+            "below_full_output_peak_db": 167.51295563498644,
+            "frequency_hz": 21597.135049979508,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -207.34942828086167,
+            "below_full_output_peak_db": 167.34402311343217,
+            "frequency_hz": 9009.998752744148,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -169.1601231650482,
+              "frequency_hz": 12424.018454720512
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -219.63688770751818,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -207.55685846654418,
+              "frequency_hz": 21597.135049979508
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.00540516968793,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -219.63688770751818,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -207.34944266163376,
+              "frequency_hz": 9009.998752744148
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.673617379884035e-19
+      },
+      {
+        "name": "on-48000-contact-noise-off",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "contact-noise-off",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -39.99819314231971,
+        "original_total_above12k": {
+          "maximum_dbfs": -178.3898429482916,
+          "below_full_output_peak_db": 138.3916498059719,
+          "frequency_hz": 12424.018454720512,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -207.87326265045675,
+            "below_full_output_peak_db": 167.87506950813707,
+            "frequency_hz": 23447.240980247498,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -204.6995935046254,
+            "below_full_output_peak_db": 164.70140036230566,
+            "frequency_hz": 71.10975984760621,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -178.52077685894938,
+              "frequency_hz": 12424.018454720512
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -223.5247588206048,
+              "frequency_hz": 23272.695762032254
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -208.08130183841848,
+              "frequency_hz": 21597.135049979508
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -39.99819313177756,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -223.5247588206048,
+              "frequency_hz": 23272.695762032254
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -204.69959428956204,
+              "frequency_hz": 71.10975984760621
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.940560153363745e-19
+      },
+      {
+        "name": "on-48000-body-off",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "body-off",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -39.96255264489035,
+        "original_total_above12k": {
+          "maximum_dbfs": -169.08789726521462,
+          "below_full_output_peak_db": 129.12534462032428,
+          "frequency_hz": 12424.018454720512,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -207.17404383525266,
+            "below_full_output_peak_db": 167.2114911903623,
+            "frequency_hz": 22587.41196385318,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -206.44474087126798,
+            "below_full_output_peak_db": 166.48218822637767,
+            "frequency_hz": 460.46106668120984,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -169.0817912376431,
+              "frequency_hz": 12424.018454720512
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -218.01330665019807,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.9869457331309,
+              "frequency_hz": 22587.41196385318
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -39.96255265748271,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -218.01330665019807,
+              "frequency_hz": 23447.240980247498
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -206.444746930922,
+              "frequency_hz": 460.46106668120984
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.940560153363745e-19
+      },
+      {
+        "name": "low-production",
+        "kind": "synthetic-clean",
+        "variant": "shipping-decimator",
+        "condition": "low",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -20.000001966354333,
+        "original_total_above12k": {
+          "maximum_dbfs": -197.55942764087362,
+          "below_full_output_peak_db": 177.55942567451928,
+          "frequency_hz": 18879.268253778464,
+          "rail_pass": true
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -197.93578872078012,
+            "below_full_output_peak_db": 177.93578675442578,
+            "frequency_hz": 18879.268253778464,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -194.53385899024656,
+            "below_full_output_peak_db": 174.53385702389224,
+            "frequency_hz": 6936.6185409207255,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -207.89298272369592,
+              "frequency_hz": 13794.083646889261
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -226.5870559003204,
+              "frequency_hz": 22927.49368523395
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -197.93544738418487,
+              "frequency_hz": 18879.268253778464
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -20.000001979829094,
+              "frequency_hz": 1001.5637920615296
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -226.5870559003204,
+              "frequency_hz": 22927.49368523395
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -194.53383550825373,
+              "frequency_hz": 6936.6185409207255
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 6.938893903907228e-18
+      },
+      {
+        "name": "high-production",
+        "kind": "synthetic-clean",
+        "variant": "shipping-decimator",
+        "condition": "high",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -100.20457821916062,
+        "original_total_above12k": {
+          "maximum_dbfs": -100.20457821916062,
+          "below_full_output_peak_db": 0.0,
+          "frequency_hz": 16017.471188371692,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -100.20458501165395,
+            "below_full_output_peak_db": 6.792493314741764e-06,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -100.20458501165395,
+            "below_full_output_peak_db": 6.792493314741764e-06,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -207.43817858764163,
+              "frequency_hz": 14643.78330624656
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246747192,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -195.03135741527618,
+              "frequency_hz": 16017.471188371692
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -207.09540894513458,
+              "frequency_hz": 2548.65157565708
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246747192,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -193.22196567123254,
+              "frequency_hz": 262.9140554647298
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 1.0587911840678754e-22
+      },
+      {
+        "name": "high-delayed-bypass-negative",
+        "kind": "synthetic-negative",
+        "variant": "intentional-FIR-bypass",
+        "condition": "high",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -19.999999998653998,
+        "original_total_above12k": {
+          "maximum_dbfs": -19.999999998653998,
+          "below_full_output_peak_db": 0.0,
+          "frequency_hz": 16017.471188371692,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -19.99999999931744,
+            "below_full_output_peak_db": 6.634380104139933e-10,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -19.99999999931744,
+            "below_full_output_peak_db": 6.634380104139933e-10,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -207.43817858764163,
+              "frequency_hz": 14643.78330624656
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246747192,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -20.00084839488967,
+              "frequency_hz": 16017.471188371692
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -207.09540894513458,
+              "frequency_hz": 2548.65157565708
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246747192,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -20.00084839488967,
+              "frequency_hz": 16017.471188371692
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "intentional native FIR corruption plus arithmetic; not roundoff",
+        "aggregate_identity_max_absolute_complex_error": 1.3877787807814457e-17
+      },
+      {
+        "name": "mixed-production",
+        "kind": "synthetic-clean",
+        "variant": "shipping-decimator",
+        "condition": "mixed",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -20.000001968331958,
+        "original_total_above12k": {
+          "maximum_dbfs": -100.20465020029877,
+          "below_full_output_peak_db": 80.20464823196683,
+          "frequency_hz": 16017.471188371692,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -100.20463608684386,
+            "below_full_output_peak_db": 80.2046341185119,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -100.20463608684386,
+            "below_full_output_peak_db": 80.2046341185119,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -205.1542688564281,
+              "frequency_hz": 19597.940347724794
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246900463,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -196.65527894684828,
+              "frequency_hz": 20042.20942586337
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -20.00000198134117,
+              "frequency_hz": 1001.5637920615296
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246900463,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -193.7429067885826,
+              "frequency_hz": 3004.0120700936086
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 1.3552527156068805e-20
+      },
+      {
+        "name": "mixed-delayed-bypass-negative",
+        "kind": "synthetic-negative",
+        "variant": "intentional-FIR-bypass",
+        "condition": "mixed",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -20.000000001006647,
+        "original_total_above12k": {
+          "maximum_dbfs": -20.00000000248313,
+          "below_full_output_peak_db": 1.4764817839142471e-09,
+          "frequency_hz": 16017.471188371692,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -20.00000000110464,
+            "below_full_output_peak_db": 9.799302849565915e-11,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -20.00000000110464,
+            "below_full_output_peak_db": 9.799302849565915e-11,
+            "frequency_hz": 16017.471188371692,
+            "rail_pass": false
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -205.1542688564281,
+              "frequency_hz": 19597.940347724794
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246900463,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -20.000848396676897,
+              "frequency_hz": 16017.471188371692
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -20.00000198134117,
+              "frequency_hz": 1001.5637920615296
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -100.20474246900463,
+              "frequency_hz": 16017.471188371692
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -20.000848396676897,
+              "frequency_hz": 16017.471188371692
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "intentional native FIR corruption plus arithmetic; not roundoff",
+        "aggregate_identity_max_absolute_complex_error": 1.3552527156068805e-20
+      },
+      {
+        "name": "off-96000-exact-fixture",
+        "kind": "immutable-engine-fixture",
+        "variant": "off",
+        "condition": "exact-fixture",
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "start_sample": 19200,
+        "frames": 65536,
+        "full_output_peak_dbfs": -40.586419523034536,
+        "original_total_above12k": {
+          "maximum_dbfs": -193.55047654300404,
+          "below_full_output_peak_db": 152.9640570199695,
+          "frequency_hz": 13897.539274240931,
+          "rail_pass": true
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -211.0573352086388,
+            "below_full_output_peak_db": 170.47091568560427,
+            "frequency_hz": 18599.233543735594,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -211.0573352086388,
+            "below_full_output_peak_db": 170.47091568560427,
+            "frequency_hz": 18599.233543735594,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -193.6939476107976,
+              "frequency_hz": 13897.539274240931
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -299.42885320601056,
+              "frequency_hz": 22756.81755358208
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -211.0573406011473,
+              "frequency_hz": 18599.233543735594
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.58641952566888,
+              "frequency_hz": 328.9769339152996
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -299.42885320601056,
+              "frequency_hz": 22756.81755358208
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -211.0573406011473,
+              "frequency_hz": 18599.233543735594
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 8.674676106452505e-19
+      },
+      {
+        "name": "on-96000-exact-fixture",
+        "kind": "immutable-engine-fixture",
+        "variant": "on",
+        "condition": "exact-fixture",
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "start_sample": 19200,
+        "frames": 65536,
+        "full_output_peak_dbfs": -40.08541141844847,
+        "original_total_above12k": {
+          "maximum_dbfs": -161.29707462398838,
+          "below_full_output_peak_db": 121.2116632055399,
+          "frequency_hz": 12611.077582579399,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -211.46931793990348,
+            "below_full_output_peak_db": 171.383906521455,
+            "frequency_hz": 19163.519236424418,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -209.74982426844323,
+            "below_full_output_peak_db": 169.6644128499948,
+            "frequency_hz": 11358.511709127699,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -161.3012283038434,
+              "frequency_hz": 12611.077582579399
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -299.11905935524004,
+              "frequency_hz": 22252.37464805835
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -211.46928527591723,
+              "frequency_hz": 19163.519236424418
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -40.08541141323533,
+              "frequency_hz": 440.2735407795367
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -299.11905935524004,
+              "frequency_hz": 22252.37464805835
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -209.74980648262542,
+              "frequency_hz": 11358.511709127699
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 9.69739903612216e-19
+      },
+      {
+        "name": "clean-host-baseband-high-production",
+        "kind": "synthetic-clean",
+        "variant": "shipping-decimator",
+        "condition": "legitimate-host-baseband-high",
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "start_sample": 9600,
+        "frames": 32768,
+        "full_output_peak_dbfs": -19.998686375455847,
+        "original_total_above12k": {
+          "maximum_dbfs": -19.998686375455847,
+          "below_full_output_peak_db": -9.643274665532871e-16,
+          "frequency_hz": 18051.56371053713,
+          "rail_pass": false
+        },
+        "aggregate_error": {
+          "original_above_12k": {
+            "maximum_dbfs": -193.97815611254316,
+            "below_full_output_peak_db": 173.9794697370873,
+            "frequency_hz": 18051.56371053713,
+            "rail_pass": true
+          },
+          "added_all_grid": {
+            "maximum_dbfs": -193.97815611254316,
+            "below_full_output_peak_db": 173.9794697370873,
+            "frequency_hz": 18051.56371053713,
+            "rail_pass": true
+          }
+        },
+        "component_maxima": {
+          "original_above_12k": {
+            "ideal_baseband": {
+              "maximum_dbfs": -19.99868639274705,
+              "frequency_hz": 18051.56371053713
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -224.8691287887052,
+              "frequency_hz": 22927.49368523395
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -193.97968361723727,
+              "frequency_hz": 18051.56371053713
+            }
+          },
+          "added_all_grid": {
+            "ideal_baseband": {
+              "maximum_dbfs": -19.99868639274705,
+              "frequency_hz": 18051.56371053713
+            },
+            "ideal_folding": {
+              "maximum_dbfs": -224.8691287887052,
+              "frequency_hz": 22927.49368523395
+            },
+            "native_minus_double_FIR": {
+              "maximum_dbfs": -193.97968361723727,
+              "frequency_hz": 18051.56371053713
+            }
+          }
+        },
+        "native_minus_double_component_meaning": "actual output FIR arithmetic residual",
+        "aggregate_identity_max_absolute_complex_error": 3.469446951953614e-18
+      }
+    ]
+  },
+  "synthetic_plan": {
+    "amplitude_each_tone": 0.1,
+    "low_host_baseband_hz": 1001.5637920615296,
+    "above_host_nyquist_internal_hz": 31982.528811628308,
+    "folded_host_hz": 16017.471188371692,
+    "legitimate_high_host_baseband_hz": 18051.56371053713,
+    "tone_selection": "Nearest original grid points to 1 kHz, 16 kHz folded image and separately 18 kHz legitimate host baseband; prospectively frozen.",
+    "bypass": "31-internal-sample unit delay, compared with the same correct-production-FIR baseband reference. Native-minus-double includes intentional filter corruption, not just arithmetic.",
+    "interpretation": "Clean low and 18 kHz baseband pass. Above-Nyquist high/mixed through the stock FIR and deliberate bypass fail the same rails. This detects actual synthetic folding and exposes finite stock stopband rejection, not a universal 150 dB promise."
+  },
+  "capture_witness": {
+    "method": "Actual public process(...,1), then the existing friend reads the last two decimator history entries; no copied feedback/FIFO/render scheduler or production hook.",
+    "validation": "Require prepared, linked 2:1, eight active voices, post-call not-idle, finite input and exact cursor+2. The pre-call idle flag may still reflect reset before the first actual render.",
+    "captures": [
+      {
+        "host_rate": 48000,
+        "host_samples": 48000,
+        "internal_samples": 96000,
+        "public_block512_vs1_bit_exact": true,
+        "history_vs_frozen_internal_bit_exact": true,
+        "process1_vs_frozen_host_bit_exact": true,
+        "captured_from_actual_public_process_history": true,
+        "files": {
+          "history-capture/48000/host-process1.f32": {
+            "sha256": "2a9fbe02da0c08913692bbe78154fbb1834f633d8f61ca2f7d9c623e59609ecd",
+            "bytes": 192000
+          },
+          "history-capture/48000/host-process512.f32": {
+            "sha256": "2a9fbe02da0c08913692bbe78154fbb1834f633d8f61ca2f7d9c623e59609ecd",
+            "bytes": 192000
+          },
+          "history-capture/48000/internal-history.f32": {
+            "sha256": "2ac5fdd0ce1b6f55d11e8d123be9754495b25fd347d6baf74fa46a125bd0cc0c",
+            "bytes": 384000
+          }
+        }
+      },
+      {
+        "host_rate": 96000,
+        "host_samples": 96000,
+        "internal_samples": 192000,
+        "public_block512_vs1_bit_exact": true,
+        "history_vs_frozen_internal_bit_exact": true,
+        "process1_vs_frozen_host_bit_exact": true,
+        "captured_from_actual_public_process_history": true,
+        "files": {
+          "history-capture/96000/host-process1.f32": {
+            "sha256": "d2f1cd891ba903cf5feb3d8828199eb7ab195eacbb078d5e95b0cbbb10a3c2b2",
+            "bytes": 384000
+          },
+          "history-capture/96000/host-process512.f32": {
+            "sha256": "d2f1cd891ba903cf5feb3d8828199eb7ab195eacbb078d5e95b0cbbb10a3c2b2",
+            "bytes": 384000
+          },
+          "history-capture/96000/internal-history.f32": {
+            "sha256": "e1d3ca2d11f5928952f8c9066b452174906cbfa9fac562eb522201208e8f52da",
+            "bytes": 768000
+          }
+        }
+      }
+    ],
+    "retained_failed_attempts": [
+      "history-capture-attempt1",
+      "history-capture-attempt2-initial-idle"
+    ]
+  },
+  "verification": {
+    "status": "PASS",
+    "old_artifacts_unchanged": 120,
+    "old_traces_bound": 11,
+    "measurement_cases": 15,
+    "independent_half_step_formula_probes": 95,
+    "max_complex_base_or_fold_difference": 1.4384265740654346e-13,
+    "max_native_DFT_difference": 1.4296908601474071e-13,
+    "public512_vs1_history_capture_rates": [
+      48000,
+      96000
+    ],
+    "max_native_DFT_magnitude_difference_vs_original_cpp_grid": 1.314226505400029e-14
+  },
+  "limits": [
+    "The old total-signal cap remains failed for the ON experiment; no readiness waiver or production test substitution occurred.",
+    "This measures only output-decimator contamination. Internal baseband may already contain upstream nonlinear alias, numerical content or modeled noise; existing independent guards remain untouched.",
+    "Finite-window B/I can contain window leakage. Tiny cancellation-scale image values are not resolved physical-alias evidence.",
+    "The stock 63-tap FIR gives roughly 75 dB stopband design and about 80 dB at the synthetic high tone. The 150 dB/-180 dBFS rails depend on the fixed fixture/input envelope, not arbitrary out-of-band inputs.",
+    "Tone, physical-source correctness, natural repicks/note changes and realtime readiness need independent qualification. Candidate95 failed absolute-tone qualification.",
+    "Ignored binaries, raw traces and full per-frequency arrays are not product inputs or shipped audio. This public record contains compact results and their frozen hashes."
+  ],
+  "evidence": {
+    "prototype_manifest": {
+      "logical_path": "build-output-decimator-contract/manifest.json",
+      "sha256": "2cfc5dac955af124769294211769a3a3b4f81eee47d73c899c83d690b867d6fc",
+      "bytes": 12784,
+      "bound_files": 62
+    },
+    "prior_diagnostic_manifest": {
+      "logical_path": "build-structural-evidence/ultrasonic-cause-diagnostic/final-export/manifest.json",
+      "sha256": "3cd49644654292d9be718b55e83133e517c6cb065dffbf8810c430182a310ba7",
+      "bound_artifacts_verified_unchanged": 120
+    },
+    "prior_render_receipt_sha256": "3d691694f3400d60cf72d0b3f9611b1ee0239a567973da6bcd88724767381fb3",
+    "prototype_artifact_index": {
+      "DecimatorHarness": {
+        "sha256": "89452cb9c0efcd8293a445e292663af77cfc3cef3685801efb8aedaf9ad28485",
+        "bytes": 154464
+      },
+      "DecimatorHarness.cpp": {
+        "sha256": "400b6c30b6e403496ff4e74c4180d6c7b8c8e83fb83c5de281ac8de72b3f0df2",
+        "bytes": 1635
+      },
+      "ProcessHistoryCapture": {
+        "sha256": "8698c50a9d1bd8bdab46a5d1778e6f13f761e9909137c234d3ef1f6b819a6fbd",
+        "bytes": 175368
+      },
+      "ProcessHistoryCapture.cpp": {
+        "sha256": "82c2af1d7991004d0e8f4b1a194bbb5a86020964598fd2de1a03e6a728af0af6",
+        "bytes": 4880
+      },
+      "analyze.py": {
+        "sha256": "b2f3a83f277e4553eb429a5d4be47f0b0d7755d10e86990d21f9ada06fe3d579",
+        "bytes": 12859
+      },
+      "architecture.md": {
+        "sha256": "8f8d34725ba07b90d797ecdfef56e9c036c34ed8a3a4a7b82700ea2f74bf592a",
+        "bytes": 4162
+      },
+      "build-receipts/DecimatorHarness-400b6c30b6e4.json": {
+        "sha256": "84ebbe1478d502c7faa30a152e38ebfa49a8de140aec37b9fdd058940c588704",
+        "bytes": 4077
+      },
+      "build-receipts/ProcessHistoryCapture-82c2af1d7991.json": {
+        "sha256": "a8bebcb20e701e8ae752d995023f6fff68e5c539307a3ea3db4ccf1d5d3a294b",
+        "bytes": 4059
+      },
+      "build.py": {
+        "sha256": "7d9d8693b6fe1687dedae71ed4a87e76e6dbb8a5d2853e89ec9fb520c0bbdad9",
+        "bytes": 1787
+      },
+      "freeze.py": {
+        "sha256": "cbd0a5b70b4809cc56343e80c06926e921d87838ad03269a8ec439d24046a353",
+        "bytes": 9912
+      },
+      "implementation-plan.json": {
+        "sha256": "e08a058a2d86c72c66f546ccb03bf0faf79103e6e56dbc3ee2ee4f507625ee83",
+        "bytes": 1267
+      },
+      "protocol.json": {
+        "sha256": "f0b76671fc97aaa5425b364655820efd9264a848cbe81e93aa13e700a3b8c29b",
+        "bytes": 3648
+      },
+      "report.md": {
+        "sha256": "96fa7f81e78eed112092973fe54a91fb9e4ffb368f5a0786248ffba742d9f9d0",
+        "bytes": 6452
+      },
+      "results.json": {
+        "sha256": "e25a27849220e403ae4ddc376257496f7b8958d307dba612ae6426bd9ea3cd1d",
+        "bytes": 62252
+      },
+      "summary.json": {
+        "sha256": "a8d158d8fddacbea607687eafa0a70c09585677a2c01e9d4ac13edeb84702c1e",
+        "bytes": 9387
+      },
+      "supplemental-baseband-witness-plan.json": {
+        "sha256": "f117c4fb0471640cee0d0b445e968709d1c9800e2b70f1ce2e7097166a1a88fd",
+        "bytes": 900
+      },
+      "supplemental_baseband_witness.py": {
+        "sha256": "a07deb6f37b67c27009ea6566a0fbcb6316ced808a666d822c912b59acb793d8",
+        "bytes": 1895
+      },
+      "verification.log": {
+        "sha256": "6d41135cbf129c25e8af6c53c9e38273484f5b7ad15573a0d0b64706ede33e11",
+        "bytes": 345
+      },
+      "verify.py": {
+        "sha256": "4dc5ed8743f16fa40b831ca5de7557aa0bfcad6e9d598aed5ee861c9ae88a188",
+        "bytes": 6806
+      }
+    },
+    "old_trace_inputs": [
+      {
+        "case": "off-48000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/off/48000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "2a9fbe02da0c08913692bbe78154fbb1834f633d8f61ca2f7d9c623e59609ecd",
+          "render.json": "963d18873eb4a993da3f1d772369345ab03f83d19f254acd9303b3f23e49f35a",
+          "cpp-grid.csv": "ce32f7da752b97edfd38cd180bbc6d351f920e8c7038771f35ffca7f0092d8d3",
+          "internal.f32": "2ac5fdd0ce1b6f55d11e8d123be9754495b25fd347d6baf74fa46a125bd0cc0c"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 145.88484483507187,
+          "peak_dbfs": -40.52801847932685,
+          "top_dbfs": -186.41286331439872,
+          "peak_frequency_hz": 328.9769339152996,
+          "top_frequency_hz": 12331.531964983138,
+          "original_guard_pass": true
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "off-96000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/off/96000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "d2f1cd891ba903cf5feb3d8828199eb7ab195eacbb078d5e95b0cbbb10a3c2b2",
+          "render.json": "85d4caa5f24e6071017c5cada39db3938cf086333cd435eab188e9df0a3dbfb4",
+          "cpp-grid.csv": "0ead4c89c6f54851be678967b795d0c8a4168fa733bced0a0a398d33f7043b91",
+          "internal.f32": "e1d3ca2d11f5928952f8c9066b452174906cbfa9fac562eb522201208e8f52da"
+        },
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 19200,
+          "dft_frames": 65536,
+          "below_peak_db": 152.96408037561966,
+          "peak_dbfs": -40.586419523022606,
+          "top_dbfs": -193.55049989864227,
+          "peak_frequency_hz": 328.9769339152996,
+          "top_frequency_hz": 13897.539274240931,
+          "original_guard_pass": true
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "off-192000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/off/192000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "e1d3ca2d11f5928952f8c9066b452174906cbfa9fac562eb522201208e8f52da",
+          "render.json": "73a8e54361ad50ded8404fcbe921ee9160ed89e6cbf65f20e8053ae19242ded3",
+          "cpp-grid.csv": "4ce6211699f273afbdd20883bd24cc95fe45aa89a358517014e8039dfbd3648e",
+          "internal.f32": "e1d3ca2d11f5928952f8c9066b452174906cbfa9fac562eb522201208e8f52da"
+        },
+        "host_rate": 192000,
+        "internal_rate": 192000,
+        "oversampling_factor": 1,
+        "original_cpp_guard": {
+          "dft_start": 38400,
+          "dft_frames": 131072,
+          "below_peak_db": 153.13510121758404,
+          "peak_dbfs": -40.58679963727066,
+          "top_dbfs": -193.72190085485468,
+          "peak_frequency_hz": 328.9769339152996,
+          "top_frequency_hz": 13897.539274240931,
+          "original_guard_pass": true
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-48000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/48000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "ba749489050fb1718997f9d24ea76946faf2f66ba3c9eeacb7d589fea2ba7f4a",
+          "render.json": "83abea49ed9456597602919ee063f06db86c3b95ae2e27de150ef97c727331b4",
+          "cpp-grid.csv": "ef70532f86785ffb5e5feffdcb7045efc4ba42056a0e79b1a5c3ff9afaea2e9f",
+          "internal.f32": "8cb2ea87b34d71b916873c2fb7698c6987b0930105828b82c4ea1c8703368ec8"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 128.8624478840212,
+          "peak_dbfs": -40.0092272558453,
+          "top_dbfs": -168.87167513986654,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12424.018454720512,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-96000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/96000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "fe09ff3d572ca818324cfd007c35d532bdd830d16166e86f9cc175d5e61cf33a",
+          "render.json": "6f868e2b6d421624ca3e75128e7fa5edbb003015f4a98d045c09526991db8e9a",
+          "cpp-grid.csv": "5356240f78f38b0437649399d37c71f3b8927e5affe7cba45ceb0e7d1b59473c",
+          "internal.f32": "3125188e15b5826e26d6e91cd454056f70a26ede933f7296a30a3253a82c0449"
+        },
+        "host_rate": 96000,
+        "internal_rate": 192000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 19200,
+          "dft_frames": 65536,
+          "below_peak_db": 121.21166235837012,
+          "peak_dbfs": -40.085411418458705,
+          "top_dbfs": -161.29707377682882,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12611.077582579399,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-192000-exact-fixture",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/192000/exact-fixture",
+        "file_sha256": {
+          "host.f32": "3125188e15b5826e26d6e91cd454056f70a26ede933f7296a30a3253a82c0449",
+          "render.json": "b5ac6ac43d26a13faeaffff2cc01bd3f2133b4ddce8a53236b2938e06a2d0011",
+          "cpp-grid.csv": "e2a186b5b78ba19a9e7e2102149cdf451d5d928f5f47b91b1e231bd35f853830",
+          "internal.f32": "3125188e15b5826e26d6e91cd454056f70a26ede933f7296a30a3253a82c0449"
+        },
+        "host_rate": 192000,
+        "internal_rate": 192000,
+        "oversampling_factor": 1,
+        "original_cpp_guard": {
+          "dft_start": 38400,
+          "dft_frames": 131072,
+          "below_peak_db": 121.23479803715499,
+          "peak_dbfs": -40.08694372125933,
+          "top_dbfs": -161.3217417584143,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12611.077582579399,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "off-48000-all-incidental-off",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/off/48000/all-incidental-off",
+        "file_sha256": {
+          "host.f32": "2399f56c32ad88aaf16876170ba97a2c896325b7d5b22386280eb2cd5c84ac9e",
+          "render.json": "1cc6ca5612834ddebfb4bb245ba7f251b726821ac1f71863755622a6ed494c02",
+          "cpp-grid.csv": "5a016de867bba5146e6c0df54ebaed0717701618da822b674fd8077a3252b2e3",
+          "internal.f32": "0b262f4e247de88152fc8081b7022a30d93ee83c40ebaa2bf425b72eea7196c3"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 146.34145077104094,
+          "peak_dbfs": -40.508490447022666,
+          "top_dbfs": -186.84994121806363,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12331.531964983138,
+          "original_guard_pass": true
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-48000-all-incidental-off",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/48000/all-incidental-off",
+        "file_sha256": {
+          "host.f32": "b54b9c7548d0c8383e4141544c847af5c656af8a796ed174650f9533aff768f3",
+          "render.json": "17802d665ac68b9e5bdee0ac8bc6a3c31c0d634c587afbafe6675b0645b8bc18",
+          "cpp-grid.csv": "3fa628ac30a9b32ebaf04357e4cc90991ab9e5973cb37ee8f9798b5063b1eb14",
+          "internal.f32": "8fe694f7c520c3a800164903872a2541cf944be41a35ee4436b47b3aed5bd71f"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 138.8445107610762,
+          "peak_dbfs": -39.9535126360574,
+          "top_dbfs": -178.79802339713362,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12424.018454720512,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-48000-artifact-off",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/48000/artifact-off",
+        "file_sha256": {
+          "host.f32": "114939b206a7c5eea9ae722ccf061b7a1c2f21d9386a52c8bb990d13e53d2441",
+          "render.json": "e08ec52016c53adfa9161d83e60328e6df5ac7de07130306aac4ab0a3ef23501",
+          "cpp-grid.csv": "fdbb7f14e397a5546e4649be66e7d7199f3eeb9ebe13d1b4eef61c3699b5bffe",
+          "internal.f32": "77c6e2969cf990a9b99d7689cabbf1c9c4155a6e42822d75e33cae72b581e5ba"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 129.12827315613498,
+          "peak_dbfs": -40.00540516742455,
+          "top_dbfs": -169.13367832355954,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12424.018454720512,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-48000-contact-noise-off",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/48000/contact-noise-off",
+        "file_sha256": {
+          "host.f32": "35dd65df98af89b2e6903d927c378cbee86195013bfa3b8d1dfe278ab1d022bb",
+          "render.json": "a48c04a2ffeb4c99d3a947b05d505ce3ce96467cac0791758db6960c5bf57980",
+          "cpp-grid.csv": "2d3401606ce3bd180acc23540391f51bd565f7316e64bb317dc00f2f985b8a3b",
+          "internal.f32": "9f2106a05e361ce5b1f93652479299eb5bf166db183b2e98f405715a6d86d5ad"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 138.39165263741225,
+          "peak_dbfs": -39.99819314231479,
+          "top_dbfs": -178.38984577972707,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12424.018454720512,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      },
+      {
+        "case": "on-48000-body-off",
+        "logical_directory": "build-structural-evidence/ultrasonic-cause-diagnostic/raw/on/48000/body-off",
+        "file_sha256": {
+          "host.f32": "21b36de00bb1e5e80c6d069c7f7db18fde34023b454547721a27e42fc97052da",
+          "render.json": "3826df8fa184d6b039ec8e8f1d0b4956531050490a1b73846d301ec91f989854",
+          "cpp-grid.csv": "e104722847579284dff7475c026953e4f51e30c4543b4fe2e270e2cc683a0dbc",
+          "internal.f32": "c07314abc5b476ff83bd3ead62214cf3029b1cbbe298aa40d7441888635511b4"
+        },
+        "host_rate": 48000,
+        "internal_rate": 96000,
+        "oversampling_factor": 2,
+        "original_cpp_guard": {
+          "dft_start": 9600,
+          "dft_frames": 32768,
+          "below_peak_db": 129.12534516099856,
+          "peak_dbfs": -39.96255264488541,
+          "top_dbfs": -169.08789780588396,
+          "peak_frequency_hz": 440.2735407795367,
+          "top_frequency_hz": 12424.018454720512,
+          "original_guard_pass": false
+        },
+        "frozen_internal_capture_pcm_identity": true
+      }
+    ],
+    "synthetic_input_and_native_files": {
+      "synthetic/clean-host-baseband-high-production-input.f32": {
+        "sha256": "f76c9e08b6ca471f7ea04b59bca9d3a0e7068c8ba0d7fc61321a4634919a8d32",
+        "bytes": 384000
+      },
+      "synthetic/clean-host-baseband-high-production-native.f32": {
+        "sha256": "63787c2ac2a458ccd12a9d67f86f554a6dafa9057889de429cd1398d31b26c4c",
+        "bytes": 192000
+      },
+      "synthetic/high-input.f32": {
+        "sha256": "df2a5eebe2066be75f3fdaeb26fbbdb6b3246b302550939e4e78d1d656b276a2",
+        "bytes": 384000
+      },
+      "synthetic/high-native.f32": {
+        "sha256": "d6498202f4ba7d9326126bc72d70496346a21b9454a75f17e423aa03e01e61a9",
+        "bytes": 192000
+      },
+      "synthetic/low-input.f32": {
+        "sha256": "ac5b650a5f59abb781b63edf5ae200a08f955f676fea1fc2c9080e90d465496f",
+        "bytes": 384000
+      },
+      "synthetic/low-native.f32": {
+        "sha256": "09c480a834af4964b5933aaa512f05327e2bfe76ca16f5c0ab2a5be46a749434",
+        "bytes": 192000
+      },
+      "synthetic/mixed-input.f32": {
+        "sha256": "5cbce3fa96536875d54fe8aca2cafcf15d291d8146569fd3e2c744b6289dae41",
+        "bytes": 384000
+      },
+      "synthetic/mixed-native.f32": {
+        "sha256": "232114cdbafb9f3c143336b533e54c76496492ba6222d019b3080f8f02aa4b36",
+        "bytes": 192000
+      }
+    },
+    "per_frequency_complex_exports": {
+      "off-48000-exact-fixture": {
+        "sha256": "84a366c769004065ded7fb88d9bfd35f115e79473baa5d053c5d51f82f328221",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/off-48000-exact-fixture.npz"
+      },
+      "on-48000-exact-fixture": {
+        "sha256": "2b96e5298876bef0b2eff4120d6a9ef7779b098ea42eeaf7db97b20f4090e471",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-48000-exact-fixture.npz"
+      },
+      "off-48000-all-incidental-off": {
+        "sha256": "2351c20c170d395b7ea63f5cc86bd4cafdafe918dea4ba624bd232ccb2b40438",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/off-48000-all-incidental-off.npz"
+      },
+      "on-48000-all-incidental-off": {
+        "sha256": "886bd8553a9b9d0cc04e2e65ddbb2ec20486db10f59e43ad56d81c80e27ff0a1",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-48000-all-incidental-off.npz"
+      },
+      "on-48000-artifact-off": {
+        "sha256": "4034880b8867c63159d2201ae6a75e1e4e71a1f8cc78c57ad5add62b1b2a5ebb",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-48000-artifact-off.npz"
+      },
+      "on-48000-contact-noise-off": {
+        "sha256": "a7898de432556d6694ec71aa8f8eb3dba8990937526b9e289967a43a7f81c396",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-48000-contact-noise-off.npz"
+      },
+      "on-48000-body-off": {
+        "sha256": "276ad5851eb07f86b3a70a9dbb9066c0f6921a46dc405de204bf57578531fae2",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-48000-body-off.npz"
+      },
+      "low-production": {
+        "sha256": "4adb6ad2e485234a8c5f3450df23e576c21945595173c69e590b6de0bf3941eb",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/low-production.npz"
+      },
+      "high-production": {
+        "sha256": "e6dbaf4f961243ca2a51d90140b1ad8b87cdb7c22751e8a963209eeaec1d040a",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/high-production.npz"
+      },
+      "high-delayed-bypass-negative": {
+        "sha256": "641dfaee105d6ef6cd8b89ceadf73bfe0c1cf4404c87c7d892db5406ea4f43e7",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/high-delayed-bypass-negative.npz"
+      },
+      "mixed-production": {
+        "sha256": "fe09813f743294b9221907d3374e4cde1281883fc7f6f1f358957d7775308927",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/mixed-production.npz"
+      },
+      "mixed-delayed-bypass-negative": {
+        "sha256": "9e633d2178b20c708db6895d1403e14aff3b17e1e2d9109f4f47902f5345a1a1",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/mixed-delayed-bypass-negative.npz"
+      },
+      "off-96000-exact-fixture": {
+        "sha256": "f9c8c6235aa459d1f71bacf8f466378e7a94a720b6dd7641572e557050c37129",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/off-96000-exact-fixture.npz"
+      },
+      "on-96000-exact-fixture": {
+        "sha256": "bba9b274eaf7cdd5d32dbd05561eddca02984411a525e4397e0c7eadfc5a97e5",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/on-96000-exact-fixture.npz"
+      },
+      "clean-host-baseband-high-production": {
+        "sha256": "83df3b988ed7f23158dc40beb800937cd3f8703eaf0ed809d429b715dcb65582",
+        "bytes": 76744,
+        "logical_path": "build-output-decimator-contract/spectra/clean-host-baseband-high-production.npz"
+      }
+    }
+  }
+}

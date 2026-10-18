@@ -74,3 +74,7 @@ exactly; B changes only the disabled upper-loss mechanism. Source annotations,
 controls, event times, whole-file gain rule and the previously frozen upper
 prefix qualifications remain fixed. That comparison cannot erase this failure
 or establish natural repicks, note changes or realtime readiness by itself.
+
+A subsequent [output-decimator error-contract prototype](output-decimator-error-contract-2026-10-18.md)
+retains this failure while testing aggregate output-stage error with independent
+controls. It changes no fixture and does not approve the upper-loss candidate.
