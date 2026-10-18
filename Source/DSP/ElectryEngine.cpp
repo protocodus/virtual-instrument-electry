@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace electry
 {
@@ -1482,6 +1483,8 @@ void ElectryEngine::reset()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    for (auto& counts : outstandingNoteOffs_)
+        counts.fill(0);
     tremoloPickingPhase_ = 0.0;
 
     smoothedParameters_ = sanitise(targetParameters_);
@@ -2588,6 +2591,10 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
     const auto heldIndex = static_cast<std::size_t>(stringIndex);
     if (addKeyOwner)
     {
+        auto& outstanding = outstandingNoteOffs_[
+            static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
+        if (outstanding < std::numeric_limits<std::uint32_t>::max())
+            ++outstanding;
         // A non-zero member channel is one performed finger. If it has moved
         // to a pitch this string cannot play, release its preceding physical
         // owner before binding the replacement.
@@ -2642,6 +2649,25 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
     if (expressionId > maximumExpressionId)
         expressionId = legacyExpressionId;
 
+    if (! isPlayableNote(midiNote))
+        return;
+    auto& outstanding = outstandingNoteOffs_[
+        static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
+    std::uint32_t currentOwners = 0;
+    for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
+    {
+        const auto index = static_cast<std::size_t>(stringIndex);
+        if (heldMidiNotes_[index] == midiNote
+            && heldExpressionIds_[index] == expressionId)
+            currentOwners += static_cast<std::uint32_t>(heldNoteCounts_[index]);
+    }
+    if (outstanding > currentOwners)
+    {
+        // Consume a displaced older identity before touching its replacement.
+        --outstanding;
+        return;
+    }
+
     for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
     {
         const auto index = static_cast<std::size_t>(stringIndex);
@@ -2650,6 +2676,10 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
             continue;
 
         auto& voice = voices_[index];
+        // Preserve the existing broadcast Note-Off behavior if an explicit
+        // mask placed this same identity on more than one physical string.
+        if (outstanding > 0)
+            --outstanding;
         if (heldNoteCounts_[index] > 1)
         {
             --heldNoteCounts_[index];
@@ -2685,6 +2715,8 @@ void ElectryEngine::allNotesOff()
     heldMidiNotes_.fill(-1);
     heldNoteCounts_.fill(0);
     heldExpressionIds_.fill(legacyExpressionId);
+    for (auto& counts : outstandingNoteOffs_)
+        counts.fill(0);
     for (auto& voice : voices_)
     {
         if (! voice.active)

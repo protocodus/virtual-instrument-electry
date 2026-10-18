@@ -144,6 +144,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.3 — In development — Same-string note handoffs
+
+An older MIDI Note Off no longer stops a newer note after an A → B → A
+passage on the same string. Displaced MIDI owners are retained until their
+matching ends arrive, so overlapping riffs and repeated notes keep their
+intended sustain. Picking-hand repick keys retain their separate ownership.
+
 ### 1.2.2 — In development — String mass, modal fitting and continuous legato
 
 Hammer-ons and slides retain their continuous stiffness fit when the finger

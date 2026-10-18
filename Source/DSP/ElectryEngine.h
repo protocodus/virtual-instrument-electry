@@ -1926,6 +1926,14 @@ private:
     std::array<int, stringCount> heldMidiNotes_ {};
     std::array<int, stringCount> heldNoteCounts_ {};
     std::array<ExpressionId, stringCount> heldExpressionIds_ {};
+    // A string can be stolen and return to the same MIDI identity before its
+    // older Note Off arrives (A -> B -> A). Per-string counts alone forget
+    // that older owner. Consume matching offs in FIFO order per pitch/member
+    // channel, independently of the current physical allocation. Picking-hand
+    // repicks add no MIDI owner. A 32-bit saturating count also retains stolen
+    // owners after the per-string 16-bit overlap limit has been reached.
+    std::array<std::array<std::uint32_t, 128>, expressionPitchBendCount>
+        outstandingNoteOffs_ {};
     // The visible B0 gesture is one picking wrist, not eight clocks. Its
     // phase is measured in strokes so a rate change takes effect immediately
     // without resetting time or accumulating integer-sample drift.
