@@ -8581,10 +8581,12 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                   float compensatedPeriod,
                                   float extraFeedback)
     {
-        const auto readBoundary = [&] (float delayOffset,
+        const auto readBoundary = [&] (float boundaryDelay,
                                         float endpointPeriod = 0.0f)
         {
-            const float boundaryDelay = loop.currentDelay + delayOffset;
+            // Keep an owned raw endpoint absolute. Subtracting a distant
+            // destination and adding it back can discard a fractional-delay
+            // bit even when the outgoing pointer itself has not moved.
             float boundary = loop.readFractional(boundaryDelay);
             if (voice.releaseSpectralDepth > 0.0f)
             {
@@ -8606,7 +8608,8 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                 // A temporary finger/thumb contact follows each endpoint's
                 // complete sounding period, including the loop-filter phase.
                 const float touched = endpointPeriod <= 0.0f
-                    ? readTouchedString(voice, loop, compensatedPeriod, delayOffset)
+                    ? readTouchedString(voice, loop, compensatedPeriod,
+                                        boundaryDelay - loop.currentDelay)
                     : [&] {
                         const float centre = boundaryDelay
                             + voice.touchFraction * endpointPeriod;
@@ -8674,7 +8677,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             sample *= bank.loopGain * voice.releaseGain * extraFeedback;
             return sample;
         };
-        float sample = readBoundary(0.0f);
+        float sample = readBoundary(loop.currentDelay);
         if (voice.refretRemainingSamples > 0)
         {
             const float progress = static_cast<float>(
@@ -8704,21 +8707,22 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             if (loop.refretSource.valid)
             {
                 auto& source = loop.refretSource;
-                const float sourceSample = readBoundary(source.rawDelay - loop.currentDelay,
+                const float sourceSample = readBoundary(source.rawDelay,
                     source.physicalPeriod - source.physicalPending);
                 float destinationSample = sample;
                 if (loop.refretFrozenDestination.valid)
                 {
                     auto& destination = loop.refretFrozenDestination;
                     destinationSample = filter(destination.bank,
-                        readBoundary(destination.rawDelay - loop.currentDelay,
+                        readBoundary(destination.rawDelay,
                             destination.physicalPeriod - destination.physicalPending));
                 }
                 else destinationSample = filter(loop, sample);
                 return lerp(filter(source.bank, sourceSample),
                             destinationSample, destinationWeight);
             }
-            sample = lerp(readBoundary(sourceOffset), sample, destinationWeight);
+            sample = lerp(readBoundary(loop.currentDelay + sourceOffset),
+                          sample, destinationWeight);
         }
         return filter(loop, sample);
     };
