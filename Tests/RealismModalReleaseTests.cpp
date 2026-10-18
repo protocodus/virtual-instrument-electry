@@ -233,8 +233,7 @@ void actualReleaseAndTailUseTheProjection()
                     Access::isolateSource(*engine, stringNote[0]);
                     BilinearReference reference(initial.g);
                     float releaseState = 0, legacyState1 = 0, legacyState2 = 0;
-                    const bool ordinaryProjection = style != electry::PlayStyle::PalmMute
-                        && style != electry::PlayStyle::Hammer
+                    const bool ordinaryProjection = style != electry::PlayStyle::Hammer
                         && style != electry::PlayStyle::Pinch && style != electry::PlayStyle::Dead;
                     expect(initial.flatRelease == ordinaryProjection,
                            "A separately calibrated contact used the ordinary source projection" + label);
