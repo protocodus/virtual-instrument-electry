@@ -1,0 +1,551 @@
+{
+  "schema": "electry-refret-reference-selection/v1",
+  "date": "2026-10-18",
+  "purpose": "Portable provenance for the unchanged two source06 ascending phrases and two actual source12 descending single-string performances. This receipt is source selection, not a calibrated eight-string realism score or candidate acceptance.",
+  "reference_order": [
+    "techs-p3-06-e-string-transition",
+    "techs-p3-06-e-string-repeat",
+    "techs-p3-12-d-string-descent",
+    "techs-p3-12-high-e-descent"
+  ],
+  "retained_references": [
+    {
+      "id": "techs-p3-06-e-string-transition",
+      "title": "Guitar-TECHS P3 same E-string B2–C3–C#3–C#3, development-anchor",
+      "source_receipt": "performance-reference-selection-2026-10-18.json",
+      "source_receipt_sha256": "66bbbf8ff5bcc5240f60ec294c7f1d0c73a624d775b3b0f98adf57d6c606217e",
+      "alignment_group": "techs-p3-06",
+      "alignment_role": "development-anchor",
+      "midi_to_audio_offset_s": -0.0308705531250002,
+      "crop_start_frame": 230400,
+      "crop_frames": 52800,
+      "working_plan_row_bytes_unchanged": true
+    },
+    {
+      "id": "techs-p3-06-e-string-repeat",
+      "title": "Guitar-TECHS P3 same E-string B2–C3–C#3–C#3, repeat-check",
+      "source_receipt": "performance-reference-selection-2026-10-18.json",
+      "source_receipt_sha256": "66bbbf8ff5bcc5240f60ec294c7f1d0c73a624d775b3b0f98adf57d6c606217e",
+      "alignment_group": "techs-p3-06",
+      "alignment_role": "repeat-check",
+      "midi_to_audio_offset_s": -0.0308705531250002,
+      "crop_start_frame": 741600,
+      "crop_frames": 52800,
+      "working_plan_row_bytes_unchanged": true
+    }
+  ],
+  "source": {
+    "dataset": "Guitar-TECHS P3 musical excerpts",
+    "record_url": "https://zenodo.org/records/14963133",
+    "hardware_and_license_url": "https://guitar-techs.github.io/",
+    "license": "CC-BY-4.0",
+    "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. Original direct-input recordings and per-string MIDI; selected-channel fixed crops and constant listening trims by Electry research.",
+    "hardware": {
+      "performer": "Player 03",
+      "guitar": "Sire T7",
+      "strings_inches": ".010-.046",
+      "pickup_setting": "Bridge-Neck",
+      "audio_interface": "UMC202HD",
+      "signal_path": "Guitar output to splitter, separately to audio interface for direct input and to amplifier. This selection uses the directinput archive member."
+    },
+    "metadata_verified_date": "2026-10-18"
+  },
+  "archive": {
+    "id": "P3_music",
+    "url": "https://zenodo.org/api/records/14963133/files/P3_music.zip/content",
+    "bytes": 129505089,
+    "published_md5": "071ba80aecf00f4a31fbd167b3f22198",
+    "published_md5_source": "https://zenodo.org/records/14963133",
+    "whole_archive_downloaded": false,
+    "whole_archive_md5_verified_against_download": false,
+    "whole_archive_sha256": null,
+    "verification": "Selective official HTTP ZIP ranges were retained with SHA-256 receipts. Each selected decompressed original member was independently rechecked for byte length and CRC32 against the retained central directory and SHA-256 against the original acquisition receipt. The published whole-archive MD5 identifies the release; it is not represented as independently recomputed. No whole-archive SHA-256 is claimed.",
+    "central_directory_range": {
+      "start": 129495977,
+      "end": 129505066,
+      "sha256": "4fdd6505605de9ad83e126bc3785795f8fec410ce45d28ce30362356ae3fbdda"
+    },
+    "range_receipt_sha256": "b6731fc61bdb95799c21e15e5d5244cdef7ef378732aee6347eb996640864826",
+    "directory_member_index_sha256": "0ea8038d7883160362b44427a9159c3da36e2f51f87c3eb9f2d0e0cfd74fe215"
+  },
+  "assets": [
+    {
+      "member": "P3_music/midi/midi_12.mid",
+      "bytes": 1846,
+      "sha256": "1a22cd193ac5fcc54258d3125f486bdaa7134c8bb131a7c3875d580a40ee6abe",
+      "crc32": "065eea53",
+      "path": "assets/P3_music/midi/midi_12.mid",
+      "archive_id": "P3_music",
+      "zip_index": {
+        "local_header_offset": 6670,
+        "compression_method": 8,
+        "compressed_bytes": 1423,
+        "uncompressed_bytes": 1846,
+        "crc32": "065eea53"
+      },
+      "acquisition_ranges": [
+        {
+          "start": 6670,
+          "end": 6699,
+          "sha256": "04e1d058e853b85392d0490f59cee7629f46ff0e5faf2a687a54dd5fee9f3cdd"
+        },
+        {
+          "start": 6757,
+          "end": 8179,
+          "sha256": "41d86f5d40c0c760ed7c15828f39b773b5cd191362b3a7cf35c6d9849f588f32"
+        }
+      ],
+      "media": {
+        "kind": "MIDI",
+        "format": 1,
+        "ppqn": 960,
+        "tempo_events": [
+          [
+            0,
+            428571
+          ]
+        ],
+        "decoder": "Independent SMF chunk/VLQ/running-status/tempo parser; all track names and note event fields agree with separately retained original-byte parse."
+      }
+    },
+    {
+      "member": "P3_music/audio/directinput/directinput_12.wav",
+      "bytes": 12372690,
+      "sha256": "150ef466bf645ec076396810fbfc027f423294a5f49bf7c0887bcc1ff732930e",
+      "crc32": "60608da9",
+      "path": "assets/P3_music/audio/directinput/directinput_12.wav",
+      "archive_id": "P3_music",
+      "zip_index": {
+        "local_header_offset": 69410289,
+        "compression_method": 8,
+        "compressed_bytes": 5199187,
+        "uncompressed_bytes": 12372690,
+        "crc32": "60608da9"
+      },
+      "acquisition_ranges": [
+        {
+          "start": 69410289,
+          "end": 69410318,
+          "sha256": "873593e3d8d11dad45b1350600f277ec5b7f0a3707f62f8b4ab6c6e564bc6352"
+        },
+        {
+          "start": 69410396,
+          "end": 74609582,
+          "sha256": "b8fe4dd4cfde6b340206a96b3abe305b6674f2af98bd56a9830ce81dbd64850b"
+        }
+      ],
+      "media": {
+        "kind": "WAV",
+        "sample_rate_hz": 48000,
+        "bits_per_sample": 24,
+        "frames": 2062000,
+        "channels": 2,
+        "channel_relationship": "exact dual mono",
+        "selected_channel": 0
+      }
+    }
+  ],
+  "selection_protocol": {
+    "candidate_output_observed_for_selection": false,
+    "new_recordings_acquired_for_this_selection": false,
+    "source12_midi_decode_all_events_agreed": true,
+    "alignment_group": "techs-p3-12",
+    "development_anchor_reference": "techs-p3-12-d-string-descent",
+    "anchor_source_midi_seconds": 10.843292728125,
+    "anchor_source_audio_frame": 519353,
+    "sample_rate_hz": 48000,
+    "midi_to_audio_offset_s": -0.023438561458332785,
+    "onset_oracle": "First crossing of 25% of the first second peak of centered 2 ms RMS, existing BuildDryReferenceComparisons.py onset_frame; one source12 first-note measurement only.",
+    "transfer_check_reference": "techs-p3-12-high-e-descent",
+    "transfer_check_retained_residual_frames": 213.68339999997988,
+    "transfer_check_retained_residual_seconds": 0.004451737499999581,
+    "event_timing": "All selected original MIDI note starts, ends, note pitches and velocities retained after the one common group offset. No per-note or transfer-check onset fit. A and B receive identical production score events; B retains A model crop.",
+    "gain_and_processing": "Native 48 kHz source channel 0, fixed integer crops, one constant whole-file RMS gain per track to −24 dBFS followed by shared .94 sample-peak headroom. No EQ, denoise, time stretch, pitch shift, per-note gain, peak search, reference splice or runtime sample incorporation."
+  },
+  "references": [
+    {
+      "id": "techs-p3-12-d-string-descent",
+      "title": "Guitar-TECHS P3 same D-string G3-F3-E3, development-anchor",
+      "path": "assets/P3_music/audio/directinput/directinput_12.wav",
+      "sha256": "150ef466bf645ec076396810fbfc027f423294a5f49bf7c0887bcc1ff732930e",
+      "channel": 0,
+      "crop_start_frame": 513600,
+      "crop_frames": 56160,
+      "onset_frame": 519353,
+      "physical_string_index": 4,
+      "pickup": "bridge",
+      "style": "sustain",
+      "alignment_group": "techs-p3-12",
+      "alignment_role": "development-anchor",
+      "midi_to_audio_offset_s": -0.023438561458332785,
+      "midi_path": "assets/P3_music/midi/midi_12.mid",
+      "midi_sha256": "1a22cd193ac5fcc54258d3125f486bdaa7134c8bb131a7c3875d580a40ee6abe",
+      "model": {
+        "guitar_build": 0.8,
+        "scale": 0.85,
+        "gauge": 1.0,
+        "pickup": "bridge",
+        "pickup_type": 0.32,
+        "tone": 0.7,
+        "velocity": "source-MIDI velocity / 127; annotation, not calibrated force"
+      },
+      "events": [
+        {
+          "time_s": 10.819854166666667,
+          "type": "on",
+          "note": 55,
+          "velocity": 119
+        },
+        {
+          "time_s": 11.350657207291666,
+          "type": "off",
+          "note": 55,
+          "velocity": 0
+        },
+        {
+          "time_s": 11.443067829166667,
+          "type": "on",
+          "note": 53,
+          "velocity": 110
+        },
+        {
+          "time_s": 11.626549788541666,
+          "type": "off",
+          "note": 53,
+          "velocity": 0
+        },
+        {
+          "time_s": 11.697978288541668,
+          "type": "on",
+          "note": 52,
+          "velocity": 73
+        }
+      ],
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel 0 selection, fixed crops and constant listening trims by Electry research.",
+        "role": "development",
+        "limits": [
+          "P3 Sire T7 six-string .010-.046, bridge-neck pickups, UMC202HD; splitter to interface raw DI. Native 48 kHz/24-bit exact dual mono; channel 0 selected.",
+          "Original music performance; only the selected physical string has a MIDI owner in this crop. Waveform/spectrogram checked for a separate sustained harmonic series. Residual handling, body and sympathetic sound are not guaranteed absent.",
+          "One source12 MIDI-to-audio offset is fixed from the first G3 anchor using the existing 2ms-RMS quarter-peak onset oracle. High-E phrase shares it unchanged; no per-note or per-phrase offset fit.",
+          "Source06 rows and their earlier alignment group are unchanged. Source12 is another excerpt from the same performer and guitar, not an independent hardware holdout or a repetition of the G3 phrase.",
+          "Per-string Fishman MIDI timing and velocity are tracker annotations, not measured pick force or verified picking-versus-fretting labels. Source note ends and gaps are retained; model uses Sustain as declared audition approximation.",
+          "No EQ, denoising, time warp, pitch shift, dynamic gain or synthetic reference splice. Fixed crop and one whole-file listening gain only.",
+          "Crop ends while the last selected note is still annotated held, before its following different-string attack and precursor. No fabricated final source NoteOff or decay tail.",
+          "Model GuitarBuild 0.8 and existing bridge settings remain shared A/B; heavier eight-string geometry and pickup configuration do not fit this lighter six-string bridge-neck source."
+        ]
+      },
+      "sounding_midi": 55,
+      "sounding_midi_role": "First-note label only; use all phrase events.",
+      "source_crop_pcm24_sha256": "b5ac049114094301bb0aff6287f7a282aeea12efcf0bfa64143472b0f090c0cf",
+      "source_crop_hash_encoding": "Selected channel 0, signed24 PCM, little-endian 3 bytes/sample, no normalization or trim, no WAV header.",
+      "source_midi_events": [
+        {
+          "tick": 24289,
+          "type": "on",
+          "note": 55,
+          "velocity": 119,
+          "channel": 3,
+          "track": 4,
+          "seconds": 10.843292728125
+        },
+        {
+          "tick": 25478,
+          "type": "off",
+          "note": 55,
+          "velocity": 0,
+          "channel": 3,
+          "track": 4,
+          "seconds": 11.37409576875
+        },
+        {
+          "tick": 25685,
+          "type": "on",
+          "note": 53,
+          "velocity": 110,
+          "channel": 3,
+          "track": 4,
+          "seconds": 11.466506390625
+        },
+        {
+          "tick": 26096,
+          "type": "off",
+          "note": 53,
+          "velocity": 0,
+          "channel": 3,
+          "track": 4,
+          "seconds": 11.64998835
+        },
+        {
+          "tick": 26256,
+          "type": "on",
+          "note": 52,
+          "velocity": 73,
+          "channel": 3,
+          "track": 4,
+          "seconds": 11.72141685
+        }
+      ],
+      "onset_prediction": {
+        "observed_onset_frame": 519353,
+        "predicted_onset_frame": 519353.00000000006,
+        "residual_frames": -5.820766091346741e-11,
+        "residual_seconds": -1.2126596023639043e-15
+      },
+      "crop_guards": {
+        "previous_other_string_off_s": 10.131461997916666,
+        "next_other_string_on_s": 11.936370907291668,
+        "crop_guard_before_next_midi_on_s": 0.0663709072916685,
+        "previous_other_string_end_to_crop_start_s": 0.5685380020833328,
+        "basis": "Source MIDI ownership checked on every other physical string, plus source waveform/spectrogram inspection for prior series and following attack precursors; no candidate output used to select guards."
+      },
+      "source_context": {
+        "pre_onset_window_seconds": [
+          -0.07,
+          -0.02
+        ],
+        "post_onset_window_seconds": [
+          0.05,
+          0.15
+        ],
+        "pre_onset_rms": 0.0007461522064254458,
+        "post_onset_rms": 0.010514132611211726,
+        "pre_onset_std_vs_post_rms_db": -24.72518033412916,
+        "meaning": "Unfiltered source context only; pre-onset sound is retained and is not proof of physical silence or an acoustic acceptance threshold."
+      },
+      "physical_string_mapping": {
+        "source_track_name": "D",
+        "source_midi_channel": 3,
+        "model_string_index": 4,
+        "model_open_sounding_midi": 50,
+        "sounding_notes": [
+          55,
+          53,
+          52
+        ],
+        "model_frets": [
+          5,
+          3,
+          2
+        ],
+        "written_midi_rule": "sounding MIDI + 12, production Performer path with an explicit physical-string mask"
+      },
+      "omitted_final_source_end": {
+        "tick": 26682,
+        "type": "off",
+        "note": 52,
+        "velocity": 0,
+        "channel": 3,
+        "track": 4,
+        "seconds": 11.91159523125,
+        "audio_time_s": 11.888156669791668,
+        "reason": "Original MIDI end is after the conservative crop end; no source event or decay tail is fabricated."
+      }
+    },
+    {
+      "id": "techs-p3-12-high-e-descent",
+      "title": "Guitar-TECHS P3 same high-E-string G5-F5-E5, transfer-check",
+      "path": "assets/P3_music/audio/directinput/directinput_12.wav",
+      "sha256": "150ef466bf645ec076396810fbfc027f423294a5f49bf7c0887bcc1ff732930e",
+      "channel": 0,
+      "crop_start_frame": 768000,
+      "crop_frames": 52800,
+      "onset_frame": 774395,
+      "physical_string_index": 7,
+      "pickup": "bridge",
+      "style": "sustain",
+      "alignment_group": "techs-p3-12",
+      "alignment_role": "transfer-check",
+      "midi_to_audio_offset_s": -0.023438561458332785,
+      "midi_path": "assets/P3_music/midi/midi_12.mid",
+      "midi_sha256": "1a22cd193ac5fcc54258d3125f486bdaa7134c8bb131a7c3875d580a40ee6abe",
+      "model": {
+        "guitar_build": 0.8,
+        "scale": 0.85,
+        "gauge": 1.0,
+        "pickup": "bridge",
+        "pickup_type": 0.32,
+        "tone": 0.7,
+        "velocity": "source-MIDI velocity / 127; annotation, not calibrated force"
+      },
+      "events": [
+        {
+          "time_s": 16.128777429166668,
+          "type": "on",
+          "note": 79,
+          "velocity": 127
+        },
+        {
+          "time_s": 16.574312697916668,
+          "type": "off",
+          "note": 79,
+          "velocity": 0
+        },
+        {
+          "time_s": 16.735026822916666,
+          "type": "on",
+          "note": 77,
+          "velocity": 40
+        },
+        {
+          "time_s": 16.922526635416666,
+          "type": "off",
+          "note": 77,
+          "velocity": 0
+        },
+        {
+          "time_s": 16.968508732291667,
+          "type": "on",
+          "note": 76,
+          "velocity": 33
+        }
+      ],
+      "source": {
+        "url": "https://zenodo.org/records/14963133",
+        "license": "CC-BY-4.0",
+        "attribution": "Hegel Pedroza, Wallace Abreu, Ryan M. Corey and Iran R. Roman. Guitar-TECHS (ICASSP 2025), DOI:10.5281/zenodo.14963133. CC BY 4.0. DI channel 0 selection, fixed crops and constant listening trims by Electry research.",
+        "role": "held-out",
+        "limits": [
+          "P3 Sire T7 six-string .010-.046, bridge-neck pickups, UMC202HD; splitter to interface raw DI. Native 48 kHz/24-bit exact dual mono; channel 0 selected.",
+          "Original music performance; only the selected physical string has a MIDI owner in this crop. Waveform/spectrogram checked for a separate sustained harmonic series. Residual handling, body and sympathetic sound are not guaranteed absent.",
+          "One source12 MIDI-to-audio offset is fixed from the first G3 anchor using the existing 2ms-RMS quarter-peak onset oracle. High-E phrase shares it unchanged; no per-note or per-phrase offset fit.",
+          "Source06 rows and their earlier alignment group are unchanged. Source12 is another excerpt from the same performer and guitar, not an independent hardware holdout or a repetition of the G3 phrase.",
+          "Per-string Fishman MIDI timing and velocity are tracker annotations, not measured pick force or verified picking-versus-fretting labels. Source note ends and gaps are retained; model uses Sustain as declared audition approximation.",
+          "No EQ, denoising, time warp, pitch shift, dynamic gain or synthetic reference splice. Fixed crop and one whole-file listening gain only.",
+          "Crop ends while the last selected note is still annotated held, before its following different-string attack and precursor. No fabricated final source NoteOff or decay tail.",
+          "Model GuitarBuild 0.8 and existing bridge settings remain shared A/B; heavier eight-string geometry and pickup configuration do not fit this lighter six-string bridge-neck source."
+        ]
+      },
+      "sounding_midi": 79,
+      "sounding_midi_role": "First-note label only; use all phrase events.",
+      "source_crop_pcm24_sha256": "312545a36971c226f5c98a59e1c322dcb06cd44bcc2669576f75b1693d4b559d",
+      "source_crop_hash_encoding": "Selected channel 0, signed24 PCM, little-endian 3 bytes/sample, no normalization or trim, no WAV header.",
+      "source_midi_events": [
+        {
+          "tick": 36181,
+          "type": "on",
+          "note": 79,
+          "velocity": 127,
+          "channel": 0,
+          "track": 1,
+          "seconds": 16.152215990625
+        },
+        {
+          "tick": 37179,
+          "type": "off",
+          "note": 79,
+          "velocity": 0,
+          "channel": 0,
+          "track": 1,
+          "seconds": 16.597751259375
+        },
+        {
+          "tick": 37539,
+          "type": "on",
+          "note": 77,
+          "velocity": 40,
+          "channel": 0,
+          "track": 1,
+          "seconds": 16.758465384375
+        },
+        {
+          "tick": 37959,
+          "type": "off",
+          "note": 77,
+          "velocity": 0,
+          "channel": 0,
+          "track": 1,
+          "seconds": 16.945965196875
+        },
+        {
+          "tick": 38062,
+          "type": "on",
+          "note": 76,
+          "velocity": 33,
+          "channel": 0,
+          "track": 1,
+          "seconds": 16.99194729375
+        }
+      ],
+      "onset_prediction": {
+        "observed_onset_frame": 774395,
+        "predicted_onset_frame": 774181.3166,
+        "residual_frames": 213.68339999997988,
+        "residual_seconds": 0.004451737499999581
+      },
+      "crop_guards": {
+        "previous_other_string_off_s": 15.876991966666667,
+        "next_other_string_on_s": 17.179222807291666,
+        "crop_guard_before_next_midi_on_s": 0.07922280729166431,
+        "previous_other_string_end_to_crop_start_s": 0.12300803333333299,
+        "basis": "Source MIDI ownership checked on every other physical string, plus source waveform/spectrogram inspection for prior series and following attack precursors; no candidate output used to select guards."
+      },
+      "source_context": {
+        "pre_onset_window_seconds": [
+          -0.07,
+          -0.02
+        ],
+        "post_onset_window_seconds": [
+          0.05,
+          0.15
+        ],
+        "pre_onset_rms": 0.00016662329050889246,
+        "post_onset_rms": 0.012612345502981381,
+        "pre_onset_std_vs_post_rms_db": -38.95997342881077,
+        "meaning": "Unfiltered source context only; pre-onset sound is retained and is not proof of physical silence or an acoustic acceptance threshold."
+      },
+      "physical_string_mapping": {
+        "source_track_name": "e",
+        "source_midi_channel": 0,
+        "model_string_index": 7,
+        "model_open_sounding_midi": 64,
+        "sounding_notes": [
+          79,
+          77,
+          76
+        ],
+        "model_frets": [
+          15,
+          13,
+          12
+        ],
+        "written_midi_rule": "sounding MIDI + 12, production Performer path with an explicit physical-string mask"
+      },
+      "omitted_final_source_end": {
+        "tick": 38412,
+        "type": "off",
+        "note": 76,
+        "velocity": 0,
+        "channel": 0,
+        "track": 1,
+        "seconds": 17.1481971375,
+        "audio_time_s": 17.124758576041664,
+        "reason": "Original MIDI end is after the conservative crop end; no source event or decay tail is fabricated."
+      }
+    }
+  ],
+  "exclusions": [
+    "P3_06 descending phrases are multi-string chord gestures, not isolated-string reference phrases.",
+    "P3_02 ending E-string descent has held G55 and D50 annotations; excluded despite apparent foreground E melody.",
+    "P3_03 treble descents at11.6-12.3s and16.4-17.1s sit over held lower-string annotations; excluded.",
+    "No claim that mono DI can prove absence of all sympathetic string motion; selected source12 phrases have single-string annotations and compatible waveform/harmonic context."
+  ],
+  "limits": [
+    "Both source12 passages come from the same P3 performer, guitar, capture chain and original music excerpt; the high-E row is a string/register transfer check, not an actual repeat or independent hardware holdout.",
+    "Six-string source hardware does not establish the behavior of Electry lowest eight-string E1 or its thicker string set.",
+    "Per-string tracker annotations and compatible waveform/harmonic context support a single intentionally played string in each crop. Mono DI cannot prove absence of all sympathetic vibration, handling motion or residual body modes.",
+    "Tracker MIDI velocities are not measured pick forces; annotation note gaps do not uniquely label pick, hammer or pull-off gestures. Sustain is a declared model audition approximation.",
+    "The high-E phrase later notes have original MIDI velocities 40 and 33 versus first 127. They are kept quiet; separate per-note normalization would erase source dynamics.",
+    "The prototype and main model share existing GuitarBuild 0.8 bridge voicing, not a fit to the lighter source bridge-neck pickup configuration.",
+    "Source12 transfer-onset residual of approximately 4.45 ms is retained and limits per-note timing interpretations. No candidate-specific source alignment is fitted."
+  ],
+  "working_evidence": {
+    "selection_plan_sha256": "51396bc5ab78b51074cdfa6be4686f83c4af69296ef381f9156edc021428596b",
+    "selection_receipt_sha256": "e0b8e111f62ec04ca886a4e026438de976a003193b1c849c97c8605f6372dfeb",
+    "independent_selection_observer_sha256": "ea3fc20fdf0b1c15ca24a2d337971c98aed32fa63ba5f69a3a304948fdfa0d6f",
+    "source_context_plot_sha256": "aaec4273fc0d2e8b16c515655071b9b8b2ebe7f536614faf569819a8e28e4aea",
+    "prior_two_source06_rows_exact_raw_json_substrings_preserved": true
+  }
+}

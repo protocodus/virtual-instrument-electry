@@ -1195,6 +1195,28 @@ private:
         // existing short fret/pitch curve. Retain this trajectory through a
         // picking-hand repick, which can change playStyle while it travels.
         bool legatoUsesLengthTrajectory { false };
+        // A picked fret change crossfades stationary loop taps instead of
+        // scanning the intervening history with the bend/slide read head.
+        // Offsets share currentDelay's filter-phase coordinate, so damping
+        // compensation translates both endpoints together. The finite clock
+        // belongs to the boundary move, independently of pick scheduling.
+        float refretVerticalOffset { 0.0f };
+        float refretHorizontalOffset { 0.0f };
+        int refretLengthSamples { 0 };
+        int refretRemainingSamples { 0 };
+        bool refretQueued { false };
+        bool refretDelayLocked { false };
+        // Tension expression keeps its ordinary six-ms follower while the
+        // fret coordinate is locked. Full-period targets separate wave-speed
+        // motion from a queued fret's unrelated length change.
+        float refretExpressionSemitones { 0.0f };
+        float refretDestinationPeriod { 0.0f };
+        float refretSourcePeriod { 0.0f };
+        float refretDestinationPending { 0.0f };
+        float refretSourcePending { 0.0f };
+        float refretDestinationUnclampedPeriod { 0.0f };
+        float refretSourceUnclampedPeriod { 0.0f };
+        int refretTrackedMidiNote { -1 };
         // The physical slide already has a smooth finger trajectory. Carry its
         // control-tick period change across the following samples separately
         // from the ordinary bend follower, so that follower does not add a
@@ -1629,18 +1651,19 @@ private:
     // pitch smoother and horizontal detune without another state.
     [[nodiscard]] static float touchReadDelay(
         const Voice& voice, const PolarisationLoop& loop,
-        float compensatedPeriod) noexcept
+        float compensatedPeriod, float delayOffset = 0.0f) noexcept
     {
-        const float physicalPeriod = loop.currentDelay
+        const float physicalPeriod = (loop.currentDelay + delayOffset)
                                    + voice.lastCompensatedPeriod
                                    - compensatedPeriod;
-        return loop.currentDelay + voice.touchFraction * physicalPeriod;
+        return (loop.currentDelay + delayOffset)
+             + voice.touchFraction * physicalPeriod;
     }
     [[nodiscard]] static float touchReadSpread(
         const Voice& voice, const PolarisationLoop& loop,
-        float compensatedPeriod) noexcept
+        float compensatedPeriod, float delayOffset = 0.0f) noexcept
     {
-        const float physicalPeriod = loop.currentDelay
+        const float physicalPeriod = (loop.currentDelay + delayOffset)
                                    + voice.lastCompensatedPeriod
                                    - compensatedPeriod;
         const float halfWidth = std::min(
@@ -1651,10 +1674,10 @@ private:
     }
     [[nodiscard]] static float readTouchedString(
         const Voice& voice, const PolarisationLoop& loop,
-        float compensatedPeriod) noexcept
+        float compensatedPeriod, float delayOffset = 0.0f) noexcept
     {
-        const float centre = touchReadDelay(voice, loop, compensatedPeriod);
-        const float spread = touchReadSpread(voice, loop, compensatedPeriod);
+        const float centre = touchReadDelay(voice, loop, compensatedPeriod, delayOffset);
+        const float spread = touchReadSpread(voice, loop, compensatedPeriod, delayOffset);
         if (spread <= 0.0f)
             return loop.readFractional(centre);
         // Positive unit-sum weights preserve the point contact's static
@@ -1701,6 +1724,9 @@ private:
     [[nodiscard]] float bodyConductanceAt(float frequencyHz) const noexcept;
     void startExcitation(Voice& voice, float velocity, bool legato,
                          bool preservesExistingStringState) noexcept;
+    [[nodiscard]] int plectrumContactSamples(const Voice& voice) const noexcept;
+    void beginRefretHandoff(Voice& voice, int durationSamples,
+                            bool keepsUnperformedSource) noexcept;
 #if ELECTRY_ANALYTIC_RELEASE_IC
     struct ReleasedRail
     {

@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.3 LANGUAGES C CXX)
+project(Electry VERSION 1.2.4 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -457,6 +457,13 @@ if(BUILD_TESTING)
     set_tests_properties(Electry.ElectryEngine PROPERTIES
         TIMEOUT ${ELECTRY_ENGINE_TEST_TIMEOUT})
 
+    add_executable(ElectryRefretTests Tests/ElectryRefretTests.cpp)
+    target_link_libraries(ElectryRefretTests PRIVATE ElectryDSP)
+    target_compile_features(ElectryRefretTests PRIVATE cxx_std_17)
+    add_test(NAME Electry.Refret COMMAND ElectryRefretTests)
+    set_tests_properties(Electry.Refret PROPERTIES
+        TIMEOUT ${ELECTRY_ENGINE_TEST_TIMEOUT})
+
     add_executable(ElectryFxTests Tests/ElectryFxTests.cpp)
     target_link_libraries(ElectryFxTests PRIVATE ElectryDSP)
     target_compile_features(ElectryFxTests PRIVATE cxx_std_20)
@@ -682,7 +689,7 @@ if(BUILD_TESTING)
                 COMMAND "${Python3_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Tests/PerformanceComparisonTests.py"
                     $<TARGET_FILE:ElectryRenderPerformanceComparison>)
-            foreach(review IN ITEMS BuildDryReferenceComparisons AnalyzeDryReferenceComparisons BuildPhraseComparisons)
+            foreach(review IN ITEMS BuildDryReferenceComparisons AnalyzeDryReferenceComparisons BuildPhraseComparisons AnalyzeRefretComparisons)
                 add_test(NAME Electry.${review}
                     COMMAND "${Python3_EXECUTABLE}"
                         "${CMAKE_CURRENT_SOURCE_DIR}/Tests/${review}Tests.py")
