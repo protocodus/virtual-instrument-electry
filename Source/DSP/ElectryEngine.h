@@ -685,12 +685,15 @@ private:
         OnePole contactShaper1 {}, contactShaper2 {};
         float contactCoefficient { 0.99f };
         bool flatRelease { true };
+        bool singleRelease { false };
+        double singlePole { 0.99 }, singleState { 0.0 };
         static constexpr double damping = 1.7320508075688772935;
 
         void configureFromLegacyPole(double pole,
                                      bool useFlatRelease = true) noexcept
         {
             flatRelease = useFlatRelease;
+            singleRelease = false;
             // Standard Bessel H(s)=wn^2/(s^2+sqrt(3)*wn*s+wn^2).
             // Match the existing release's mean latency, not its natural
             // corner: the old cascaded poles have DC group delay 2a/(1-a),
@@ -702,8 +705,18 @@ private:
             a2 = g * a1;
             a3 = g * a2;
         }
+        void configureSinglePoleFromLegacyPole(double pole) noexcept
+        {
+            configureFromLegacyPole(pole, false);
+            // One standard real pole, unit DC area and the exact old pair's
+            // mean latency: b/(1-b)=2a/(1-a), hence b=2a/(1+a).
+            singlePole = 2.0 * pole / (1.0 + pole);
+            singleRelease = true;
+        }
         double decayPerSample() const noexcept
         {
+            if (singleRelease)
+                return -std::log(singlePole);
             // The complex poles have radius sqrt(a2_den). Use their actual
             // digital decay to drain Tail for the existing eight decay units.
             const double g = a2 / a1;
@@ -713,11 +726,18 @@ private:
         void reset() noexcept
         {
             ic1 = ic2 = 0.0;
+            singleState = 0.0;
             contactShaper1.reset();
             contactShaper2.reset();
         }
         float process(float input) noexcept
         {
+            if (singleRelease)
+            {
+                singleState += (1.0 - singlePole)
+                             * (static_cast<double>(input) - singleState);
+                return static_cast<float>(singleState);
+            }
             if (!flatRelease)
                 return contactShaper2.process(
                     contactShaper1.process(input, contactCoefficient),

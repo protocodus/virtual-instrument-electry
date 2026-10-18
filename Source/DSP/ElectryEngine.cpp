@@ -6539,6 +6539,13 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         && voice.playStyle != PlayStyle::Dead;
     voice.excitationModalShaper.configureFromLegacyPole(
         voice.excitationModalCoefficient, flatRelease);
+    // The heel already supplies the explicit bridge-hand and release loss.
+    // Probe one real source pole at the same unit area and mean latency,
+    // avoiding a second modal smoothing stage for this contact only.
+    const bool singlePoleRelease = voice.playStyle == PlayStyle::PalmMute;
+    if (singlePoleRelease)
+        voice.excitationModalShaper.configureSinglePoleFromLegacyPole(
+            voice.excitationModalCoefficient);
     voice.excitationModalShaper.contactCoefficient =
         voice.excitationModalCoefficient;
     // The plectrum does not release every string equally quickly: a wound .080
@@ -6615,9 +6622,9 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // Preserve the existing truncation budget for the new pole shape. Its
     // natural corner changes under equal mean-latency normalization, so the
     // old corner alone no longer describes its slowest exponential tail.
-    const double actualProjectionDecay = flatRelease
+    const double actualProjectionDecay = flatRelease || singlePoleRelease
         ? voice.excitationModalShaper.decayPerSample() : 0.0;
-    voice.excitationTailLength = flatRelease
+    voice.excitationTailLength = flatRelease || singlePoleRelease
         ? std::clamp(static_cast<int>(8.0 / std::min(actualProjectionDecay,
                          -std::log(static_cast<double>(voice.excitationReleaseCoefficient)))),
                      16, static_cast<int>(0.075f * sampleRate))
