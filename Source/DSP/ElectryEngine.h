@@ -1453,6 +1453,12 @@ private:
         // Symmetric history reads have no additional group delay.
         float releaseSpectralDepth { 0.0f };
         float releaseSpectralTarget { 0.0f };
+        // A new plectrum opens an existing stopping hand over its actual
+        // Contact, rather than switching the old loop back to full sustain.
+        // Progress uses excitationRemaining; no independent clock is added.
+        int releaseRestoreLength { 0 };
+        float releaseRestoreStartGain { 1.0f };
+        float releaseRestoreStartDepth { 0.0f };
         bool releaseNoiseDone { true };
         // Peak of the existing displacement-energy follower since the last
         // picked attack. A note ending follows the string still under the hand,
