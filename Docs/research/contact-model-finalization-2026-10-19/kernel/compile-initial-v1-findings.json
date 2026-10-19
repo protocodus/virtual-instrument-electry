@@ -1,0 +1,68 @@
+{
+  "schema": "electry-multicontact-compile-only-peer-source-findings/v1",
+  "role": "peer",
+  "status": "HOLD_unexecuted_v1_preserved",
+  "static_clear": false,
+  "multicontact_compile_only_authorized": false,
+  "implementation_manifest_sha256": "c1c25bf89dfcb883f7362bf54309bc9c4cea0140ec15a38882a96b7debae401e",
+  "protocol_sha256": "50fefb3df42841b45230ad54cbbcda7c5ef898d4deddff9b98649f47b770d8ac",
+  "inputs": {
+    "build-multicontact-passive-kernel/implementation-manifest-v1.json": {
+      "bytes": 19356,
+      "sha256": "c1c25bf89dfcb883f7362bf54309bc9c4cea0140ec15a38882a96b7debae401e"
+    },
+    "build-multicontact-passive-kernel/contact_interval_j5_draft_v1.hpp": {
+      "bytes": 23602,
+      "sha256": "5a12530a3f93e1da2835f01721ff027a8b0ece212be4b03d83944b59b3a42ac5"
+    },
+    "build-multicontact-passive-kernel/driver_j5_draft_v1.cpp": {
+      "bytes": 7164,
+      "sha256": "e4808bd23a973974d16660002f2fbeb994e23c36bb06d53147cf660b710f10cd"
+    },
+    "build-multicontact-passive-kernel/environment_negatives_j5_draft_v1.cpp": {
+      "bytes": 2955,
+      "sha256": "73957778f34a85d48c079f8af8ca30257cca8dade76098810d29ae78cf4155af"
+    },
+    "build-multicontact-passive-kernel/method-draft-v1.md": {
+      "bytes": 6374,
+      "sha256": "0f5765600a5d156b83936bb2d98621abc9a712cbf598d2ccca60ea803e4fa6be"
+    },
+    "build-multicontact-passive-kernel/compile-protocol-draft-v1.json": {
+      "bytes": 5150,
+      "sha256": "50fefb3df42841b45230ad54cbbcda7c5ef898d4deddff9b98649f47b770d8ac"
+    },
+    "build-multicontact-passive-kernel/compile_bindings_draft_v1.py": {
+      "bytes": 5539,
+      "sha256": "f5a263a6c5b187ccf277b41ed748d7ef0637ba82463fed8f3be426d25b6e1547"
+    },
+    "build-multicontact-passive-kernel/prepare_compile_draft_v1.py": {
+      "bytes": 3594,
+      "sha256": "00c28e4e5052e89ce7bec6179d0a0941619630c711c48d4427ce77ef4a33a017"
+    },
+    "build-multicontact-passive-kernel/compile_after_review_draft_v1.py": {
+      "bytes": 8458,
+      "sha256": "690b01828288c4f6e01a0061de8e78a6458d8e0eb061b8baf1e054ac76da5378"
+    }
+  },
+  "core_header_matches_math_snapshot": true,
+  "findings": [
+    {
+      "id": "owned-child-cleanup-scope",
+      "issue": "Popen returns before the cleanup try; exceptions during subsequent time/record setup reach outer failure handling without guaranteed owned-child termination/wait.",
+      "required_delta": "All post-Popen operations enter one cleanup scope; keep exact owned process identity before fallible operations."
+    },
+    {
+      "id": "signal-error-reaping",
+      "issue": "killpg catches only ProcessLookupError; another signal failure can skip communicate/wait and lose original failure.",
+      "required_delta": "Record cleanup errors separately, preserve original exception, always attempt owned-child reaping in finally."
+    },
+    {
+      "id": "failure-evidence-retention",
+      "issue": "Process rows are attached only after fallible log writes/hash facts, and final unguarded inventory/hash can prevent closed failure receipt.",
+      "required_delta": "Attach attempt/PID/closure row before launch; retain stdout/stderr/log errors separately; inventory best-effort with explicit incomplete facts and failure closure."
+    }
+  ],
+  "root_resolution": "Root directed separately versioned v2 wrapper/helper/preparer/protocol/method +MFv2/compile-v2. Original v1 remains frozen/unexecuted. Header/driver numerical graph unchanged.",
+  "reviewer_compile_binary_numeric_package_force_state_payload_calls": false,
+  "v2_static_clear_pending": true
+}

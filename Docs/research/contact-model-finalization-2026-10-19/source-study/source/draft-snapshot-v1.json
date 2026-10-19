@@ -1,0 +1,756 @@
+{
+  "schema": "electry-unexecuted-passive-source-draft-snapshot/v1",
+  "utc": "2026-10-19T05:28:23.380958+00:00",
+  "artifacts": {
+    "storage_v1.py": {
+      "bytes": 5271,
+      "sha256": "1c34baa8f74cd28ab0f095687d6f316e66aa782891c84d3dfb1a350acdf3bd1b"
+    },
+    "source_inputs_v1.py": {
+      "bytes": 6644,
+      "sha256": "d801ca7d698296b1f97506cfbd3d3cd522c23da8e5d8b45033b0a3941309902f"
+    },
+    "mechanics_v1.py": {
+      "bytes": 7319,
+      "sha256": "f45a11783df9fb7d68063676f81cf37edf93c127b5b13c2b3b5ab72781936c9e"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12334,
+      "sha256": "3ab6eb0f37dd3eb885878d9b7b0c164fa28b7f5e40a040a21512d482285f09e6"
+    },
+    "continuous_reference_draft_v1.py": {
+      "bytes": 7428,
+      "sha256": "272ac3cc418622a77cb873599e0e0156b607d8f72bdc1829e3ce2b543f216e75"
+    },
+    "support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "run_case_draft_v1.py": {
+      "bytes": 5276,
+      "sha256": "42d2ef89a390d8c150b4435ce4279e94ee67e7ba7e26723c1102e360ecc9ce59"
+    }
+  },
+  "nonarray_inputs": {
+    "build-next-tone-mechanism-synthesis/conditional-candidate-v2.json": {
+      "bytes": 8565,
+      "sha256": "4755ed1a48c32f18ad2763cb18423888e19fcffd5a2cbdd2cf063ff70787b77a"
+    },
+    "build-inherited-field-C/protocol.json": {
+      "bytes": 296409,
+      "sha256": "c35ba0501f022f93454f3d007cab4c5dd98d193832dc3ef704b9e0f90fb030f9"
+    },
+    "build-inherited-field-C/alpha-preflight-receipt.json": {
+      "bytes": 368507,
+      "sha256": "a0bc60a9c343df2560aff5d2fc6bb2dbcff1664601a8c4261ff4626304bc21b6"
+    },
+    "build-damped-collocated-source-port-coefficients-py312/protocol-wrapper-draft-v1.json": {
+      "bytes": 6889,
+      "sha256": "1767321ca9c23a3e1244813b3b11f0ce6e8eb3b087c90e49aed378169740ad2c"
+    },
+    "build-damped-collocated-source-port-coefficients-py312/implementation-manifest-v1.json": {
+      "bytes": 411990,
+      "sha256": "8e479ca49c50b5c3e0cf58fdd734c9966d62060569dd3a29c9010268dfae1bfc"
+    },
+    "build-damped-collocated-source-port-premium-review/saved-coefficient-audit/completed-receipt-v1.json": {
+      "bytes": 698,
+      "sha256": "083b4e61ec8bfdbe7ef1c0de2910e98110aeb9a393d24569e4835154163330a6"
+    },
+    "Source/DSP/ElectryEngine.cpp": {
+      "bytes": 506710,
+      "sha256": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567"
+    },
+    "build-damped-field-neck-body/DriverGeometry.cpp": {
+      "bytes": 6280,
+      "sha256": "ba0a20b3b9f7b16954ea6c57d79122c96902ab5f83e7396761f5a36f337411cd"
+    },
+    "build-damped-field-bridge-upper/GeometryDriver.cpp": {
+      "bytes": 6960,
+      "sha256": "126abf0f42aeb7a02a8280d21644f988e85bf776e9c23a2aca3ba1374e6639a2"
+    },
+    "build-physical-source-pickup-bridge/hook/source/Source/DSP/ElectryEngine.cpp": {
+      "bytes": 506948,
+      "sha256": "6779ec08fd55965dccffd390da5748bb0d359e0fce5fff85228b881e3b7dadc3"
+    },
+    "build-physical-source-pickup-bridge/final-manifest.json": {
+      "bytes": 28001,
+      "sha256": "3ce6a1cef764b8a56ec9a2105e4fb2c2d2844461245246a9de6f993d438c4275"
+    }
+  },
+  "recorded96_case_parameter_identities_no_arrays_read": {
+    "neck/fresh-pick018-slot001": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot001.json",
+        "bytes": 4183,
+        "sha256": "3b1e85b4f9116337ce0e49158bafeade8e4dc729b227b586184ab4ce4bfab42d"
+      }
+    },
+    "neck/fresh-pick018-slot002": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot002.json",
+        "bytes": 4181,
+        "sha256": "e00a2d43d0832cf26b9f417050551f587cda0e64ca6d788dd8721f6e0b872ba0"
+      }
+    },
+    "neck/fresh-pick018-slot003": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot003.json",
+        "bytes": 4160,
+        "sha256": "08afe67ca6b43bf52f292a8b98d5544e6112542293bb7f160626d1abd2eec415"
+      }
+    },
+    "neck/fresh-pick018-slot004": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot004.json",
+        "bytes": 4194,
+        "sha256": "6fb55b754d58ec10e938fe291c6ea160443c7cc620327006d58f6b8557509ed6"
+      }
+    },
+    "neck/fresh-pick018-slot005": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot005.json",
+        "bytes": 4193,
+        "sha256": "1d9af837973c1a18fa4328c5f95ed32f7f17a750320c4fb745cb9d7a9d83d5eb"
+      }
+    },
+    "neck/fresh-pick018-slot006": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot006.json",
+        "bytes": 4165,
+        "sha256": "6b21b71fb684826b54c25a42b7f67749891db226fd1df0a595abbe8d1b74fa45"
+      }
+    },
+    "neck/fresh-pick018-slot007": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot007.json",
+        "bytes": 4194,
+        "sha256": "5f22cc2390e649229f51bde4574f711a49e4b93d8d403c8761e0449d49136afb"
+      }
+    },
+    "neck/fresh-pick018-slot008": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot008.json",
+        "bytes": 4175,
+        "sha256": "791b175f50f3831652d9cb82b255f592e23063adeae8741bb44ffd3dc7af879a"
+      }
+    },
+    "neck/fresh-pick018-slot009": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot009.json",
+        "bytes": 4166,
+        "sha256": "7d1fd4f5ca53aa7486eaca14f2ef0232ed8cc8ef4942fc69686e6aee519b7405"
+      }
+    },
+    "neck/fresh-pick018-slot010": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot010.json",
+        "bytes": 4194,
+        "sha256": "41723b19a68037d9fc7d897e43750c0ea583055a9f41135e77d235d63fdb2160"
+      }
+    },
+    "neck/fresh-pick018-slot011": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot011.json",
+        "bytes": 4187,
+        "sha256": "8c77a314b2c97e577cb8cbe03e6b57627d7f4bfeeead076a2726ea9738776888"
+      }
+    },
+    "neck/fresh-pick018-slot012": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot012.json",
+        "bytes": 4175,
+        "sha256": "15d6ceae555e1bcf66b8693faa29259f2e6b713cc0b216e57e68fea161b3c684"
+      }
+    },
+    "neck/fresh-pick018-slot013": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot013.json",
+        "bytes": 4178,
+        "sha256": "bd2b64e185bdb8a7df1697b8ceed2092680befda1b11fa8dd3c1992d6a726c6c"
+      }
+    },
+    "neck/fresh-pick018-slot014": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot014.json",
+        "bytes": 4182,
+        "sha256": "b90ac53002dbc78963a453a89b2a3ba52c7e1443de4e4cb1a11cda11199b24c3"
+      }
+    },
+    "neck/fresh-pick018-slot015": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot015.json",
+        "bytes": 4160,
+        "sha256": "b25c865d76eabe2712ce4b9520d7b9bdba9952a56ef8364278058cd6edf1bb29"
+      }
+    },
+    "neck/fresh-pick018-slot016": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot016.json",
+        "bytes": 4217,
+        "sha256": "df3301e7980932895674e53a2da60227e51c90ae9b9381471d0b0f11204ecd6a"
+      }
+    },
+    "neck/fresh-pick018-slot017": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot017.json",
+        "bytes": 4218,
+        "sha256": "b1ac944d13e477f1b098e139007429232be3e600c9f9284282625f83a9c0d700"
+      }
+    },
+    "neck/fresh-pick018-slot018": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot018.json",
+        "bytes": 4198,
+        "sha256": "b98bc4ae2d4329623f7c969b7f272d3bad9dd55fc17abb1d9019f6b3610943bb"
+      }
+    },
+    "neck/fresh-pick018-slot019": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot019.json",
+        "bytes": 4215,
+        "sha256": "f05f4ae38bceb0f228be0e2916d00d504103f44cab217b99e0ed08bcb2d9d70d"
+      }
+    },
+    "neck/fresh-pick018-slot020": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot020.json",
+        "bytes": 4207,
+        "sha256": "103cdf7ac5b85c4b626f501ba5476f36aeffbda78e019538820494b8e37173c4"
+      }
+    },
+    "neck/fresh-pick018-slot021": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot021.json",
+        "bytes": 4197,
+        "sha256": "8f214bf32aa3b54c8de43259e337f39c85abdf45870a27c92771adf92f6c03a1"
+      }
+    },
+    "neck/fresh-pick018-slot022": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot022.json",
+        "bytes": 4216,
+        "sha256": "05a2a7222df7268774691a1f0b1d7d2b6eb36c5e8ce0a50b718631ec29d95d4c"
+      }
+    },
+    "neck/fresh-pick018-slot023": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot023.json",
+        "bytes": 4208,
+        "sha256": "0d7b2f32dfcdfbcf35e1d0a9f49655287bbf41b792a92d7a90c2dd024aa287e0"
+      }
+    },
+    "neck/fresh-pick018-slot024": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot024.json",
+        "bytes": 4174,
+        "sha256": "0e45c2d864ea151da2a7ca0ad5383396c85b72f4c64fcff916829bd7727c1f25"
+      }
+    },
+    "neck/fresh-pick018-slot025": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot025.json",
+        "bytes": 4203,
+        "sha256": "a90e6760a47b3af02c567861937e88d1a427a2836f98e39583439bafc5a64c71"
+      }
+    },
+    "neck/fresh-pick018-slot026": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot026.json",
+        "bytes": 4186,
+        "sha256": "3b890551be089be2369819103173a7c21587709aeeaa7d12ae2d691dcf2158de"
+      }
+    },
+    "neck/fresh-pick018-slot027": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot027.json",
+        "bytes": 4174,
+        "sha256": "8b5b319db4b0a0f441ed6be371354eb9462eb75c772854b252154539a4fef81b"
+      }
+    },
+    "neck/fresh-pick018-slot028": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot028.json",
+        "bytes": 4201,
+        "sha256": "2ffb4e0ac254196cc78306a3850d269e1f4e2a42c9aa73d1fdf7b0d7d3cadcef"
+      }
+    },
+    "neck/fresh-pick018-slot029": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot029.json",
+        "bytes": 4197,
+        "sha256": "31c15e2db8683492ea76ef7638dc8169a19c1175f3aeded48b526929fe05ce27"
+      }
+    },
+    "neck/fresh-pick018-slot030": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot030.json",
+        "bytes": 4183,
+        "sha256": "4428ddbb70eba9f8a65c87b896b990cc96d077d714c1e61124a405f4bc244b9b"
+      }
+    },
+    "neck/fresh-pick018-slot031": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot031.json",
+        "bytes": 4182,
+        "sha256": "5ee8564a0ffae0f6ddd65f9ad2dd84c6ae1e83b7b6febfb8feb44a78ae64394d"
+      }
+    },
+    "neck/fresh-pick018-slot032": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot032.json",
+        "bytes": 4189,
+        "sha256": "502bee3877180c207ae7e6ba541bc6061987be87d92d3a2470245522c20e6f9b"
+      }
+    },
+    "neck/fresh-pick018-slot033": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot033.json",
+        "bytes": 4168,
+        "sha256": "fe711a053c8d49c3fc7a49518847c45621698cafecf6041b7f37061a173d43e7"
+      }
+    },
+    "neck/fresh-pick018-slot034": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot034.json",
+        "bytes": 4229,
+        "sha256": "3ee83aa7d5e9a6355fe878013b336a1f0f48f659972202076c0d36c275c4924b"
+      }
+    },
+    "neck/fresh-pick018-slot035": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot035.json",
+        "bytes": 4225,
+        "sha256": "2a04ebb9c24bc86fc488361d86ddff8d21cc667369d134ff345be297bd3ef84e"
+      }
+    },
+    "neck/fresh-pick018-slot036": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot036.json",
+        "bytes": 4208,
+        "sha256": "e45e7bcdcb35807a7f4f3d20faab8e72d236e199d3a690934538a74cdd70e792"
+      }
+    },
+    "neck/fresh-pick018-slot037": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot037.json",
+        "bytes": 4226,
+        "sha256": "2b544b87745f69c7fdc5b764863046120eaba5e572f86a47240f5c90c02ad970"
+      }
+    },
+    "neck/fresh-pick018-slot038": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot038.json",
+        "bytes": 4215,
+        "sha256": "d0ae2a2a09f310cc685c59edcb9f23bad6f182b4aff4d440f794b8a00deffe84"
+      }
+    },
+    "neck/fresh-pick018-slot039": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot039.json",
+        "bytes": 4204,
+        "sha256": "ef1c91be1f55d12860955f1da2ed17b0909617729d5e8af25043564598266f71"
+      }
+    },
+    "neck/fresh-pick018-slot040": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot040.json",
+        "bytes": 4225,
+        "sha256": "0cdc9ca7782db4209d7be6a2bb3d34165f302a07258674d374133199f5a08378"
+      }
+    },
+    "neck/fresh-pick018-slot041": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot041.json",
+        "bytes": 4217,
+        "sha256": "3b4cdb809750b41f3c0b84822b5b918ac8b765c8d4e68dc481a664cfc47b70d3"
+      }
+    },
+    "neck/fresh-pick018-slot042": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot042.json",
+        "bytes": 4208,
+        "sha256": "5a7567fac88ef310a4b40b70b5f5839c66c28fe1a48f5e1a0fa894717821eef6"
+      }
+    },
+    "neck/fresh-pick018-slot043": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot043.json",
+        "bytes": 4208,
+        "sha256": "19d29821bcde9b20abb8b606c8f88c21a41426ce6e9876a12bf46ce97c1a0c6f"
+      }
+    },
+    "neck/fresh-pick018-slot044": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot044.json",
+        "bytes": 4210,
+        "sha256": "34c58ff71e331ff573292a8daa0c1d5fa177d2ae9a867436254550640201d213"
+      }
+    },
+    "neck/fresh-pick018-slot045": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot045.json",
+        "bytes": 4198,
+        "sha256": "56571710629cb937501a8bf84d4a34c650ee46df5001fd69df4718d197b117e0"
+      }
+    },
+    "neck/fresh-pick018-slot046": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick018-slot046.json",
+        "bytes": 4239,
+        "sha256": "770c6e04218b549045336acfca079e8acb1bdb1cd7a6848b46eff9b0c9c3dfd5"
+      }
+    },
+    "neck/fresh-pick050-slot001": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot001.json",
+        "bytes": 4165,
+        "sha256": "33c7b0bc3626f89bae59489495ec2160abd06af78562a761007581332d5c44e2"
+      }
+    },
+    "neck/fresh-pick050-slot002": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot002.json",
+        "bytes": 4164,
+        "sha256": "3fda4c2ca9350473402ea712983f780b9bbb3a29c384ce7fee50b52c8285dd14"
+      }
+    },
+    "neck/fresh-pick050-slot003": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot003.json",
+        "bytes": 4143,
+        "sha256": "a18eebcf0d19e53c62932df43dc8d19808364f92e422fa38256fb796777e5121"
+      }
+    },
+    "neck/fresh-pick050-slot004": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot004.json",
+        "bytes": 4177,
+        "sha256": "031a770846522c5a2b5178364c23801dd00cccf5eb020cc526bba935ec6db635"
+      }
+    },
+    "neck/fresh-pick050-slot005": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot005.json",
+        "bytes": 4178,
+        "sha256": "71a78e195dafa4dd6b33a3e8c3a5f5b04b07bc7c90b947e42e1e91025299cfbf"
+      }
+    },
+    "neck/fresh-pick050-slot006": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot006.json",
+        "bytes": 4147,
+        "sha256": "2ef187ad6f5158ecc8ec19d896d0f84da625a4acc5e57fff774d48720b86bc68"
+      }
+    },
+    "neck/fresh-pick050-slot007": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot007.json",
+        "bytes": 4177,
+        "sha256": "140684d588bd31a3f9e8ca1bede792a5d57f3f6fd7cb2a4d91e50aeee28a2642"
+      }
+    },
+    "neck/fresh-pick050-slot008": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot008.json",
+        "bytes": 4159,
+        "sha256": "30cc2d6b6fa13d0d08d2a64e9e4c663928911cb54cc0c68e719d1bbbe171997c"
+      }
+    },
+    "neck/fresh-pick050-slot009": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot009.json",
+        "bytes": 4148,
+        "sha256": "8868cd21ab067ba7e82bcde719fe9a00956f220318eecb0def8904bbf2c756f2"
+      }
+    },
+    "neck/fresh-pick050-slot010": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot010.json",
+        "bytes": 4179,
+        "sha256": "bc4ffaa9049a63148b935f85b18c39e39ab225740b174d14461fbec0aaf4c0e5"
+      }
+    },
+    "neck/fresh-pick050-slot011": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot011.json",
+        "bytes": 4170,
+        "sha256": "30a58eaee00a4d624670029694ad258b5faf5880a906ffa7ea848a2b94201c0f"
+      }
+    },
+    "neck/fresh-pick050-slot012": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot012.json",
+        "bytes": 4159,
+        "sha256": "4c5abb109cbd3bdc0a46a7b1b9f7af886350e25c90436494455454fe2726e35d"
+      }
+    },
+    "neck/fresh-pick050-slot013": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot013.json",
+        "bytes": 4160,
+        "sha256": "588d061bd16887628cd1b15067605c3c17bfd6ebd6ee5ef523b7a8dfc96332c0"
+      }
+    },
+    "neck/fresh-pick050-slot014": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot014.json",
+        "bytes": 4163,
+        "sha256": "7ecd4de5dfc8fc7a839ab40a7de7170b5cd2b0a2943bf656f3a723f12ffe5d6b"
+      }
+    },
+    "neck/fresh-pick050-slot015": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot015.json",
+        "bytes": 4141,
+        "sha256": "d97dd6cf103e18515a3cce46af825027ff6c72199a22e583d232111e3c531bfa"
+      }
+    },
+    "neck/fresh-pick050-slot016": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot016.json",
+        "bytes": 4199,
+        "sha256": "0fbe76c1ea0c01837dfad6aebfd61f662a5e3ee7cc7385684fa3f7cb7f6f9587"
+      }
+    },
+    "neck/fresh-pick050-slot017": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot017.json",
+        "bytes": 4200,
+        "sha256": "3e9a754c379977839555f6191ba6a5d1c95cc738588b0e2333b740875bf36e05"
+      }
+    },
+    "neck/fresh-pick050-slot018": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot018.json",
+        "bytes": 4179,
+        "sha256": "1b17a0e2a669d8814d9ef3fb3461d8a57358d149989885e124e2c8631d4f58c5"
+      }
+    },
+    "neck/fresh-pick050-slot019": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot019.json",
+        "bytes": 4198,
+        "sha256": "8b1e786476e5d686576f68ef3e0f480ed81c559b2cd221d7ecf42a79de3319ef"
+      }
+    },
+    "neck/fresh-pick050-slot020": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot020.json",
+        "bytes": 4190,
+        "sha256": "7bf9129f2f69af0e3632ba032d142b36ac7ee5918a1b561b8fc127cab4301f78"
+      }
+    },
+    "neck/fresh-pick050-slot021": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot021.json",
+        "bytes": 4179,
+        "sha256": "7510a7ff4ffa030be59f61ebb9e4583478bee6920935ee786e4d8b37d50a629f"
+      }
+    },
+    "neck/fresh-pick050-slot022": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot022.json",
+        "bytes": 4200,
+        "sha256": "0995bf2f3dfd0cc334ba997f412dac9e9f6175e077703346f6e4f5068925ae39"
+      }
+    },
+    "neck/fresh-pick050-slot023": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot023.json",
+        "bytes": 4191,
+        "sha256": "46391c5502149793f1327f73c2d8039686011874129cba720092d4dadc1abc4b"
+      }
+    },
+    "neck/fresh-pick050-slot024": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot024.json",
+        "bytes": 4158,
+        "sha256": "c64ac2f986a271c38b28d72f402fb90eb7a9af9cedc9f486ab13ea8504c93b20"
+      }
+    },
+    "neck/fresh-pick050-slot025": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot025.json",
+        "bytes": 4186,
+        "sha256": "1f6764ca429f742f6e4eb4ee2ee6e803d39637ad08c811de2b16b6ded16c04d4"
+      }
+    },
+    "neck/fresh-pick050-slot026": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot026.json",
+        "bytes": 4167,
+        "sha256": "37ec11471f5ed24309a514ceb8d7f7f8113c5466a08879f551764bf05bbd9f1c"
+      }
+    },
+    "neck/fresh-pick050-slot027": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot027.json",
+        "bytes": 4156,
+        "sha256": "05f7d10b706a5f2f9751213ef24630171b7fb553846221a5c21d66a2dca6bfc3"
+      }
+    },
+    "neck/fresh-pick050-slot028": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot028.json",
+        "bytes": 4184,
+        "sha256": "354e01732e60f5afc747e0a53871fbbe272f7f18dc4477de5cde5f8069d77a19"
+      }
+    },
+    "neck/fresh-pick050-slot029": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot029.json",
+        "bytes": 4180,
+        "sha256": "19d65188d76a745ad75b976763a77b94730364d0383e6411d1dd213dde6ce181"
+      }
+    },
+    "neck/fresh-pick050-slot030": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot030.json",
+        "bytes": 4165,
+        "sha256": "c52d90fa0cc0343d8f319723c33bdd9b639dcc1dd29b6ade0752078538dc4846"
+      }
+    },
+    "neck/fresh-pick050-slot031": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot031.json",
+        "bytes": 4164,
+        "sha256": "fb9fc00efc8d027488b5a5a10953a9b43bad13c3aa8f7b30bab9685b64194599"
+      }
+    },
+    "neck/fresh-pick050-slot032": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot032.json",
+        "bytes": 4171,
+        "sha256": "d5927a2525dcf95167d17b10c13c4b4c3bbbba4a8f55a287b5eeee5eeb2be702"
+      }
+    },
+    "neck/fresh-pick050-slot033": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot033.json",
+        "bytes": 4148,
+        "sha256": "0d1553a531f1b78026bc409fb111844d387fadeb2b8ed8c9172c3693be0b5b9c"
+      }
+    },
+    "neck/fresh-pick050-slot034": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot034.json",
+        "bytes": 4211,
+        "sha256": "b44439de78f95d8393fbaea0cece0cd17cc82ecd254fc5bc3e0c21ac0f15c416"
+      }
+    },
+    "neck/fresh-pick050-slot035": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot035.json",
+        "bytes": 4208,
+        "sha256": "0cba8e8745911792c93d58c66ef652a1fc5b51d223b5f1c0ae2fb912c89336a7"
+      }
+    },
+    "neck/fresh-pick050-slot036": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot036.json",
+        "bytes": 4189,
+        "sha256": "411b3cb0cdb41825cc8e89c4b76175fe6eca1d09a3df50357c3dc1a47f40444f"
+      }
+    },
+    "neck/fresh-pick050-slot037": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot037.json",
+        "bytes": 4209,
+        "sha256": "7400c5e5df87945aeac15b56bf6ccc35bfc9fe9c59c8620f6b840b620b73746b"
+      }
+    },
+    "neck/fresh-pick050-slot038": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot038.json",
+        "bytes": 4196,
+        "sha256": "ccaaed4f885c826b1ac411db17d1a86661b89e39cae5139e9f22472525415417"
+      }
+    },
+    "neck/fresh-pick050-slot039": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot039.json",
+        "bytes": 4184,
+        "sha256": "e4cb6e11c5a00db11841a26a7d6139aa32b5c52b46fb48f6c05f1975b8080167"
+      }
+    },
+    "neck/fresh-pick050-slot040": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot040.json",
+        "bytes": 4207,
+        "sha256": "7c9a6777c2f7b57335902dcf00b804b2f3924bd11ecb336a9ebb5d9e44af688a"
+      }
+    },
+    "neck/fresh-pick050-slot041": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot041.json",
+        "bytes": 4200,
+        "sha256": "8e46d9ef470e705d3dd419bce7358c463788603cc0a86ffbef4ec2a6d7d46083"
+      }
+    },
+    "neck/fresh-pick050-slot042": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot042.json",
+        "bytes": 4190,
+        "sha256": "95a8ca94f23588f63027de283633f46317f6d9e8d86d4d3dee9abdf934c277ec"
+      }
+    },
+    "neck/fresh-pick050-slot043": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot043.json",
+        "bytes": 4192,
+        "sha256": "dcf5911091e6473944b530329fcfcc6ee6af9284089def5158cd9f903949b292"
+      }
+    },
+    "neck/fresh-pick050-slot044": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot044.json",
+        "bytes": 4194,
+        "sha256": "7cb789e131c710430c90713db61123b8bce543f45973b961e9bc682cc0658d54"
+      }
+    },
+    "neck/fresh-pick050-slot045": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot045.json",
+        "bytes": 4179,
+        "sha256": "50e81dbf7ac592e05d012072045db05b74088972e6ed232fa399450c3feaf091"
+      }
+    },
+    "neck/fresh-pick050-slot046": {
+      "old_metadata": {
+        "path": "build-damped-field-neck-body/geometry/fresh-pick050-slot046.json",
+        "bytes": 4223,
+        "sha256": "047f61d436c27be57cc76374f0bfe973091dd5a32b476ce9a5e4334969656cf1"
+      }
+    },
+    "bridge/hb018": {
+      "old_metadata": {
+        "path": "build-damped-field-bridge-upper/geometry/hb018-voice.json",
+        "bytes": 4360,
+        "sha256": "aca602906bdb2d5a9da7c238935b535bfb4b7b1634608df40277c0ab2e3905b2"
+      }
+    },
+    "bridge/hb050": {
+      "old_metadata": {
+        "path": "build-damped-field-bridge-upper/geometry/hb050-voice.json",
+        "bytes": 4344,
+        "sha256": "439edafcc28d7997966aa42520d726528884f4e55e7b0b59a36ffc410c6f8396"
+      }
+    },
+    "bridge/sc018": {
+      "old_metadata": {
+        "path": "build-damped-field-bridge-upper/geometry/sc018-voice.json",
+        "bytes": 4346,
+        "sha256": "724816b4ed70aa4625a3d1eade0b86f5067baea1a79def9207130e7c4bff0d76"
+      }
+    },
+    "bridge/sc050": {
+      "old_metadata": {
+        "path": "build-damped-field-bridge-upper/geometry/sc050-voice.json",
+        "bytes": 4330,
+        "sha256": "c561d8952e00477688a61fe9271dcf3567a7a0a3f19a126730f9e077a06a680e"
+      }
+    }
+  },
+  "no_import_or_numerical_execution": true,
+  "is_final_freeze_or_authorization": false
+}

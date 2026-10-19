@@ -1,0 +1,41 @@
+{
+  "schema": "electry-independent-saved-render-peer-source-review/v2",
+  "utc": "2026-10-19T16:05:36.375545+00:00",
+  "role": "peer",
+  "reviewer": "/root/replay_draft_final_review",
+  "static_source_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_authorized": false,
+  "bindings": {
+    "check_render_saved_draft_v1.py": {
+      "bytes": 15504,
+      "sha256": "0bc4d43c58dbd6f06247f24b8ebec1e2eaf8eae8ffcd30059704a0726433e236"
+    },
+    "saved-render-review-protocol-draft-v1.json": {
+      "bytes": 6797,
+      "sha256": "f92d6a477422dd652ea6a1fbe4a5ee4b7b59244f44528e565c31db44958cf5ce"
+    },
+    "check_render_saved_draft_v2.py": {
+      "bytes": 16202,
+      "sha256": "9f956b0676f84f03903d37ca00d66243df67c3e5de9fb4fece5ef35e0de3f23c"
+    },
+    "saved-render-review-protocol-draft-v2.json": {
+      "bytes": 7959,
+      "sha256": "74fed98b5a43fe02883ac3d42cad2810b1bfdecc7716f01576be2442b9d2ad44"
+    },
+    "saved-render-peer-source-review-v1.json": {
+      "bytes": 2977,
+      "sha256": "e2d79d2ba60a64476a8b37925f19f3c81d9f6b924e7c24640a8fef8c15554d63"
+    }
+  },
+  "findings": [],
+  "v1_preparation_membership_gap_closed_by_v2": true,
+  "review_scope": "Full v1 source/protocol plus exact v2 diff/protocol, syntax-only AST/JSON parse. All source-preflight/aggregate and96 E metadata/attempt/start/closedlog/stdout/stderr paths are structurally required in m.inputs before288 payload hashes/decode; final gate rehashes them. Original96 bitcopy/PCM/control/argv/ownedclosure/provenance checks remain unchanged.",
+  "preserved_v1_exact": true,
+  "no_numeric_imports_payload_hashes_arrays_fields_PCM_or_execution": true,
+  "future_requirements": [
+    "Actual complete source/audit/render closure, exact future checker manifest and fresh root/peer execution reviews/authority.",
+    "Combined root seal must inspect all96_render_qualified:true,96 PASS rows and empty failures; saved case failures may return process exit0."
+  ],
+  "scientific_or_production_qualification": false
+}

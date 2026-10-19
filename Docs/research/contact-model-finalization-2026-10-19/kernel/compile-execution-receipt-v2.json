@@ -1,0 +1,229 @@
+{
+  "schema": "electry-multicontact-compile-only-execution/v2",
+  "utc": "2026-10-19T15:14:47.488211+00:00",
+  "authorization": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-multicontact-passive-kernel/compile-authorization-v2.json",
+    "bytes": 1227,
+    "sha256": "a1312cb3a7459f4e0d3da19034c59a84ddfb99357d8d8686eb35e3f95c67a27d"
+  },
+  "manifest": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-multicontact-passive-kernel/implementation-manifest-v2.json",
+    "bytes": 20814,
+    "sha256": "704e948936d839d97db2ecbe65a170e34b8c35abb3f1b97095e8407af8f54564"
+  },
+  "protocol": {
+    "bytes": 6186,
+    "sha256": "2f064ffa1bbd2efda33a5e9798f6ca325f16ee988d79f37649ee3e72600d8e1e"
+  },
+  "attempts": [
+    {
+      "number": 0,
+      "argv": [
+        "/usr/bin/clang++",
+        "--version"
+      ],
+      "spawn_attempted": true,
+      "pid": 81298,
+      "pgid": 81298,
+      "returncode": 0,
+      "owned_group_closed": true,
+      "failure": null,
+      "cleanup_errors": [],
+      "stdout": {
+        "bytes": 159,
+        "sha256": "76a924f59997fb65051981eb13105e0a8c151f16cd9c3e45e0f7c27ecefdb839"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "PASS": true
+    },
+    {
+      "number": 1,
+      "argv": [
+        "/usr/bin/clang++",
+        "-std=c++17",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-model=strict",
+        "-ffp-contract=off",
+        "-frounding-math",
+        "-fno-lto",
+        "-Wall",
+        "-Wextra",
+        "-pedantic",
+        "-save-temps=obj",
+        "driver_j5_draft_v1.cpp",
+        "-o",
+        "compile-v2/multicontact-stream-v1"
+      ],
+      "spawn_attempted": true,
+      "pid": 81299,
+      "pgid": 81299,
+      "returncode": 0,
+      "owned_group_closed": true,
+      "failure": null,
+      "cleanup_errors": [],
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "PASS": true
+    },
+    {
+      "number": 2,
+      "argv": [
+        "/usr/bin/clang++",
+        "-std=c++17",
+        "-O2",
+        "-fno-fast-math",
+        "-ffp-model=strict",
+        "-ffp-contract=off",
+        "-frounding-math",
+        "-fno-lto",
+        "-Wall",
+        "-Wextra",
+        "-pedantic",
+        "-save-temps=obj",
+        "environment_negatives_j5_draft_v1.cpp",
+        "-o",
+        "compile-v2/multicontact-environment-negatives-v1"
+      ],
+      "spawn_attempted": true,
+      "pid": 81305,
+      "pgid": 81305,
+      "returncode": 0,
+      "owned_group_closed": true,
+      "failure": null,
+      "cleanup_errors": [],
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "PASS": true
+    }
+  ],
+  "failures": [],
+  "post_input_bindings": {
+    "PASS": true,
+    "selected_developer_directory_query": {
+      "argv": [
+        "/usr/bin/xcode-select",
+        "-p"
+      ],
+      "returncode": 0,
+      "stdout": "/Library/Developer/CommandLineTools\n",
+      "stderr": ""
+    }
+  },
+  "outputs": {
+    "compile-v2/attempt-v2.json": {
+      "bytes": 764,
+      "sha256": "b93cb0cf5cc5391e6d36f24edd2f3338b8b5bfd5755e197d1008e787bc2a99e7"
+    },
+    "compile-v2/compiler-0-attempt.json": {
+      "bytes": 230,
+      "sha256": "6ec6f656b8171368bf951ad3996150c0658750fbb83ee4be0ae910942bbf80bf"
+    },
+    "compile-v2/compiler-0-started.json": {
+      "bytes": 231,
+      "sha256": "ea58f0e54acbafe125e484e81f629f7cdfbab5371d589b1504149c2206a0a685"
+    },
+    "compile-v2/compiler-0-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compile-v2/compiler-0-stdout.txt": {
+      "bytes": 159,
+      "sha256": "76a924f59997fb65051981eb13105e0a8c151f16cd9c3e45e0f7c27ecefdb839"
+    },
+    "compile-v2/compiler-1-attempt.json": {
+      "bytes": 502,
+      "sha256": "0892ec3fad57eea2a3518a18cdc931086c875327f1c3c776ed10e1fb0fcf992f"
+    },
+    "compile-v2/compiler-1-started.json": {
+      "bytes": 503,
+      "sha256": "95141b12a3e5ea3ccf7948e3920da5675c2fcd40de3a98dc2c47b4016dab3b6d"
+    },
+    "compile-v2/compiler-1-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compile-v2/compiler-1-stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compile-v2/compiler-2-attempt.json": {
+      "bytes": 532,
+      "sha256": "3a845ce090917bfc7a46ab2eeaf44fe389bd8c885699762c6d7b8c516454807b"
+    },
+    "compile-v2/compiler-2-started.json": {
+      "bytes": 533,
+      "sha256": "9a487cd492bc18c7fc887b0ecac2d8f11dfcbb3d910c14170586a88f1e0df913"
+    },
+    "compile-v2/compiler-2-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compile-v2/compiler-2-stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compile-v2/driver_j5_draft_v1.bc": {
+      "bytes": 171840,
+      "sha256": "1f2915684a65ec08aacb1e2c83760f52349768467fd1129327d9cd5075d0de07"
+    },
+    "compile-v2/driver_j5_draft_v1.ii": {
+      "bytes": 3096893,
+      "sha256": "a52ca5f4e21a3a91e505e0271308002984e3c1a16c9fad02ac30156e5a3923f8"
+    },
+    "compile-v2/driver_j5_draft_v1.o": {
+      "bytes": 42704,
+      "sha256": "ae64fc538b5cca3c1f928b2a02231e8b49182314c0cf673ae3c6ced1d74815c6"
+    },
+    "compile-v2/driver_j5_draft_v1.s": {
+      "bytes": 302597,
+      "sha256": "c9ad9cce7799fc6269f697758b80a821fe57697a395fbee42ab44c10c62f56d8"
+    },
+    "compile-v2/environment_negatives_j5_draft_v1.bc": {
+      "bytes": 103216,
+      "sha256": "21de72483214a80fb17df272381684e8cd781267f14dde39f3849a665eb0a861"
+    },
+    "compile-v2/environment_negatives_j5_draft_v1.ii": {
+      "bytes": 3044356,
+      "sha256": "3d18559c2d6cb3091748a11216e09906083f703bef8bfef5edd688bc710b4bf0"
+    },
+    "compile-v2/environment_negatives_j5_draft_v1.o": {
+      "bytes": 22104,
+      "sha256": "0923e7fd4d943e478a347ed7f833fd3036cdb2e0091829539bf5c8526abba738"
+    },
+    "compile-v2/environment_negatives_j5_draft_v1.s": {
+      "bytes": 158220,
+      "sha256": "1dba27f00c395cfe9ef01187281c4528db2cee72031c3cb3f7c1138eb6f636c9"
+    },
+    "compile-v2/multicontact-environment-negatives-v1": {
+      "bytes": 38424,
+      "sha256": "00713af8eb81e7213eb4a9a7c7cb89dda9e318bf2d1fe86ac6f46dced6fc1354"
+    },
+    "compile-v2/multicontact-stream-v1": {
+      "bytes": 60104,
+      "sha256": "a0f78ebfa717017b4026c41dadcdf6464dcb9e018cfbc46b4c48acc251684cab"
+    }
+  },
+  "baseline_inventory_complete": true,
+  "generated_output_inventory_available": true,
+  "output_inventory_errors": [],
+  "unexpected_output_locations": [],
+  "compile_link_PASS": true,
+  "compiled_binary_or_environment_control_executed": false,
+  "solver_map_force_state_numeric_package_or_E_payload_access": false
+}

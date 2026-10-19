@@ -1,0 +1,22 @@
+{
+  "schema": "electry-replay-runner-root-preservation-review/v1",
+  "role": "root",
+  "source_only_static_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_authorized": false,
+  "scope": "Full v1 wrapper/protocol and exact v2 delta read; inherited closed compile-review routing and cleanup-error PASS joins corrected. Fixed science inputs/numeric algorithms unchanged. Preserve as an unexecuted research snapshot only.",
+  "peer_review": {
+    "path": "replay/finalization-source-review-v2.json",
+    "sha256": "ea2f1dc1a7d5b15e3dcdd0d21eeed8dd076d1a85df2a2931c17a8841852bd6aa"
+  },
+  "bindings": {
+    "replay/run_replay_draft_v2.py": {
+      "bytes": 33743,
+      "sha256": "9ccfac1daa1128255d31b77d6aa20e72d32b3e64fcdca0514c7ecfa05701e620"
+    },
+    "replay/wrapper-protocol-draft-v2.json": {
+      "bytes": 14050,
+      "sha256": "9d310156128677204dd0f1aa3335856bfcfacce10c5d5534ede9e6aba328b928"
+    }
+  }
+}

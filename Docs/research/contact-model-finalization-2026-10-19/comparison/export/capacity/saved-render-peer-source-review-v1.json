@@ -1,0 +1,45 @@
+{
+  "schema": "electry-independent-saved-render-peer-source-review/v1",
+  "utc": "2026-10-19T15:54:29.347391+00:00",
+  "role": "peer",
+  "reviewer": "/root/replay_draft_final_review",
+  "status": "CLEAR_UNEXECUTED_SOURCE_ONLY_FUTURE_EXACT_MANIFEST_REVIEW_REQUIRED",
+  "static_source_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_authorized": false,
+  "bindings": {
+    "check_render_saved_draft_v1.py": {
+      "bytes": 15504,
+      "sha256": "0bc4d43c58dbd6f06247f24b8ebec1e2eaf8eae8ffcd30059704a0726433e236"
+    },
+    "saved-render-review-protocol-draft-v1.json": {
+      "bytes": 6797,
+      "sha256": "f92d6a477422dd652ea6a1fbe4a5ee4b7b59244f44528e565c31db44958cf5ce"
+    },
+    "export_render_draft_v2.py": {
+      "bytes": 23635,
+      "sha256": "19da86de8149d6728ad347a54fe04944345e253774500d355cf587505b79e30b"
+    },
+    "protocol-draft-v2.json": {
+      "bytes": 12178,
+      "sha256": "dacf173cc2f7449a2b48ef7b973134a1e9374ccbf8f453f04356767b35e70bf0"
+    }
+  },
+  "blocking_source_findings": [],
+  "coverage_reviewed": [
+    "Actual future checker/export/root-qualification and closed-source/audit schemas are compatible with existing selected producer drafts.",
+    "Original ordered96 contexts and exact288 rawtap/field/PCM bindings; finite complete callback tap and byte-exact f64 field copy.",
+    "Every384000-byte PCM finite96000 samples, original metadata/control/callback/phase clocks, exact immutable renderer argv and binary.",
+    "Saved per-case attempted/started/closed PID/process-group/stdout/stderr evidence and actual physical versus legacy diagnostic force provenance.",
+    "Separate result all96_render_qualified joins all96 retained case rows/failures; no re-render, retap, physical solve, tone metric or production improvement claim."
+  ],
+  "future_manifest_review_requirements": [
+    "No future implementation manifest, authority or output is asserted. Fresh exact root/peer execution review remains required after actual complete mechanics/render closure.",
+    "For complete postbinding coverage, future checker inputs must bind every consumed metadata/log file, including source preflight and aggregate, all96 actual E metadata and attempted/started/closed/stdout/stderr logs. gate() postchecks exactly the declared input tables and288 payloads; source-only review does not assert future table completeness.",
+    "Combined root qualification must require actual saved result all96_render_qualified:true,96 PASS rows and no failures; child exit0 alone is insufficient because case failures are retained in the result."
+  ],
+  "review_actions": "Read full checker/protocol and compare to already-read exporter v2; syntax-only AST and JSON parse; hash source/metadata files only. No module import or function evaluation.",
+  "numeric_imports_payload_array_PCM_field_or_current_E_hash_access": false,
+  "compiler_renderer_solver_or_scientific_execution": false,
+  "scientific_or_production_qualification": false
+}

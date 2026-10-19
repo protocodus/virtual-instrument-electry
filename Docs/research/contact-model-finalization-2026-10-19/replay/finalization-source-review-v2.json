@@ -1,0 +1,90 @@
+{
+  "schema": "electry-capacity5-replay-finalization-source-review/v2",
+  "utc": "2026-10-19T15:29:34.304976+00:00",
+  "role": "peer",
+  "reviewer": "/root/replay_draft_final_review",
+  "status": "CLEAR_FOR_PRESERVATION_AS_UNEXECUTED_RESEARCH_DRAFT_ONLY",
+  "source_only_static_clear": true,
+  "archival_preservation_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_authorized": false,
+  "findings": [
+    {
+      "id": "compile-review-path-routing",
+      "original_v1_defect": "reviews() requires repository-relative review paths but compiled() passes the actual closed compile-v2 authorization whose root/peer review paths are absolute. Known compile authority would necessarily be rejected before force calls.",
+      "closed_by_v2": "Only inherited compile provenance may use absolute paths under the active repository, converted through the existing canonical repository-relative validator. New replay authorization reviews remain repository-relative.",
+      "status": "CLOSED_BY_SOURCE_REVIEW_V2"
+    },
+    {
+      "id": "cleanup-error-pass-join",
+      "original_v1_defect": "all_checks and complete do not join driver.cleanup. A retained normal-close cleanup error could coexist with PASS while appearing under native_cleanup_errors.",
+      "closed_by_v2": "The unchanged retained native_cleanup_errors list now prevents both complete and all_stored_equation_checks_PASS whenever nonempty.",
+      "status": "CLOSED_BY_SOURCE_REVIEW_V2"
+    }
+  ],
+  "bindings": {
+    "run_replay_draft_v1.py": {
+      "bytes": 33204,
+      "sha256": "f0f5fa7964b3678f65ef38a4e303ca74f1f9d007d382f2ffba23319a73c1c0f2"
+    },
+    "wrapper-protocol-draft-v1.json": {
+      "bytes": 12531,
+      "sha256": "c1a7251cc80decab5a26fe1874154dab1e69ebd1ce6f52d8280b56783bca5cf1"
+    },
+    "run_replay_draft_v2.py": {
+      "bytes": 33743,
+      "sha256": "9ccfac1daa1128255d31b77d6aa20e72d32b3e64fcdca0514c7ecfa05701e620"
+    },
+    "wrapper-protocol-draft-v2.json": {
+      "bytes": 14050,
+      "sha256": "9d310156128677204dd0f1aa3335856bfcfacce10c5d5534ede9e6aba328b928"
+    },
+    "oracle_draft_v1.py": {
+      "bytes": 20660,
+      "sha256": "18caaf041f0ee94fdb36f86120c21a43ee582bba6e3ab3140c4f06cbc76f7c88"
+    },
+    "cases_draft_v1.py": {
+      "bytes": 5313,
+      "sha256": "bdce3351cfb9ffd77244df13f2ebd06f7c619cd4fa6426de552b21b27f3c068e"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12720,
+      "sha256": "0461d2022a5bd25658910186c4b4f4c8d0cee91ecab4cecf574a6d87f3baf34f"
+    },
+    "old-regression-routes-draft-v1.json": {
+      "bytes": 116597,
+      "sha256": "8632f57d66e7262d74fe264f825b92b27f08596842cac9152284eeb0d47135b1"
+    },
+    "reviewed-draft-snapshot-v1.json": {
+      "bytes": 2313,
+      "sha256": "c4bc1f7c55611f7c10f26ee37b529e52b4ed23e2ca074ce1c6034a93b0eb44ee"
+    }
+  },
+  "scope_read": "Full v1 wrapper and wrapper protocol, relevant original fixed case and oracle definitions, actual closed compile receipt/authorization/review metadata, and exact v1-to-v2 source diff. Read-only source/metadata inspection, no numerical verification.",
+  "reviewed_science_unchanged": true,
+  "preserved_v1_unchanged": true,
+  "fixed_scope_unchanged": {
+    "registered_new_requests": 230,
+    "old_nonempty_requests": 152579,
+    "old_files_including_empty": 66,
+    "permutation_comparisons": 150,
+    "saved_evidence_corruptions": 10,
+    "environment_children": 2
+  },
+  "not_performed": {
+    "draft_module_import_or_evaluation": true,
+    "input_recipe_generation": true,
+    "numerical_or_scientific_computation": true,
+    "archive_payload_or_array_reads": true,
+    "compiler_calls": true,
+    "compiled_binary_or_environment_control_calls": true,
+    "metadata_preparation_or_execution_authorization": true,
+    "physical_audio_or_realtime_qualification": true
+  },
+  "limits": [
+    "This is source review for archival preservation, not an executed replay result.",
+    "Future replay requires a fresh exact implementation manifest, root and peer execution review, resource admission, and separate execution authority.",
+    "Synchronous subprocess waits/reads and sampled resource checks remain as described in the draft; no hard timeout, OS quota or adversarial parser qualification is claimed.",
+    "Stored-equation scope does not qualify physical state, work, materials, fret transport, audio, calibration, realism or realtime behavior."
+  ]
+}

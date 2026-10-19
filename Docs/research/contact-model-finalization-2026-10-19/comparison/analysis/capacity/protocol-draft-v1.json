@@ -1,0 +1,131 @@
+{
+  "schema": "electry-passive-source-tone-analysis-prospective-protocol/draft-v1",
+  "status": "DRAFT ONLY; selectedcode/comments not frozen. No numerical imports, audio/field/state value reads, scalar maps, FFTs, projections, RMSs or metrics executed. Fresh exacthash root+peer analysis authorization follows all96 independent Emechanics/render prerequisites.",
+  "candidate": "E=passive-source-v1. Actual complete fresh-rest loading/withdrawal field from the proposed passive contact mechanism, then SAME immutable nonlinear magnetic/electrical/native-decimator drivers. This is not loss-only, initialpluck-only or shipping play-performance isolation.",
+  "fixed_inputs_metadata_and_code": {
+    "build-instant-release-field-D/analyze_neck_v1.py": {
+      "bytes": 7447,
+      "sha256": "42f91f10e5d4b3e0b462dd52668a0e0627db52237cdb5b37d0e8e9563519cb6e"
+    },
+    "build-instant-release-field-D/analyze_bridge_v1.py": {
+      "bytes": 6926,
+      "sha256": "aca5268516284f601f07fc80f5906ec177d37de2f39ca29cb68ed276b73c1911"
+    },
+    "build-instant-release-field-D/protocol-v1.json": {
+      "bytes": 390137,
+      "sha256": "7d1acefa788528d415f4703fb1e4baf1c8d8ce7cb26720f5ceef4e5ba34b661c"
+    },
+    "build-instant-release-field-D/final-manifest-v1.json": {
+      "bytes": 305053,
+      "sha256": "31801f11a95cb2afeccc08b663c88938b4cf3852534f1815793c488bbf6d795f"
+    },
+    "build-inherited-C-bridge-analysis/common.py": {
+      "bytes": 7422,
+      "sha256": "e0f347070cb4e47e8e3dbbc0f3d70d0579089557f81d63ba547b11ad8b7669c7"
+    },
+    "build-inherited-C-bridge-analysis/observer_body.py": {
+      "bytes": 1639,
+      "sha256": "ea7c330fbf4d409f12a0588fef415b2674a86b2adc8048ec931456fd9eabd6f0"
+    },
+    "build-inherited-C-bridge-analysis/observer_upper.py": {
+      "bytes": 2660,
+      "sha256": "b6441d8f0543739aee34bbf2c247a24bdb8402b52b1ec163e9bfbf268abd59a5"
+    },
+    "build-p2-neck-source-intake/bound-observers/evaluate_tone_envelopes.py": {
+      "bytes": 11427,
+      "sha256": "2f96bed3201d5007af9694d33b2e5fe05b34e5d609a31b247664332ee58483bb"
+    },
+    "build-p2-neck-late-body/qualify_source.py": {
+      "bytes": 9742,
+      "sha256": "51b1db17b2d40c974844d98719057293988688a26eeb72678b5cb2289e9ef78e"
+    },
+    "build-damped-field-neck-body/analyze.py": {
+      "bytes": 8691,
+      "sha256": "71dab9dcd44106baffd626a489d999e95e2326ab02c85b98130043f43596ad21"
+    },
+    "build-damped-field-neck-body/DriverGeometry.cpp": {
+      "bytes": 6280,
+      "sha256": "ba0a20b3b9f7b16954ea6c57d79122c96902ab5f83e7396761f5a36f337411cd"
+    },
+    "build-damped-field-bridge-upper/GeometryDriver.cpp": {
+      "bytes": 6960,
+      "sha256": "126abf0f42aeb7a02a8280d21644f988e85bf776e9c23a2aca3ba1374e6639a2"
+    },
+    "build-p2-neck-late-body/source-mask-frozen.json": {
+      "bytes": 950953,
+      "sha256": "5c7ba8784b261a5a386ac1b98c648431e711d71c74ffb806cda383b9645a19ca"
+    },
+    "build-damped-field-bridge-upper/source-A-mask-before-B.json": {
+      "bytes": 682800,
+      "sha256": "853b9758d771179b0bb66378a0b606571327ca54a18423138d60f593d2d5d3f8"
+    }
+  },
+  "cohorts": "All46 original known-Neck E/A notes x2 fixedPick.18/.5 (92modelcases), plus4 original Bridge HB/SC Pick.18/.5 (4cases). Same96 C IDs/controls/geometry/callbacks/Contact/Release/MIDI uncertainty and2s crops. No source re-search, acousticshift, pruning/fret choice or new mask.",
+  "letters": "A/C/D/E direct comparison. Old materialB remains archived unchanged in prior C/D studies, not in this new gain cohort. No old source, PCM, observations or JSON rewritten.",
+  "new_PCM_contract": {
+    "root": "build-passive-source-tone-capacity-export-render",
+    "mechanical_source_root": "build-passive-source-tone-candidate-capacity",
+    "receipt": "E-render-v1.json (prospective)",
+    "all96_rendered_after_blind_gate": true,
+    "rows": "Exactly original96unique IDs,scope,old_key; PCM_path/sha256;metadata_path/sha256; unchanged calls/first_clock/Contact/Release/geometry metadata exceptRMS/peak. Every2s monoPCM96000frames48k finite, full loading/withdrawal taps. No onset/redetection/field substitution/fade.",
+    "prerequisite": "Separate exact root qualification seal binds independent all96 mechanical and render prerequisites, Ereceipt/hash and immutable producer code. Analysis reads no physical state/field arrays and creates no ErawPCM.",
+    "failed_predecessor_preserved": {
+      "root": "build-passive-source-tone-candidate",
+      "execution_receipt_path": "build-passive-source-tone-candidate-root-review/execution-receipt-v1.json",
+      "execution_receipt_sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f",
+      "source_manifest_sha256": "01bafe461aef3944657047647030bb706221463e889582411d75f55a1e3d0272",
+      "scope": "Closed preflight I/O failure before native/physical states; never relabeled successful or reused as E output."
+    }
+  },
+  "force_provenance": "Renderer contact.force_N is a legacy INTERNALsource diagnostic includingstroke_gain. Its equality proves controls/timeline only; it is NOT EphysicalFq/contactforce/work. Ephysical source/work provenance is the new mechanics receipt, kept distinct. Analysis uses none of the renderer force numbers to scale/tune audio.",
+  "matching": "Neck: SAME46 exact2s source-MIDIon clips and eachprofile/letter concatenated in originalorder =>92s/4,416,000frames. One -24dBFS RMSgain perwhole9tracks(Reference+2profilesx4letters), common .94peakcap. Bridge: SAMEoriginal2s perplayer/sourcecrop,17whole2sgains/player(Reference+4profilesx4letters),same commonheadroom. No pernote gain/EQ/offset/forcefit. Reproduce oldA/C/D rawRMS/basegains exactly; new sharedcap maydiffer, matchedlevel errors remain same within prior numericalidentity rails.",
+  "neck_windows": "All138 original late .5/.8/1.1s sourcewindows percontext, all1104rows xA/C/D/E, eightfixed metrics (H1share123,H2/H1,H3/H1,absoluteH1/H2/H3,80-250,250-1000). Exact sourceframes/IDs/original guard/admission/censor facts retained. Same extracted observation/spectrum/db/summary/dist functions, no globalsexecuted. BackgroundNone preserved on everyoldA/C/D observer. Primary statistics retain ONLY originalsource masks, never candidate-selected denominators.",
+  "candidate_only_background": "Measure actual E PCM hostframes strictlybefore Contact_engine_clock=first_clock+first_contact_index, clock=2h+p+1. Prefix=[0,floor((Contact_clock-1)/2)), excludes entirehostframecontainingContact, includes existingBridgepre-roll. Use ALL availablepreContact samples in existing BH background helpers; no onsetsearch, plannedzero inference, newduration minimum/noisefloor/guardthreshold. ReportrawRMS/peak/count/duration/exactzeros andmetadata proof. ShortdeterministicNeckprefix(~3.3ms underexistingmetadata) is NOTreal-source>=10msintake; originalsourcegateunchanged. Missing/nonfinite/empty/uncomputableprefix => Ebackgroundunknown/fail, retained. No oldC/D backgroundreclassification.",
+  "candidate_neck_guards": "Call SAMEobservation withactualEprefix. Original12dBbackground/nuisance,6dBtaper,float32 comparator/search-edge checks unchanged. Store E-only metricmodeladmissions and sourceANDmodel admissions as SUPPLEMENTARYfacts. Do not replace originalsource masks/denominators/primaryerrors. Missing numeric originalmask member suppresses corresponding aggregate ratherthan summarizing a favourable subset.",
+  "bridge_windows_and_prefixes": "All64original sourceA-body/absoluteupperrows, all16original completeprefixes, sameperiodicHann/body/uppernuisance/BH/taper functions. A/C/D use the exact oldmodelbackground35ms helper and retain identical rawguardfacts/unknowns. For E ONLY replace background with measured exactpreContactprefix; all guardmath unchanged. Everyoriginalchosenwindow required for prefixqualification; failedguards/oldcohortIDs/uncensoredcontext retained, never shorten. OriginalP2 4-8k notadmitted =>no newlycreatedslope. Slopes of source-admitted but Eguardfailed prefixes remain descriptive/unqualified, with failureIDs visible.",
+  "summaries_and_regression_visibility": "Allcontexts, all/source-admitted counts and everyunavailable/failurerow. Neck perprofilexletter All/E/Astring,fret0..22,offset.5/.8/1.1,andall46notes. Bridge allP1/P2 xHB/SCxPick.18/.5, all64windows/all16prefixes and originalprimarycohorts. Same signed/absoluteerrors/OLS/bothprimary andcensoredreports; no bestcase choice. OldA/C/D observers/errors/guards reproduced vssealedD output under previous1e-10 Neck/1e-12Bridge identityrails, otherwise no all-old-reproduced claim.",
+  "harmonic_diagnosis": "For SAME note/window report absoluteH1/H2/H3 anddirect H2/H1,H3/H1 together, paired E-minus-baseline level/ratio movements before distributions and their algebraicclosure. Never explain ratios by subtracting medians from unequal cohorts. Shippingwhole30repickHBBridge.18 pattern (missingH1/H2 withroughlymatchedH3) is distinct from C/DisolatedNeck pattern. Broad80-250 canimprove whilefundamentalworsens; no fundamental-restoration claim from bandMAEalone and no dullingupperpartials disguised asbody improvement.",
+  "failure_policy": "All expected contexts/window/prefixrows retained. Numeric failure produces explicitunavailable perrow and candidateguardfalse; aggregate not recomputed afterdroppingmissing originalmaskmembers. Wholecrop unavailable/zero/nonfiniteRMS =>incomplete, no gainfloor. Finite-serialization fail closed; no retry/precision/threshold/gain/kernel adaptation. Perstage closed outputs written sequentially so a laterfailuredoesnotdiscard earlierclosedresults.",
+  "outputs": "NEW neck-analysis-v1.json,bridge-analysis-v1.json; explicitincomplete-analysis-v1.json ifneeded. Matchednativeaudio/room/plots are separate laterpackage task; no renderer/PCMcreation here.",
+  "claims": "Conditional all96 isolated2s source/native-pickup diagnostic only. No continuoussharedstate repicks/refrets/attack/naturalness/alias/RT/DIvoltagecalibration/production/default/95percent qualification. Rootgoalremainsactive; no automaticpromotion from one metric.",
+  "capacity_routing_successor_provenance": {
+    "status": "UNEXECUTED DRAFT routing only; no implementation manifest, execution authorization or candidate result is asserted.",
+    "original_analysis_root": "build-passive-source-tone-analysis",
+    "original_analysis_protocol": {
+      "path": "build-passive-source-tone-analysis/protocol-draft-v1.json",
+      "bytes": 10032,
+      "sha256": "ea153304a5e5eb332449e6d04c9ee7c7fab449d46353b639d9c5769ec5682461"
+    },
+    "original_analysis_draft_snapshot": {
+      "path": "build-passive-source-tone-analysis/draft-source-hashes-v3.json",
+      "bytes": 1711,
+      "sha256": "d10e915d74e2c1156c38f16e7126f1b7cdfa1d091d4b8774ec10a3192650927c"
+    },
+    "mechanical_source_manifest": {
+      "path": "build-passive-source-tone-candidate-capacity/implementation-manifest-v1.json",
+      "bytes": 446396,
+      "sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c"
+    },
+    "mechanical_source_protocol": {
+      "path": "build-passive-source-tone-candidate-capacity/protocol-selected-v1.json",
+      "bytes": 19904,
+      "sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058"
+    },
+    "preserved_incomplete_IO_predecessor": {
+      "root": "build-passive-source-tone-candidate-iofix",
+      "closed_receipt": {
+        "path": "build-passive-source-tone-candidate-iofix-root-review/execution-receipt-v1.json",
+        "bytes": 1885523,
+        "sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4"
+      },
+      "incomplete_and_unqualified": true,
+      "not_reused_as_candidate_E_output": true
+    },
+    "prospective_candidate_render_receipt": "build-passive-source-tone-capacity-export-render/E-render-v1.json",
+    "same_E_render_v1_96_rows_and_receipt_relative_PCM_metadata_contract": true,
+    "all8_analysis_code_files_copied_byte_identically": true,
+    "same_all96_contexts_A_C_D_E_letters_source_masks_original_windows_metrics_guard_math_cohort_gains_background_eligibility_and_failure_retention": true,
+    "new_metric_mask_threshold_parameter_clock_gain_or_PCM_assumption": false,
+    "future_requirements": "Fresh independent all96 mechanics qualification, immutable renderer authorization/all96 render receipt, separate combined root qualification and fresh exact root+peer analysis authorization. No passing subset; all old incomplete packets remain historical."
+  }
+}

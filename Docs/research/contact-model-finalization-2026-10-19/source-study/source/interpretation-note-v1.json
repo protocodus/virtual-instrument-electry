@@ -1,0 +1,8 @@
+{
+  "schema": "electry-passive-source-prospective-interpretation/v1",
+  "candidate": "E / passive-source-v1",
+  "source_change": "C to E replaces the complete source formulation: fresh-rest collocated passive loading/withdrawal, direct quasistatic Fq without legacy stroke gain, and normalized signed physical direction. It does not isolate contact timing.",
+  "held_fixed": "Natural modal frequencies, inherited per-axis loss, source point and clocks, physical pickup geometry, fixed axis observation, production pickup/electrical path and the existing evaluation contexts/masks/gain conventions remain held fixed as prospectively declared.",
+  "interpretation": "Any future tone difference can support or reject this combined declared source hypothesis, without uniquely identifying the real stroke, contact timing, pick stiffness or reference recording controls. Component provenance is retained; no additional ablation variant is introduced here.",
+  "no_execution_authorized": true
+}

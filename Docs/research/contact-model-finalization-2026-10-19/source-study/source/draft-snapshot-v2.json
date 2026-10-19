@@ -1,0 +1,77 @@
+{
+  "schema": "electry-unexecuted-passive-source-v2-draft-snapshot/v1",
+  "utc": "2026-10-19T05:34:00.326925+00:00",
+  "artifacts": {
+    "storage_v1.py": {
+      "bytes": 5271,
+      "sha256": "1c34baa8f74cd28ab0f095687d6f316e66aa782891c84d3dfb1a350acdf3bd1b"
+    },
+    "run_case_draft_v2.py": {
+      "bytes": 6224,
+      "sha256": "6d939e8e0c2d579361509746a9ed58a21ccf102833a1ba153683516d6c917f1f"
+    },
+    "continuous_reference_draft_v2.py": {
+      "bytes": 7537,
+      "sha256": "9fa31868ae11ec05f23fbbca8ed7f0109734125ab8fdfefa5c4caffb920d6347"
+    },
+    "source_inputs_v1.py": {
+      "bytes": 6644,
+      "sha256": "d801ca7d698296b1f97506cfbd3d3cd522c23da8e5d8b45033b0a3941309902f"
+    },
+    "analytic_tail_v2.py": {
+      "bytes": 3390,
+      "sha256": "e0c453c50e57b12a358da24c311f05b58d0b0eb997e0da02062f8d78552f5166"
+    },
+    "mechanics_v1.py": {
+      "bytes": 7319,
+      "sha256": "f45a11783df9fb7d68063676f81cf37edf93c127b5b13c2b3b5ab72781936c9e"
+    },
+    "protocol-draft-v2.json": {
+      "bytes": 13580,
+      "sha256": "b0d339a82827d899915a95e21064f9f66f9158772ee953655eaae84d7cded549"
+    },
+    "reference_tail_draft_v1.py": {
+      "bytes": 3623,
+      "sha256": "94b764e6f6a7ca17f82e7f0c8c74966e900f49f8ddc1cd8609097d1c45a93149"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12334,
+      "sha256": "3ab6eb0f37dd3eb885878d9b7b0c164fa28b7f5e40a040a21512d482285f09e6"
+    },
+    "reference_tail_draft_v2.py": {
+      "bytes": 3238,
+      "sha256": "5d85ffc2f4a19b395b03c48395aaa08fcf2d36c70db1a2a1220f9681dd2e311e"
+    },
+    "continuous_reference_draft_v1.py": {
+      "bytes": 7428,
+      "sha256": "272ac3cc418622a77cb873599e0e0156b607d8f72bdc1829e3ce2b543f216e75"
+    },
+    "reference_equations_v2.py": {
+      "bytes": 1464,
+      "sha256": "221ec39ee3efb0d81f0a463fa88654aaecf51d8ee3ad05cf42b6860ea94032e9"
+    },
+    "README-draft.md": {
+      "bytes": 3267,
+      "sha256": "45de1087c595ad76ade7eb2302701e74bd26a0632943cffb50b63d12365a481e"
+    },
+    "support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "storage_v2.py": {
+      "bytes": 5396,
+      "sha256": "e7ca46ca428b90e9cc3aca66854df4c88a148f9e59acf72bcac03f520b4d31d6"
+    },
+    "run_case_draft_v1.py": {
+      "bytes": 5276,
+      "sha256": "42d2ef89a390d8c150b4435ce4279e94ee67e7ba7e26723c1102e360ecc9ce59"
+    },
+    "draft-snapshot-v1.json": {
+      "bytes": 28872,
+      "sha256": "4959ef862fce3532cb00642efae19ad0a5a38215017e49543b23ac5c75be9d01"
+    }
+  },
+  "no_selected_imports_arrays_coefficients_native_forces_states_fields_PCM_or_reference_calls": true,
+  "is_final_freeze_or_authorization": false,
+  "v1_binary_recurrence_not_selected_for_v2_tail": true
+}

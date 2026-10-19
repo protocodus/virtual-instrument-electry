@@ -1,0 +1,47 @@
+{
+  "schema": "electry-capacity5-independent-checker-root-source-review/v1",
+  "utc": "2026-10-19T15:12:51.145701+00:00",
+  "source_review_clear_for_selected_drafts": true,
+  "artifacts": {
+    "oracle_draft_v1.py": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-contact-capacity5-independent-qualification/oracle_draft_v1.py",
+      "bytes": 20660,
+      "sha256": "18caaf041f0ee94fdb36f86120c21a43ee582bba6e3ab3140c4f06cbc76f7c88"
+    },
+    "cases_draft_v1.py": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-contact-capacity5-independent-qualification/cases_draft_v1.py",
+      "bytes": 5313,
+      "sha256": "bdce3351cfb9ffd77244df13f2ebd06f7c619cd4fa6426de552b21b27f3c068e"
+    },
+    "protocol-draft-v1.json": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-contact-capacity5-independent-qualification/protocol-draft-v1.json",
+      "bytes": 12720,
+      "sha256": "0461d2022a5bd25658910186c4b4f4c8d0cee91ecab4cecf574a6d87f3baf34f"
+    },
+    "old-regression-routes-draft-v1.json": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-contact-capacity5-independent-qualification/old-regression-routes-draft-v1.json",
+      "bytes": 116597,
+      "sha256": "8632f57d66e7262d74fe264f825b92b27f08596842cac9152284eeb0d47135b1"
+    }
+  },
+  "snapshot": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-contact-capacity5-independent-qualification/reviewed-draft-snapshot-v1.json",
+    "bytes": 2313,
+    "sha256": "c4bc1f7c55611f7c10f26ee37b529e52b4ed23e2ca074ce1c6034a93b0eb44ee"
+  },
+  "closed_comments": [
+    "Exact native schema/capacity/status-enum and all35 echoed raw input words checked",
+    "Complete trace count and inactive result/budget/map/residual lanes checked on claimed certificates",
+    "Specific preregistered rejection branches and complete native+actual-original-NumPy acceptance conjunction enforced"
+  ],
+  "coverage": [
+    "230 prospective fixed algebraic/permutation/negative equations, two environment child controls",
+    "All152579 historical equations/all66 original empty-or-nonempty files with fixed byte routes; no outcome fallback/extraction",
+    "Independent exact Fraction target/J-term bounds and exact RN-even cap reconstruction; no producer math calls",
+    "Ordinary C++ and actual original NumPy rail remain separate; no new epsilon, force repair or physics/RT claim"
+  ],
+  "functions_or_generators_imported_or_evaluated": false,
+  "archive_or_sample_payload_access_performed": false,
+  "compile_or_numerical_execution_authorized": false,
+  "remaining_before_execution": "Complete and review thin authority/archive byte-preflight/native stream/full lossless evidence wrapper, then exact runtime/compiled binary bindings, independent peer review and root capacity/execute authorization. Live full96 Source first."
+}

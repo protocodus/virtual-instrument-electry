@@ -1,0 +1,61 @@
+{
+  "schema": "electry-passive-source-export-render-peer-source-review/v2",
+  "utc": "2026-10-19T15:46:12.981166+00:00",
+  "role": "peer",
+  "reviewer": "/root/replay_draft_final_review",
+  "status": "CLEAR_SOURCE_DRAFT_ONLY",
+  "static_source_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_executed": false,
+  "findings": [],
+  "bindings": {
+    "export_render_draft_v1.py": {
+      "bytes": 18825,
+      "sha256": "8efe55c853a4a031730fd5900ff8a32c8189813c571cf459fc4060b8b467b15b"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 9557,
+      "sha256": "1ab4fb266f3aadff81f0129addde198eb990b5aae18a5c6e07a1279f6fb8a9ce"
+    },
+    "export_render_draft_v2.py": {
+      "bytes": 23635,
+      "sha256": "19da86de8149d6728ad347a54fe04944345e253774500d355cf587505b79e30b"
+    },
+    "protocol-draft-v2.json": {
+      "bytes": 12178,
+      "sha256": "dacf173cc2f7449a2b48ef7b973134a1e9374ccbf8f453f04356767b35e70bf0"
+    },
+    "prepare_metadata_v2.py": {
+      "bytes": 6524,
+      "sha256": "701860515ed0d208b42599ff1805ea2e21821802752d53e398ee309a035e9d21"
+    }
+  },
+  "full_sources_read": [
+    "export_render_draft_v1.py",
+    "v1_to_v2_complete_diff",
+    "protocol-draft-v2.json",
+    "prepare_metadata_v2.py"
+  ],
+  "source_checks": [
+    "v2 adds owned renderer row/PID/process-group/stdout/stderr retention before launch and cleanup/reap/closed evidence before successful receipt.",
+    "Signal/poll/wait errors are retained and block PASS; exact trusted renderer argv and all original96 cases/taps/crops/controls/scientific gates remain unchanged.",
+    "Successful v2 completion rechecks complete original authority/manifest/protocol/source/qualification/runtime/environment bindings and every exported field/PCM/metadata byte identity.",
+    "Metadata preparer copies original plan/Source/runtime facts without numeric payload reads; Source24 string values and packages.numpy root/version fields match gate expectations.",
+    "Preparer checks actual closed-source and independently completed saved-audit metadata; audit field names match unchanged check_saved_draft_v1.py source.",
+    "Future selected manifest contains all six v1/v2/preparer/routing artifacts, original static inputs,1435 source environment bindings and original ordered96 IDs; original runtime/direct-entry fields match v2 gate."
+  ],
+  "unchanged_field_PCM_math_and_scientific_cohort": true,
+  "not_performed": {
+    "module_import_or_evaluation": true,
+    "metadata_preparation": true,
+    "source_array_field_or_PCM_payload_reads": true,
+    "compiler_renderer_or_native_execution": true,
+    "numeric_computation_or_metric_analysis": true
+  },
+  "limits": [
+    "This is source review of unexecuted drafts, not runtime execution clearance.",
+    "Fresh actual successful all96 source/audit qualification plus exact implementation manifest, root/peer reviews and separate root authorization remain required before export/render.",
+    "The fixed trusted renderer has synchronous waits and no measured wall-time bound; protocol makes no hard quota/adversarial-descendant or realtime performance claim.",
+    "Independent all96 render validation/combined qualification and separate analysis authority remain downstream; no tone,repick,refret,calibration,95percent or production qualification follows from this receipt."
+  ]
+}

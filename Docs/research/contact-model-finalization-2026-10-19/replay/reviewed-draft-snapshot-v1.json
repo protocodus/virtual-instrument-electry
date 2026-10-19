@@ -1,0 +1,50 @@
+{
+  "schema": "electry-capacity5-independent-reviewed-draft-snapshot/v1",
+  "utc": "2026-10-19T15:11:05.485587+00:00",
+  "artifacts": {
+    "oracle_draft_v1.py": {
+      "bytes": 20660,
+      "sha256": "18caaf041f0ee94fdb36f86120c21a43ee582bba6e3ab3140c4f06cbc76f7c88"
+    },
+    "cases_draft_v1.py": {
+      "bytes": 5313,
+      "sha256": "bdce3351cfb9ffd77244df13f2ebd06f7c619cd4fa6426de552b21b27f3c068e"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12720,
+      "sha256": "0461d2022a5bd25658910186c4b4f4c8d0cee91ecab4cecf574a6d87f3baf34f"
+    },
+    "old-regression-routes-draft-v1.json": {
+      "bytes": 116597,
+      "sha256": "8632f57d66e7262d74fe264f825b92b27f08596842cac9152284eeb0d47135b1"
+    }
+  },
+  "inputs": {
+    "build-multicontact-passive-kernel/contact_interval_j5_draft_v1.hpp": {
+      "bytes": 23602,
+      "sha256": "5a12530a3f93e1da2835f01721ff027a8b0ece212be4b03d83944b59b3a42ac5"
+    },
+    "build-multicontact-passive-kernel/driver_j5_draft_v1.cpp": {
+      "bytes": 7164,
+      "sha256": "e4808bd23a973974d16660002f2fbeb994e23c36bb06d53147cf660b710f10cd"
+    },
+    "build-multicontact-passive-solver-math-review/receipt-v1.json": {
+      "bytes": 2712,
+      "sha256": "896509100b0473b03a6f5a3d60897ca87d5b976768803fe786bf56084e4d81f3"
+    }
+  },
+  "root_source_comment_closure": {
+    "channel": "parent task message, not an execution/review authority file",
+    "message": "Root read corrected oracle18caaf/casesbdce/protocol0461 and closes all three source comments; exact schema/echo/trace/inactive/negative/NumPy owners clear.",
+    "closed_findings": [
+      "exact native result schema/capacity/status enums and full echoed raw input",
+      "trace_used plus zero inactive success lanes",
+      "specific expected rejection branches and native-global plus actual-original-NumPy acceptance conjunction"
+    ],
+    "remaining_wrapper_scope": "Thin authority/archive routing/full gzip evidence draft pending; no unknown future binary hash is owned"
+  },
+  "status": "Immutable metadata-only snapshot of reviewed DRAFT functions and input recipes; NOT compilation, generation, force/map, archive-read or execution authorization",
+  "numeric_package_imports_or_selected_function_evaluations": false,
+  "archive_payload_access": false,
+  "Source_Tests_CMake_edits": false
+}

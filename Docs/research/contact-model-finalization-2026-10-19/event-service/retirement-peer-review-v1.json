@@ -1,0 +1,26 @@
+{
+  "schema": "electry-controller-limit-peer-receipt/v1",
+  "role": "peer",
+  "utc": "2026-10-19T11:38:57.573723+00:00",
+  "manifest": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-persistent-contact-control-math-peer-review/manifest-v1.json",
+    "bytes": 1209,
+    "sha256": "eea756c6b795606b0c448e9e691147e2d5af5c9100a9aaead8227d5d472210ef"
+  },
+  "static_algebra_clear": true,
+  "new_blocking_findings": 0,
+  "assumptions": [
+    "finite pulse and zero filter state",
+    "0<=stored pole<1",
+    "unrounded real extension distinguished from binary finite crop",
+    "positive K/mass/natural frequencies and nonzero B"
+  ],
+  "limits": [
+    "No actual input domains/kernel masses evaluated.",
+    "No reachability or actual current-case failure inferred.",
+    "No universal irreversible-separation claim from an instantaneous policy."
+  ],
+  "controller_force_state_or_numerical_library_calls": false,
+  "E_outputs_audio_archived_trace_access": false,
+  "original_files_mutated": false
+}

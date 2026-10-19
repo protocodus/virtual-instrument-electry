@@ -1,0 +1,107 @@
+{
+  "schema": "electry-capacity5-independent-stored-equation-qualification/PROSPECTIVE-DRAFT-v1",
+  "status": "DRAFT source/metadata preparation only. No imports/generation/rational map evaluations/archive payload reads/compile/binary/solve calls. Root comments must close before exact freeze; fresh root+peer authorization and capacity admission required.",
+  "utc": "2026-10-19T12:40:34.825490+00:00",
+  "scope": "Fixed stored-binary equations for0..5 contacts, independent exact-rational oracle/trace/budget/cap checks. Not a full mechanical update, nonlinear finger/steel law, material calibration, fret transport, audio or RT qualification.",
+  "draft_code": {
+    "oracle_draft_v1.py": {
+      "bytes": 20660,
+      "sha256": "18caaf041f0ee94fdb36f86120c21a43ee582bba6e3ab3140c4f06cbc76f7c88"
+    },
+    "cases_draft_v1.py": {
+      "bytes": 5313,
+      "sha256": "bdce3351cfb9ffd77244df13f2ebd06f7c619cd4fa6426de552b21b27f3c068e"
+    }
+  },
+  "reviewed_old_source_provenance": {
+    "build-certified-contact-rt-replay/exact_check_v2.py": {
+      "bytes": 6384,
+      "sha256": "f1f870c85d61ba7bd3dc57e7cf868bce82afb6b1b6f91d67d6ada1432d93ec0b"
+    },
+    "build-certified-contact-rt-replay/protocol-v3.json": {
+      "bytes": 7559,
+      "sha256": "8c0becab1acaa452c15bcdccc0b042a459e2b1b47b96b96bc95caa1c5f802dd7"
+    },
+    "build-certified-contact-rt-replay/driver_v1.cpp": {
+      "bytes": 4301,
+      "sha256": "a92a26e8ec6d67f813389ab9ed9e54f32ef1f51274a23b0f760d1748b64166c5"
+    },
+    "build-native-contact-full-flow-premium-review/certificate-audit/rational_oracle_v2.py": {
+      "bytes": 5937,
+      "sha256": "102f2786d5edb14ab2066d9f4c9df52417f2f65999010f72de428bc5ffa472c1"
+    },
+    "build-certified-contact-rt-kernel/contact_interval_v1.hpp": {
+      "bytes": 22696,
+      "sha256": "f24774f99c72a40bac1037c9a6f3b0450b01dcee7d7332c491af1279093a3f9b"
+    }
+  },
+  "current_author_header_DRAFT_not_final_authority": {
+    "path": "build-multicontact-passive-kernel/contact_interval_j5_draft_v1.hpp",
+    "bytes": 23602,
+    "sha256": "5a12530a3f93e1da2835f01721ff027a8b0ece212be4b03d83944b59b3a42ac5"
+  },
+  "input_families": {
+    "fixed_order": [
+      3,
+      5,
+      4,
+      0,
+      1,
+      2
+    ],
+    "new_requests_count": 230,
+    "base_requests": 71,
+    "all_permutation_requests": 150,
+    "negative_requests": 9,
+    "base": "For each nonzeroJ: coupled rank1 positive, dense signed SPD, positive diagonal, signed rank1 mixed gaps, nonsymmetric/nonPSD stored-only, broader local contraction, zero operator positive/equal positive/crossing both directions/open/signedzero/subnormal. J<5 adds ignored nonfinite inactive padding; J0 has empty and ignored nonfinite-padding controls. Full exact recipes are the selected cases_draft_v1.py; no manufactured value is a physical material/finger/default parameter.",
+    "numerical_scales": "Only fixed dyadic algebraic fixture scales in code: gaps2^-10, broader-contraction gaps2^-20, subnormal2^-1074, matrices2^-20/21/22/14. K remains original6000N/m numerical fixture. No recordings/tones/candidate outcomes determine them.",
+    "permutations": "ALL3!,5!,4! lexicographic permutations of the registered dense-SPD case, including identity. Each has unchanged2e-11 exact/native/actual-original-NumPy residual rails. Force bits need not match across reorderings; exact coordinate joins and the sum of certified posterior bounds provide derived consistency, with no epsilon.",
+    "negative": "Dimensions6 andUINT32_MAX expected dimension; active third A/d0 NaN and fifth dfree Inf/A negativeInf expected nonfinite_input; noncontractive diagonal2^-10 expected operator_bound with exact norm>=1 proof; maxfinite positive endpoint expected nonfinite_primitive with exact initial scalar RN-overflow branch; near-unit cap stress expected cap_resource_limit. All fixed before evaluation. Any unexpected status remains failure; negative behavior verification is explicitly not stored-force qualification.",
+    "environment_negative": "Separate strict compiled child guards FE_DOWNWARD and arm64FPCRFTZ bit24. Expected arithmetic_environment, no force maps, all certificate/posterior/CPP/cap claims false, caller environment unchanged by kernel, child restores its own original environment. No new default-mode solve required by these guards.",
+    "saved_record_negative_controls": "On fixed accepted coupledJ3 evidence, independently reject: wrong responseID; truncated trace; changed update index; raw lower-transition word mismatch; reversed interval; false zero certificate norm; false cap count/endpoint; inactive output lane nonzero; altered stored equation/raw port order. These consume saved records only after authorization; do not solve extra forces or select tolerances."
+  },
+  "old_regression": {
+    "routes": {
+      "path": "old-regression-routes-draft-v1.json",
+      "bytes": 116597,
+      "sha256": "8632f57d66e7262d74fe264f825b92b27f08596842cac9152284eeb0d47135b1"
+    },
+    "complete_scope": "ALL152579 nonempty original equations (106679main+45900controls/permutation), all66 certificate files including every original empty file. Fixed request order is newJ3/J5 families+permutations/registerednegativecontrols first, then complete old file cohort in declared archive streaming order. Old cases are not shortened or selected for passing.",
+    "transport": "Exactly storedA/d0/dfree binary64 words; only NPZsolve_d0_m,solve_dfree_m,solve_Asolve_m_per_N read. Join same-case certificateframe and active_ports to those arrays. Preserve wrongAsolve controls as wrong physics even if stored equation passes. No old force equality or copied nearest-rounding histories.",
+    "byte_preflight": "After exact authorization, hash whole fixed tar/ZIP and prove every required logical input byteSHA/count BEFORE any force call, using bounded preflight passes. All route choices are registered in metadata; no fallback to another path after failure.",
+    "tar": "One sequential selected66-member preflight pass with memberSHA/newline/count checks; later a separate linear replay pass in fixed archive order with exact case/frame identities and streamed raw records. Skipped other tar members are never semantically decoded. No filesystem extraction.",
+    "object_zip": "For each of8NPZobjects, stream to EOF and verify its exact size/SHA/CRC before use, then use the seekable ZipExtFile as inner NPZ filelike. Lazy load only the3allowed members. Seek may re-decompress; no all-file RAM buffer or disk restoration.58direct NPZinputs use held nofollow file/metadata+wholeSHA, then only3members.",
+    "no_restore": "No restore or archived payload access authorized by this protocol draft. Existing storage/index/oldproof metadata remain immutable."
+  },
+  "oracle": {
+    "target": "ExactFraction representation of IEEEbinary64 words, U(delta)=3000max(delta,0)^2 and its exact potential quotient (derivative at equal endpoints). ExactT evaluated ONLY at printed native trace forces, never an independently iterated force solve.",
+    "dimensions": "Exact result schema electry-multicontact-interval-kernel-result/v1, maximum_contacts5 and administrative_maximum_updates4096; exact22 enum/name pairs. Compare full echoed J+A25+d0_5+dfree_5 raw words to request, including ignored poison padding. trace_used must exactly equal emitted trace length. On every claimed certificate verify all inactive returned-force, final/trace force/map/residual, row/dot/gap budget lanes remain positive-zero raw words. J0 no-map analytic path and inactive zeros distinguished from nonempty zero fixed point.",
+    "local_contraction": "Use actual savedLU>=3000max_i sum_j|Aij|, LU<1. No oldglobal lambda<.0545, old525/exponent cap or oldnearest-rounded history assertion.",
+    "budgets": "Independent exact lower obligations for every prefix-orderedJ-term dot error, saved dot_excess, gap/endpoints/normalized-scalar ranges, width/recurrence/residual cost/slack and invariant box. Same inherited primitive-excess law; no new empirical allowance.",
+    "cap": "q0=aU, exact reconstruction of each declared upper(RN-even(LU*q)) using rational binary64 rounding and next-neighbor words. Verify first qk<=positiveS, recorded product/update counts/geometric endpoint, and independently LU^k*aU<=S.4096 is administrative ceiling; exhaustion rejects explicitly, not a success/physics guarantee.",
+    "traces": "Every printed component target inside map interval, f-T inside residual interval, nonnegative force inR, measured/fixed widths, exact raw lower-endpoint transition, complete map/update count, first certified stop and returned trace identity. No extra iteration or force repair.",
+    "residual": "Exact stored residual and reported interval upper<=original binary642e-11. Posterior bounds checked from same localLU/cert/D. Native ordinaryCPPfinite2e-11 and actual bound original NumPy dg_force_and_derivative callback(d0,dfree-A@f) finite2e-11 remain distinct required global gates; no original force equality. Global status20/21 must match nonfinite/above-rail CPP cause and CPP false; exact certificate truth cannot mark their overall expected-accept behavior PASS.",
+    "claims_on_rejection": "Expected rejects require the exact preregistered status-name/enum and a specifically proven branch: dimension/nonfinite-input before any maps/primitive operations, exact outward row/LU reconstruction with exact noncontractive fixture, fixed positive-initial-scalar overflow, or exact cap-resource recurrence. Any other rejection/status fails its expected case. Environment entry negatives separately require zero maps and all certificate/posterior/CPP/cap flags false. A truthful exact stored certificate on ordinaryCPP failure stays a separate fact; it cannot qualify an expected accept. check_saved_record requires native global admission AND an injected actual original NumPy finite2e-11 diagnostic for every expected accept, including emptyJ no-callback zero. Schema/expectation/NumPy conjunctions are owned by this checker, not an informal wrapper assumption.",
+    "work_state_rails": "Original5e-10 applied-work and existing state/reference/event/rate rails remain unchanged and unmeasured/unadmitted by stored-equation qualification. J>=3 physical application needs a separate future full-work/construction study."
+  },
+  "future_execution_and_storage": {
+    "entry": "Current files are callable checker/input-family DRAFTs and intentionally refuse standalone execution. Thin exact-authority orchestration/strict driver/compile receipt/runtime bindings and output schema must be separately completed and reviewed before any generation/compile/solve.",
+    "gate": "Root+peer exact-manifest reviews, compile-only authority, then separate exact execution authority binding successful strict compile/binary/currentSource/runtime/input byte proofs. Fixed existingPython312/NumPy1.26.4/SciPy1.14.1 only after package/root/hash gates; no installs.",
+    "source_priority": "No new numerical replay while live full96 source remaining output threatens capacity. Fresh root capacity admission is mandatory; this DRAFT is not launch authority.",
+    "evidence": "Fixed lossless gzip6 streamed full raw request/native response before parsing plus every check/status/trace. No successful trace sampling or inactive-lane omission, no precision tuning. Raw malformed/empty/wrongID responses and all expected unavailable IDs retained; partial compressed readability is unqualified on resource failure.",
+    "administrative_policy_DRAFT": "Prospective2GiB total output/admin cap,8MiB reserve,2GiB own-work free floor plus root-owned liveSource reservation. Full cohort never pruned to fit. Unknown compressed size/runtime; failure stops without retry and preserves fullcohort incomplete state. Reserve only for final failure metadata, not data continuation.",
+    "memory": "One original case\u2019s3equation arrays plus1MiB byte chunks/one bounded native trace at a time. New230 equations are small fixed metadata; no q/v/state histories or all152k responses inRAM. No benchmark/RT claim."
+  },
+  "pending_before_final_freeze": [
+    "Root source comments on corrected exact schema/expected-status/NumPy-conjunction checker and fixed families/protocol",
+    "Selected author header+strict raw driver schema and reviewed generic error/cap proof",
+    "Thin authority/byte-routing/recording wrapper source and exact runtime/input bindings"
+  ],
+  "no_execution_authorized": true,
+  "Source_Tests_CMake_modified": false,
+  "current_author_driver_DRAFT_not_final_authority": {
+    "path": "build-multicontact-passive-kernel/driver_j5_draft_v1.cpp",
+    "bytes": 7164,
+    "sha256": "e4808bd23a973974d16660002f2fbeb994e23c36bb06d53147cf660b710f10cd"
+  }
+}

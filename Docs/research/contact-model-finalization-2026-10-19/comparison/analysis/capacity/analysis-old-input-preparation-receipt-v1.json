@@ -1,0 +1,103 @@
+{
+  "schema": "electry-passive-tone-analysis-old-input-preparation-receipt/v1",
+  "utc": "2026-10-19T15:50:33.017555+00:00",
+  "registration": {
+    "path": "build-passive-source-tone-capacity-analysis/analysis-old-input-registration-v1.json",
+    "bytes": 812900,
+    "sha256": "651449ad37782c58b3d32d745bfda0c2add5129e7475b6bfe0bc924bcc17bf50"
+  },
+  "scope_complete": true,
+  "counts": {
+    "old_model_cases": 96,
+    "A_hook_PCM": 96,
+    "old_geometry_metadata": 96,
+    "C_PCM": 96,
+    "C_metadata": 96,
+    "D_PCM": 96,
+    "D_metadata": 96,
+    "original_reference_WAV": 3,
+    "source_metadata_inputs": 319,
+    "numeric_sample_bindings": 291,
+    "source_metadata_logical_bytes": 15464372,
+    "numeric_sample_logical_bytes": 436686256,
+    "unchanged_scientific_Python_files": 8
+  },
+  "all_numeric_actual_sha_checks_deferred": true,
+  "numeric_file_contents_read_or_hashed": false,
+  "scientific_module_imports_or_evaluation": false,
+  "current_E_payload_or_result_access": false,
+  "parameter_metric_window_mask_gain_or_cohort_changes": false,
+  "execution_authorized": false,
+  "owner_metadata_bindings": {
+    "build-damped-field-neck-body/final-manifest.json": {
+      "bytes": 269472,
+      "sha256": "170c416bb05ef2d62304d3e244169ae9b9cb762e52ea5fc1e3cc705d434770b6"
+    },
+    "build-inherited-C-bridge-analysis/preparation-plan.json": {
+      "bytes": 4747,
+      "sha256": "41dc1892ed172a3b929445935377e7876a73894397e9da1e4b1115c4e58514c2"
+    },
+    "build-inherited-field-C/final-manifest.json": {
+      "bytes": 305354,
+      "sha256": "d28c5fd2e85a4a6ca70399ff378929a89d98bdf7707afc6c083f56737f9ceef1"
+    },
+    "build-inherited-field-C/protocol.json": {
+      "bytes": 296409,
+      "sha256": "c35ba0501f022f93454f3d007cab4c5dd98d193832dc3ef704b9e0f90fb030f9"
+    },
+    "build-instant-release-field-D/final-manifest-v1.json": {
+      "bytes": 305053,
+      "sha256": "31801f11a95cb2afeccc08b663c88938b4cf3852534f1815793c488bbf6d795f"
+    },
+    "build-instant-release-field-D/protocol-v1.json": {
+      "bytes": 390137,
+      "sha256": "7d1acefa788528d415f4703fb1e4baf1c8d8ce7cb26720f5ceef4e5ba34b661c"
+    },
+    "build-passive-source-tone-analysis/draft-source-hashes-v3.json": {
+      "bytes": 1711,
+      "sha256": "d10e915d74e2c1156c38f16e7126f1b7cdfa1d091d4b8774ec10a3192650927c"
+    },
+    "build-passive-source-tone-capacity-analysis/protocol-draft-v1.json": {
+      "bytes": 12451,
+      "sha256": "eaedc458abcf500a954d46bd298ca1f329963a58bac55fda04e0d0564cbd018e"
+    }
+  },
+  "original_analysis_artifacts_unchanged": {
+    "analyze_bridge_v1.py": {
+      "bytes": 13982,
+      "sha256": "c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d"
+    },
+    "analyze_neck_v1.py": {
+      "bytes": 8924,
+      "sha256": "f1df1bfdbcce08864020ac5f575d2dfd34501b57ab0b9aa809721324310a1487"
+    },
+    "background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    },
+    "context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "helpers_v1.py": {
+      "bytes": 2558,
+      "sha256": "95e9bf526476bcb303e22bf94db7c006b45a4efc419edd45bc7786025b1312b4"
+    },
+    "run_after_review_v1.py": {
+      "bytes": 1844,
+      "sha256": "dd747720208331fdf9dbce3585e790461ff069117b5aee6271d5504f4661fbc4"
+    },
+    "summary_v1.py": {
+      "bytes": 4667,
+      "sha256": "da8506aa8a687c89dc9890dba069dc84fadcdb1be4c1558c450564ff268604f7"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12451,
+      "sha256": "eaedc458abcf500a954d46bd298ca1f329963a58bac55fda04e0d0564cbd018e"
+    }
+  }
+}

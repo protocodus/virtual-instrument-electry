@@ -1,0 +1,23 @@
+{
+  "schema": "electry-passive-source-IO-successor-preparation-plan/v1",
+  "scope": "Metadata/AST/hash preparation only after root/peer administrative correction review. No source physical authority.",
+  "source_root": "build-passive-source-tone-candidate-iofix",
+  "scientific_protocol_sha256": "2d20432a21393c1c9862edf49f308676d8af93b419dc1e02e9387222bde773a8",
+  "successor_protocol": {
+    "path": "successor-protocol-v1.json",
+    "bytes": 3387,
+    "sha256": "a691b7be76a1fbd2c6b8bc4eb487628d60a48af158963d3b0e4ddcbae229d282"
+  },
+  "preparation_requirements": [
+    "Rehash unchanged original49 code/metadata against original01bafe manifest; preserve failed exit1 packet68d38 and original source directory unchanged.",
+    "New successor manifest binds actual I/O storage delta, all selected source/control code, this successor protocol/provenance/plan and reviewed administrative fixture/result receipts. Bind original manifest/failed closed receipt/log/auth/reviews as provenance inputs.",
+    "Preserve identical all96 case order, all97 prior sample binding facts, Source24, coefficient/unit62d qualification, immutable native driver, physical lambda, packages/versions/inherited env. Only sys.path0/source root relocates to the clean sibling.",
+    "Parameter NPZ and coefficient archive contents and payload hashes remain unread during preparation; check STAT only against existing facts. Historical failed generated artifacts remain transitive recorded facts, not scientific inputs.",
+    "Use established Python312 and exact1435 existing environment bindings. Verify shared coefficient1423 subset; no runtime choice or hidden path override.",
+    "Run metadata-only preparation/verifier, report exact selected manifest/protocol/supplement/preparation hashes and code delta. Root+peer must review those exact bytes.",
+    "Only fresh separate scientific root authorization plus new review-pointer may enter all96 preflight/native/mechanics. Administrative I/O success is insufficient.",
+    "After future physical run, retain every failed/incomplete status; no scientific source success or tone claim may be inferred from this implementation correction."
+  ],
+  "not_parameter_path_gate_or_outcome_retry": true,
+  "no_scientific_execution_authority": true
+}

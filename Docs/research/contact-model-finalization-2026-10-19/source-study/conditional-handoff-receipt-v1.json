@@ -1,0 +1,19 @@
+{
+  "stage": "await complete stable source closure",
+  "audit_executed": false,
+  "closed_source_receipt": {
+    "path": "build-passive-source-tone-candidate-capacity-root-review/execution-receipt-v1.json",
+    "bytes": 15832994,
+    "sha256": "3625b66767952807742283bf58ae4233ded0f99859a5eea0a79e96f6621b9439"
+  },
+  "handoff_failure": "RuntimeError('source closed incomplete/failed; audit forbidden')",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/vojta/Dev/electry-fundamental-20261018/build-passive-source-tone-candidate-capacity-root-review/continue_saved_audit_v1.py\", line 113, in main\n    need(closed['run_closed'] is True and closed['completed'] is True\n  File \"/Users/vojta/Dev/electry-fundamental-20261018/build-passive-source-tone-candidate-capacity-root-review/continue_saved_audit_v1.py\", line 19, in need\n    raise RuntimeError(message)\nRuntimeError: source closed incomplete/failed; audit forbidden\n",
+  "utc": "2026-10-19T16:15:38.216956+00:00",
+  "handoff_closed": true,
+  "conditional_authorization_sha256": "b2e8e3d2d19465503aa551058f30eaa3c0db2d1059cccef64ab2864a73a7f0c3",
+  "new_audit_artifacts": {},
+  "control_artifacts": {},
+  "scientific_or_audio_qualification_asserted": false,
+  "export_render_tone_or_production_authorized": false,
+  "no_automatic_retry": true
+}

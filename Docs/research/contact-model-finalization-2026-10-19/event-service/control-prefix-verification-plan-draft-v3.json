@@ -1,0 +1,237 @@
+{
+  "schema": "electry-event-relative-contact-control-prefix-verification/PROSPECTIVE-DRAFT-v3",
+  "status": "DRAFT source-only. v2 preserved unexecuted; new checker/wrapper/root+peer static review and fresh exact authorization required.",
+  "owned_input_registration": {
+    "path": "control-input-registration-draft-v2.json",
+    "bytes": 50812,
+    "sha256": "fbda4cdcd530ab058b519d6817107bebd38c85173a1c5d73ec526694fe584115"
+  },
+  "scope": "All96 original C input pulse/pole/contact/release/crop clocks; fixed manufactured descriptor D/y0/v0 only. No current E preflight/state/outcome dependency, no q/v/force/storageintegration/native/fieldtap/PCM/render or sourceparameter change.",
+  "reference": "Use exact boundoriginal SupportPath class (unmodified source; future isolated AST extraction or controlled source import) with pinnedNumPy1.26.4/SciPy1.14.1 lfilter/cumsum. Decode only pulse from each boundC parameterNPZ; wholeNPZhash before futurepulse read. Never execute prepare_case/coefficients/mechanics/native routines.",
+  "memory": "One original finitecrop reference/case at a time; stream comparisonfacts, retain only bounded three-knot newcursor. No all96 trajectory matrices or unboundedhistory. Oldreference itself remains its owned finitecrop allocation, not claimedO(1).",
+  "primary_all96": {
+    "fixture": "Manufactured y0=v0=+0, D=0x1p-10m in BOTH original reference and new controller; not actual hardware/stroke/force calibration or proposed model D.",
+    "kernel_prefix": "Compare every original filteredrate/cumulativeR/knotz in full originalwithdrawalprefix, rawbits+absolute/signed differences, no Rrenormalization.",
+    "press_prefix": "Every native pressknot plus halfnativepoints, attachment/leftRelease/rightRelease endpoint values and derivatives, declaredfloatoperationorder.",
+    "withdrawal": "Every canonical knot bothsides where oldintervalexists; midpoint of each ownedPWL interval; all skipped/missing/unavailable/terminalright facts retained.",
+    "routes": [
+      "owned absoluteclock reference vsnewlocal",
+      "zero-origin translated originalreference vsnewlocal; distinctbitidentity claim",
+      "Large origins: separate induction + fixed cloned sentinel route below; no full independent large-origin replay claim."
+    ]
+  },
+  "manufactured_descriptor_fixtures": [
+    {
+      "name": "nonzero_approach",
+      "y0_m_hex": "0x1p-11",
+      "v0_m_per_s_hex": "0x1p-6",
+      "D_m_hex": "0x1p-10"
+    },
+    {
+      "name": "opposite_phase",
+      "y0_m_hex": "-0x1p-11",
+      "v0_m_per_s_hex": "-0x1p-6",
+      "D_m_hex": "0x1p-10"
+    },
+    {
+      "name": "zero_stroke_edge",
+      "y0_m_hex": "0x1p-11",
+      "v0_m_per_s_hex": "0x1p-6",
+      "D_m_hex": "0x0p+0"
+    }
+  ],
+  "manufactured_scope": "All96 pulse/pole/clocks; fixed engineering descriptorvalues, NOT hand/force/materialcalibration or modelknobs. Exercise pressnative+half, attachment, bothRelease sides, first/pulselast/oldterminal knots; no claim exhaustivebitcoverage of everyotherD. KernelR independence is mathematical, not a universalrounded-z guarantee.",
+  "postcrop_separate_scope": "Oldfinalright marked UNAVAILABLE. Inspect newright and continuation at oldlast+1, oldlast+pulselength, oldlast+oldprefixlength; no oldequivalencePASS/no clamp/timeout. Report controllerfinite/r/R/unappliedmass, never infer finitephysicaldetach.",
+  "lifecycle_descriptor_only": "Using manufactured owner tokens/Ubranch descriptors, exercise busypositiveU/activezeroU/staleendpoint/duplicatearrival/geometrymismatch without fieldstate; everybusy keeps oldinstance/controller evidence and returnsUNRESOLVED. These branches do not prove physical U or work preservation.",
+  "admission_and_report": "Do not invent epsilon/fidelity/state rail. Record shape/finite/domain failures and rawbit equality separately, everycase/query including undefinedoriginalrightside. Nonzero differences never recast as bitidentity. Later physical use needs its own prospective acceptance plus unchanged fullmechanicalrails, not a tolerance selected from these values.",
+  "future_actual_physics_corpus": "Bind d884b457 lifecycle corpus +32942966landingreview; ringingq/v/work/activeU/nativeintegration explicitly DEFERRED untilwhole96mechanics and separate source/peer protocol.",
+  "execution_authorized": false,
+  "preserved_unexecuted_v1": {
+    "path": "control-prefix-verification-plan-draft-v1.json",
+    "bytes": 4205,
+    "sha256": "3858dc13d3f08ffbce7dafb923bc8ee22c33866818127000619150dc9ba0f9bd"
+  },
+  "future_actual_physics_corpus_inputs": {
+    "build-persistent-repick-lifecycle-corpus-review/contract-v1.json": {
+      "bytes": 13828,
+      "sha256": "d884b457a7aa086348d32aacca1cc4aeda231d241840b712fb6ef8d3d0475afe"
+    },
+    "build-persistent-repick-lifecycle-corpus-review/contract-v2-supplement.json": {
+      "bytes": 4561,
+      "sha256": "75f205119b42f6213e3fee0eed87b4773478ae1a3ff2ce6c31aa181887a90f86"
+    }
+  },
+  "runtime_and_callback_limits": {
+    "Python": "Prototype allocates Python objects/Fraction/deque/dataclasses. No RT/fixed-array/host integration qualification.",
+    "backwardODE": "Three-knot mutable cursor is not a general immutable backwardtrial ODE callback. Future independent reference must use a separately owned immutable trajectory callback or explicit controller cursor clone; never silent replay/reset of active mechanical state.",
+    "state": "Current prototype has no field/solver/native integration. 96k eventboundary bookkeeping and standalone Fraction-time controller queries are distinct from a future finer-grid mechanical/reference event dispatcher."
+  },
+  "future_saved_evidence": "Selected checker saves the full lossless member layout above, all descriptor/clock/lifecycle words and original failures; no current authorization to import packages/read pulse/hash NPZ/evaluate paths.",
+  "preserved_unexecuted_v2": {
+    "path": "control-prefix-verification-plan-draft-v2.json",
+    "bytes": 5909,
+    "sha256": "c1743435d61dd473a16f3cbe48654a70bad7bb85081b37b612e171f679c10c5b"
+  },
+  "selected_unexecuted_checker": {
+    "control_checker_draft_v1.py": {
+      "bytes": 16723,
+      "sha256": "5df20cabe0ad58ee66fdcb3d34b03c60d1d3186bbc92bf4717b8a11171a7d97e"
+    },
+    "run_control_draft_v1.py": {
+      "bytes": 13758,
+      "sha256": "dee17ef3c09f2b594f85bdbf0455284ae80dbd7943c5589f8cc983a7086d2fb9"
+    }
+  },
+  "explicit_scope_evolution_from_v2": {
+    "primary_full_prefix": "UNCHANGED: all96, every original withdrawal knot both sides and every PWL midpoint; complete rate/R/native tuple/midpoint evidence, owned-absolute and zero-origin original references versus new zero-origin controller.",
+    "large_origins": "V2 broad same-newlocal-offsets wording is explicitly REPLACED, before any evaluation, by mathematical integer-translation/cursor-state induction plus actual fixed sentinel/control-clone probes at 0,2**53,2**63. This is NOT evidence from three independently replayed full dynamic prefixes.",
+    "why": "The full primary dynamic prefix is still measured. The new recurrence does not access absolute origin. Origin dependence enters only exact integer/Fraction subtraction in value(). Clone sentinels exercise that adapter while preserving the current three-knot/state history. This proof does not cover original absolute float time arithmetic, production int64 clocks, physical transitions or a different future implementation.",
+    "not_budget_selection": "No values/compression trial were inspected. All96 primary prefix coverage is fixed and never pruned to fit the cap. Any cap/floor failure preserves partials and marks remaining IDs unavailable; no retry/format repair."
+  },
+  "large_origin_proof_and_actual_probe_scope": {
+    "algebra": "For exact int/Fraction local ell, (origin+ell)-origin=ell. Recipes and attachment y/v are unchanged. Starting with identical stored state, cumulativeR and cached knots, each DFII-T recurrence and z expression uses no origin, so induction gives identical controller state for every generated local index. Conditional on identical inputs/operation order; no all-implementations/FMA claim.",
+    "actual_probes": "For ALL96 x ALL4 fixed descriptors: every native+half press query right, attachment left, Release left; first/pulse-last/old-terminal withdrawal knot both sides; new postcrop right at oldlast+1, oldlast+pulselen, oldlast+oldprefixlen. At each base-controller query clone its small controller cache/state, translate arrival+attachment origin only, and call actual value() at each of 0,2**53,2**63.",
+    "clone_limit": "Declared controller-only cursor clones are not actual mechanical repicks/reset or an independent general backward ODE callback. No physical q/v/U/work ledger is present."
+  },
+  "exact_evidence_representation": {
+    "prefix_N": "N=calls96-release_frame96 for each original row.",
+    "baseline_members": {
+      "old_rate": "(N,) f64",
+      "old_R": "(N,) f64",
+      "old_knots_absolute": "(N,) f64",
+      "old_knots_zero": "(N,) f64",
+      "old_native": "(N,2,3) f64 [left/right,z/zd/zdd]",
+      "old_midpoint_times_absolute": "(N-1,) f64",
+      "old_midpoint_times_zero": "(N-1,) f64",
+      "old_midpoint": "(N-1,3) f64"
+    },
+    "xor_members": {
+      "new_rate_xor_old_rate": "(N,) u64",
+      "new_R_xor_old_R": "(N,) u64",
+      "new_native_xor_old_native": "(N,2,3) u64",
+      "zero_native_xor_old_native": "(N,2,3) u64",
+      "new_midpoint_xor_old_midpoint": "(N-1,3) u64",
+      "zero_midpoint_xor_old_midpoint": "(N-1,3) u64"
+    },
+    "reconstruction": "actual_f64_words = baseline_f64.view(uint64) XOR stored_xor; then view float64. Retains signedzero, NaN words, every nonzero difference, and full failed initialized prefixes. No sparse-error pruning or quantization. Rate/R shared; no per-descriptor copies of these kernel arrays.",
+    "raw_byte_formula": "8*(35*N-11) per complete primary case, excluding NPZ headers and separate exact-word JSON descriptor/lifecycle facts. This includes complete tuple/clock/midpoint routes, not merely the earlier 8-column estimate.",
+    "probe_evidence": "Every query retains exact old absolute/zero time words where available, all old/new tuple words, translated-clone tuple words, raw-bit comparison statuses, and explicit original terminal-right/postcrop unavailability. Numeric differences are descriptive; no allclose/fidelity tolerance."
+  },
+  "metadata_only_raw_budget_forecast": {
+    "case_count": 96,
+    "withdrawal_knots_total": 18367968,
+    "withdrawal_knots_min": 186733,
+    "withdrawal_knots_max": 191533,
+    "raw_primary_numeric_words": 642877824,
+    "raw_primary_numeric_bytes": 5143022592,
+    "press_frames_total": 14400,
+    "pulse_lengths_from_original_C_metadata": {
+      "neck/fresh-pick018-slot001": 26,
+      "neck/fresh-pick018-slot002": 26,
+      "neck/fresh-pick018-slot003": 26,
+      "neck/fresh-pick018-slot004": 26,
+      "neck/fresh-pick018-slot005": 26,
+      "neck/fresh-pick018-slot006": 26,
+      "neck/fresh-pick018-slot007": 26,
+      "neck/fresh-pick018-slot008": 26,
+      "neck/fresh-pick018-slot009": 26,
+      "neck/fresh-pick018-slot010": 26,
+      "neck/fresh-pick018-slot011": 26,
+      "neck/fresh-pick018-slot012": 26,
+      "neck/fresh-pick018-slot013": 26,
+      "neck/fresh-pick018-slot014": 26,
+      "neck/fresh-pick018-slot015": 26,
+      "neck/fresh-pick018-slot016": 26,
+      "neck/fresh-pick018-slot017": 26,
+      "neck/fresh-pick018-slot018": 26,
+      "neck/fresh-pick018-slot019": 26,
+      "neck/fresh-pick018-slot020": 26,
+      "neck/fresh-pick018-slot021": 26,
+      "neck/fresh-pick018-slot022": 26,
+      "neck/fresh-pick018-slot023": 26,
+      "neck/fresh-pick018-slot024": 29,
+      "neck/fresh-pick018-slot025": 29,
+      "neck/fresh-pick018-slot026": 29,
+      "neck/fresh-pick018-slot027": 29,
+      "neck/fresh-pick018-slot028": 29,
+      "neck/fresh-pick018-slot029": 29,
+      "neck/fresh-pick018-slot030": 29,
+      "neck/fresh-pick018-slot031": 29,
+      "neck/fresh-pick018-slot032": 29,
+      "neck/fresh-pick018-slot033": 29,
+      "neck/fresh-pick018-slot034": 29,
+      "neck/fresh-pick018-slot035": 29,
+      "neck/fresh-pick018-slot036": 29,
+      "neck/fresh-pick018-slot037": 29,
+      "neck/fresh-pick018-slot038": 29,
+      "neck/fresh-pick018-slot039": 29,
+      "neck/fresh-pick018-slot040": 29,
+      "neck/fresh-pick018-slot041": 29,
+      "neck/fresh-pick018-slot042": 29,
+      "neck/fresh-pick018-slot043": 29,
+      "neck/fresh-pick018-slot044": 29,
+      "neck/fresh-pick018-slot045": 29,
+      "neck/fresh-pick018-slot046": 29,
+      "neck/fresh-pick050-slot001": 26,
+      "neck/fresh-pick050-slot002": 26,
+      "neck/fresh-pick050-slot003": 26,
+      "neck/fresh-pick050-slot004": 26,
+      "neck/fresh-pick050-slot005": 26,
+      "neck/fresh-pick050-slot006": 26,
+      "neck/fresh-pick050-slot007": 26,
+      "neck/fresh-pick050-slot008": 26,
+      "neck/fresh-pick050-slot009": 26,
+      "neck/fresh-pick050-slot010": 26,
+      "neck/fresh-pick050-slot011": 26,
+      "neck/fresh-pick050-slot012": 26,
+      "neck/fresh-pick050-slot013": 26,
+      "neck/fresh-pick050-slot014": 26,
+      "neck/fresh-pick050-slot015": 26,
+      "neck/fresh-pick050-slot016": 26,
+      "neck/fresh-pick050-slot017": 26,
+      "neck/fresh-pick050-slot018": 26,
+      "neck/fresh-pick050-slot019": 26,
+      "neck/fresh-pick050-slot020": 26,
+      "neck/fresh-pick050-slot021": 26,
+      "neck/fresh-pick050-slot022": 26,
+      "neck/fresh-pick050-slot023": 26,
+      "neck/fresh-pick050-slot024": 29,
+      "neck/fresh-pick050-slot025": 29,
+      "neck/fresh-pick050-slot026": 29,
+      "neck/fresh-pick050-slot027": 29,
+      "neck/fresh-pick050-slot028": 29,
+      "neck/fresh-pick050-slot029": 29,
+      "neck/fresh-pick050-slot030": 29,
+      "neck/fresh-pick050-slot031": 29,
+      "neck/fresh-pick050-slot032": 29,
+      "neck/fresh-pick050-slot033": 29,
+      "neck/fresh-pick050-slot034": 29,
+      "neck/fresh-pick050-slot035": 29,
+      "neck/fresh-pick050-slot036": 29,
+      "neck/fresh-pick050-slot037": 29,
+      "neck/fresh-pick050-slot038": 29,
+      "neck/fresh-pick050-slot039": 29,
+      "neck/fresh-pick050-slot040": 29,
+      "neck/fresh-pick050-slot041": 29,
+      "neck/fresh-pick050-slot042": 29,
+      "neck/fresh-pick050-slot043": 29,
+      "neck/fresh-pick050-slot044": 29,
+      "neck/fresh-pick050-slot045": 29,
+      "neck/fresh-pick050-slot046": 29,
+      "bridge/hb018": 26,
+      "bridge/hb050": 26,
+      "bridge/sc018": 26,
+      "bridge/sc050": 26
+    },
+    "four_fixture_query_count_upper_bound": 119808,
+    "JSON_forecast": "Exact field layout/hex words is fixed; no value-dependent precision choice. A conservative planning allowance is 8KiB per fixture query plus 2MiB case metadata; this is a forecast, NOT a promise to fit the total compressed cap. Streamed JSON is also charged against the same cap.",
+    "JSON_planning_allowance_bytes": 1182793728,
+    "compressed_size": "UNKNOWN; no compression trial performed. Zero/XOR redundancy may compress but is not assumed.",
+    "all_output_cumulative_write_cap_bytes": 1073741824,
+    "reserved_final_metadata_bytes": 1048576,
+    "actual_free_work_floor_bytes": 2147483648,
+    "capacity_policy": "One case at a time. Work writes include ZIP header rewrites in cap accounting and check actual free>=2GiB+write length. At cap/floor/MemoryError/interrupt stop work, retain partial archives/logs/failure facts, explicitly enumerate remaining unavailable IDs. Reserved <=1MiB final metadata is best effort and may bypass the work floor solely to record failure; no data continuation. Existing E 1GiB guard is untouched.",
+    "no_guarantee": "Neither compression fit nor host future free space is guaranteed. No automatic deletion/retry/cohort shrink."
+  },
+  "partial_query_retention": "Each descriptor fixture predeclares every query row before path evaluation. Complete records are updated incrementally; failure leaves all unevaluated queries explicitly unavailable. No lost completed lifecycle/fixture observations. Administrative interrupts and MemoryError propagate to once-only stop after recording."
+}

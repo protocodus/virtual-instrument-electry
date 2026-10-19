@@ -1,0 +1,60 @@
+--- original/protocol-draft-v1.json
++++ capacity/protocol-draft-v1.json
+@@ -63,8 +63,8 @@
+   "cohorts": "All46 original known-Neck E/A notes x2 fixedPick.18/.5 (92modelcases), plus4 original Bridge HB/SC Pick.18/.5 (4cases). Same96 C IDs/controls/geometry/callbacks/Contact/Release/MIDI uncertainty and2s crops. No source re-search, acousticshift, pruning/fret choice or new mask.",
+   "letters": "A/C/D/E direct comparison. Old materialB remains archived unchanged in prior C/D studies, not in this new gain cohort. No old source, PCM, observations or JSON rewritten.",
+   "new_PCM_contract": {
+-    "root": "build-passive-source-tone-export-render",
+-    "mechanical_source_root": "build-passive-source-tone-candidate-iofix",
++    "root": "build-passive-source-tone-capacity-export-render",
++    "mechanical_source_root": "build-passive-source-tone-candidate-capacity",
+     "receipt": "E-render-v1.json (prospective)",
+     "all96_rendered_after_blind_gate": true,
+     "rows": "Exactly original96unique IDs,scope,old_key; PCM_path/sha256;metadata_path/sha256; unchanged calls/first_clock/Contact/Release/geometry metadata exceptRMS/peak. Every2s monoPCM96000frames48k finite, full loading/withdrawal taps. No onset/redetection/field substitution/fade.",
+@@ -87,5 +87,45 @@
+   "harmonic_diagnosis": "For SAME note/window report absoluteH1/H2/H3 anddirect H2/H1,H3/H1 together, paired E-minus-baseline level/ratio movements before distributions and their algebraicclosure. Never explain ratios by subtracting medians from unequal cohorts. Shippingwhole30repickHBBridge.18 pattern (missingH1/H2 withroughlymatchedH3) is distinct from C/DisolatedNeck pattern. Broad80-250 canimprove whilefundamentalworsens; no fundamental-restoration claim from bandMAEalone and no dullingupperpartials disguised asbody improvement.",
+   "failure_policy": "All expected contexts/window/prefixrows retained. Numeric failure produces explicitunavailable perrow and candidateguardfalse; aggregate not recomputed afterdroppingmissing originalmaskmembers. Wholecrop unavailable/zero/nonfiniteRMS =>incomplete, no gainfloor. Finite-serialization fail closed; no retry/precision/threshold/gain/kernel adaptation. Perstage closed outputs written sequentially so a laterfailuredoesnotdiscard earlierclosedresults.",
+   "outputs": "NEW neck-analysis-v1.json,bridge-analysis-v1.json; explicitincomplete-analysis-v1.json ifneeded. Matchednativeaudio/room/plots are separate laterpackage task; no renderer/PCMcreation here.",
+-  "claims": "Conditional all96 isolated2s source/native-pickup diagnostic only. No continuoussharedstate repicks/refrets/attack/naturalness/alias/RT/DIvoltagecalibration/production/default/95percent qualification. Rootgoalremainsactive; no automaticpromotion from one metric."
++  "claims": "Conditional all96 isolated2s source/native-pickup diagnostic only. No continuoussharedstate repicks/refrets/attack/naturalness/alias/RT/DIvoltagecalibration/production/default/95percent qualification. Rootgoalremainsactive; no automaticpromotion from one metric.",
++  "capacity_routing_successor_provenance": {
++    "status": "UNEXECUTED DRAFT routing only; no implementation manifest, execution authorization or candidate result is asserted.",
++    "original_analysis_root": "build-passive-source-tone-analysis",
++    "original_analysis_protocol": {
++      "path": "build-passive-source-tone-analysis/protocol-draft-v1.json",
++      "bytes": 10032,
++      "sha256": "ea153304a5e5eb332449e6d04c9ee7c7fab449d46353b639d9c5769ec5682461"
++    },
++    "original_analysis_draft_snapshot": {
++      "path": "build-passive-source-tone-analysis/draft-source-hashes-v3.json",
++      "bytes": 1711,
++      "sha256": "d10e915d74e2c1156c38f16e7126f1b7cdfa1d091d4b8774ec10a3192650927c"
++    },
++    "mechanical_source_manifest": {
++      "path": "build-passive-source-tone-candidate-capacity/implementation-manifest-v1.json",
++      "bytes": 446396,
++      "sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c"
++    },
++    "mechanical_source_protocol": {
++      "path": "build-passive-source-tone-candidate-capacity/protocol-selected-v1.json",
++      "bytes": 19904,
++      "sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058"
++    },
++    "preserved_incomplete_IO_predecessor": {
++      "root": "build-passive-source-tone-candidate-iofix",
++      "closed_receipt": {
++        "path": "build-passive-source-tone-candidate-iofix-root-review/execution-receipt-v1.json",
++        "bytes": 1885523,
++        "sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4"
++      },
++      "incomplete_and_unqualified": true,
++      "not_reused_as_candidate_E_output": true
++    },
++    "prospective_candidate_render_receipt": "build-passive-source-tone-capacity-export-render/E-render-v1.json",
++    "same_E_render_v1_96_rows_and_receipt_relative_PCM_metadata_contract": true,
++    "all8_analysis_code_files_copied_byte_identically": true,
++    "same_all96_contexts_A_C_D_E_letters_source_masks_original_windows_metrics_guard_math_cohort_gains_background_eligibility_and_failure_retention": true,
++    "new_metric_mask_threshold_parameter_clock_gain_or_PCM_assumption": false,
++    "future_requirements": "Fresh independent all96 mechanics qualification, immutable renderer authorization/all96 render receipt, separate combined root qualification and fresh exact root+peer analysis authorization. No passing subset; all old incomplete packets remain historical."
++  }
+ }

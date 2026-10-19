@@ -1,0 +1,102 @@
+{
+  "schema": "electry-capacity5-complete-stored-equation-replay-wrapper/PROSPECTIVE-DRAFT-v1",
+  "status": "UNEXECUTED source-only draft. No metadata preparation, generator/oracle import or evaluation, numeric imports, archive payload reads, compiler or binary calls. Root comments must close before selected freeze and separately authorized preparation/execution.",
+  "reviewed_science_snapshot": {
+    "path": "reviewed-draft-snapshot-v1.json",
+    "sha256": "c4bc1f7c55611f7c10f26ee37b529e52b4ed23e2ca074ce1c6034a93b0eb44ee",
+    "unchanged_artifacts": ["oracle_draft_v1.py", "cases_draft_v1.py", "protocol-draft-v1.json", "old-regression-routes-draft-v1.json"],
+    "root_comments_closed": "Exact schema/echo/trace/inactive/expected-negative/native-global/original-NumPy owners are clear. This wrapper changes none of those algorithms or fixed input recipes."
+  },
+  "scope": "Stored A/d0/dfree binary64 equations at fixed numerical K6000 only. No new physical source states, material/finger calibration, contact storage/work, fret transport, PCM, tone, actual performance or realtime qualification. Wrong-Asolve old controls remain wrong physics even if their stored equations qualify.",
+  "fixed_calls": {
+    "registered_new_requests": 230,
+    "old_main_nonempty_requests": 106679,
+    "old_controls_permutation_nonempty_requests": 45900,
+    "old_certificate_files_including_empty": 66,
+    "old_nonempty_requests": 152579,
+    "total_stream_requests": 152809,
+    "environment_child_guards": ["FE_DOWNWARD", "FTZ_BIT24"],
+    "execution_order": "The existing fixed generator's J3/J5-first230 requests; all150 declared permutation comparisons and ten saved-record checker corruptions; every original certificate in its registered archive order including empty files; finally the two unchanged compiled environment guards. No record/case pruning or runtime route fallback.",
+    "saved_corruptions_not_new_force_calls": ["wrong-id", "truncated-trace", "wrong-update", "raw-lower-word", "reversed-interval", "false-zero-certificate", "false-cap-count", "false-cap-endpoint", "inactive-force", "altered-equation"],
+    "corruption_base": "Exactly the registered J3/coupled-dense-spd result, only if fully qualified. If unavailable, all ten checks remain unavailable and the whole result cannot PASS. No alternative base is selected."
+  },
+  "required_entry": {
+    "cli": "fixedPython312 run_replay_draft_v1.py --authorization REPOSITORY_RELATIVE_PATH --authorization-sha256 EXACT_SHA256",
+    "python": "/Users/vojta/Dev/electry-real-dry-20261018/build-real-dry-review/python312/bin/python",
+    "version": "3.12.8",
+    "host": "Darwin arm64, actual release and resolved executable fixed by future exact manifest",
+    "numpy": "1.26.4, actual module __file__ and frozen package bytes/root owned by manifest",
+    "scipy": "1.14.1, same actual module-path/version/environment ownership",
+    "optimized_mode": "Explicit refusal before local imports. pyc disabled before local module imports.",
+    "no_setup": "No installation, alternate interpreter, altered precision/flags or substituted package/module. No compilation in this wrapper."
+  },
+  "manifest_contract": {
+    "path": "execution-implementation-manifest-v1.json",
+    "schema": "electry-capacity5-replay-execution-implementation/v1",
+    "not_prepared_yet": true,
+    "fields": {
+      "artifacts": "Local path -> exact {bytes,sha256}, including wrapper/protocol/reviewed snapshot and all four unchanged reviewed artifacts.",
+      "inputs": "Repository-relative metadata/source path -> {bytes,sha256}; bind actual compile-v2 manifest/protocol, reviewed header/driver/math receipt, both archive indexes and original inventory/proofs, original mechanics_v2.py callback source plus its import dependencies. No numeric payload is placed in this metadata-input map.",
+      "environment_files": "Absolute environment file path -> {bytes,sha256}, inherited fixed qualified1435 file set, using original following-byte semantics for inherited runtime symlink keys only.",
+      "Source24": "All24 repository Source paths -> {bytes,sha256}; current and published6c83 bytes checked. No Source/Tests/CMake edits.",
+      "production_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+      "protocol_sha256": "Exact wrapper-protocol-draft-v1.json hash after root/peer source comments close",
+      "sys_path": "Exact direct-entry import path list",
+      "runtime": "python_real_executable, platform_release, inherited_environment, numpy_version/numpy_file, scipy_version/scipy_file",
+      "payload_container_bindings": "Exactly the recorded tar.gz and object ZIP absolute paths -> {bytes,sha256}; these are opened and hashed only after fresh execution authorization. Direct NPZ facts/routes are in the immutable reviewed route registration."
+    },
+    "future_binary_hashes": "No unknown compile receipt/binary fact is invented here. Fresh root execution authority binds the actual successful closed v2 compile receipt and both exact binary facts. Wrapper verifies receipt schema, all strict compile argv/owned-group closures, original compile authority/reviews, current compile source/Source/Test/CMake bindings and exact binary bytes before any execution."
+  },
+  "execution_authorization_contract": {
+    "schema": "electry-capacity5-stored-equation-replay-authorization/v1",
+    "capacity5_stored_equation_replay_authorized": true,
+    "physical_state_work_audio_or_E_access_authorized": false,
+    "implementation_manifest_sha256": "Actual future exact execution manifest",
+    "protocol_sha256": "Actual selected wrapper protocol",
+    "reviews": "root/peer each {path repository-relative,sha256}; each exact receipt role,static_clear:true,capacity5_stored_equation_replay_authorized:true and same manifest/protocol hashes",
+    "compile_receipt": "{path:'build-multicontact-passive-kernel/compile-v2/execution-receipt-v2.json',sha256:actual closed receipt}",
+    "binary": "{path repository-relative,bytes,sha256} identical to actual closed compile outputs/compile-v2/multicontact-stream-v1",
+    "environment_binary": "Corresponding exact environment-negatives binary fact",
+    "live_source_capacity_admitted": true,
+    "source_reserved_free_bytes": "Root-owned nonnegative administrative reserve for remaining live source output; no launch if the source capacity is threatened. Not a model parameter or guarantee of external disk behavior.",
+    "no_authority_from_draft_or_compilation": true
+  },
+  "before_first_native_call": [
+    "Exact fresh execution auth/reviews, manifest/protocol and selected code/runtime/Source bindings pass; closed successful strict compile provenance and actual binary bytes pass.",
+    "Exclusive results-v1 directory and actual8MiB emergency reserve; resource admission uses max(2GiB own floor, root source_reserved_free_bytes).",
+    "Open held nofollow tar/ZIP and every registered direct NPZ, validate full recorded whole-byte SHA/size and direct metadata. All logical certificate member SHA/size/newline counts66, including original empty files, pass in one linear tar preflight; all eight object NPZ member SHA/size/CRC pass by streaming to EOF.",
+    "No tar extraction or restore; tar/gzip true EOF/trailer reached. Archive routing is immutable before outcomes. Every old input is proved even if its original certificate file is empty.",
+    "Only after complete input-byte preflight import fixed NumPy/SciPy, original mechanics definitions and selected independent oracle/input recipes. Only the original dg_force_and_derivative callback is used; no scheduler, basis builder, scipy.root, old solve or state update is called."
+  ],
+  "old_equation_join": "For each exact original case basename, parse full original certificate line for frame and ordered active_ports. Join NPZ[k,mask] and NPZ[k][ix(mask,mask)] from ONLY solve_d0_m, solve_dfree_m, solve_Asolve_m_per_N. Require increasing exact integer frames, unique1..2 active ports and finite active float64. Ignore original forces/certificates numerically except frame/port metadata. Fixed five-lane zero padding is transport only, no physical port remapping.",
+  "logical_archive_access": "Two serial tar passes: full byte preflight, then replay in exactly the observed fixed archive member order. Replay rehashes each consumed logical member. Direct NPZ handles are held; object NPZ uses outer ZipExtFile plus inner np.load with only three allowed members, no all-file RAM or disk extraction. Archive and direct input full hashes/metadata rechecked after complete replay.",
+  "record_and_failure_contract": {
+    "raw": "Lossless gzip level6, deterministic mtime0. Record attempted request and identity before stdin write. Record full raw response hex before JSON parsing or numeric checks. All traces/inactive lanes remain in the raw native response, never sampled/pruned.",
+    "checks": "Separate streamed gzip checked-record rows plus all150 exact coordinate/posterior permutation facts, every unchanged expected rejection/acceptance result and full errors. No numeric delta threshold or old-force equality.",
+    "ordinary_numpy": "On each expected native accept, first verify complete native schema/raw input ownership, then call exact original NumPy dg_force_and_derivative(d0,dfree-A@f)[0]. Preserve raw residual bits even if nonfinite; acceptance requires the original finite2e-11 rail. Exact target/certificate and ordinary C++/NumPy facts stay distinct.",
+    "force_failure": "An expected force failure remains a failed record while remaining owned records continue; no force repair/retry. Native CPP diagnostic failure cannot pass because exact stored certificate truth survives. Wrong schema/id/transport, admin interruption, MemoryError or resource failure stops the batch, preserving missing scope and current request/response as best effort.",
+    "owner_lifetime": "One owned stream child; all postlaunch failure routes signal its own process group SIGINT best-effort and always wait before closure. Two owned environment children restore their own modes; wrapper never alters parent arithmetic. No automatic retry/escalation/substitute binary.",
+    "partial": "Full failures retained when writable; reserved emergency current-record evidence on write/transport failure. Resource failures remain incomplete with no guarantee an interrupted gzip is readable or all attempted bytes are durable. Original error remains visible if subsequent evidence/closure writes fail.",
+    "closed_science": "complete is coverage/closure only. all_stored_equation_checks_PASS separately joins complete scope, all force/negative/NumPy checks, all150 permutations, ten corruption detections, two environment guards, post input/static bindings and no failures. No physical state/work/audio/RT claim."
+  },
+  "administrative_limits": {
+    "total_output_and_admin_bytes": 2147483648,
+    "actual_emergency_reserve_bytes": 8388608,
+    "own_free_floor_bytes": 2147483648,
+    "resource_checks": "Before own compressed writes and input chunks/records; subprocess stderr is included by stat at checks. Sampled external filesystem state and trusted fixed-driver response sizes, not a hard OS quota/no-overshoot or adversarial parser qualification.",
+    "memory": "One original case's three equation arrays,1MiB byte/hash chunks, one raw response/parsed4097-row trace and compression buffers. Up to three new dense-SPD base traces retained only through150 permutation checks and ten saved corruptions, then discarded before old replay. No all152k histories in RAM, no benchmark/RT claim.",
+    "progress": "Flush raw/check gzip and print bounded progress each2048 completed requests and each original case.",
+    "outcome_policy": "Never prune a case, shorten original input or change tolerance/iteration cap to meet resources. Explicit failure/incomplete, preserve all closed evidence. Source run has priority; this draft does not admit current capacity."
+  },
+  "output_contract": [
+    "results-v1/attempt-v1.json",
+    "results-v1/logical-input-byte-preflight-v1.json",
+    "results-v1/raw-native-and-negative-evidence-v1.jsonl.gz",
+    "results-v1/checks-v1.jsonl.gz",
+    "results-v1/driver-stderr.txt",
+    "results-v1/emergency-current-record-v1.json only when needed",
+    "results-v1/summary-v1.json (all fixed counts and failed/unavailable scope, post binding flags, original errors)"
+  ],
+  "selected_wrapper_hash": "To be recorded after root source comments close; no preparation or execution yet.",
+  "no_execution_or_preparation_authorized": true
+}

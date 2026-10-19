@@ -1,0 +1,34 @@
+{
+  "schema": "electry-multicontact-source-only-math-review/DRAFT-v1",
+  "status": "Algebra/source only; new proposed sequential primitive graph communicated by owner, actual header pending. No new source imports/evaluation or numeric calls.",
+  "note": {
+    "bytes": 8843,
+    "sha256": "70614418a3621492a085142d7f8a18b5ee4be1c663d8713dab1eeb29fcdeb473"
+  },
+  "inputs": {
+    "build-multicontact-passive-solver-design/report-v1.md": {
+      "bytes": 11167,
+      "sha256": "1a018493cd7e1419ff2100ad383f0968edba3a8192fcf5038869f400c8f7569e"
+    },
+    "build-multicontact-passive-solver-design/manifest-v1.json": {
+      "bytes": 2365,
+      "sha256": "fa8f208c9c5c85366a959aee462c19478353a3845c95f30c3b542a4936f91f53"
+    },
+    "build-certified-contact-rt-formulation/rounding-budget-v1.md": {
+      "bytes": 5085,
+      "sha256": "a72c4105c008f6ac3eb9f35b38af3d4b24b1e9514d71045c74e4c781bbe75ed3"
+    },
+    "build-certified-contact-rt-kernel/contact_interval_v1.hpp": {
+      "bytes": 22696,
+      "sha256": "f24774f99c72a40bac1037c9a6f3b0450b01dcee7d7332c491af1279093a3f9b"
+    }
+  },
+  "numeric_force_state_native_package_audio_calls": false,
+  "new_kernel_static_or_execution_approval": false,
+  "comments_to_owner": [
+    "Row partial S_l must have explicit scaled/unscaled meaning; do not multiply by R twice.",
+    "Outward q-products yield safe conditional log-free cap; administrative4096 is a resource ceiling only, no cap if sequence never meets positive slack.",
+    "Runtime outward measured-width may conservatively reject the mathematical diameter boundary; preserve explicit failures.",
+    "Keep ordinary C++ and original NumPy residual rails separate from the exact-target termination proof."
+  ]
+}

@@ -1,0 +1,86 @@
+--- run_analysis_once_draft_v2.py
++++ run_analysis_once_draft_v3.py
+@@ -12,9 +12,9 @@
+ P=Path(__file__).resolve().parent;R=P.parent
+ PYTHON=Path('/Users/vojta/Dev/electry-real-dry-20261018/build-real-dry-review/python312/bin/python')
+ BASELINE='6c83ff453ff7ac346598e8e73367ced128a90838'
+-M=P/'outer-implementation-manifest-v1.json';PROTOCOL=P/'outer-execution-protocol-draft-v2.json'
++M=P/'outer-implementation-manifest-v1.json';PROTOCOL=P/'outer-execution-protocol-draft-v3.json'
+ AM=P/'implementation-manifest-v1.json';AP=P/'protocol-draft-v1.json';OUT=P/'outer-run-v1'
+-OUTPUT_CAP=256*1024**2;OWN_FREE_FLOOR=2*1024**3;POLL_SECONDS=.25
++OUTPUT_CAP=256*1024**2;OWN_FREE_FLOOR=1024**3;POLL_SECONDS=.25
+ RESULT_NAMES=('neck-analysis-v1.json','bridge-analysis-v1.json','incomplete-analysis-v1.json')
+ EIGHT={
+  'analyze_bridge_v1.py':'c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d',
+--- outer-execution-protocol-draft-v2.json
++++ outer-execution-protocol-draft-v3.json
+@@ -1,15 +1,15 @@
+ {
+-  "schema": "electry-passive-tone-analysis-outer-execution/UNEXECUTED-DRAFT-v2",
+-  "status": "Source-only v2 administrative draft closing poll/reap, remaining-owned-group and published production-check review findings. No manifest, metadata preparation, execution authority, scientific import, sample read, renderer, compiler or numerical call.",
++  "schema": "electry-passive-tone-analysis-outer-execution/UNEXECUTED-DRAFT-v3",
++  "status": "Source-only v3 prospective administrative finalization policy: change actual-free floor from2GiB to1GiB after the existing all96 closed mechanics/render prerequisites. No manifest, metadata preparation, execution authority, E payload access or scientific result adaptation.",
+   "scope": "Finalize only the already planned isolated candidate E real-dry comparison. Preserve all eight existing analysis Python files and protocol-draft-v1.json byte-identically. No new candidates, parameter changes, masks, windows, gains, tolerances, numerical methods, reference search or scientific promotion.",
+   "entry": {
+-    "script": "run_analysis_once_draft_v2.py",
++    "script": "run_analysis_once_draft_v3.py",
+     "python": "/Users/vojta/Dev/electry-real-dry-20261018/build-real-dry-review/python312/bin/python",
+     "python_version": "3.12.8",
+     "numpy": "1.26.4",
+     "scipy": "1.14.1",
+     "host": "Darwin arm64; actual release, resolved executable, full Python version, direct-entry import paths and inherited environment bound by future exact outer manifest",
+-    "cli": "fixedPython312 run_analysis_once_draft_v2.py --authorization REPOSITORY_RELATIVE_AUTH_PATH --authorization-sha256 EXACT_SHA256",
++    "cli": "fixedPython312 run_analysis_once_draft_v3.py --authorization REPOSITORY_RELATIVE_AUTH_PATH --authorization-sha256 EXACT_SHA256",
+     "single_scientific_child_argv": [
+       "fixedPython312",
+       "-B",
+@@ -32,7 +32,7 @@
+   "outer_manifest_contract": {
+     "path": "outer-implementation-manifest-v1.json",
+     "schema": "electry-passive-tone-analysis-outer-implementation/v1",
+-    "protocol_sha256": "Exact selected outer-execution-protocol-draft-v2.json",
++    "protocol_sha256": "Exact selected outer-execution-protocol-draft-v3.json",
+     "artifacts": "Local outer script and protocol path -> exact {bytes,sha256}",
+     "inputs": "Repository-relative source/metadata bindings only; no .npz/.wav/.f32/.f64. Bind original analysis protocol and manifest, reviewed preparation/routing receipts and production-baseline proof metadata. No source result or field payload access before qualification.",
+     "environment_files": "Additional fixed inherited runtime/environment files -> exact {bytes,sha256}; may be empty because the complete existing analysis manifest environment_files table is independently rechecked. Do not duplicate the1435 inherited bindings unnecessarily. Retain existing following-byte semantics for inherited runtime symlink keys.",
+@@ -83,12 +83,12 @@
+   },
+   "administrative_resources": {
+     "sampled_total_output_cap_bytes": 268435456,
+-    "minimum_actual_free_floor_bytes": 2147483648,
+-    "effective_floor": "max(2GiB, fresh root source_reserved_free_bytes)",
++    "minimum_actual_free_floor_bytes": 1073741824,
++    "effective_floor": "max(1GiB, fresh root source_reserved_free_bytes); the root-owned source reservation remains honored unchanged",
+     "poll_wait_slice_seconds": 0.25,
+     "checks": "Before child launch, between bounded waits, and after child exit; inventory counts only direct owned outer-run files plus the three original scientific output paths. Child writes may overshoot between samples. No hard OS quota, per-write cap or compression/closure reserve is claimed.",
+     "no_new_reserve": true,
+-    "source_priority": "Do not launch while source capacity is threatened. No live-source reads, deletion, interruption or candidate retune.",
++    "source_priority": "The existing exact all96 closed-source/independent-mechanics/closed-render prerequisites remain mandatory. This1GiB floor is for sequential final analysis after source closure, matching the existing main source actual-free guard. No live-source reads, deletion, interruption or candidate retune.",
+     "runtime_expectation": "No measured runtime bound or RT claim. The unchanged analysis computes1104 Neck and64x4 Bridge observations, preserving all original results; retain interruption/failure rather than prune scope.",
+     "memory_expectation": "Original in-memory four-letter96x96000 float64 clips plus nine4416000-frame Neck tracks are approximately613MB decimal before reference copies/NumPy/output overhead; this is an allocation estimate, not observed peak memory or an enforced cap."
+   },
+@@ -141,5 +141,24 @@
+       "Verify published original Source24 blobs and unchanged Source/Tests/CMake Git diff pre/post."
+     ],
+     "unchanged_science": "All original eight Python analysis modules/protocolv1,96cases,metrics,guards,windows,gains,thresholds and source masks remain byte-identical. No executable/scientific calls or metadata preparation by this change."
++  },
++  "v3_prospective_administrative_delta": {
++    "preserved_v2_script": {
++      "path": "run_analysis_once_draft_v2.py",
++      "bytes": 18687,
++      "sha256": "278f7717ac587724ffaf4f727b8dc2565624d6999c9c9299f653035f7fddf510"
++    },
++    "preserved_v2_protocol": {
++      "path": "outer-execution-protocol-draft-v2.json",
++      "bytes": 13455,
++      "sha256": "69c6da28a321a03146f06e51b7cbda06fe634c7c9fe9070aa28d64f13e78329d"
++    },
++    "only_runtime_policy_change": "OWN_FREE_FLOOR from2147483648 to1073741824 actual-free bytes. Select protocolv3; retain max with fresh root source_reserved_free_bytes.",
++    "timing": "Prospective policy set before any candidate E payload/result access, exact manifest preparation or execution. Existing full96 closed source/independent-mechanics/closed-render gates ensure source and analysis are sequential.",
++    "unchanged": "All original eight scientific files/protocolv1,96 contexts,288 old model PCM files,three dry references,metrics,source masks,windows,matching,gains,guards,rate/work/residual/tone criteria,outputcap256MiB,ownedprocesscleanup,postbindings and result-completeness requirements.",
++    "not_a_scientific_gate_change": true,
++    "no_result_adaptation_pruning_new_archive_or_reserve": true,
++    "no_hard_OS_free_space_or_durability_guarantee": true,
++    "root_peer_exact_source_review_and_fresh_authority_still_required": true
+   }
+ }

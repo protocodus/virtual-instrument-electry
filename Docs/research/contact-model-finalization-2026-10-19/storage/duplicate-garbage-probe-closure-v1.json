@@ -1,0 +1,67 @@
+{
+  "schema": "electry-git-unindexed-pack-duplicate-probe-closure/v1",
+  "utc": "2026-10-19T16:07:07.560207+00:00",
+  "status": "FAILED_STRICT_PACK_VALIDATION_ORIGINAL_PRESERVED",
+  "source": "/Users/vojta/Dev/virtual-instrument-electry/.git/objects/pack/tmp_pack_ajlmP4",
+  "source_entry_stat": {
+    "bytes": 72327167,
+    "device": 16777232,
+    "inode": 292548661,
+    "mtime_ns": 1792331460647352229,
+    "mode": 292
+  },
+  "source_post_stat": {
+    "bytes": 72327167,
+    "device": 16777232,
+    "inode": 292548661,
+    "mtime_ns": 1792331460647352229,
+    "mode": 292
+  },
+  "source_stat_unchanged": true,
+  "canonical_pack_directory_metadata_unchanged": true,
+  "pack_header": {
+    "signature": "PACK",
+    "version": 2,
+    "declared_objects": 542,
+    "header_hex": "5041434b000000020000021e",
+    "tail20_hex": "097b12ba61c9639e6607303a110e8b4072c16034"
+  },
+  "strict_index_command": {
+    "argv": [
+      "/usr/bin/git",
+      "index-pack",
+      "--strict",
+      "--threads=1",
+      "-o",
+      "/Users/vojta/Dev/electry-fundamental-20261018/build-git-object-storage-preserving-review/duplicate-garbage-check-v1/probe.idx",
+      "/Users/vojta/Dev/electry-fundamental-20261018/build-git-object-storage-preserving-review/duplicate-garbage-check-v1/probe.pack"
+    ],
+    "session": 16609,
+    "terminal_exit_code": 128,
+    "stdout": "",
+    "stderr": "fatal: early EOF\n"
+  },
+  "full_pack_valid": false,
+  "contained_OID_membership_verified": false,
+  "duplicate_proof_complete": false,
+  "source_reclaimable_under_this_probe": false,
+  "original_deleted_or_rewritten": false,
+  "repack_gc_prune_ref_or_checkout_operation": false,
+  "probe_files": [
+    {
+      "name": "entry-metadata-v1.json",
+      "bytes": 1025,
+      "mode": 420,
+      "symlink": false
+    },
+    {
+      "name": "probe.pack",
+      "bytes": 77,
+      "mode": 493,
+      "symlink": true,
+      "target": "/Users/vojta/Dev/virtual-instrument-electry/.git/objects/pack/tmp_pack_ajlmP4"
+    }
+  ],
+  "scope_stopped_after_failure": true,
+  "limits": "The pack cannot be qualified by this failed parse. No claim that its partial objects are redundant or recoverable. Original file and failed probe retained; no recovery, alternate parser or deletion attempted."
+}

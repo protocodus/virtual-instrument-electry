@@ -1,0 +1,45 @@
+{
+  "utc": "2026-10-19T09:36:02.077942+00:00",
+  "passive_source_states_authorized": true,
+  "implementation_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+  "protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+  "root_review": {
+    "path": "build-passive-source-tone-candidate-capacity-root-review/prereview-v1.json",
+    "bytes": 1262,
+    "sha256": "80e4804a05a08a716cd36566f64d8e14351c70e53fc067d55d9ef7f8a3e1a13a"
+  },
+  "peer_review": {
+    "path": "build-passive-source-tone-capacity-peer-review/receipt-v1.json",
+    "bytes": 1871,
+    "sha256": "07aa037acb046cb12fa9398d557b03b1887581d701d881ce5dab9681dfd8903c"
+  },
+  "execution_wrapper": {
+    "bytes": 8750,
+    "sha256": "343d07e79324d21729872e0f351105559bead812edb37874afa491069587cd69"
+  },
+  "administrative_capacity_policy": {
+    "minimum_launch_free_bytes": 11811160064,
+    "interrupt_below_free_bytes": 1073741824,
+    "unchanged_existing_evidence_budget_bytes": 12884901888,
+    "unchanged_existing_emergency_reserve_bytes": 268435456,
+    "capacity_estimate_is_empirical_forecast_not_upper_bound": true,
+    "guard": "One-second sampled actual-free-space monitor sends SIGINT once to exact owned source Popen child; unchanged source BaseException handling preserves incomplete evidence.",
+    "not_per_write_and_no_zero_overshoot_guarantee": true,
+    "capacity_review": {
+      "path": "build-passive-source-capacity-review/receipt-v1.json",
+      "bytes": 7033,
+      "sha256": "955f72b618104bfa4a2c6fbee8961728c603f8d8fdb6638f40d0edb09fd4b840"
+    },
+    "wrapper_administrative_static_review": {
+      "path": "build-passive-source-tone-capacity-wrapper-review/receipt-v1.json",
+      "bytes": 3140,
+      "sha256": "6807f295f94676897423e6323c7c540c310237d1a08f9ba17f2f9f3a1fa637d5"
+    },
+    "wrapper_failure_preserves_original_error_and_waits_for_owned_child": true
+  },
+  "scope": "One fresh full fixed96 source mechanics experiment, both main rates and fresh first/refined references. No field export, PCM, tone or production authority.",
+  "one_attempt_no_parameter_gate_or_path_retry": true,
+  "all_prior_failed_attempts_preserved": true,
+  "no_skipping_or_reusing_prior11_completed_cases": true,
+  "source_tests_cmake_or_production_changed": false
+}

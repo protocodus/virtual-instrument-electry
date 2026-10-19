@@ -1,0 +1,11 @@
+{
+  "schema": "electry-source-actual-support-evidence-successor/v1",
+  "prior_complete_draft_v5_sha256": "3aef8bb894f5fffa5c3800a5fc0b627ef6b81af9f5ac57b5280d679af1319845",
+  "prior_mechanics_path": "mechanics_v2.py",
+  "prior_mechanics_exact_bytes_preserved_at": "draft-v5-preserved/mechanics_v2.py",
+  "prior_mechanics_sha256": "efb0ae253e4e6f98083c9920b2e8059f00a73836f449bafebaf8bc592be19b6d",
+  "new_mechanics_sha256": "f881a5dda18687d831496163f9d86740e915f2351eebec44032eba146fb54f45",
+  "only_change": "Active source interval record adds support_z0_m/support_z1_m containing actual already-used binary64 path values; no change to path/duration/clock/force/state/work/scientific gates. Needed for exact saved-input joins; independently regrouped support is a separate dimensional reconstruction.",
+  "created_after_prior_draft_not_claim_of_earlier_archive_time": true,
+  "source_calls_executed": false
+}

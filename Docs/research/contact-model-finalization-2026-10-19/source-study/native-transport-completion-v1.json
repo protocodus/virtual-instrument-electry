@@ -1,0 +1,17 @@
+{
+  "schema": "electry-native-full-flow-transport-completion/v1",
+  "implementation_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+  "pointer": {
+    "source_states_authorized": true,
+    "implementation_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+    "protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+    "authorization_path": "build-passive-source-tone-candidate-capacity-root-review/execution-authorization-v1.json",
+    "authorization_sha256": "a3a7e041b20a98c5c088768e5032e6bd95125c801028f9257bf5152a566e9d55"
+  },
+  "acknowledged_nonempty_equations": 46826,
+  "child_returncode": 0,
+  "unconsumed_stdout": "",
+  "failure": null,
+  "PASS": true,
+  "no_retries_restarts_or_force_repairs": true
+}

@@ -1,0 +1,132 @@
+{
+  "schema": "electry-passive-source-E-export-render/DRAFT-v2",
+  "status": "READABLE UNEXECUTED v2 DRAFT; administrative child lifecycle and postbinding closure only. No manifest/freeze, source payload access, imports, renderer or execution authority.",
+  "candidate": "E / passive-source-v1",
+  "source_root": "build-passive-source-tone-candidate-capacity",
+  "source_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+  "source_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+  "failed_original_root_forbidden": "build-passive-source-tone-candidate",
+  "all_contexts": "Exact existing C protocolc35ba050 all96 ordered IDs:92Neck+4Bridge, no fitted/profile/per-note selection.",
+  "input": "Each new-source run-v1/<id with / replaced by -->/model96/raw-mechanics-physical-tap.npz, exactlyframes,tap; contiguous unique integerframes0..calls96-1; finite1Dlittle-endianfloat64tap. Copy callback stream only; never reconstruct state/flow/tail.",
+  "gates": [
+    "Fresh exact root+peer export/render reviews and rootauthorization, selected manifest/protocol and fixed host/environment/Source identities before numerical imports/source result hashes.",
+    "Require closed-source exact protocol hash and post_static_input_bindings_PASS; verify fixedNumPy find_spec root BEFORE import, then loadedroot/version.",
+    "Independent ALL96 mechanical rootqualification PASS, source IO identity, closed successful source execution+completed independent saved audit. This is a mechanical-only prerequisite, not a circular combinedrender seal.",
+    "Qualification bindings are complete repo-relative facts flattened from closed-source and independent-audit manifests, rehashed before source result access. All96 rawtap/primarycompletion/trajectory/native histories and sourcepreflight/aggregate must be present.",
+    "Read/validate ALL96 tap arrays and original callback/phase clock facts before first field write. Every fixed source model96/model192/reference/rate gate must pass; no partial subset.",
+    "New exclusive output attempt; preserve incomplete files/logs/errors without retry, gain/timing correction or source changes. Successful combined rootrender/analysis qualification is still separate.",
+    "Before successful E-render/completion receipt, recheck exact authority/reviews/manifest/protocol, complete static and qualified-source binding tables, Source/Tests/CMake, fixed runtime/import roots/environment and unchanged renderer binaries; all96 owned renderer process groups must be closed."
+  ],
+  "mechanics_qualification_schema": {
+    "PASS": true,
+    "all96_mechanics_qualified": true,
+    "source_root": "build-passive-source-tone-candidate-capacity",
+    "source_manifest_sha256": "same fixedsourceSHA",
+    "source_protocol_sha256": "same fixedsourceSHA",
+    "independent_saved_audit_completed": true,
+    "independent_saved_audit_receipt": "{path repo-relative,sha256}; completed independent saved review, not selfreport",
+    "closed_source_run": "{path repo-relative,sha256};run_closedtrue/completedtrue/exits0/sourceidentity",
+    "all96_case_ids": "Exact ordered original96IDs",
+    "bindings": "dict repo-relativepath->{bytes,sha256}; complete closed-source+independent saved-audit bindings, includingeveryrawtap96 and requiredsource summaries/history. No externalcoordinatebase ambiguity."
+  },
+  "export": "fields/<scope>/<old_key>.f64, exact source float64tap bytes with no interpolation/gain/fade/preRelease mask/Contact overwrite/filter/reset/regeneration. Native sampleindex0 corresponds actualfirst_clock, not absolute engineclock0. Roundtrip rawbytes must equal exactly. Exportreceipt only afterall96.",
+  "immutable_renderer": {
+    "neck": "build-damped-field-neck-body/hook/geometry-renderer; original pick/string/MIDI/fieldmode1/fieldpath args",
+    "bridge": "build-damped-field-bridge-upper/hook/geometry-renderer; original pick/type/fieldmode1/fieldpath args",
+    "compilation": "NONE; retainfrozenbinary/DriverGeometry source/hookcode/Source6c83/provenance. OriginalA controlidentityreceipt+C-render metadata bound.",
+    "timing": "Original first_clock/calls/Contact/Release/full phase timeline/controlgeometry exactlyequaloldmetadata exceptRMSpeak; untouched96000frame48kmono2s crop. Existing Bridge50ms prefix stays in olddriver.",
+    "chain": "Every callback mechanical tap replaces scalarbefore unchangedmagnetic/Faraday/electrical path. Existing firstContact prime retainedonce; noReleaseprime/reset. No other renderer/Source changes."
+  },
+  "E_render_v1_contract": {
+    "receipt": "E-render-v1.json underthisexportroot",
+    "all96_rendered_after_blind_gate": true,
+    "rows": "Exactly96{id,scope,old_key,PCM_path/PCM_sha256,metadata_path/metadata_sha256} pathsrelative receipt parent; additionalfield/sourceclock/forceprovenance facts.",
+    "native_audio": "EveryPCM384000bytes/littlef32/mono96000frames@48k/finite, no postrendertrim/gain/normalization. RawRMS/peakrecordingonly.",
+    "actual_E_source_provenance": "Qualified mechanics Fq declaredquasistaticanchor/D/force/work history via prerequisite receipt. Legacy renderer top/contactforce_N andstrokeGain metadata remain frozen diagnostics, NOT actualEcontactF(t), calibratedhandforce orEwork.",
+    "analysis": "Combined rootqualification all96_mechanics_and_render_qualifiedtrue +exactrenderreceipt follows independentrenderchecks; onlythen freshanalysis auth. No source field reobserve/maskchange or background inferredzero."
+  },
+  "fixed_downstream": "Existing build-passive-source-tone-capacity-analysis observer/window/cohort/gain/guard plan unchanged. E-only preContact background is measuredlater fromactualPCM usingactualmetadata clock2h+p+1 andexcludingwholeContacthostframe; no onsetredetection.",
+  "missing_before_execution": [
+    "Source closed successfulall96 receipt and independentall96mechanical qualification (sourcecurrentlyrunning, outputsunread).",
+    "Exact export/render implementationmanifest, root/peerstaticreviews andfreshrootauthorization.",
+    "Qualification flatbindingtable + all96 sourceNPZ facts from independentaudit/closure.",
+    "Future independentrender validation/combinedqualification andseparateanalysis auth are downstream, neverpreconditionsforPCM thatwouldbecircular."
+  ],
+  "scientific_nonclaims": "No newphysics/controls/parameters/sourceforcepath, no fittedgain/EQ/timing/window/mask, no continuousrepick/refret/attack/naturalness/DIvoltage/alias/RT/default/production or95percent qualification.",
+  "administrative_space_preflight": {
+    "exact_payload_bytes": "sum_over_all96(8*calls96) +96*96000*4",
+    "metadata_and_log_allowance_bytes": 67108864,
+    "no_new_reserve_layer": true,
+    "before_output_writes": true,
+    "insufficient_space": "Abort; never shorten field/crop/context or change source. Concurrent later IO failure retains incomplete files, no claim of guaranteed disk availability."
+  },
+  "administrative_capacity_routing_provenance": {
+    "prior_unexecuted_export_draft_code": {
+      "path": "build-passive-source-tone-export-render/export_render_draft_v1.py",
+      "bytes": 18822,
+      "sha256": "e461f2686b985a9aa66e8e8bad3c2b86c1c449bcd78f310e3d3d92682720ad56"
+    },
+    "prior_unexecuted_export_draft_protocol": {
+      "path": "build-passive-source-tone-export-render/protocol-draft-v1.json",
+      "bytes": 6612,
+      "sha256": "f4966b951a70a07d8b8bff161b54fd1e5ee8e8802a7370fc8ece2659d403d213"
+    },
+    "old_source_attempts_retained": [
+      {
+        "root": "build-passive-source-tone-candidate",
+        "manifest_sha256": "01bafe461aef3944657047647030bb706221463e889582411d75f55a1e3d0272",
+        "closed_receipt_sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f",
+        "status": "Failed preflight before physical/native calls; never an E source."
+      },
+      {
+        "root": "build-passive-source-tone-candidate-iofix",
+        "manifest_sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f",
+        "closed_receipt_sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4",
+        "status": "Storage-interrupted incomplete source attempt; no prior completed subset reused or exported."
+      }
+    ],
+    "capacity_source_root": "build-passive-source-tone-candidate-capacity",
+    "capacity_source_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+    "unchanged_whole_source_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+    "prospective_closed_source_receipt_path": "build-passive-source-tone-candidate-capacity-root-review/execution-receipt-v1.json",
+    "independent_saved_audit_root": "build-passive-source-tone-capacity-saved-audit",
+    "saved_audit_checker_plan_finalizer_are_routing_only_successors": true,
+    "mechanics_qualification_receipt": "Future exact export authorization supplies the root-owned capacity all96 mechanics qualification receipt path/hash. No future receipt filename, hash, completion or PASS is assumed here.",
+    "mechanics_qualification_must_bind_capacity_source_and_completed_independent_capacity_saved_audit": true,
+    "future_closed_audit_qualification_render_hashes_and_outcomes_unknown": true,
+    "export_root": "build-passive-source-tone-capacity-export-render",
+    "prospective_E_render_receipt": "E-render-v1.json; existing96rows path semantics relative to this receipt parent unchanged.",
+    "downstream_tone_analysis_root": "build-passive-source-tone-capacity-analysis",
+    "all_original_96_contexts_math_frames_samples_cohorts_renderer_argv_primes_controls_and_raw_gain_semantics_unchanged": true,
+    "separate_independent_all96_mechanics_qualification_and_new_exact_export_authorization_still_required": true,
+    "draft_only_no_implementation_manifest_authority_or_execution": true
+  },
+  "administrative_v2_delta": {
+    "v1_code": {
+      "path": "export_render_draft_v1.py",
+      "bytes": 18825,
+      "sha256": "8efe55c853a4a031730fd5900ff8a32c8189813c571cf459fc4060b8b467b15b"
+    },
+    "v1_protocol": {
+      "path": "protocol-draft-v1.json",
+      "bytes": 9557,
+      "sha256": "1ab4fb266f3aadff81f0129addde198eb990b5aae18a5c6e07a1279f6fb8a9ce"
+    },
+    "selected_code": "export_render_draft_v2.py",
+    "selected_protocol": "protocol-draft-v2.json",
+    "changes": [
+      "Owned renderer Popen process group, retained attempted/started/PID/stdout/stderr/closed evidence and cleanup/reap before failure closure.",
+      "Exact full entry authorization/static/qualification/source/input/environment bindings rechecked before successful final render receipt."
+    ],
+    "unchanged": "All field bytes, 96 contexts, renderer argv, clocks, controls, scientific gates, gain semantics and downstream E-field-export-v1/E-render-v1 receipt paths.",
+    "future_manifest_authority_and_binary_outcomes": "Unknown; require fresh exact metadata preparation, independent root/peer reviews and execution authorization after successful independent all96 mechanical qualification.",
+    "no_execution_or_payload_access": true
+  },
+  "owned_renderer_lifecycle": {
+    "scope": "Exactly the existing trusted immutable renderer argv; serial96 calls; no renderer retries or substitution.",
+    "evidence": "Per-case attempted and started records with argv/PID/PGID; direct exclusive stdout/stderr files; closed log with return code, exact log facts, original error and cleanup failures. In-memory attempt row is attached before file setup/launch.",
+    "ownership": "Popen(start_new_session=True), own process group. All postlaunch stages share finally cleanup; attempted signal/poll/wait operations are independent so one failure cannot skip reap.",
+    "failure_cleanup": "SIGINT to a live owned process/group, wait up to5s, SIGKILL and another5s wait if required; final presence probe and direct-child poll. Cleanup signalling is not a renderer retry. Unknown/live group or cleanup failure blocks success.",
+    "limits": "Best-effort trusted-child administration, no hard OS quota, adversarial descendant protection, interruption durability or realtime/timeout-performance guarantee."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "electry-passive-source-prospective-coordinate-scaling/v1",
+  "root_approved_before_calls": true,
+  "characteristic_energy_J": "C=.5*Fq*D; never initial stored energy",
+  "ODE_state_scale_sqrtJ": "S=max(sqrt(Fq*D),1e-12), same inherited numerical floor",
+  "ODE_work_D_coordinates": "W/max(C,1e-30), D/max(C,1e-30)",
+  "first": {
+    "rtol": 2e-10,
+    "state_coordinate_absolute_tolerance": "2e-13*S",
+    "physical_work_D_absolute_tolerance_J": "2e-13*max(C,1e-30)"
+  },
+  "refined": {
+    "rtol": 5e-12,
+    "state_coordinate_absolute_tolerance": "5e-15*S",
+    "physical_work_D_absolute_tolerance_J": "5e-15*max(C,1e-30)"
+  },
+  "admission_denominator": "max(initialstored0,maxabsactualW,1e-30) for whole work ledger/reference; no characteristicC substituted",
+  "future_preflight": "Freeze/report all96 derived C/S/absolute tolerances from exact bound captured scalar controls before any force/state/reference call, after fresh exacthash authorization. No outcome-dependent rescale; if actualW is much smaller and precision fails, preserve failure.",
+  "no_execution_authorized": true
+}

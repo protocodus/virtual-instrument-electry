@@ -1,0 +1,51 @@
+{
+  "schema": "electry-passive-source-independent-saved-render-review/UNEXECUTED-DRAFT-v1",
+  "status": "SOURCE-ONLY draft; no imports, function evaluation, candidate payload access or execution authority. Full independent all96 mechanics and closed all96 render authority must exist before preparation/execution.",
+  "selected_script": "check_render_saved_draft_v1.py",
+  "scope": "Independently verify saved transport/control/closure evidence for the existing96 passive-source E outputs. Never rerender, retap, solve forces, integrate states, recompute physical mechanics or analyze tone.",
+  "fixed_source_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+  "fixed_source_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+  "future_implementation_manifest": {
+    "path": "saved-render-review-manifest-v1.json",
+    "schema": "electry-passive-source-saved-render-review-implementation/v1",
+    "protocol_sha256": "Exact final selected protocol after source review; unknown until frozen.",
+    "artifacts": "Local checker/protocol exact bytes/sha256.",
+    "inputs": "Repository-relative metadata/code/receipt bindings. Include actual successful export manifest/protocol/auth/reviews/closed receipts, root mechanics seal/independent audit chain and original C metadata/driver proof. No future receipt hashes/outcomes invented.",
+    "environment_files": "Additional inherited fixed runtime bindings; may be empty because existing export environment_files are rechecked independently.",
+    "runtime": "python_real_executable, exact full python_version, platform_release, direct_entry_sys_path, inherited_environment; fixed Python3.12.8/Darwin arm64.",
+    "numpy": "Exact original export root/version object;1.26.4, spec root checked before import and loaded root/version checked after.",
+    "all96_case_ids": "All original ordered C IDs:92 Neck contexts plus4 Bridge profiles.",
+    "sample_bindings": "Exactly288 repository-relative facts:96 model96 raw-mechanics-physical-tap NPZs,96 copied f64 fields and96 raw f32 PCMs. Whole-byte hashes before decoding and after full review; no q/v/state-field archive decode. No original reference PCM is decoded."
+  },
+  "future_authorization": {
+    "schema": "electry-passive-source-saved-render-review-authorization/v1",
+    "saved_render_review_authorized": true,
+    "new_states_or_renderer_calls_authorized": false,
+    "implementation_manifest_sha256": "Actual future checker manifest.",
+    "protocol_sha256": "Actual selected checker protocol.",
+    "root_review": "Repo-relativepath/sha256;role root,static_clear:true,saved_render_review_authorized:true, same exact manifest/protocol hashes.",
+    "peer_review": "Corresponding independent peer review.",
+    "mechanics_qualification": "Exact actual all96 mechanics root seal path/sha256 with successful closed source and completed independent saved audit.",
+    "export_authorization": "Exact actual export-v2 execution authority path/sha256. Bind selected implementation, original root/peer reviews and same mechanical-only seal.",
+    "render_receipt": "Exact actual E-render-v1.json path/sha256.",
+    "field_export_receipt": "Exact actual E-field-export-v1.json path/sha256.",
+    "render_completion": "Exact actual completion-v1.json path/sha256;complete and postbindings/all96 owned groups closed."
+  },
+  "entry": "fixedPython312 check_render_saved_draft_v1.py --authorization EXACT_PATH --authorization-sha256 EXACT_SHA; do not invoke before separate reviewed authorization.",
+  "gate": "Verify exact independent checker root/peer authority; actual all96 mechanical source/audit closure; exact export selection/root+peer authority; actual complete96 render/field receipts and postbinding/group-closure facts; fixed runtime/environment/current production and all static bindings. Only then hash the exact288 selected payloads and import pinned NumPy. No actual future closure or numeric outcome is assumed by this draft.",
+  "independent_checks": [
+    "Exact original ordered96 unique IDs/scopes/oldkeys across C plan, root mechanics seal, preflight, aggregate, export/render rows and all96 process attempts.",
+    "Each raw mechanics NPZ is sealed by root qualification and checker payload bindings; exact frames/tap schema, contiguous integer callback frames, complete finite littlef64 tap.",
+    "Copied f64 field path/bytecount/hash and every byte equal the original full tap.tobytes; no new tap observation, resampling, filtering, fade, preContact/Release overwrite or dynamics.",
+    "Every raw f32 PCM exactly384000bytes/96000 finite samples; mono48k duration follows unchanged driver proof, not a new audio-header inference. No gain/normalization/metric computed by this checker.",
+    "Every actual renderer metadata key/value equals original geometry metadata except RMS/peak. Exact calls, first_clock, Contact/Release and callback-to-engine-clock mapping retained.",
+    "Exact immutable renderer argv from original Neck pick/string/MIDI/mode1/field and Bridge pick/type/mode1/field; selected binary hash retained. Provenance checks do not independently reexecute the DSP.",
+    "Saved attempted/started/closed child records match each render receipt attempt; positive PID/PGID ownership, return0, no failure/cleanup errors, saved groupclosedtrue and exact direct stdout/stderr log bytes. This is saved-evidence consistency, not a live process probe.",
+    "Actual E physical Fq/stroke provenance equals qualified source summaries; unchanged legacy renderer force metadata remains explicitly distinct from actual physical force/work.",
+    "Recheck complete authority/static/sample chain before writing one exclusive compact result. Preserve all96 rows and all failed/unavailable identities; no qualified subset."
+  ],
+  "limits": "Independent saved transport/control/provenance check only. No rerender or independent reference integration; raw PCM is not numerically predicted. No tone improvement, naturalness, attack, repick/refret, calibrated DI/physical force, alias, realtime, premium8string or95percent qualification. All future numeric/render outcomes unknown.",
+  "storage_and_failure": "Serial one-case tap/frame/PCM buffers; output compact96-row JSON. No duplicated trajectories or media. Expected case exceptions remain explicit false rows and block all96 qualification; unrecoverable gate/interruption/postbinding/output-write errors propagate and cannot produce PASS. No guarantee of complete durable evidence under OS/filesystem failure, no automatic retry/overwrite.",
+  "output": "saved-render-review-results-v1.json; all96_render_qualified plus complete failures/rows, selected render receipt and explicit scope limits.",
+  "no_execution_or_metadata_preparation_authorized": true
+}

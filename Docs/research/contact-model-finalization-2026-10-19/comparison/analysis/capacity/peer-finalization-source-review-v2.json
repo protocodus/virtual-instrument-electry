@@ -1,0 +1,84 @@
+{
+  "schema": "electry-passive-tone-analysis-peer-finalization-source-review/v2",
+  "utc": "2026-10-19T15:48:19.868739+00:00",
+  "role": "peer",
+  "source_only_static_clear": true,
+  "artifacts": {
+    "run_analysis_once_draft_v1.py": {
+      "bytes": 16567,
+      "sha256": "977d5a4ec20e12c34a843854d29cd08b47340e2c20cf63cd9362b651efe85ccc"
+    },
+    "outer-execution-protocol-draft-v1.json": {
+      "bytes": 11596,
+      "sha256": "523dd335c638fc8b01e9dc78154579d02cd2dff4fff39df56fc2ad14401b1537"
+    },
+    "run_analysis_once_draft_v2.py": {
+      "bytes": 18687,
+      "sha256": "278f7717ac587724ffaf4f727b8dc2565624d6999c9c9299f653035f7fddf510"
+    },
+    "outer-execution-protocol-draft-v2.json": {
+      "bytes": 13455,
+      "sha256": "69c6da28a321a03146f06e51b7cbda06fe634c7c9fe9070aa28d64f13e78329d"
+    },
+    "analyze_bridge_v1.py": {
+      "bytes": 13982,
+      "sha256": "c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d"
+    },
+    "analyze_neck_v1.py": {
+      "bytes": 8924,
+      "sha256": "f1df1bfdbcce08864020ac5f575d2dfd34501b57ab0b9aa809721324310a1487"
+    },
+    "background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    },
+    "context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "helpers_v1.py": {
+      "bytes": 2558,
+      "sha256": "95e9bf526476bcb303e22bf94db7c006b45a4efc419edd45bc7786025b1312b4"
+    },
+    "run_after_review_v1.py": {
+      "bytes": 1844,
+      "sha256": "dd747720208331fdf9dbce3585e790461ff069117b5aee6271d5504f4661fbc4"
+    },
+    "summary_v1.py": {
+      "bytes": 4667,
+      "sha256": "da8506aa8a687c89dc9890dba069dc84fadcdb1be4c1558c450564ff268604f7"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12451,
+      "sha256": "eaedc458abcf500a954d46bd298ca1f329963a58bac55fda04e0d0564cbd018e"
+    }
+  },
+  "closed_findings": [
+    {
+      "id": "cleanup-poll-may-skip-final-reap",
+      "resolution": "V2 catches per-stage poll errors and always attempts direct-child final wait in finally."
+    },
+    {
+      "id": "remaining-owned-process-group-after-leader-exit",
+      "resolution": "V2 probes and signals the same owned PGID after direct-child exit; unknown/live group and all cleanup failures block comparison completion."
+    },
+    {
+      "id": "published-production-baseline-ownership",
+      "resolution": "V2 checks all24 original published Source blobs and Source/Tests/CMake diff before/after; Git external diff/textconv disabled, administrative calls bounded at30s."
+    }
+  ],
+  "schema_compatibility_reviewed": "Original Neck/Bridge result flags and all1104/828/192/64/16 count joins; original8 modules/protocol preserved and unchanged. Outer complete comparison permits retained candidate guard failures/regressions and makes no improvement claim.",
+  "remaining_blocking_source_findings": [],
+  "limits": [
+    "Source/JSON metadata read and AST/JSON syntax-only parsing; no producer module imports or function evaluation.",
+    "No candidate E payload, arrays, fields, PCM, numerical/library/native/renderer/FFT/metric calls.",
+    "Future exact manifests, root/peer implementation reviews, all96 prerequisites and execution authority remain required."
+  ],
+  "actual_runtime_execution_authorized": false,
+  "one_shot_existing_analysis_authorized": false,
+  "physical_audio_realtime_or_tone_improvement_qualified": false
+}
