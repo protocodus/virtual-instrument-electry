@@ -85,6 +85,10 @@ AGPLv3 for the complete combined work or an appropriate commercial JUCE
 licence. Review the JUCE 8 licence terms before distribution:
 <https://github.com/juce-framework/JUCE/blob/8.0.14/LICENSE.md>
 
+Protocodus's official builds use JUCE under a commercial JUCE 8 Starter
+licence. Electry's own licence is not the AGPLv3, so anyone else who distributes
+a build needs their own commercial JUCE licence.
+
 JUCE includes or interfaces with additional third-party components. Complete
 notices for the dependencies compiled by Electry's default desktop builds are
 included in `ThirdParty/JUCE-DEPENDENCIES-LICENSE.md` (installed as
