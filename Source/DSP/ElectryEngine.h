@@ -110,7 +110,6 @@
 #include "DspMath.h"
 
 #include <array>
-#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -2106,7 +2105,7 @@ private:
     // broadcast end for that live group rather than infer an ordering from the
     // aggregate count. Once its last physical owner leaves, a later unique
     // identity again receives displaced-owner protection.
-    std::array<std::bitset<128>, expressionPitchBendCount> broadcastNoteOffs_ {};
+    std::array<std::array<bool, 128>, expressionPitchBendCount> broadcastNoteOffs_ {};
     // The visible B0 gesture is one picking wrist, not eight clocks. Its
     // phase is measured in strokes so a rate change takes effect immediately
     // without resetting time or accumulating integer-sample drift.

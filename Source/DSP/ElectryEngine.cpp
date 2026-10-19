@@ -1333,8 +1333,24 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
             const long double discriminant = qb * qb - 4 * qa * qc;
             if (discriminant >= 0)
             {
+#if defined(__phdsp__)
+                // SDK5 long double values are binary64 despite padded storage,
+                // and its library omits long-double sqrt/copysign overloads.
+                // The SDK's host static analyzer alone uses wider values.
+#if ! defined(__clang_analyzer__)
+                static_assert(
+                    std::numeric_limits<long double>::digits == std::numeric_limits<double>::digits
+                        && std::numeric_limits<long double>::max_exponent == std::numeric_limits<double>::max_exponent
+                        && std::numeric_limits<long double>::min_exponent == std::numeric_limits<double>::min_exponent,
+                    "SDK root bridge requires equal double/long-double value precision and range");
+#endif
+                const long double root = std::sqrt(static_cast<double>(discriminant));
+                const long double stable = -.5L * (qb + static_cast<long double>(
+                    electry::copySign(static_cast<double>(root), static_cast<double>(qb))));
+#else
                 const long double root = std::sqrt(discriminant);
                 const long double stable = -.5L * (qb + std::copysign(root, qb));
+#endif
                 if (stable != 0)
                 {
                     checkRoot(stable / qa);
@@ -1769,7 +1785,7 @@ void ElectryEngine::reset()
     for (auto& counts : outstandingNoteOffs_)
         counts.fill(0);
     for (auto& flags : broadcastNoteOffs_)
-        flags.reset();
+        flags.fill(false);
     tremoloPickingPhase_ = 0.0;
 
     smoothedParameters_ = sanitise(targetParameters_);
@@ -2917,7 +2933,7 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
             existingOwner = true;
             duplicatePhysicalIdentity |= oldString != stringIndex;
         }
-        auto broadcast = broadcastNoteOffs_[
+        auto& broadcast = broadcastNoteOffs_[
             static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
         if (! existingOwner)
             broadcast = false;
@@ -2957,7 +2973,7 @@ void ElectryEngine::noteOff(int midiNote, ExpressionId expressionId)
         return;
     auto& outstanding = outstandingNoteOffs_[
         static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
-    auto broadcast = broadcastNoteOffs_[
+    auto& broadcast = broadcastNoteOffs_[
         static_cast<std::size_t>(expressionId)][static_cast<std::size_t>(midiNote)];
     std::uint32_t currentOwners = 0;
     for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
@@ -3030,7 +3046,7 @@ void ElectryEngine::allNotesOff()
     for (auto& counts : outstandingNoteOffs_)
         counts.fill(0);
     for (auto& flags : broadcastNoteOffs_)
-        flags.reset();
+        flags.fill(false);
     for (auto& voice : voices_)
     {
         if (! voice.active)
