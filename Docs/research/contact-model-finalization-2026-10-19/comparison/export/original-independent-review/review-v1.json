@@ -1,0 +1,47 @@
+{
+  "schema": "electry-passive-source-export-render-bounded-independent-static-review/v1",
+  "advisory_static_clear": true,
+  "blocking_findings": [],
+  "scope": "Source/metadata-only final draft read. No current source result/hashscan, samples/arrays, NumPy imports, compilation, renderer, RMS/FFT or metric calls. This is not a final implementation-manifest review or execution authority.",
+  "contract_checks": [
+    "Fresh exact root/peer export authority plus mechanical-only independent ALL96 qualification precedes any dynamic binding scan/read. IOsuccessor root/manifests/protocol, closed exits/completed/postbindingPASS and independent receipt fixed; originalfailed source cannot be selected.",
+    "All96 ordered original C IDs joined before output. Read/validate all source model96 tap arrays first; exactly frames/tap, contiguous integercallback indices and finite native littlef64, with oldcalls/firstclock/Contact/Release equality. No subset or regenerated source/tail.",
+    "Export uses tap.tobytes with byte roundtrip equality and no cast/filter/gain/fade/Contact overwrite. Callbackindex0 maps first_clock; whole loading/withdrawal/contact samples retained.",
+    "Neck argv matches original pick/string/MIDI/mode1/field; Bridge matches pick/type/mode1/field. Frozen source/binaries/hook and original A identity are bound. Existing firstContact prime and magnetic/Faraday/electrical/native-decimation path unchanged; no Release prime/reset.",
+    "All96 render metadata must equal original except RMS/peak; every f32 is exactly384000bytes/96000finite frames. Receipt-relative PCM and metadata paths/id/scope/oldkey and all96flag match current tone-analysis loader.",
+    "Field/render authorization never depends on a future combinedrender seal; that separate rootseal plus fresh analysis authority remains downstream. Eonly preContact background comes later from actualPCM/clock facts, never inferredzero.",
+    "Space preflight is exactpayload plus clearly administrative64MiB allowance, not physical gain or guaranteedspace. Exclusive attempts/logs and partialfiles remain; failure cannot create a successful subset receipt."
+  ],
+  "force_provenance": "Legacy renderer force/stroke metadata remain control/timeline diagnostics. Actual E physical Fq/stroke/work are owned and labelled through mechanical qualification; no recalibration or force-derived audio gain.",
+  "remaining_gate": "Do not freeze/authorize or run this draft until the closed all96 source plus independent saved qualification and flat reviewed bindings exist, then final exact manifest/root+peer review. This source review supplies no mechanics/tone/promotion verdict.",
+  "inputs": {
+    "build-passive-source-tone-export-render/export_render_draft_v1.py": {
+      "bytes": 18822,
+      "sha256": "e461f2686b985a9aa66e8e8bad3c2b86c1c449bcd78f310e3d3d92682720ad56"
+    },
+    "build-passive-source-tone-export-render/protocol-draft-v1.json": {
+      "bytes": 6612,
+      "sha256": "f4966b951a70a07d8b8bff161b54fd1e5ee8e8802a7370fc8ece2659d403d213"
+    },
+    "build-damped-field-neck-body/DriverGeometry.cpp": {
+      "bytes": 6280,
+      "sha256": "ba0a20b3b9f7b16954ea6c57d79122c96902ab5f83e7396761f5a36f337411cd"
+    },
+    "build-damped-field-bridge-upper/GeometryDriver.cpp": {
+      "bytes": 6960,
+      "sha256": "126abf0f42aeb7a02a8280d21644f988e85bf776e9c23a2aca3ba1374e6639a2"
+    },
+    "build-passive-source-tone-analysis/context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "build-passive-source-tone-analysis/gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "build-passive-source-tone-analysis/background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-19T16:14:16.498358+00:00",
+  "actual_free_bytes": 1053081600,
+  "floor_bytes": 1073741824,
+  "owned_source_pid": 87730,
+  "signal": "SIGINT",
+  "reason": "Actual host storage reached prospective administrative floor",
+  "all96_qualification_or_export_authorized": false,
+  "no_scientific_code_parameter_gate_cohort_or_evidence_change": true
+}

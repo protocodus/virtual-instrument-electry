@@ -1,0 +1,11 @@
+{
+  "schema": "electry-IO-successor-scientific-identity/v1",
+  "old_protocol_sha256": "2d20432a21393c1c9862edf49f308676d8af93b419dc1e02e9387222bde773a8",
+  "new_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+  "only_added_top_level_protocol_key": "io_successor_provenance",
+  "scientific_object_equality_verified": true,
+  "new_metadata_preparer_sha256": "2bab01c19df59c1432f2f432b2a249cb11620e51a09656b578e6b31537431d86",
+  "copied_original_preparer_bytes_unchanged": true,
+  "metadata_inputs_or_AST_only": true,
+  "source_experiment_authorized": false
+}

@@ -1,0 +1,47 @@
+{
+  "status": "UNEXECUTED UNFROZEN draft snapshot; no execution authority",
+  "previous_snapshot": {
+    "path": "draft-source-hashes-v2.json",
+    "bytes": 2468,
+    "sha256": "3c151b0c45a0ffc208d9a5f5fe24a4553b40298a1dc4eef8bc3ae21d75820d50"
+  },
+  "delta": "Correct new_PCM_contract.root to actual prospective export/render receipt parent; retain mechanical_source_root as IOfix successor. No executable code, cohort, metric or physical changes.",
+  "artifacts": {
+    "analyze_bridge_v1.py": {
+      "bytes": 13982,
+      "sha256": "c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d"
+    },
+    "analyze_neck_v1.py": {
+      "bytes": 8924,
+      "sha256": "f1df1bfdbcce08864020ac5f575d2dfd34501b57ab0b9aa809721324310a1487"
+    },
+    "background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    },
+    "context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "helpers_v1.py": {
+      "bytes": 2558,
+      "sha256": "95e9bf526476bcb303e22bf94db7c006b45a4efc419edd45bc7786025b1312b4"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 10032,
+      "sha256": "ea153304a5e5eb332449e6d04c9ee7c7fab449d46353b639d9c5769ec5682461"
+    },
+    "run_after_review_v1.py": {
+      "bytes": 1844,
+      "sha256": "dd747720208331fdf9dbce3585e790461ff069117b5aee6271d5504f4661fbc4"
+    },
+    "summary_v1.py": {
+      "bytes": 4667,
+      "sha256": "da8506aa8a687c89dc9890dba069dc84fadcdb1be4c1558c450564ff268604f7"
+    }
+  }
+}

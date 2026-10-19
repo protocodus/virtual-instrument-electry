@@ -1,0 +1,25 @@
+{
+  "schema": "electry-analysis-old-input-registration-independent-metadata-review/v1",
+  "utc": "2026-10-19T15:52:43.284800+00:00",
+  "role": "peer",
+  "registration": {
+    "path": "build-passive-source-tone-capacity-analysis/analysis-old-input-registration-v1.json",
+    "bytes": 812900,
+    "sha256": "651449ad37782c58b3d32d745bfda0c2add5129e7475b6bfe0bc924bcc17bf50"
+  },
+  "metadata_dependency_checks_PASS": true,
+  "checks": 2361,
+  "failures": [],
+  "counts": {
+    "owner_metadata_files": 8,
+    "metadata_inputs": 319,
+    "numeric_inputs_stat_only": 291,
+    "all_ordered_cases": 96,
+    "fixed_protocol_inputs": 14
+  },
+  "numeric_payload_bytes_read_or_hashed": false,
+  "source_or_numeric_modules_imported_or_called": false,
+  "candidate_E_inputs_or_results_accessed": false,
+  "execution_authorized": false,
+  "future_requirement": "Actual whole-byte numeric validation remains required under later separately authorized analysis gate."
+}

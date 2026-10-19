@@ -1,0 +1,60 @@
+{
+  "schema": "electry-passive-source-independent-saved-audit/draft-v1",
+  "status": "DRAFT ONLY: source/metadata preparation; no source payload, result hash scan, numerical import or checker execution authorized",
+  "producer_root": "build-passive-source-tone-candidate-capacity",
+  "producer_schema": "Original reviewed source-v6 scientific schema with the same reviewed file-like I/O fix; fresh administrative capacity successor only. Exact new producer manifest and successful closed receipt must be bound before any audit authorization.",
+  "retarget_provenance": "The original01bafe attempt closed68d38c69 before physical/native calls. Its I/O-successor5c7a7fdb attempt closedfee2b2ad incomplete after an administrative storage interruption. Both folders, raw evidence and false/incomplete status remain frozen. This unexecuted draft targets only the new capacity sibling08fc876f with unchanged whole scientific protocol7d6c94db; ALL96/384/480 are required afresh, no prior completed subset or failed output is reused as qualified history.",
+  "coverage": {
+    "fixed_contexts": 96,
+    "histories": 384,
+    "model_histories": 192,
+    "fresh_reference_histories": 192,
+    "reference_pairs": 96,
+    "fixed_rate_rows": 480
+  },
+  "fixed_cases": "Exactly the producer's original ordered96 C IDs:92 known-Neck contexts and4 Bridge profiles. No subset, mask, new physical scene, tone metric or background observation.",
+  "access_gate": "Fresh root authorization binds this final plan/checker manifest, selected producer protocol/implementation and root closed receipt (run_closed true, process_exit_code0). All hashes are checked only after authorization; before then only source and JSON schema are readable. No numeric imports precede this gate.",
+  "mechanical_inputs": "Read closed preflight n/Omega/alpha/B/observer/literal tables and scalar metadata, full active q/v chunks plus every raw equation/native record, own exact retirement checkpoint, all scalar tail blocks/hash/provenance, accepted reference arrays and root facts. Independently join ALL new preflight coordinates, table/row IDs, geometry, physical force/stroke, clocks and prescribed release path to original owned C NPZ/metadata and already-qualified literal coefficient rows. Producer sample_bindings are gated/hashed before their authorized reads. No coefficient generator, physical field producer, ODE integrator, native child or force solution is imported/called.",
+  "main": "Reconstruct each single held-force interval independently from its SAVED left state and literal tables; no chained generated state. Independently recover actual Gram/gathers, stored/native/ordinary residuals, exact applied construction, raw per-mode D, E/U/W/tap and unchanged retirement state. Preserve actual5e-10 whole-work normalization by max actual abs work, not characteristic input energy. Native force remains the saved returned bit pattern.",
+  "references": "Verify all fixed active samples and accepted solver states: actual q/v, E/U/force/tap, saved W/D ledger, nonnegative D, root directions/face derivatives/counts, declared knot sides and represented-side scalar brackets. Own first/refined state1e-7/work5e-8/ambiguity/retirement-presence gates remain. This does NOT independently integrate the ODE or reconstruct an unsaved dense interpolant. Offgrid q/v hashes without explicit snapshots are labelled saved/static facts, never independent array reconstruction.",
+  "tails": "Replay ONLY the declared free closed-form method from each history's OWN saved checkpoint/time, to verify ordered all-q/v hashes, stored end q/v, complete canonical frames, E/tap/work and every raw per-mode D/summed ledger. Model uses its registered qualified API/integer elapsed frames; reference uses its separate registered direct formula/exact real-event offset plus positive16/32 first-partial integral. No active-state reconstruction, event snap, ideal-libm certificate or original-recurrence bitidentity claim.",
+  "joins": "Independently reconstruct all96 first/refined and two main/reference comparisons on unaligned fixed grids, all480 original energy/Cauchy metric rows, admission conjunctions and original improve-or-both-below1e-9 status. Every complete false outcome remains false; missing/malformed/resource failures are explicit unavailable, block complete coverage and cannot be a qualified subset.",
+  "rails": {
+    "main_saved_interval_state_reconstruction": 2e-11,
+    "actual_stored_and_original_NumPy_residual_N": 2e-11,
+    "main_whole_work": 5e-10,
+    "reference_first_refined_state": 1e-07,
+    "reference_whole_work": 5e-08,
+    "resolved_both_strictly_below": 1e-09,
+    "generic_saved_arithmetic": "inherited512eps dimensional consistency; no coefficient2e-12 transfer"
+  },
+  "scaling": "S=max(sqrt(Fq*D),1e-12), explicitly source-specific characteristic normalization, not initial stored energy. Initial string/contact energy0; actual-work denominator unchanged.",
+  "precision": "Generic reconstruction precision is separate from scientific admission. Exact Fraction checks concern stored binary inputs only. Recomputed-vs-saved ordinary residual differences stay descriptive under inherited convention; saved numeric/raw/NPZ self-consistency and actual original callback rail remain checked. Full closure/transcendental certification is not claimed.",
+  "exactness_and_support": "All Fraction numerator/denominator pairs use exact integer equality, never float tolerance. Raw equations/construction/work use each step's saved actual binary64 support_z0_m/support_z1_m; separately regrouped independent C1/PWL values use inherited dimensional comparison only. Contact duration is exactly integer(release_frame-contact_frame)/96000.",
+  "export_input": "For all96 model96 raw-mechanics-physical-tap.npz files, verify every original calls96 frame, complete zero pre-Contact prefix, each audited active sample and each audited tail block. This is saved mechanical export-input identity, not later field/render/PCM qualification.",
+  "native_status": "Preserve the full inherited native status/interval proof/exact/ordinary/finite conjunction, exact posterior and construction, all raw numeric/status residual joins, returned force bits, analytic-zero/map/sign diagnostics and one serial stream sequence. No old-force equality or nearest-rounded history claim.",
+  "bounded_storage": "One case/history or4096-frame tail block at a time. Stream raw certificates; lazy load accepted-state NPZ members. Write only compact per-history/per-context findings and aggregates, not duplicate trajectories/media. No blanket read of old unrelated physical traces.",
+  "output": "One compact all-row audit JSON retaining failed/unavailable IDs, counts, descriptive arithmetic differences and raw-bit nonfinite facts. Package consistency, original scientific PASS and independent scope limits stay separate.",
+  "no_new_states_forces_integrations_parameters_thresholds_scenes_masks_PCM_or_production_changes": true,
+  "administrative_capacity_successor_provenance": {
+    "producer_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+    "unchanged_whole_scientific_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+    "original_failed_attempt": {
+      "producer_root": "build-passive-source-tone-candidate",
+      "manifest_sha256": "01bafe461aef3944657047647030bb706221463e889582411d75f55a1e3d0272",
+      "closed_receipt_path": "build-passive-source-tone-candidate-root-review/execution-receipt-v1.json",
+      "closed_receipt_sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f"
+    },
+    "interrupted_IO_attempt": {
+      "producer_root": "build-passive-source-tone-candidate-iofix",
+      "manifest_sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f",
+      "closed_receipt_path": "build-passive-source-tone-candidate-iofix-root-review/execution-receipt-v1.json",
+      "closed_receipt_sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4"
+    },
+    "prospective_capacity_closed_receipt_path": "build-passive-source-tone-candidate-capacity-root-review/execution-receipt-v1.json",
+    "future_closed_receipt_hash_unknown_and_not_assumed": true,
+    "full_original_ordered96_required_no_prior_subset_reuse": true,
+    "no_coverage_rail_formula_metric_parameter_or_cohort_change": true,
+    "draft_only_no_audit_manifest_authority_or_execution": true
+  }
+}

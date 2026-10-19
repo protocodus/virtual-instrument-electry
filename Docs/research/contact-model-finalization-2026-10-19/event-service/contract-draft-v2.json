@@ -1,0 +1,98 @@
+{
+  "schema": "electry-event-relative-contact-service/DRAFT-v2",
+  "status": "Unexecuted source-only prototype and service contract, not Source integration or mechanical/audio qualification.",
+  "immutable_source_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+  "purpose": "One unchanged speaking geometry with indefinite event-relative control support and explicitly owned actual arrival, preserving incoming field and active contact energy. No invented fit knobs.",
+  "ownership": {
+    "PhysicalStringOwner": "Persistent full two-axis q/v, basis/mass/Omega/alpha/B, pickup/electrical histories and lifetime E+sumU-W+D. This prototype never creates, reads, resets, rescales, reseeds or mutates those fields. Tokens are caller evidence labels, not computed field hashes or proof.",
+    "ContactRecipe": "Frozen existing pulse binary64tuple/pole/D/Contact-frame count and geometry/provenance labels; fixturek6000 unchanged, no force gain/corner/newduration. Rawtuple values preserve signedzero.",
+    "ContactInstance": "Actual eventboundary/startOrder, independently supplied first Contact-rendered engineclock (or explicitunownedNone for control-only), attachment y/v, DF-II-Tstoredstate/R and three planned knots, active/U and last owner endpoint evidence.",
+    "Actuator": "State-conditioned support trajectory remains the alreadydeclared hypothesis; it is NOT measured hand motion and may supply/extract external work. Passive spring does not mean zero-actuatorwork.",
+    "LogicalIntent": "MIDI owners, NoteOff/CC64/MPE/pendingcancel remain the existing engine scheduler responsibility. Logical phase/Voice.active is never proof mechanicalU vanished."
+  },
+  "clock_and_sides": {
+    "fixed_rate": 96000,
+    "coordinate": "Absolute boundary ticks and local integer/Fraction differences; subtract integer eventorigin before any float conversion. Do not infer Contact boundary from MIDI or first renderedclock.",
+    "adapter": "Immediate/deferred production order must be mapped and separately qualified from exact source/test corpus. Deferred path renders pending sample first then commits; no universal +/-1 assumption. None first-renderedclock blocks any physical-clock qualification claim.",
+    "interval": "Qualified mechanical owner supplies [t0,t1] endpoints; support owner supplies z0/z1, right-side policy at endpoint. Existing field-force/work/D/construction checks remain external prerequisites.",
+    "press": "Original polynomial with duration=pressframes/96000, matching attachmentposition/velocity and y0+D/zero velocity at Release. Left Release uses press including its one-sided acceleration.",
+    "withdrawal": "Same source PWL knots; right Release uses first withdrawal interval. Both sides of each velocity jump retained; zdd=0 is each interval/one-sided convention, not a globally smooth acceleration.",
+    "old_terminal": "Original finitecrop has NO right interval at final knot. New postcrop support is a declared continuation, never old-reference evidence."
+  },
+  "controller_definition": {
+    "b0": "beta=float(1-a), no new coefficient selected.",
+    "recurrence": "output=beta*p[j]+storedstate; storedstate=a*output; R=R+output; z=y_attach+D-2*D*R. Exactly written operation order; no FMA/compiledlfilter bitidentity assumed.",
+    "input": "Full original normalized-by-owner storedpulse, then indefinitely exactzeroinput; no repeatedpulse, tail renormalization, Rclipping, cutoff, arbitrarytimeout or forceddetach.",
+    "mathematical_limit": "For storedcoefficients in exact-real recurrence Rinf=beta/(1-a_real)*sum(storedpulse), not necessarily1. zinf=y_attach+D-2D*Rinf, only approximatelyy_attach-D when massapproximately1. FloatingR can stall.",
+    "bounded_state": "Three-knot cache plus filterstate/R, not cropallocatedarrays. One planned future knot supplies known actuator slope; no future field/audio read. Arbitrary backward ODE trial queries outside cache explicitly unsupported, never reset/replay active physics."
+  },
+  "lifecycle": {
+    "attach": "Only actualarrival and fixedgeometry snapshot. No existing active contact may be overwritten: positiveU, zeroU-unretired and staleendpoint each explicitUNRESOLVED. No queue/delay/automaticretry/delete.",
+    "ordering": "Strict (actualboundary,startOrder) ownership; rejected busy event consumed as explicitunsupported event, no silently delayed replay. Geometry changes unsupported.",
+    "retire": "Only actual current endpoint gather/storagetokens plus t>=Release, rightdelta<=0/rightrelativev<=0 and exactU==0. Remove0storage only, unchangedq/v and lifetimeledger. Never use legacyphase/quietness/threshold as substitute.",
+    "no_detach_guarantee": "Strongring-to-softstroke with positivey_attach>D, other incomingphases, D0 can remain active indefinitely. Fresh-from-rest retirement is no proof for arbitraryphase. Busy remains unresolved; no inventedextra lifttail."
+  },
+  "equivalence_limits": {
+    "real": "Time translation and recurrence/press algebra are declared mathematical identities to be checked separately by induction/descriptor formulas.",
+    "binary": "Compare actual ownedzero-origin prefix bits separately from actualabsolute-time reference and newlocalcontroller. Old(t-contact)/duration, SciPycompiledDFII/FMA, cumsum and interpolation subtraction may differ; never hide with a new tolerance or claim allabsoluteorigins bitidentity.",
+    "qualification": "Exact raw-bit equality is evidence only for testedroute/fields. Rawdifferences/unavailable sides retained. No physicalaccuracy/naturalness/RT or new integration rail selected."
+  },
+  "deferred_physics": {
+    "condition": "Whole96E mechanics must qualify first; controller-only gate can be reviewed/executed independently without physics outcomes.",
+    "required": "Persistent samegeometry incomingnonzeroq/v including phases/signs/strong\u2192weak/D0, actualactiveU, lifetimework/D/native/appliedGram/gather/force rails and first/refined reference/event gates unchanged. Source input/observer/electrical history continuous.",
+    "overlap_and_fret": "No activeport retarget or multiport policy chosen. Fret changes/bend/modalbasis transport/newfinger ports and J>=3 remain unresolved separate mechanisms."
+  },
+  "source_inputs": {
+    "build-passive-source-tone-candidate-capacity/support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "build-passive-source-tone-candidate-capacity/mechanics_v2.py": {
+      "bytes": 7627,
+      "sha256": "f881a5dda18687d831496163f9d86740e915f2351eebec44032eba146fb54f45"
+    },
+    "build-passive-source-tone-candidate-capacity/source_inputs_v1.py": {
+      "bytes": 6644,
+      "sha256": "d801ca7d698296b1f97506cfbd3d3cd522c23da8e5d8b45033b0a3941309902f"
+    },
+    "build-persistent-contact-production-landing-review/review-v1.json": {
+      "bytes": 10418,
+      "sha256": "32942966f27e28cf8ee12f40dcc10ad160e6339cb5f32487306dcb961af75f44"
+    },
+    "build-persistent-repick-lifecycle-corpus-review/contract-v1.json": {
+      "bytes": 13828,
+      "sha256": "d884b457a7aa086348d32aacca1cc4aeda231d241840b712fb6ef8d3d0475afe"
+    },
+    "Source/DSP/ElectryEngine.cpp": {
+      "bytes": 506710,
+      "sha256": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567"
+    },
+    "Source/DSP/ElectryEngine.h": {
+      "bytes": 117129,
+      "sha256": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20"
+    },
+    "build-inherited-field-C/alpha-preflight-receipt.json": {
+      "bytes": 368507,
+      "sha256": "a0bc60a9c343df2560aff5d2fc6bb2dbcff1664601a8c4261ff4626304bc21b6"
+    },
+    "build-inherited-field-C/protocol.json": {
+      "bytes": 296409,
+      "sha256": "c35ba0501f022f93454f3d007cab4c5dd98d193832dc3ef704b9e0f90fb030f9"
+    },
+    "build-persistent-repick-lifecycle-corpus-review/contract-v2-supplement.json": {
+      "bytes": 4561,
+      "sha256": "75f205119b42f6213e3fee0eed87b4773478ae1a3ff2ce6c31aa181887a90f86"
+    }
+  },
+  "execution_authorized": false,
+  "preserved_unexecuted_v1": {
+    "path": "contract-draft-v1.json",
+    "bytes": 8075,
+    "sha256": "2d779de1a2b07eea00e55808adf4209bd7373cba882d53b42b33131f17e1737f"
+  },
+  "runtime_and_callback_limits": {
+    "Python": "Prototype allocates Python objects/Fraction/deque/dataclasses. No RT/fixed-array/host integration qualification.",
+    "backwardODE": "Three-knot mutable cursor is not a general immutable backwardtrial ODE callback. Future independent reference must use a separately owned immutable trajectory callback or explicit controller cursor clone; never silent replay/reset of active mechanical state.",
+    "state": "Current prototype has no field/solver/native integration. 96k eventboundary bookkeeping and standalone Fraction-time controller queries are distinct from a future finer-grid mechanical/reference event dispatcher."
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schema": "electry-passive-tone-analysis-outer-execution/UNEXECUTED-DRAFT-v3",
+  "status": "Source-only v3 prospective administrative finalization policy: change actual-free floor from2GiB to1GiB after the existing all96 closed mechanics/render prerequisites. No manifest, metadata preparation, execution authority, E payload access or scientific result adaptation.",
+  "scope": "Finalize only the already planned isolated candidate E real-dry comparison. Preserve all eight existing analysis Python files and protocol-draft-v1.json byte-identically. No new candidates, parameter changes, masks, windows, gains, tolerances, numerical methods, reference search or scientific promotion.",
+  "entry": {
+    "script": "run_analysis_once_draft_v3.py",
+    "python": "/Users/vojta/Dev/electry-real-dry-20261018/build-real-dry-review/python312/bin/python",
+    "python_version": "3.12.8",
+    "numpy": "1.26.4",
+    "scipy": "1.14.1",
+    "host": "Darwin arm64; actual release, resolved executable, full Python version, direct-entry import paths and inherited environment bound by future exact outer manifest",
+    "cli": "fixedPython312 run_analysis_once_draft_v3.py --authorization REPOSITORY_RELATIVE_AUTH_PATH --authorization-sha256 EXACT_SHA256",
+    "single_scientific_child_argv": [
+      "fixedPython312",
+      "-B",
+      "absolute/run_after_review_v1.py",
+      "--authorization",
+      "absolute/existing_analysis_authorization",
+      "--authorization-sha256",
+      "EXACT_EXISTING_ANALYSIS_AUTH_SHA"
+    ],
+    "working_directory": "Active repository root",
+    "bytecode": "Parent disables bytecode before local imports; scientific child uses -B, leaving all eight source files unchanged.",
+    "no_import_or_run_from_draft": true
+  },
+  "prerequisite_order": [
+    "All96 original source cases close successfully, then the independent complete saved-mechanics audit qualifies; root issues exact mechanical-only qualification.",
+    "Separately reviewed/authorized immutable export/render completes all96 E outputs; independent render review and exact combined all96 mechanics/render root qualification follow.",
+    "Prepare unchanged-analysis implementation-manifest-v1.json and separate root/peer analysis authorization against the original protocol and exact E render receipt, binding all original A/C/D/reference/E samples.",
+    "Only then prepare outer-implementation-manifest-v1.json, exact root/peer outer reviews and new one-shot parent execution authorization. Current source capacity has priority; none is admitted by this draft."
+  ],
+  "outer_manifest_contract": {
+    "path": "outer-implementation-manifest-v1.json",
+    "schema": "electry-passive-tone-analysis-outer-implementation/v1",
+    "protocol_sha256": "Exact selected outer-execution-protocol-draft-v3.json",
+    "artifacts": "Local outer script and protocol path -> exact {bytes,sha256}",
+    "inputs": "Repository-relative source/metadata bindings only; no .npz/.wav/.f32/.f64. Bind original analysis protocol and manifest, reviewed preparation/routing receipts and production-baseline proof metadata. No source result or field payload access before qualification.",
+    "environment_files": "Additional fixed inherited runtime/environment files -> exact {bytes,sha256}; may be empty because the complete existing analysis manifest environment_files table is independently rechecked. Do not duplicate the1435 inherited bindings unnecessarily. Retain existing following-byte semantics for inherited runtime symlink keys.",
+    "analysis_manifest": "{path repository-relative,bytes,sha256} for this directory's implementation-manifest-v1.json",
+    "analysis_protocol": "Corresponding exact original protocol-draft-v1.json fact",
+    "runtime": "python_real_executable, python_version, platform_release, direct_entry_sys_path, inherited_environment",
+    "production_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+    "Source24": "Exactly24 production source path -> {bytes,sha256}; hashes equal the original analysis manifest Source24_sha256 and unchanged original production baseline",
+    "Tests": "Exactly50 current test source path -> {bytes,sha256}",
+    "CMakeLists": "Exact {bytes,sha256}",
+    "all96_case_ids": "All original96 ordered unique IDs from immutable C protocol; no case pruning"
+  },
+  "outer_authorization_contract": {
+    "schema": "electry-passive-tone-analysis-outer-authorization/v1",
+    "one_shot_existing_analysis_authorized": true,
+    "new_physics_render_retune_or_production_authorized": false,
+    "implementation_manifest_sha256": "Exact future outer manifest",
+    "protocol_sha256": "Exact selected outer protocol",
+    "root_review": "{path repo-relative,sha256}; role root,static_clear:true,one_shot_existing_analysis_authorized:true and same manifest/protocol hashes",
+    "peer_review": "Corresponding independent peer exact review",
+    "analysis_authorization": "{path repo-relative,bytes,sha256}; separately authorized original scientific analysis, with both exact reviews and bound combined qualification/render receipt",
+    "source_capacity_admitted": true,
+    "source_reserved_free_bytes": "Root-owned fresh nonnegative integer admission, no hard OS reservation",
+    "no_authority_from_this_draft": true
+  },
+  "before_child": "Create exclusive outer-run-v1 and entry attempt metadata; even invalid authority/static entry failures then receive best-effort failed closure. Verify root/peer outer authority, exact existing analysis authority/reviews, independent combined all96 mechanics/render qualification and same render receipt/all96 ordered rows. Check metadata/code/environment/current Source24/Tests50/CMake bindings and immutable published-baseline hash ownership; preserve original eight known source hashes. Parent never decodes or hashes sample/field payloads before child launch. The unchanged child independently verifies its complete original input/sample bindings before importing numerical libraries or computing any scientific result.",
+  "one_shot": "Refuse existing outer-run-v1. Refuse any original neck-analysis-v1.json,bridge-analysis-v1.json,incomplete-analysis-v1.json output. Exactly one fixed scientific child; no compile, renderer, alternate interpreter, package operation, retry, restoration or resumed prefix.",
+  "owned_child": {
+    "lifetime": "Separate owned process group; record exact argv before spawn and PID/PGID immediately after spawn. Direct exclusive stdout/stderr files prevent pipe backpressure. All postlaunch failure paths enter cleanup.",
+    "cleanup": "Catch and retain every direct-child poll failure; each stage still attempts its signal/wait, and a finally clause always attempts final wait/reap. Then probe/clean the same owned PGID even if its leader already exited: SIGINT/SIGTERM/SIGKILL with5second sampled group waits. Retain all poll/signal/wait/probe failures; any cleanup failure or unreaped/live group blocks complete comparison.",
+    "no_guarantee": "OS/process failures may prevent termination or durable closure. Such outcomes are explicit failures; no success or unconditional OS guarantee is asserted.",
+    "logs": "Flush/fsync/close each log independently. Preserve partial original scientific outputs and incomplete-analysis metadata. Do not manufacture scientific success after child or closure failure."
+  },
+  "post_bindings": "After owned child closes, recheck the complete exact original and outer manifest/protocol/authority/review/qualification/render-receipt metadata chain plus all source/environment/production bindings, permitting only the expected newly created scientific outputs. Rehash the original sample_bindings whole bytes only, never decode PCM or fields. The parent then reads only the original JSON result structures to retain declared coverage/reproduction flags and explicit failure lists. No metric or guard is recomputed by the parent.",
+  "result_distinctions": {
+    "child_exit": "Exit0 is insufficient for fixed-comparison completion.",
+    "declared_coverage": "Require original letters A/C/D/E, eight Neck profile-letter contexts/all1104 retained rows,64 Bridge windows and16 original complete-prefix cases.",
+    "old_reproduction": "Keep separate original all828 Neck and192 Bridge A/C/D reproduction checks. Require original all_old_outcomes_reproduced flags and every original check PASS. Existing1e-10 Neck/1e-12 Bridge rails are owned solely by unchanged scientific code.",
+    "numeric_failures": "Retain all original Neck/Bridge numeric_observation failures and incomplete-analysis presence; nonempty failures prevent complete comparison. E guard failures remain reported in original scientific outputs and never shorten or remask cohorts.",
+    "no_quality_inference": "A complete comparison may report E regressions. Parent completion does not mean tone improves, 8-string identity, natural repicks/refrets, calibration, realtime safety,95percent similarity or production qualification. Root must interpret complete original results separately."
+  },
+  "fixed_science": {
+    "model_cases": "Original92 Neck cases(46 notes x Pick.18/.5),4 Bridge HB/SC x Pick.18/.5; same original six-string dry references and unchanged uncertain hardware/force/age/activity provenance",
+    "neck": "All138 fixed6144-frame source windows at MIDI+.5/.8/1.1s, two profiles x A/C/D/E =1104 rows. Original source masks/admissions/guards/censors and eight fixed tone metrics unchanged.",
+    "bridge": "All64 fixed128ms windows at.1/.2/.35/.55/.8/1.1/1.45/1.75s and16 original prefixes; primary body.1/.2/.35; original P2 4-8k has no slope.",
+    "matching": "Same original whole92s Neck gains over Reference+8 model tracks and whole2s per-player Bridge gains over Reference+16 model tracks; -24dBFS with common.94 headroom. No note/window/band gain, EQ, timefit, onset repair or candidate selection.",
+    "background": "Only E actual pre-Contact prefix measured by unchanged scientific code, excludes entire Contact host frame; old A/C/D backgrounds remain unchanged. Short model prefix does not satisfy real-source >=10ms intake. No source remask or old guard reclassification."
+  },
+  "administrative_resources": {
+    "sampled_total_output_cap_bytes": 268435456,
+    "minimum_actual_free_floor_bytes": 1073741824,
+    "effective_floor": "max(1GiB, fresh root source_reserved_free_bytes); the root-owned source reservation remains honored unchanged",
+    "poll_wait_slice_seconds": 0.25,
+    "checks": "Before child launch, between bounded waits, and after child exit; inventory counts only direct owned outer-run files plus the three original scientific output paths. Child writes may overshoot between samples. No hard OS quota, per-write cap or compression/closure reserve is claimed.",
+    "no_new_reserve": true,
+    "source_priority": "The existing exact all96 closed-source/independent-mechanics/closed-render prerequisites remain mandatory. This1GiB floor is for sequential final analysis after source closure, matching the existing main source actual-free guard. No live-source reads, deletion, interruption or candidate retune.",
+    "runtime_expectation": "No measured runtime bound or RT claim. The unchanged analysis computes1104 Neck and64x4 Bridge observations, preserving all original results; retain interruption/failure rather than prune scope.",
+    "memory_expectation": "Original in-memory four-letter96x96000 float64 clips plus nine4416000-frame Neck tracks are approximately613MB decimal before reference copies/NumPy/output overhead; this is an allocation estimate, not observed peak memory or an enforced cap."
+  },
+  "outputs": [
+    "outer-run-v1/attempt-v1.json",
+    "outer-run-v1/child-start-v1.json when spawned",
+    "outer-run-v1/stdout-v1.txt",
+    "outer-run-v1/stderr-v1.txt",
+    "outer-run-v1/closure-v1.json",
+    "unchanged original neck-analysis-v1.json and bridge-analysis-v1.json, or original incomplete-analysis-v1.json on scientific failure"
+  ],
+  "no_execution_or_preparation_authorized": true,
+  "published_production_checks": {
+    "scope": "Read-only administrative Git children, prelaunch and postrun; no numerical or scientific child calls.",
+    "argv_per_Source24": [
+      "/usr/bin/git",
+      "--no-pager",
+      "show",
+      "6c83ff453ff7ac346598e8e73367ced128a90838:Source/path"
+    ],
+    "show_requirement": "Exact original expected Source24 bytes/sha256, not just current file-to-manifest comparison.",
+    "diff_argv": [
+      "/usr/bin/git",
+      "--no-pager",
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--exit-code",
+      "6c83ff453ff7ac346598e8e73367ced128a90838",
+      "--",
+      "Source",
+      "Tests",
+      "CMakeLists.txt"
+    ],
+    "diff_requirement": "Exit0 and no stdout; external diff/textconv disabled.",
+    "per_call_administrative_timeout_seconds": 30
+  },
+  "v2_source_review_delta": {
+    "preserved_v1_script": {
+      "path": "run_analysis_once_draft_v1.py",
+      "sha256": "977d5a4ec20e12c34a843854d29cd08b47340e2c20cf63cd9362b651efe85ccc"
+    },
+    "preserved_v1_protocol": {
+      "path": "outer-execution-protocol-draft-v1.json",
+      "sha256": "523dd335c638fc8b01e9dc78154579d02cd2dff4fff39df56fc2ad14401b1537"
+    },
+    "changes": [
+      "Catch every cleanup poll failure and always attempt final reap.",
+      "Clean remaining owned PGID after leader exit; block completion on all cleanup failures.",
+      "Verify published original Source24 blobs and unchanged Source/Tests/CMake Git diff pre/post."
+    ],
+    "unchanged_science": "All original eight Python analysis modules/protocolv1,96cases,metrics,guards,windows,gains,thresholds and source masks remain byte-identical. No executable/scientific calls or metadata preparation by this change."
+  },
+  "v3_prospective_administrative_delta": {
+    "preserved_v2_script": {
+      "path": "run_analysis_once_draft_v2.py",
+      "bytes": 18687,
+      "sha256": "278f7717ac587724ffaf4f727b8dc2565624d6999c9c9299f653035f7fddf510"
+    },
+    "preserved_v2_protocol": {
+      "path": "outer-execution-protocol-draft-v2.json",
+      "bytes": 13455,
+      "sha256": "69c6da28a321a03146f06e51b7cbda06fe634c7c9fe9070aa28d64f13e78329d"
+    },
+    "only_runtime_policy_change": "OWN_FREE_FLOOR from2147483648 to1073741824 actual-free bytes. Select protocolv3; retain max with fresh root source_reserved_free_bytes.",
+    "timing": "Prospective policy set before any candidate E payload/result access, exact manifest preparation or execution. Existing full96 closed source/independent-mechanics/closed-render gates ensure source and analysis are sequential.",
+    "unchanged": "All original eight scientific files/protocolv1,96 contexts,288 old model PCM files,three dry references,metrics,source masks,windows,matching,gains,guards,rate/work/residual/tone criteria,outputcap256MiB,ownedprocesscleanup,postbindings and result-completeness requirements.",
+    "not_a_scientific_gate_change": true,
+    "no_result_adaptation_pruning_new_archive_or_reserve": true,
+    "no_hard_OS_free_space_or_durability_guarantee": true,
+    "root_peer_exact_source_review_and_fresh_authority_still_required": true
+  }
+}

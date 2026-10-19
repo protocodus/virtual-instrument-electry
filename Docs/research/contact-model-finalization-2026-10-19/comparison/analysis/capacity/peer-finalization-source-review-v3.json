@@ -1,0 +1,77 @@
+{
+  "schema": "electry-passive-tone-analysis-peer-finalization-source-review/v3",
+  "utc": "2026-10-19T16:11:54.425337+00:00",
+  "role": "peer",
+  "source_only_static_clear": true,
+  "selected_artifacts": {
+    "run_analysis_once_draft_v2.py": {
+      "bytes": 18687,
+      "sha256": "278f7717ac587724ffaf4f727b8dc2565624d6999c9c9299f653035f7fddf510"
+    },
+    "outer-execution-protocol-draft-v2.json": {
+      "bytes": 13455,
+      "sha256": "69c6da28a321a03146f06e51b7cbda06fe634c7c9fe9070aa28d64f13e78329d"
+    },
+    "run_analysis_once_draft_v3.py": {
+      "bytes": 18685,
+      "sha256": "c6c8bcf38e94dd1728464a19c5b1efd0897348cdf0aca9d5d8ff11804e5377cb"
+    },
+    "outer-execution-protocol-draft-v3.json": {
+      "bytes": 15106,
+      "sha256": "936e6e75dcafb463a51f2298cc8cce8e6ee422a0f44e2223decb9cceb6e9b671"
+    },
+    "outer-v2-to-v3-admin-diff-v1.patch": {
+      "bytes": 7491,
+      "sha256": "578d8a344b219d0042304f92b9be96590c0104b1be3286e193cab98b39ce7986"
+    }
+  },
+  "unchanged_scientific_artifacts": {
+    "analyze_bridge_v1.py": {
+      "bytes": 13982,
+      "sha256": "c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d"
+    },
+    "analyze_neck_v1.py": {
+      "bytes": 8924,
+      "sha256": "f1df1bfdbcce08864020ac5f575d2dfd34501b57ab0b9aa809721324310a1487"
+    },
+    "background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    },
+    "context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "helpers_v1.py": {
+      "bytes": 2558,
+      "sha256": "95e9bf526476bcb303e22bf94db7c006b45a4efc419edd45bc7786025b1312b4"
+    },
+    "run_after_review_v1.py": {
+      "bytes": 1844,
+      "sha256": "dd747720208331fdf9dbce3585e790461ff069117b5aee6271d5504f4661fbc4"
+    },
+    "summary_v1.py": {
+      "bytes": 4667,
+      "sha256": "da8506aa8a687c89dc9890dba069dc84fadcdb1be4c1558c450564ff268604f7"
+    },
+    "protocol-draft-v1.json": {
+      "bytes": 12451,
+      "sha256": "eaedc458abcf500a954d46bd298ca1f329963a58bac55fda04e0d0564cbd018e"
+    }
+  },
+  "exact_source_delta_reproduced": true,
+  "reviewed_administrative_delta": "Only select protocol-v3 and reduce OWN_FREE_FLOOR from2GiB to1GiB. Effective floor remains max(own floor,fresh root source_reserved_free_bytes); same256MiB sampled output cap and full96 mechanical/render prerequisite chain.",
+  "scientific_gate_metric_mask_gain_timing_or_cohort_change": false,
+  "resource_limit_scope": "Prospective administrative free-space policy, no hard OS quota/reservation/durability guarantee, no scientific result adaptation or pruning.",
+  "remaining_blocking_source_findings": [],
+  "actual_runtime_execution_authorized": false,
+  "one_shot_existing_analysis_authorized": false,
+  "candidate_E_payload_or_results_accessed": false,
+  "modules_imported_or_functions_evaluated": false,
+  "numerical_native_renderer_or_metric_calls": false,
+  "fresh_exact_implementation_reviews_and_execution_authority_still_required": true
+}

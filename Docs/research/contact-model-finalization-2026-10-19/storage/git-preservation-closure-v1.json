@@ -1,0 +1,38 @@
+{
+  "schema": "electry-preserving-git-storage-closure/v1",
+  "utc": "2026-10-19T12:20:07.664409+00:00",
+  "repack": {
+    "argv": [
+      "git",
+      "repack",
+      "-a",
+      "-d",
+      "--keep-unreachable",
+      "-n",
+      "--threads=1",
+      "--window-memory=32m"
+    ],
+    "session": 51403,
+    "exit_code": 0
+  },
+  "fsck": {
+    "argv": [
+      "git",
+      "fsck",
+      "--full",
+      "--no-dangling"
+    ],
+    "session": 23244,
+    "exit_code": 0
+  },
+  "peer_postverification": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-git-object-storage-preserving-review/peer-postverification-v1/receipt-v1.json",
+    "bytes": 999,
+    "sha256": "70618cf0667ad2777d32a001bb3f32b1e5f6c2c19c63ed3bbc11cb624ad97d5d"
+  },
+  "all_2403_objects_53_refs_217_reflogs_both_HEADs_preserved": true,
+  "git_reported_storage_reduction_KiB": 50316,
+  "no_prune_no_reflog_expiration_no_refs_or_checkout_changes": true,
+  "preexisting_unindexed_pack_garbage_preserved": true,
+  "host_free_space_causal_claim": false
+}

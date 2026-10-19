@@ -1,0 +1,23 @@
+{
+  "schema": "electry-finalization-root-source-review/v2",
+  "role": "root",
+  "source_only_static_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_requires_actual_qualified_prerequisites": true,
+  "bindings": {
+    "export_render_draft_v2.py": {
+      "bytes": 23635,
+      "sha256": "19da86de8149d6728ad347a54fe04944345e253774500d355cf587505b79e30b"
+    },
+    "protocol-draft-v2.json": {
+      "bytes": 12178,
+      "sha256": "dacf173cc2f7449a2b48ef7b973134a1e9374ccbf8f453f04356767b35e70bf0"
+    },
+    "prepare_metadata_v2.py": {
+      "bytes": 6524,
+      "sha256": "701860515ed0d208b42599ff1805ea2e21821802752d53e398ee309a035e9d21"
+    }
+  },
+  "review_scope": "Full predecessor source and exact administrative successor diffs/protocols read. Owned-child closure, postbinding checks and original fixed scientific scope retained. Scientific payload access not performed.",
+  "no_scientific_parameter_cohort_mask_gain_or_timing_change": true
+}

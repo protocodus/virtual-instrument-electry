@@ -1,0 +1,99 @@
+{
+  "schema": "electry-passive-source-complete-readable-DRAFT-v5/v1",
+  "utc": "2026-10-19T07:50:31.095108+00:00",
+  "previous_complete_draft_v4_sha256": "4672405991d82f85168ca56bd16fbb0865d96dfa25a4095fd7a113133865cc67",
+  "artifacts": {
+    "source_inputs_v1.py": {
+      "bytes": 6644,
+      "sha256": "d801ca7d698296b1f97506cfbd3d3cd522c23da8e5d8b45033b0a3941309902f"
+    },
+    "support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "mechanics_v2.py": {
+      "bytes": 7578,
+      "sha256": "efb0ae253e4e6f98083c9920b2e8059f00a73836f449bafebaf8bc592be19b6d"
+    },
+    "analytic_tail_v3.py": {
+      "bytes": 3915,
+      "sha256": "fa4b70ee0b15e46999eb76db94ab436c85b53f6cbafd8e42788f110edc1224f0"
+    },
+    "reference_equations_v3.py": {
+      "bytes": 1749,
+      "sha256": "1a2dcbcef03c924b26d6cb2406576eed746d362b38018d43676112efc1b4b9f8"
+    },
+    "reference_tail_draft_v4.py": {
+      "bytes": 4890,
+      "sha256": "eb3e494b29fd15ad761f2a31acf92b923f38b54b7262385075e462ce24611097"
+    },
+    "continuous_reference_draft_v3.py": {
+      "bytes": 10809,
+      "sha256": "425b210a8dc284fb476347a91d278ec2933456e7a96829679960b854e3ce0355"
+    },
+    "run_model_v3.py": {
+      "bytes": 6495,
+      "sha256": "aad76ca1baf1b7d5f0570d7bbf52aac6529674e45e2aee844881b8c7265092a0"
+    },
+    "run_reference_v1.py": {
+      "bytes": 9257,
+      "sha256": "b3fcfa53189f2d868851e93edfd27ca7f8dfeafd2f6f601e60ce5f501c96eb7b"
+    },
+    "trajectory_v1.py": {
+      "bytes": 5697,
+      "sha256": "3ab89d2f9baa60d5b50b35a0dca6a1822d82e368d933189568086df7a2a6324c"
+    },
+    "failure_io_v1.py": {
+      "bytes": 5041,
+      "sha256": "b7fc8fcfa379aa0cb99d9e267589e350efed8a5ca5dc0851081c97e008362c90"
+    },
+    "storage_v3.py": {
+      "bytes": 14043,
+      "sha256": "146c0b76124e3df3d35cc2394b3663369e799767d896e75272080f17ef66c786"
+    },
+    "native_adapter_v1.py": {
+      "bytes": 9337,
+      "sha256": "30749840ce2bc1d75e4789ff0b9b8a337f494616e1982f06ad2e638e52708185"
+    },
+    "gate_v1.py": {
+      "bytes": 3949,
+      "sha256": "d74e714392f9bb21f23773aa286ab428f988e9e1b9541c2dfc2745e4deaf3124"
+    },
+    "preflight_v1.py": {
+      "bytes": 3514,
+      "sha256": "bb4dda1ba2b1b6311d757649737bff5014d80f17564663ae814927a569f5dc07"
+    },
+    "run_after_review_v1.py": {
+      "bytes": 7858,
+      "sha256": "6f3649e564f28e6ac2c0152bdbefb7ef6b7ebbdcf2c2f4a361139f73a5d936c7"
+    },
+    "prepare_implementation_v1.py": {
+      "bytes": 8747,
+      "sha256": "2a4134f568bafd30b59b95d374e624579124b5f38c60bcc24cc3be9755935bea"
+    },
+    "verify_preparation_v1.py": {
+      "bytes": 1461,
+      "sha256": "cd35b2295d561e78009789850233a3039d1e809b89ae94605c4ffc9b7a3373f3"
+    },
+    "protocol-selected-v1.json": {
+      "bytes": 18635,
+      "sha256": "2d20432a21393c1c9862edf49f308676d8af93b419dc1e02e9387222bde773a8"
+    },
+    "README-selected-v1.md": {
+      "bytes": 4323,
+      "sha256": "8f96a502636da0d9d32a16a202ad5ec397199c641c2a8a5f793508485bcdf610"
+    },
+    "draft-v4-preserved/prepare_implementation_v1.py": {
+      "bytes": 7819,
+      "sha256": "a0fbfac97f2c7defa1a83c26a72c28aaff3d0599c9f96ac072ff1cb1ef28cf50"
+    },
+    "draft-v4-preserved/evolution-note-v1.json": {
+      "bytes": 967,
+      "sha256": "bba41422b01375a25a202a50e41737ef1dea5c6744b8600814eff63349e1d516"
+    }
+  },
+  "only_v4_selected_delta": "prepare_implementation_v1.py reuses fixed unit1435 environment superset; verifies all coefficient1423 facts; binds preserved history metadata. Prior preparer exactbytes archived with honest created-after note. No source scientific code change.",
+  "unexecuted": true,
+  "states_authorized": false,
+  "unit_independent_qualification_still_required_before_preparation": true
+}

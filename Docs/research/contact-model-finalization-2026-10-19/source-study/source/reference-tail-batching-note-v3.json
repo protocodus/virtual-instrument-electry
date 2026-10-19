@@ -1,0 +1,14 @@
+{
+  "schema": "electry-passive-source-reference-tail-DRAFT-v3-note/v1",
+  "utc": "2026-10-19T06:55:06.936786+00:00",
+  "selected_reference_tail": "reference_tail_draft_v3.py",
+  "reference_tail_sha256": "2e20c806586051d1945d1d77cef2445900f15aef465b04fa49d8af11d043f6de",
+  "preserves": [
+    "reference_tail_draft_v1.py",
+    "reference_tail_draft_v2.py",
+    "draft-snapshot-v2.json"
+  ],
+  "changes": "Batch full-h reference D on own analytical leftq/v, same raw per-mode finite/nonnegative checks and chronological cumulative addition; retain separate exact event-to-first-canonical-sample positive16/32 physical velocity-square integral and own event time/q/v/work/D. No physical or numerical gate change.",
+  "no_imports_or_state_quadrature_force_calls": true,
+  "is_final_freeze_or_authorization": false
+}

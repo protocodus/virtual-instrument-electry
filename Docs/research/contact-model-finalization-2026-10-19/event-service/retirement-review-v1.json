@@ -1,0 +1,39 @@
+{
+  "schema": "electry-event-relative-controller-retirement-algebraic-review/v1",
+  "utc": "2026-10-19T11:36:39.823871+00:00",
+  "kind": "Source-only algebraic derivation; no numerical experiment or currentcaseoutcome",
+  "note": {
+    "bytes": 4257,
+    "sha256": "5c25a41ef452fa8eff1d778c65cccb9159c0a2b9ba0243e9999bc95805185f31"
+  },
+  "inputs": {
+    "build-passive-source-tone-candidate-iofix/support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "build-passive-source-tone-candidate-iofix/mechanics_v2.py": {
+      "bytes": 7627,
+      "sha256": "f881a5dda18687d831496163f9d86740e915f2351eebec44032eba146fb54f45"
+    },
+    "build-passive-source-tone-candidate-iofix/source_inputs_v1.py": {
+      "bytes": 6644,
+      "sha256": "d801ca7d698296b1f97506cfbd3d3cd522c23da8e5d8b45033b0a3941309902f"
+    },
+    "build-persistent-contact-production-landing-review/review-v1.json": {
+      "bytes": 10418,
+      "sha256": "32942966f27e28cf8ee12f40dcc10ad160e6339cb5f32487306dcb961af75f44"
+    }
+  },
+  "pinned_scipy_filter_documentation": {
+    "path": "/Users/vojta/Dev/electry-real-dry-20261018/build-real-dry-review/python312/lib/python3.12/site-packages/scipy/signal/_signaltools.py",
+    "fact": {
+      "bytes": 158894,
+      "sha256": "46bc7649eefba7937b762a2dd11586e5063a21eba101b80ee1c6d2c2e7d4d2b3"
+    }
+  },
+  "new_conclusion": "Fresh-from-rest finite retirement does not prove allringingstatesretire; positivefinalsupport admitspositiveU equilibrium. Actualreachability/failure forownedcases isunproven andneedsphase/weakstroke qualification.",
+  "numerical_state_force_support_or_native_calls": false,
+  "E_field_PCM_or_archived_trace_access": false,
+  "production_Source_Tests_CMake_changed": false,
+  "scientific_acceptance_criteria_changed": false
+}

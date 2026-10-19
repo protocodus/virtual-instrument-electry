@@ -1,0 +1,58 @@
+{
+  "schema": "electry-capacity-export-render-routing-draft-delta/v1",
+  "status": "UNEXECUTED DRAFT pending root/peer static review, all96 independent mechanics qualification and fresh exact export/render authorization",
+  "old_code": {
+    "path": "build-passive-source-tone-export-render/export_render_draft_v1.py",
+    "bytes": 18822,
+    "sha256": "e461f2686b985a9aa66e8e8bad3c2b86c1c449bcd78f310e3d3d92682720ad56"
+  },
+  "old_protocol": {
+    "path": "build-passive-source-tone-export-render/protocol-draft-v1.json",
+    "bytes": 6612,
+    "sha256": "f4966b951a70a07d8b8bff161b54fd1e5ee8e8802a7370fc8ece2659d403d213"
+  },
+  "new_code": {
+    "path": "build-passive-source-tone-capacity-export-render/export_render_draft_v1.py",
+    "bytes": 18825,
+    "sha256": "8efe55c853a4a031730fd5900ff8a32c8189813c571cf459fc4060b8b467b15b"
+  },
+  "new_protocol": {
+    "path": "build-passive-source-tone-capacity-export-render/protocol-draft-v1.json",
+    "bytes": 9557,
+    "sha256": "1ab4fb266f3aadff81f0129addde198eb990b5aae18a5c6e07a1279f6fb8a9ce"
+  },
+  "exact_code_changes": [
+    {
+      "line": 10,
+      "old": "SOURCE='build-passive-source-tone-candidate-iofix'",
+      "new": "SOURCE='build-passive-source-tone-candidate-capacity'"
+    },
+    {
+      "line": 11,
+      "old": "SOURCE_MANIFEST='5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f'",
+      "new": "SOURCE_MANIFEST='08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c'"
+    }
+  ],
+  "only_code_changes_are_SOURCE_and_SOURCE_MANIFEST": true,
+  "all_other_code_bytes_reverse_substitution_identical": true,
+  "protocol_only_routing_or_provenance_changes": [
+    "source_root",
+    "source_manifest_sha256",
+    "mechanics_qualification_schema.source_root",
+    "fixed_downstream directory name",
+    "administrative_capacity_routing_provenance"
+  ],
+  "all_other_protocol_fields_deep_equal": true,
+  "math_sample_timing_renderer_controls_primes_gains_cohort_and_gates_unchanged": true,
+  "future_closed_receipt_and_independent_all96_qualification_not_assumed": true,
+  "fresh_exact_export_auth_still_required": true,
+  "both_failed_source_attempts_and_old_drafts_preserved": true,
+  "diff": {
+    "path": "build-passive-source-tone-capacity-export-render/routing-diff-v1.patch",
+    "bytes": 6881,
+    "sha256": "9d2e1525bb300f3ecd9e33fd182b8886e48cbaa1c228e6641220dd6258238030"
+  },
+  "no_running_source_payload_NPZ_PCM_read_or_hashscan": true,
+  "no_numeric_imports_scripts_renderer_compiler_physics_native_state_force_or_FFT_calls": true,
+  "no_implementation_manifest_or_authorization_or_output_created": true
+}

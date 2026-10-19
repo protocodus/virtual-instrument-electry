@@ -1,0 +1,141 @@
+{
+  "schema": "electry-multicontact-kernel-compile-only-prospective/v2",
+  "status": "DRAFT v2 administrative lifecycle/retention correction only. All v1 frozen sources/preparation preserved and uncompiled; v2 metadata prep and compiler calls require fresh root approvals.",
+  "input_target": "Actual stored finite binary64 A/d0/dfree, J0..5, fixed K6000, exact original binary64 2e-11 N residual. No physical endpoint or NumPy/BLAS equivalence.",
+  "maximum_contacts": 5,
+  "administrative_maximum_updates": 4096,
+  "capacity_is_not_a_physical_contact_count_guarantee": true,
+  "contraction": "Per-input outward LU=max_i upper((K/2)*sum_j |Aij|); LU finite and<1. No inherited global-lambda or old525/exponent certificate.",
+  "cap": "Outward q0=aU, qnext=upper_mul(LU,q), first q<=positive slack before force iterations. Explicit cap_resource_limit at4096 products if no crossing, never treat ceiling as certified cap.",
+  "required_checks": [
+    "active input finiteness",
+    "full sequential J-term row/dot and gap enclosures",
+    "nonnegative finite candidates/updates and outward box",
+    "finite endpoint/scalar budgets and positive slack",
+    "actual measured interval width<=W",
+    "direct original binary64 2e-11 residual",
+    "separate ordinary C++ diagnostic at same rail",
+    "entry/exit strict arithmetic environment; exit failure clears all arithmetic and cap qualifiers"
+  ],
+  "inactive_lanes": "Full five-capacity raw input serialized; arithmetic uses only j active rows/columns. Inactive output and budget lanes remain initialized zero. J>5 rejects before J-indexing.",
+  "driver_request": "unsigned id j, exactly35 raw binary64 lowercase16hex words A25+d0_5+dfree_5; no extra token",
+  "driver_result_schema": "electry-multicontact-interval-kernel-result/v1",
+  "malformed_request": "Escaped raw-line failure, no valid force/endpoint, exit2; no retry.",
+  "trace": "Optional caller-owned4097 fixed rows; offline stream harness owns static trace, allocates strings/streams and is not RT.",
+  "host_contract": "Inherited Apple arm64 binary64 RN-even, gradual subnormals, nontrapping, FPCR0 entry/exit, FE_TONEAREST, FLT_EVAL_METHOD0, no asynchronous environment change, strict flags all callers.",
+  "strict_flags": [
+    "-std=c++17",
+    "-O2",
+    "-fno-fast-math",
+    "-ffp-model=strict",
+    "-ffp-contract=off",
+    "-frounding-math",
+    "-fno-lto",
+    "-Wall",
+    "-Wextra",
+    "-pedantic"
+  ],
+  "compiler": "/usr/bin/clang++",
+  "allowed_compiler_processes": [
+    [
+      "/usr/bin/clang++",
+      "--version"
+    ],
+    [
+      "/usr/bin/clang++",
+      "-std=c++17",
+      "-O2",
+      "-fno-fast-math",
+      "-ffp-model=strict",
+      "-ffp-contract=off",
+      "-frounding-math",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-save-temps=obj",
+      "driver_j5_draft_v1.cpp",
+      "-o",
+      "compile-v2/multicontact-stream-v1"
+    ],
+    [
+      "/usr/bin/clang++",
+      "-std=c++17",
+      "-O2",
+      "-fno-fast-math",
+      "-ffp-model=strict",
+      "-ffp-contract=off",
+      "-frounding-math",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-save-temps=obj",
+      "environment_negatives_j5_draft_v1.cpp",
+      "-o",
+      "compile-v2/multicontact-environment-negatives-v1"
+    ]
+  ],
+  "allowed_metadata_queries": [
+    [
+      "/usr/bin/xcode-select",
+      "-p"
+    ],
+    [
+      "git",
+      "--no-optional-locks",
+      "diff",
+      "--exit-code",
+      "6c83ff453ff7ac346598e8e73367ced128a90838",
+      "--",
+      "Source",
+      "Tests",
+      "CMakeLists.txt"
+    ],
+    [
+      "git",
+      "--no-optional-locks",
+      "rev-parse",
+      "HEAD"
+    ]
+  ],
+  "maximum_output_bytes": 67108864,
+  "minimum_free_before_process_bytes": 2214592512,
+  "interrupt_below_free_bytes": 2147483648,
+  "compiler_process_timeout_s": 120,
+  "limits_are_administrative_not_physical_scientific_or_RT_gates": true,
+  "compiled_binary_execution_authorized": false,
+  "environment_negative_modes_compiled_but_not_run": [
+    "FE_DOWNWARD",
+    "FTZ_BIT24"
+  ],
+  "force_map_state_package_E_payload_or_cost_evaluation_authorized": false,
+  "failure_policy": "Exclusive once-only destination, retain all logs/outputs/failures, no retry/repair; postbinding verification on success/failure; no force or physical endpoint from compilation.",
+  "compile_authorization_schema": "electry-multicontact-compile-only-authorization/v2",
+  "required_review_fields": {
+    "role": "root or peer",
+    "static_clear": true,
+    "multicontact_compile_only_authorized": true,
+    "implementation_manifest_sha256": "exact future prepared manifest",
+    "protocol_sha256": "exact selected protocol"
+  },
+  "no_production_or_frozen_artifact_edits": true,
+  "following_phase": "Separate frozen independent J0..5 exact-oracle corpus/runtime protocol and fresh authorization; no runtime permission from this packet.",
+  "resource_poll_interval_s": 0.25,
+  "resource_policy": "Sampled owned-process output/free-space guard; may overshoot between polls, not a per-write hard cap or capacity guarantee. Terminate/reap owned process group on stop; live source1GiB guard unchanged.",
+  "preserved_v1": {
+    "manifest": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-multicontact-passive-kernel/implementation-manifest-v1.json",
+      "bytes": 19356,
+      "sha256": "c1c25bf89dfcb883f7362bf54309bc9c4cea0140ec15a38882a96b7debae401e"
+    },
+    "preparation": {
+      "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-multicontact-passive-kernel/preparation-receipt-v1.json",
+      "bytes": 480,
+      "sha256": "45e1e40f3a19205601a10eed5a9d3cb36a996f50ddf25f08400a8d18a65f8ffe"
+    },
+    "all8_selected_v1_artifact_bytes_unchanged": true,
+    "v1_compiler_execution_attempted": false
+  },
+  "v2_delta": "Only versioned compile wrapper/helper/preparer/protocol/method and compile-v2 routing; unchanged header/driver/environment-negative source. Owned child lifecycle cleanup covers Popen and postlaunch steps; per-process command row attached prelaunch; cleanup errors do not skip wait; output-fact/inventory errors retained with best-effort receipt/console closure."
+}

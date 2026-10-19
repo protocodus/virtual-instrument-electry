@@ -1,0 +1,23 @@
+{
+  "schema": "electry-finalization-root-source-only-review/v1",
+  "role": "root",
+  "utc": "2026-10-19T16:12:32.248942+00:00",
+  "source_only_static_clear": true,
+  "execution_authorized": false,
+  "metadata_preparation_requires_actual_completed_qualified_prerequisites": true,
+  "bindings": {
+    "check_render_saved_draft_v2.py": {
+      "bytes": 16202,
+      "sha256": "9f956b0676f84f03903d37ca00d66243df67c3e5de9fb4fece5ef35e0de3f23c"
+    },
+    "saved-render-review-protocol-draft-v2.json": {
+      "bytes": 7959,
+      "sha256": "74fed98b5a43fe02883ac3d42cad2810b1bfdecc7716f01576be2442b9d2ad44"
+    },
+    "saved-render-peer-source-review-v2.json": {
+      "bytes": 2016,
+      "sha256": "d305d7ede81a7af68ecaf28697895acdea55fdcd6eabebb3a8d2d66531a9cf96"
+    }
+  },
+  "scope": "Full original source and bounded successor diff/protocol read. All scientific inputs, masks, gains, frames, comparisons and physical thresholds unchanged. Actual manifests and execution authority are still absent; no current E payload accessed."
+}

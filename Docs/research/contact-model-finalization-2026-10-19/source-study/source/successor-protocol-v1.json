@@ -1,0 +1,39 @@
+{
+  "schema": "electry-passive-source-IO-successor-protocol/v1",
+  "status": "UNEXECUTED scientific successor; administrative I/O correction only. Fresh reviewed metadata freeze and exact scientific authorization still required.",
+  "candidate": "E / passive-source-v1",
+  "selected_root": "build-passive-source-tone-candidate-iofix",
+  "scientific_protocol": {
+    "path": "protocol-selected-v1.json",
+    "bytes": 18635,
+    "sha256": "2d20432a21393c1c9862edf49f308676d8af93b419dc1e02e9387222bde773a8"
+  },
+  "physical_hypothesis_and_all_96_contexts_unchanged": true,
+  "predecessor": {
+    "selected_root": "build-passive-source-tone-candidate",
+    "manifest_sha256": "01bafe461aef3944657047647030bb706221463e889582411d75f55a1e3d0272",
+    "failed_closed_receipt": {
+      "path": "build-passive-source-tone-candidate-root-review/execution-receipt-v1.json",
+      "bytes": 1980,
+      "sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f"
+    },
+    "closed_exit_code": 1,
+    "completed": false,
+    "successful_physical_source_run": false
+  },
+  "first_failure": "Pinned NumPy1.26.4 zipfile_factory detects file-like objects through hasattr(read); _BudgetedWriter had write/seek/tell/flush but no read attribute. First preflight NPZ write rejected the wrapper before native start or physical integration.",
+  "exact_runtime_delta": "Successor storage_v3._BudgetedWriter adds def read(self,*args): return self.file.read(*args), plus explanatory comment. It delegates ordinary file read semantics; no source/force/state/path/timing/control/metric behavior is changed.",
+  "prior_progress": "Original entry imported qualified numerical modules and read qualified tables/source input metadata/first parameter case, then derived the first preflight path/input scales. It did not complete all96 preflight and generated no native force, string state, continuous reference, pickup tap, renderer field or PCM.",
+  "unchanged_science": [
+    "All92 Neck+4 Bridge contexts and exact controls/source clocks/crops",
+    "Fq/D/single signed orientation/C1 press/fixed96k filtered-release PWL path",
+    "Literal qualified naturalOmega/alpha/mass/n tables at96/192k",
+    "Actual-work normalization, native residual/trace/construction, positive D, reference/event/rate rails and all480 observations",
+    "Pickup/electrical chain and fixed future source masks/whole-context gains",
+    "No fitted parameter/source path or change after inspecting source-tone outcomes"
+  ],
+  "administrative_validation": "Separate tiny generated-toy I/O roundtrip/failure fixture using the pinned runtime and actual budgeted archive. No scientific input, source preflight/module, coefficient table, force, state, reference, tap, field or PCM is permitted by I/O-only authority. Its result is not a physical mechanics qualification.",
+  "execution_boundary": "New root and peer reviews must bind NEW successor manifest plus this supplement and unchanged scientific protocol. Old review-pointer/auth/run outputs must not be copied/reused. Administrative test authority never authorizes source states.",
+  "failed_packet_policy": "Preserve original49 source artifacts, original manifest/reviews/auth, exit1 log/closed receipt and incomplete/emergency files untouched; a later successor success cannot relabel the original run.",
+  "no_scientific_execution_authorized_by_this_protocol": true
+}

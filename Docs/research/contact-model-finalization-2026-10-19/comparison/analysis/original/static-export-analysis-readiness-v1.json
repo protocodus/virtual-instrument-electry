@@ -1,0 +1,66 @@
+{
+  "schema": "electry-passive-source-static-export-analysis-readiness/v1",
+  "scope": "Source/metadata only; no current experiment outputs, samples, arrays, render, FFT or numerical imports/calls. No qualified physical outcome inferred.",
+  "status": "Analysis DRAFT; exporter/renderer DRAFT owned separately; no execution authority.",
+  "next_export_gate": [
+    "Closed producer + independent ALL96 mechanics qualification: alloriginalrates/freshrefs/work/native/D/event/refinement gates retained, no activecontact atcropend; no passing subset.",
+    "Bind exact model96/raw-mechanics-physical-tap.npz percase, contiguous unique callbackframes0..calls96-1/full finite tap, source clock/geometry/actualforce-work receipts.",
+    "Fresh exact root/peer exporter/immutable-renderer authorization. Copy only stored tap into little-endianf64 with no interpolation/fade/refit/reintegration. Preserve callbackindex0=first_clock, existing Contact prime and no Release reset.",
+    "Run original96control/seed/block/48k2s driver contexts; reproduce oldA controls, verify all96000frame PCM finite and actualcalls/firstclock/Contact/Release/geometry/timelines equal exceptRMSpeak. Onlythen write E-render-v1 and combined mechanics+render qualification for separately authorized metrics."
+  ],
+  "analysis_contract": [
+    "All92Neck +4Bridge contexts and A/C/D/E letters. Same source-admitted138Neckwindows percontext/1104rows, all64Bridgewindows/all16originalprefixes; P2no4-8kslope retained.",
+    "Whole92s nine-track Neck and17whole2s tracks/player Bridge RMS/commonheadroom only. No pernote gain, offset, source remask or bestprofile choice.",
+    "Report absoluteH1/H2/H3 with ratios/H1share and paired-window closures, body80-250/lowmid250-1k, absoluteupperlevels and allfixed-prefix slopes/guards/regressions.",
+    "Ebackground measured only from actual preContact PCM under exact callback\u2192host clock mapping; short modelprefix never relabeled real-source10ms evidence. Original A/C/D background unknowns/guards remain unchanged."
+  ],
+  "addressed_single_retention_gap": "Unfrozen Bridge baseline summary previously raised on a retained None metric. New fixedcohort helper retains all original IDs/error/guard/failure rows and suppresses unavailable letter/metric or dependent comparison, without subset statistics; complete numeric cohorts retain frozen arithmetic. One v2draftsnapshot binds the delta.",
+  "provenance": "Protocol Eroot retargeted to IOfix successor; original68d38c closedpreflight failure/01bafe source remains explicit unchanged history. Legacy renderer contact.force_N remains a timing/control witness, not actual passive-port force or work.",
+  "limitations": "Isolated fresh2s source diagnostic, not live repicks/refrets/attack/RT/alias/naturalness or production qualification. No tone result yet.",
+  "source_identities": {
+    "build-passive-source-tone-analysis/protocol-draft-v1.json": {
+      "bytes": 9959,
+      "sha256": "ae94e03f85305fe059667173b3cf6b7c03ea499d75556d562fa477fed9a85337"
+    },
+    "build-passive-source-tone-analysis/draft-source-hashes-v2.json": {
+      "bytes": 2468,
+      "sha256": "3c151b0c45a0ffc208d9a5f5fe24a4553b40298a1dc4eef8bc3ae21d75820d50"
+    },
+    "build-passive-source-tone-analysis/analyze_bridge_v1.py": {
+      "bytes": 13982,
+      "sha256": "c1f6c3dc46b48c45092860179d68cf56c550247a8fc388ac89ead4114282778d"
+    },
+    "build-passive-source-tone-analysis/analyze_neck_v1.py": {
+      "bytes": 8924,
+      "sha256": "f1df1bfdbcce08864020ac5f575d2dfd34501b57ab0b9aa809721324310a1487"
+    },
+    "build-passive-source-tone-analysis/context_v1.py": {
+      "bytes": 3547,
+      "sha256": "48d9f7a5d7b7d4860d4023b4f96b7517dfbe4939486b23eefea118caa2c7ab87"
+    },
+    "build-passive-source-tone-analysis/background_v1.py": {
+      "bytes": 3170,
+      "sha256": "053efd5a752c33c3c6633c18c96b510f4e79a66f13452e9fca54d1beff1df103"
+    },
+    "build-passive-source-tone-analysis/gate_v1.py": {
+      "bytes": 3056,
+      "sha256": "903e340ba07c530b8dfe13a2f815c1bb975edf3dbd938ef886d2b2ff86bad968"
+    },
+    "build-passive-source-tone-candidate-iofix/pipeline-contract-draft-v1.json": {
+      "bytes": 4754,
+      "sha256": "4df090faf7f7dccb23fabb371df2aa8994ed14ba047b2adcf9604dc9926bc1a7"
+    },
+    "build-passive-source-tone-candidate-iofix/run_model_v3.py": {
+      "bytes": 6495,
+      "sha256": "aad76ca1baf1b7d5f0570d7bbf52aac6529674e45e2aee844881b8c7265092a0"
+    },
+    "build-damped-field-neck-body/DriverGeometry.cpp": {
+      "bytes": 6280,
+      "sha256": "ba0a20b3b9f7b16954ea6c57d79122c96902ab5f83e7396761f5a36f337411cd"
+    },
+    "build-damped-field-bridge-upper/GeometryDriver.cpp": {
+      "bytes": 6960,
+      "sha256": "126abf0f42aeb7a02a8280d21644f988e85bf776e9c23a2aca3ba1374e6639a2"
+    }
+  }
+}

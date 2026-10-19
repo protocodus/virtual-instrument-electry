@@ -1,0 +1,22 @@
+{
+  "schema": "electry-git-preserving-repack-peer-receipt/v1",
+  "role": "peer",
+  "utc": "2026-10-19T12:13:07.978139+00:00",
+  "postverification_completed": true,
+  "all_object_ids_refs_reflogs_and_HEADs_preserved": true,
+  "active_tracked_clean_and_Source_Tests_CMake_6c83_unchanged": true,
+  "all_checks_PASS": true,
+  "manifest": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-git-object-storage-preserving-review/peer-postverification-v1/manifest-v1.json",
+    "bytes": 3056,
+    "sha256": "d84be462bf6569f2de5de4835db68ba0c69189a4c25bbcc4687045d7cee68fd6"
+  },
+  "results": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-git-object-storage-preserving-review/peer-postverification-v1/results-v1.json",
+    "bytes": 10754,
+    "sha256": "6f4863ea5556f2684318ef1347a104ba2a76f8ab5a70cbc4ea65dec8f77a9b08"
+  },
+  "count_objects_storage_decrease_KiB": 50316,
+  "no_host_free_space_attribution": true,
+  "no_Git_mutations_or_scientific_payload_reads": true
+}

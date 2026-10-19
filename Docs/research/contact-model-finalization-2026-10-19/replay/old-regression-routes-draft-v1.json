@@ -1,0 +1,2477 @@
+{
+  "schema": "electry-capacity5-independent-old-regression-route-registration/DRAFT-v1",
+  "status": "Metadata/index/lstat only. No archive or original payload bytes opened/hashed/decoded. Every exact route fixed before execution; no runtime outcome fallback.",
+  "metadata_inputs": {
+    "build-certified-contact-rt-replay/inventory-v1.json": {
+      "bytes": 60557,
+      "sha256": "fbb1a1922733b0f0cb29cf59f2890b86e0c0512e5113c8f492e75b1b3ed4943c"
+    },
+    "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json": {
+      "bytes": 175772,
+      "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+    },
+    "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json": {
+      "bytes": 258311,
+      "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+    }
+  },
+  "files": [
+    {
+      "id": "J1-fixed-24000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 19141541,
+          "sha256": "cb8f8439ed7a6357f3f89db35a78f6cff93eec9ff2e9d1de0db469a3fa4d7b06"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 34234998,
+          "mtime_ns": 1792375703411647328,
+          "device": 16777232,
+          "inode": 292963684,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 34234998,
+          "sha256": "9e4b65d0f11f61c2cde97f84b1410ff47ba66a9d87acc4ff81b35457a6f489fb"
+        }
+      }
+    },
+    {
+      "id": "J1-fixed-24000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9648762,
+          "sha256": "5ee719a04bc03f328007a2f37910709c36847be1037dd33f75817320fb5bfc8b"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 17148109,
+          "mtime_ns": 1792375686266763799,
+          "device": 16777232,
+          "inode": 292963618,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 17148109,
+          "sha256": "75c824a8b1cdd7eb682f65f06a468e7e09219e94315a25830fda802ca453ffa4"
+        }
+      }
+    },
+    {
+      "id": "J1-fixed-48000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 19405506,
+          "sha256": "f182daf538e7b576c210bf97b2395ee9599fe3a615935f0d9309355b1a07d26c"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 52030624,
+          "mtime_ns": 1792376018133255550,
+          "device": 16777232,
+          "inode": 292964633,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 52030624,
+          "sha256": "33c51c5d37aa34ac08682fb9160934ba0c9de27ae25e88e7eff7a599115dffc2"
+        }
+      }
+    },
+    {
+      "id": "J1-fixed-48000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9782563,
+          "sha256": "2141c907f8cf078b578790f3493301140284633dd9b17694f4df25771cf99393"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 26040916,
+          "mtime_ns": 1792375993434667042,
+          "device": 16777232,
+          "inode": 292964592,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 26040916,
+          "sha256": "e8dcab44a26c524b54bfd919fb05542db77e96ce5f10ad21302ebd9ec9cd4443"
+        }
+      }
+    },
+    {
+      "id": "J1-fixed-8000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 18972401,
+          "sha256": "8bad4cfede6351717f9f743da7826f70d3332d6971a4bd535a220373ec118330"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 15421052,
+          "mtime_ns": 1792375524753710366,
+          "device": 16777232,
+          "inode": 292963030,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 15421052,
+          "sha256": "a7323e449efe058628965d6b5df445804977d244a4d786852d67bd210f687245"
+        }
+      }
+    },
+    {
+      "id": "J1-fixed-8000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9558206,
+          "sha256": "3b7b7385658008176e603cffdec2d22b09766d646ace89c8a0fb22dbeb8936ec"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7728050,
+          "mtime_ns": 1792375516464240266,
+          "device": 16777232,
+          "inode": 292963026,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-fixed-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7728050,
+          "sha256": "bdf692ffc28f0d55c9bf42e2ccc1b1fe4852195aa23ee2a679d5e90ea0304824"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-24000-main-192000",
+      "group": "main",
+      "expected_records": 618,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2846853,
+          "sha256": "358e11940df14857b6f9aeca156c364b92fb25c59a710fc3e5626b0fd260a29a"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 33211446,
+          "mtime_ns": 1792375717872347847,
+          "device": 16777232,
+          "inode": 292963721,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 33211446,
+          "sha256": "d7333808d361beec1c731464b606d4135912bfe87ff3f79e67c56e12a957cdbd"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-24000-main-96000",
+      "group": "main",
+      "expected_records": 309,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1462458,
+          "sha256": "52f903e6ec4a471c3d32910e1ea66b9fdb35e17658be0b0be0b616a7f77c1742"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16632505,
+          "mtime_ns": 1792375714299156601,
+          "device": 16777232,
+          "inode": 292963717,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16632505,
+          "sha256": "fc558578c27bbb55a03012f269dcfb0164f36c1cf331b668b664b05101407dfa"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-48000-main-192000",
+      "group": "main",
+      "expected_records": 619,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2892741,
+          "sha256": "17f4a939d59a6a805a79294b36b78aa615010b2649ce1dbfd07ee92e45fd4ad1"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 50514870,
+          "mtime_ns": 1792376038672417383,
+          "device": 16777232,
+          "inode": 292964692,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 50514870,
+          "sha256": "8750810c696fe664e3515b85088d80ceeb01e6a577e81663a66203f93f3e4cba"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-48000-main-96000",
+      "group": "main",
+      "expected_records": 310,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1486231,
+          "sha256": "33ec2b112ac4f2f58ff66578702401ce417fab68744d71ec79330f1736cf7d1f"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 25279232,
+          "mtime_ns": 1792376033039618837,
+          "device": 16777232,
+          "inode": 292964682,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 25279232,
+          "sha256": "089d94fc160c562fb8aec6c9f95f46329ea32a45f4ed9f8ff2ee99b87cb1913b"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-8000-main-192000",
+      "group": "main",
+      "expected_records": 618,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2790140,
+          "sha256": "d9f155611eb40874c2514eb3bccc9a9241bd62ee1f2750aa97c8ecd0b6ac3154"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 14923590,
+          "mtime_ns": 1792375533039458996,
+          "device": 16777232,
+          "inode": 292963064,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 14923590,
+          "sha256": "6e59e7d226ddfe0a10389a6369c2a02708fb46b32a7df80c719a578216a18827"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-minus-8000-main-96000",
+      "group": "main",
+      "expected_records": 309,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1426927,
+          "sha256": "7f47506ac4721fafc6ed1ae0511bfba392f48bc7eee6e7c1f03599c7c1801be8"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7474242,
+          "mtime_ns": 1792375530991058646,
+          "device": 16777232,
+          "inode": 292963061,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-minus-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7474242,
+          "sha256": "90682ae6b04bd01e7d10539aba93228ef6eeb9beda665504abc530ba86b4d6b5"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-24000-endpoint-pin-negative-192000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 39665010,
+          "mtime_ns": 1792375712015395517,
+          "device": 16777232,
+          "inode": 292963709,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 39665010,
+          "sha256": "73a6a9db704327b4070bce0f775ca8cc084ef7beda0a12acfa6d5ffd27225c1e"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-24000-endpoint-pin-negative-96000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 19840496,
+          "mtime_ns": 1792375706467280762,
+          "device": 16777232,
+          "inode": 292963698,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-endpoint-pin-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 19840496,
+          "sha256": "2ea28cbd497e2f5567014c0482593d8ad6d375b7ea0a164279d8eda022f5795d"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-24000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2154991,
+          "sha256": "e3f6dae4e79e40977ce70fd780be4e4b0aaa3ab9bd42a53e0e1b7356f5e2edb4"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 32783605,
+          "mtime_ns": 1792375709908472745,
+          "device": 16777232,
+          "inode": 292963705,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 32783605,
+          "sha256": "35879704a127454e2a425b97e9936b3eb4e0f82bcb6939f0a57209668d88eece"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-24000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1092275,
+          "sha256": "bd959753177ad8bc00b882460f2bbc2d10845a0d2f2c8ae0a1d6839b7bc01a14"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16414038,
+          "mtime_ns": 1792375705392236145,
+          "device": 16777232,
+          "inode": 292963693,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16414038,
+          "sha256": "39db7d797798faf18d0f5322d8f19d223611d5120cf395047cf543896ea52877"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-48000-endpoint-pin-negative-192000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/f650a23b5bf418dd9ffc1c45409375bd8a3ac00766bd4b91545d935b916a093c",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 60291376,
+          "sha256": "f650a23b5bf418dd9ffc1c45409375bd8a3ac00766bd4b91545d935b916a093c"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-48000-endpoint-pin-negative-96000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/192978758e58389f5997a8303e60f156c4c1d1ab39bf69fbf86daa0226a61c6e",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-endpoint-pin-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 30154505,
+          "sha256": "192978758e58389f5997a8303e60f156c4c1d1ab39bf69fbf86daa0226a61c6e"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-48000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2185532,
+          "sha256": "1bf2bf5ee033d6abe69fc5aa0f88bf7887fea763103caebfc91d2635110f4762"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 49885906,
+          "mtime_ns": 1792376026952257997,
+          "device": 16777232,
+          "inode": 292964654,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 49885906,
+          "sha256": "33a147e3b788f97f80e7a399b63119b32397bcf7fd164633bbdb7396feedbeb6"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-48000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1106122,
+          "sha256": "ad8c7fdac51babf40ace55e0a0cf9bab2857c9bcb45027d3e375f8e5a7665e03"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 24954462,
+          "mtime_ns": 1792376020905276151,
+          "device": 16777232,
+          "inode": 292964639,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 24954462,
+          "sha256": "1b9497164f69ce384688d5272f7dc536598478337f8672e3be05ba8a8cd4dcf6"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-8000-endpoint-pin-negative-192000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/b28b3dc695baa5867518abc01b963850af6840fc68a5426e4a0645ffe1c18287",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 17728078,
+          "sha256": "b28b3dc695baa5867518abc01b963850af6840fc68a5426e4a0645ffe1c18287"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-8000-endpoint-pin-negative-96000",
+      "group": "endpoint_pin_no_equations",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/3af213748cb47d2160aa52dfc660cd6507599bdff948cf46bfe0d26bbbfb2c92",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-endpoint-pin-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 8873239,
+          "sha256": "3af213748cb47d2160aa52dfc660cd6507599bdff948cf46bfe0d26bbbfb2c92"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-8000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2133787,
+          "sha256": "e7957b6deda670db9ed55fa48e9618fb7af14dda9dbc8ebf66e106f173d7aea8"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 14731961,
+          "mtime_ns": 1792375528409297479,
+          "device": 16777232,
+          "inode": 292963048,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 14731961,
+          "sha256": "ce8a98fa2e0679b5d9d5d1b6a6ec5090899690c41fba461bd933e1e2d7dc4138"
+        }
+      }
+    },
+    {
+      "id": "J1-moving-plus-8000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1078951,
+          "sha256": "6de60c244ea9b7bc2fad5652732095c2c809287ba5c8c9a8b5cae9010981821c"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7375036,
+          "mtime_ns": 1792375525851468465,
+          "device": 16777232,
+          "inode": 292963040,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J1-moving-plus-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7375036,
+          "sha256": "37d7bf5b385ca21022c414d6eab87f11404bccc8a5100408d0e6de6aad52d668"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-24000-main-192000",
+      "group": "main",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 39304144,
+          "sha256": "99ae15c396450a5eac9c92e32c94dccee5bd7f8dbe742cbd123cad6cfe1a2ae9"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 40322028,
+          "mtime_ns": 1792375919885534079,
+          "device": 16777232,
+          "inode": 292964528,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 40322028,
+          "sha256": "51e6d336bc337a4e33f7b2f4f7b031e183ecda6205d17744af84ef4dbdacebc0"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-24000-main-96000",
+      "group": "main",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 20433814,
+          "sha256": "d26cd7f430bf3c7db10c687358f5726ad0b1e1d0f9b633584311bb94e212354c"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 20317956,
+          "mtime_ns": 1792375829225882482,
+          "device": 16777232,
+          "inode": 292964313,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 20317956,
+          "sha256": "d46a49ff99810aae421ff68e8db0fd54d82dbb6af12298b965d513e3e53956f8"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-24000-offdiag-negative-192000",
+      "group": "controls_permutation",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 38140384,
+          "sha256": "dcd26b63135b695a8278799a823c95ed0a3c45f6f74be10f55aff54b594cf9a0"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 40351424,
+          "mtime_ns": 1792375976928620973,
+          "device": 16777232,
+          "inode": 292964566,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 40351424,
+          "sha256": "0f002ecd7831ba229ebdc519a2eede0f5fada5d3ed1b39df15128ee8dc064e22"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-24000-offdiag-negative-96000",
+      "group": "controls_permutation",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 19724171,
+          "sha256": "91779ee74c473602e39e7c0a0718d14a1d8e660131abb9581e554967746e27a9"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 20327637,
+          "mtime_ns": 1792375859335729052,
+          "device": 16777232,
+          "inode": 292964338,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-24000-offdiag-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 20327637,
+          "sha256": "048eba3e07f675614612c80a8e837a0f462c7e83399f9b92f992e0467b1cfbf1"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-48000-main-192000",
+      "group": "main",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 40223421,
+          "sha256": "5dc6f0c480037d68d0cd77e101507391555609dda6f9d9b91115f7d83cfe84fd"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 61088079,
+          "mtime_ns": 1792376332382988804,
+          "device": 16777232,
+          "inode": 292965101,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 61088079,
+          "sha256": "126b4d18c1358372270a9968c829bb811780865bff533b92d5bae1ff8af8b1fb"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-48000-main-96000",
+      "group": "main",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 20989510,
+          "sha256": "717a0956c983b5b0a0d4b734140aec3f89a350ee7d0a773b226d6b1b4676a2df"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 30772924,
+          "mtime_ns": 1792376204471376989,
+          "device": 16777232,
+          "inode": 292964865,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 30772924,
+          "sha256": "5b7b19ac00b3e02547e4fe0a02bc76fdfd43f47f463d2511082eb340d2a49600"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-48000-offdiag-negative-192000",
+      "group": "controls_permutation",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 39111943,
+          "sha256": "ce809a809d9fa978ac740cd873e042bf2893eb84168e5088e285963d113f6a80"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 61135927,
+          "mtime_ns": 1792376417865153402,
+          "device": 16777232,
+          "inode": 292965180,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 61135927,
+          "sha256": "454159765d95749d97ecc687b37746610909d641430a6484f2d1eed229a44602"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-48000-offdiag-negative-96000",
+      "group": "controls_permutation",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 20197954,
+          "sha256": "481acfb69cd990526ffc814120eabbcc0b73bcc5035a55d245c24df61138f809"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 30774636,
+          "mtime_ns": 1792376247387270468,
+          "device": 16777232,
+          "inode": 292965040,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-48000-offdiag-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 30774636,
+          "sha256": "09b32ecada56cb1327512ee9ba21f65a3e8d8ae3c49e461cc50dfdb0a99faee5"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-8000-main-192000",
+      "group": "main",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 38395460,
+          "sha256": "109d95f05bac2327005aa551563aa8e2d58ff8713d3481b42c4d866082f8651a"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 18168704,
+          "mtime_ns": 1792375627398491544,
+          "device": 16777232,
+          "inode": 292963484,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 18168704,
+          "sha256": "fb403d5af370185653efcafb2d9f3471764ffae74c54ca9322f75afb78bea506"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-8000-main-96000",
+      "group": "main",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 19849125,
+          "sha256": "2d0ca140acfe0391dbad8db0b371a1064c5f1530651400244a51e18c8d839bac"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 9149454,
+          "mtime_ns": 1792375585130351135,
+          "device": 16777232,
+          "inode": 292963168,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 9149454,
+          "sha256": "9b27feac7e6a85537f1c73df36b1c297ebd0200d6637b0e6292239e2911a0ef6"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-8000-offdiag-negative-192000",
+      "group": "controls_permutation",
+      "expected_records": 9600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 37373480,
+          "sha256": "5958a345c47f46fd03da92f27773db2ea279fa9b77d1103d24d5e0dd48cf9b95"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 18208407,
+          "mtime_ns": 1792375673198283745,
+          "device": 16777232,
+          "inode": 292963591,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 18208407,
+          "sha256": "62c680c15b8f5861be4e1d6aefc7569c8736ccb78ff24c9b573605e0f7110b2a"
+        }
+      }
+    },
+    {
+      "id": "J2-coincident-stored-8000-offdiag-negative-96000",
+      "group": "controls_permutation",
+      "expected_records": 4800,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 19232278,
+          "sha256": "e71eedd8e2192ebd133975f6b6cdd424d53b23b98f7b50ad69c2e1f0986a4cde"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 9171303,
+          "mtime_ns": 1792375599217882057,
+          "device": 16777232,
+          "inode": 292963186,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-coincident-stored-8000-offdiag-negative-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 9171303,
+          "sha256": "3bce627e87809c662133106fceabf1debd1abc9eb1188b5e2af01df589cd58d5"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-24000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 18783502,
+          "sha256": "a2d0d864bc685be02ed03b0d83b11cc2a9211761b41176da9e13d0fc05ae391a"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 34252441,
+          "mtime_ns": 1792375770581404592,
+          "device": 16777232,
+          "inode": 292964189,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 34252441,
+          "sha256": "e8e3e86681b2e8b497d30c6eccbeadd2c4a35a98963225a20fed982ca5dbdb0d"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-24000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9495327,
+          "sha256": "b6558a7579be455cf1866bd8d916404b573f63c39dcfc1325ff85997a4a12f8c"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 17164216,
+          "mtime_ns": 1792375735612327040,
+          "device": 16777232,
+          "inode": 292963755,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 17164216,
+          "sha256": "75187a4901333b4d21615b60d9afc53cda7c74a33c41df81239b7483c1901b3a"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-48000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 18971412,
+          "sha256": "57aa2bee5f3370304676d2b7533cb32b96280299b50d957462c44fe695facc2f"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 51922684,
+          "mtime_ns": 1792376124150914137,
+          "device": 16777232,
+          "inode": 292964779,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 51922684,
+          "sha256": "8c608709f89558a13c88918de48640ba496be0ca2221ab4fc11a2dda0f8092ad"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-48000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9568093,
+          "sha256": "d079bcdc1c7004a825c6bc733bbd0c9a3fc54604f2a68b87fcfba4755c20ea41"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 25992022,
+          "mtime_ns": 1792376070236971893,
+          "device": 16777232,
+          "inode": 292964721,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 25992022,
+          "sha256": "a25ff040094f9b635cdd919892186d9923c89cf61876ce0a73ec60294fc08f79"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-8000-main-192000",
+      "group": "main",
+      "expected_records": 5760,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 18659056,
+          "sha256": "7fbbda8010b9d018be90e7e58939384833f32e99abd737e9efc30063e84c0bca"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 15586855,
+          "mtime_ns": 1792375557255899547,
+          "device": 16777232,
+          "inode": 292963097,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 15586855,
+          "sha256": "4fa97f83235358a28ddb5e7b5e006f1effe8511b143ca592f5554d2401a8b960"
+        }
+      }
+    },
+    {
+      "id": "J2-fixed-8000-main-96000",
+      "group": "main",
+      "expected_records": 2880,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 9416351,
+          "sha256": "296cee4ba07f27327df692c3436abbb0ec34f6d3893e9e3b841106e5273e0d63"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7811082,
+          "mtime_ns": 1792375541277463778,
+          "device": 16777232,
+          "inode": 292963077,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-fixed-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7811082,
+          "sha256": "89ca4cca2cb53b4da1534c994cb48d66a956fbc6a475b83a231be9a6b8097c0e"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-24000-main-192000",
+      "group": "main",
+      "expected_records": 768,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 3843130,
+          "sha256": "b7bafac03eb323b20fc6c911d1ff742f1d3f495dee55c3ea88b3f5e1800cddb7"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 33727926,
+          "mtime_ns": 1792375797041824735,
+          "device": 16777232,
+          "inode": 292964256,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 33727926,
+          "sha256": "4eef5c3b076d459cc2b3ea7d436ff537ef6c7fa7ca61752f2836d7987363bdc0"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-24000-main-96000",
+      "group": "main",
+      "expected_records": 384,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1979027,
+          "sha256": "70f72e1957573e86e9adec00f2fa03663c4b95651a7188d74e16c08a8a68ca12"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16887827,
+          "mtime_ns": 1792375790515156521,
+          "device": 16777232,
+          "inode": 292964245,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16887827,
+          "sha256": "3edfeb67f981a609a6100ecb654a6107cc837baa7a1ed6a0cf469b503ad7d4d3"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-48000-main-192000",
+      "group": "main",
+      "expected_records": 768,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 3865571,
+          "sha256": "123cc9b63d5022b9d299dcf7c18d31e3cf322be12a13011665b953cc6155d976"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 51170805,
+          "mtime_ns": 1792376161305314775,
+          "device": 16777232,
+          "inode": 292964842,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 51170805,
+          "sha256": "5d1cc042a458a25cb6fc133c9060e9175b7c4ae074106188ded0d051943670e3"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-48000-main-96000",
+      "group": "main",
+      "expected_records": 384,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1984888,
+          "sha256": "d14d6f51e160eb88d00ab602f4784ed8d6e72648fe3795c196814d1024eb09e2"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 25602146,
+          "mtime_ns": 1792376152285198279,
+          "device": 16777232,
+          "inode": 292964834,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 25602146,
+          "sha256": "ff389e66884bcdab171d0977462ab4c9839bda0ec9e8b29ef07844db55d03812"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-8000-main-192000",
+      "group": "main",
+      "expected_records": 768,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 3745763,
+          "sha256": "0c6de4cad2da54f0a2921cbc378f9d55b06a1c71350f2129cd5b917d57532072"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 15295500,
+          "mtime_ns": 1792375570959469883,
+          "device": 16777232,
+          "inode": 292963139,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 15295500,
+          "sha256": "0111e0888cbc3fbadd75d6799c824f9def629fee32f5fba9eca4278948ec32b1"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-minus-8000-main-96000",
+      "group": "main",
+      "expected_records": 384,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1926356,
+          "sha256": "542535eca0e24bce024e7292d065b2b9f791658a2b2d754bc339c970e12c877a"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7660869,
+          "mtime_ns": 1792375567535958494,
+          "device": 16777232,
+          "inode": 292963121,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-minus-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7660869,
+          "sha256": "92a09eb5c00eb893a7fc113fdf03f79f8c9467abd4bf7312121c497137a3958f"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-24000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2227964,
+          "sha256": "52727d81bdaea0d1e8fccbfc85f18298c312ced3c31daee13a3d72d3fe6c496d"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 33038048,
+          "mtime_ns": 1792375781582678366,
+          "device": 16777232,
+          "inode": 292964222,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 33038048,
+          "sha256": "f359a1a05dc38bfaa7d8ac26809542c4f2f53f593f55f6b906b5677f4bc5c1eb"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-24000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1135783,
+          "sha256": "d09857b78d7e2e973475c0c16e9fa8a74c0be9bf6bf7679e3e2ef3919ae47e63"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16541579,
+          "mtime_ns": 1792375773560459510,
+          "device": 16777232,
+          "inode": 292964198,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16541579,
+          "sha256": "5fac78178cebeee6a46da671ec9bb1bb17c11d75bbcb0c6f160a4a788afb9e2d"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-24000-permuted-192000",
+      "group": "controls_permutation",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2228244,
+          "sha256": "a54933af9fed66c40cc56508483cf1862d2ce014ebab89e1ff340b5ce4d0a84a"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 33038773,
+          "mtime_ns": 1792375786923713805,
+          "device": 16777232,
+          "inode": 292964228,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 33038773,
+          "sha256": "7d65d4298a2b68a211b6fae95aafe04afefc94f500bbff59ddf3aee5d91603d3"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-24000-permuted-96000",
+      "group": "controls_permutation",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1135828,
+          "sha256": "239ec8c5c6957a9026838b95a7dc28c1c97b62e6627118b7ce7fb09551e8ab6d"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16542436,
+          "mtime_ns": 1792375776252953336,
+          "device": 16777232,
+          "inode": 292964205,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-24000-permuted-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16542436,
+          "sha256": "a67990bc8edce50026b6cd2f8bdbef7708a26100a74608689010c108b2fe8f40"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-48000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2267215,
+          "sha256": "7e442c07bb69f23482ad8ad03f2ef474010e709ecb41ca2519bad0c049819b15"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 50192820,
+          "mtime_ns": 1792376139768767013,
+          "device": 16777232,
+          "inode": 292964820,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 50192820,
+          "sha256": "ee349868c6d471b3cb849ca20a56758e02cafc0646c687e3fbf6be443c1477ad"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-48000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1150422,
+          "sha256": "1acd63177d898431f0b9bff01cd07e934254902a87fb5897c7bee229c4a04e61"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 25107102,
+          "mtime_ns": 1792376128513656368,
+          "device": 16777232,
+          "inode": 292964813,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 25107102,
+          "sha256": "19c7d8b8db6358fe4bb5718ac18a02d257eeeadfb2732cadd612dbb62a362e71"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-48000-permuted-192000",
+      "group": "controls_permutation",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2267080,
+          "sha256": "3e3ca96e8a0ab12fb531656c9093abb09b373c398a8c2d8331643c58c2a0885b"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 50192027,
+          "mtime_ns": 1792376147295232121,
+          "device": 16777232,
+          "inode": 292964827,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 50192027,
+          "sha256": "e767344a1e35f0184ca49aa89156518b1321852b057e41af2d5847affcc1b34c"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-48000-permuted-96000",
+      "group": "controls_permutation",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1150572,
+          "sha256": "b5b97dd87d6fd7345b022a929b4f1e8aa80fc90cd3baa1e70e78dcc8c1b69be0"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 25105472,
+          "mtime_ns": 1792376132288815499,
+          "device": 16777232,
+          "inode": 292964817,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-48000-permuted-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 25105472,
+          "sha256": "4219b98394b5f2bfdae664c9fd978f8d6356b8f74eb3d425e868970c036b3c40"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-8000-main-192000",
+      "group": "main",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2141440,
+          "sha256": "51f6eb4377a6ced8062cc9b967557424a9485f49718ac72d0ac7ea267744e808"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 14942025,
+          "mtime_ns": 1792375562942113041,
+          "device": 16777232,
+          "inode": 292963112,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 14942025,
+          "sha256": "06c3ed98ffb714046b00a7cdc89d1d0231e08f62872530da824a1f42ae543cc6"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-8000-main-96000",
+      "group": "main",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1086134,
+          "sha256": "1790d40523affdf8b3fa6dc41bf684f586c5716e77bcb7be623887c0204e9604"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7480837,
+          "mtime_ns": 1792375558767056361,
+          "device": 16777232,
+          "inode": 292963103,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7480837,
+          "sha256": "594fa3a2cc75b80cca48d298c7899280583e6487d71ee28037ac7a17d761650f"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-8000-permuted-192000",
+      "group": "controls_permutation",
+      "expected_records": 600,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 2141440,
+          "sha256": "dab2ff1a01d489b6caa03165d7c49d9ba402053b040d1e309f0b151971cea89c"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 14942064,
+          "mtime_ns": 1792375565702192357,
+          "device": 16777232,
+          "inode": 292963117,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 14942064,
+          "sha256": "2012c73304451c76ddae4853c43ed78bf81677b298d7ccaa65bc470696437c90"
+        }
+      }
+    },
+    {
+      "id": "J2-moving-plus-plus-8000-permuted-96000",
+      "group": "controls_permutation",
+      "expected_records": 300,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 1086134,
+          "sha256": "cefed840019486ca9f39de483c67563348ac8b43a51a39794b91a6669881f4d0"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 7480857,
+          "mtime_ns": 1792375560172027696,
+          "device": 16777232,
+          "inode": 292963106,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/J2-moving-plus-plus-8000-permuted-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7480857,
+          "sha256": "d7b114c99cf60b3994b5bf83f6307a4e01acffc6a523f6d3d116d6795863156f"
+        }
+      }
+    },
+    {
+      "id": "free-24000-main-192000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-24000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-24000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 32273418,
+          "mtime_ns": 1792375677383765539,
+          "device": 16777232,
+          "inode": 292963604,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-24000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 32273418,
+          "sha256": "cf3be625171c0ed6b9b2f4aa1f3c53730a086d081cfc5cf4f0e02787317053af"
+        }
+      }
+    },
+    {
+      "id": "free-24000-main-96000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-24000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-24000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "direct-preserved",
+        "stat": {
+          "bytes": 16159535,
+          "mtime_ns": 1792375674795734187,
+          "device": 16777232,
+          "inode": 292963597,
+          "mode": 420,
+          "nlink": 1
+        },
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-24000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 16159535,
+          "sha256": "180af7d8713de097cc17147c25029f1bc8528a27508468f46f2729cd20161ef3"
+        }
+      }
+    },
+    {
+      "id": "free-48000-main-192000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-48000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-48000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/26b807c47b3ad32548c8958e7649ecb9ea6cb6ccccc24ac56a8202f8292f431c",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-48000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 49241481,
+          "sha256": "26b807c47b3ad32548c8958e7649ecb9ea6cb6ccccc24ac56a8202f8292f431c"
+        }
+      }
+    },
+    {
+      "id": "free-48000-main-96000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-48000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-48000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/f0ed99389993f9a3f2ed57dbb198cd12981d5525cfbc762d76a66aa1a68d9866",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-48000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 24632182,
+          "sha256": "f0ed99389993f9a3f2ed57dbb198cd12981d5525cfbc762d76a66aa1a68d9866"
+        }
+      }
+    },
+    {
+      "id": "free-8000-main-192000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-8000-main-192000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-8000-main-192000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/f56981ac8aba402acea4646f4cb3b99a388297feba720540c5cb313b311f524e",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-8000-main-192000.npz",
+        "owned_byte_fact": {
+          "bytes": 14377804,
+          "sha256": "f56981ac8aba402acea4646f4cb3b99a388297feba720540c5cb313b311f524e"
+        }
+      }
+    },
+    {
+      "id": "free-8000-main-96000",
+      "group": "main",
+      "expected_records": 0,
+      "certificate": {
+        "route": "tar-gzip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-closed-trace-lossless-archive/archive-v1/closed199-v1.tar.gz",
+        "archive_sha256": "c883ef93d24bd06626037100b56b58d7e9165e6de982cb858e3dedaa05ba27f6",
+        "index": "build-closed-trace-lossless-archive/archive-v1/archive-index-v1.json",
+        "index_fact": {
+          "bytes": 175772,
+          "sha256": "9c4e4d9be8fd56848a05282f91157bd902cefebf2327a1a6b8af05b49bb7b101"
+        },
+        "member": "build-live-field-certified-contraction/results-v2/free-8000-main-96000-force-certificates.jsonl",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-8000-main-96000-force-certificates.jsonl",
+        "owned_byte_fact": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "npz": {
+        "route": "object-zip",
+        "archive": "/Users/vojta/Dev/electry-fundamental-20261018/build-frozen-payload-object-store/archive-attempt-v1/objects-v1.zip",
+        "archive_sha256": "472f143ab43306c2217de43d057f7ee1887cffe073b99a5a67cc01843c74c8c9",
+        "index": "build-frozen-payload-object-store/archive-attempt-v1/object-index-v1.json",
+        "index_fact": {
+          "bytes": 258311,
+          "sha256": "5c706cc87268263bd94182acbcb2f18996b484b4f1716b6e414bb43849fcf410"
+        },
+        "member": "objects/c37e2a49bf00a2e6e6ea47052200dec39cc6338e3b328fd5d3097f64733aa7ec",
+        "original_path": "/Users/vojta/Dev/electry-fundamental-20261018/build-live-field-certified-contraction/results-v2/free-8000-main-96000.npz",
+        "owned_byte_fact": {
+          "bytes": 7197750,
+          "sha256": "c37e2a49bf00a2e6e6ea47052200dec39cc6338e3b328fd5d3097f64733aa7ec"
+        }
+      }
+    }
+  ],
+  "route_counts": {
+    "tar-gzip": 66,
+    "object-zip": 8,
+    "direct-preserved": 58
+  },
+  "expected_main_records": 106679,
+  "expected_control_permutation_records": 45900,
+  "expected_nonempty_records": 152579,
+  "all_original_66_files_and_empty_certificates_retained": true,
+  "allowed_npz_members": [
+    "solve_d0_m",
+    "solve_dfree_m",
+    "solve_Asolve_m_per_N"
+  ],
+  "no_restoration_or_payload_decode": true
+}

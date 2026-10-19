@@ -1,0 +1,676 @@
+{
+  "schema": "electry-multicontact-kernel-peer-postcompile/v1",
+  "role": "peer",
+  "utc": "2026-10-19T15:16:50.266096+00:00",
+  "postcompile_integrity_PASS": true,
+  "implementation_manifest_sha256": "704e948936d839d97db2ecbe65a170e34b8c35abb3f1b97095e8407af8f54564",
+  "protocol_sha256": "2f064ffa1bbd2efda33a5e9798f6ca325f16ee988d79f37649ee3e72600d8e1e",
+  "execution_receipt_sha256": "0779c8a96e8068b1c0be7a73ad92caa530091a9cd9cbec3da695316830d87682",
+  "checks": 226,
+  "findings": [],
+  "output_count": 23,
+  "output_logical_bytes": 7043912,
+  "compiler_log_review": "All three stderr logs empty. Compiler-version stdout exactly matches frozen lineage; both compilation stdout logs empty. No material warnings.",
+  "closure_evidence_scope": "Exact saved command/PID/group/exit rows and complete output inventory; no binary or process-control probe executed by reviewer.",
+  "logs": [
+    {
+      "number": 0,
+      "channel": "stdout",
+      "bytes": 159,
+      "sha256": "76a924f59997fb65051981eb13105e0a8c151f16cd9c3e45e0f7c27ecefdb839"
+    },
+    {
+      "number": 0,
+      "channel": "stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 1,
+      "channel": "stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 1,
+      "channel": "stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 2,
+      "channel": "stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "number": 2,
+      "channel": "stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "artifacts": {
+    "check_postcompile_v2.py": {
+      "bytes": 8367,
+      "sha256": "574f26db476241809117662fa1c8de71eb799fab02b439eb7a148b2c6dc14758"
+    }
+  },
+  "inputs": {
+    "build-multicontact-passive-kernel/compile-v2/execution-receipt-v2.json": {
+      "bytes": 7352,
+      "sha256": "0779c8a96e8068b1c0be7a73ad92caa530091a9cd9cbec3da695316830d87682"
+    },
+    "build-multicontact-passive-kernel/implementation-manifest-v2.json": {
+      "bytes": 20814,
+      "sha256": "704e948936d839d97db2ecbe65a170e34b8c35abb3f1b97095e8407af8f54564"
+    },
+    "build-multicontact-passive-kernel/compile-protocol-draft-v2.json": {
+      "bytes": 6186,
+      "sha256": "2f064ffa1bbd2efda33a5e9798f6ca325f16ee988d79f37649ee3e72600d8e1e"
+    },
+    "build-multicontact-passive-kernel/contact_interval_j5_draft_v1.hpp": {
+      "bytes": 23602,
+      "sha256": "5a12530a3f93e1da2835f01721ff027a8b0ece212be4b03d83944b59b3a42ac5"
+    },
+    "build-multicontact-passive-kernel/driver_j5_draft_v1.cpp": {
+      "bytes": 7164,
+      "sha256": "e4808bd23a973974d16660002f2fbeb994e23c36bb06d53147cf660b710f10cd"
+    },
+    "build-multicontact-passive-kernel/environment_negatives_j5_draft_v1.cpp": {
+      "bytes": 2955,
+      "sha256": "73957778f34a85d48c079f8af8ca30257cca8dade76098810d29ae78cf4155af"
+    },
+    "build-multicontact-passive-kernel/method-draft-v2.md": {
+      "bytes": 7702,
+      "sha256": "f2df42af36976d7078b70bcaa1eb405a247d69245b488702eb610d5a0180e366"
+    },
+    "build-multicontact-passive-kernel/compile_bindings_draft_v2.py": {
+      "bytes": 6026,
+      "sha256": "f2bdc775eca042e828cde3c59ff8fe12ebfa919c3872b0af09bfc9f834e072f1"
+    },
+    "build-multicontact-passive-kernel/prepare_compile_draft_v2.py": {
+      "bytes": 4326,
+      "sha256": "9e4dbcfaf8699455b5bff145cff1d37a0166c181e2f6575f444e982bbe73d3c9"
+    },
+    "build-multicontact-passive-kernel/compile_after_review_draft_v2.py": {
+      "bytes": 12409,
+      "sha256": "cfd41c831a52d48d65bb515b077db47e02f484e11d75b88837d4f9a4cb5062e5"
+    },
+    "build-certified-contact-rt-kernel/contact_interval_v1.hpp": {
+      "bytes": 22696,
+      "sha256": "f24774f99c72a40bac1037c9a6f3b0450b01dcee7d7332c491af1279093a3f9b"
+    },
+    "build-certified-contact-rt-kernel/implementation-manifest-v1.json": {
+      "bytes": 17159,
+      "sha256": "cc625fbc152e9727dacd6f9c82982531a354765c8e3a393c0624f6826a959676"
+    },
+    "build-certified-contact-rt-kernel/protocol-v1.json": {
+      "bytes": 5806,
+      "sha256": "b781dbe56d9a657e9651aaca3e37655a432f12c660abd2a7d79576d05a344d76"
+    },
+    "build-certified-contact-rt-kernel/host-toolchain-v1.json": {
+      "bytes": 2229,
+      "sha256": "73267e96888fe7007a699ddce72ab6d47835e1d1348def7304c2d33fbe77a0f1"
+    },
+    "build-certified-contact-rt-kernel/compile_once_v1.py": {
+      "bytes": 3061,
+      "sha256": "afaea2aed295ffe43c5a0e01cfb8d981b07e739db12115b30e9f618758d319f6"
+    },
+    "build-certified-contact-rt-kernel/compiler-0-stdout-v1.txt": {
+      "bytes": 159,
+      "sha256": "76a924f59997fb65051981eb13105e0a8c151f16cd9c3e45e0f7c27ecefdb839"
+    },
+    "build-certified-contact-rt-replay/driver_v1.cpp": {
+      "bytes": 4301,
+      "sha256": "a92a26e8ec6d67f813389ab9ed9e54f32ef1f51274a23b0f760d1748b64166c5"
+    },
+    "build-certified-contact-rt-replay/environment_negatives_v1.cpp": {
+      "bytes": 2590,
+      "sha256": "b2304919df37764453f44aea9ad26ae82238f5971809ebd32c36dcbc2aadc53c"
+    },
+    "build-certified-contact-rt-formulation/formulation-v1.md": {
+      "bytes": 9040,
+      "sha256": "3d8f0f6e3fc953ef7302c9f3bce26ef657480f17b2190e0f756a50ee6ccdf780"
+    },
+    "build-certified-contact-rt-formulation/rounding-budget-v1.md": {
+      "bytes": 5085,
+      "sha256": "a72c4105c008f6ac3eb9f35b38af3d4b24b1e9514d71045c74e4c781bbe75ed3"
+    },
+    "build-multicontact-passive-solver-design/report-v1.md": {
+      "bytes": 11167,
+      "sha256": "1a018493cd7e1419ff2100ad383f0968edba3a8192fcf5038869f400c8f7569e"
+    },
+    "build-multicontact-passive-solver-design/receipt-v1.json": {
+      "bytes": 2010,
+      "sha256": "c0fe685398e8e950ec973bebd89c3d85c565e22e50031cdd6ab30d70c097e0bc"
+    },
+    "build-multicontact-passive-kernel/implementation-manifest-v1.json": {
+      "bytes": 19356,
+      "sha256": "c1c25bf89dfcb883f7362bf54309bc9c4cea0140ec15a38882a96b7debae401e"
+    },
+    "build-multicontact-passive-kernel/preparation-receipt-v1.json": {
+      "bytes": 480,
+      "sha256": "45e1e40f3a19205601a10eed5a9d3cb36a996f50ddf25f08400a8d18a65f8ffe"
+    },
+    "build-multicontact-passive-kernel/compile_bindings_draft_v1.py": {
+      "bytes": 5539,
+      "sha256": "f5a263a6c5b187ccf277b41ed748d7ef0637ba82463fed8f3be426d25b6e1547"
+    },
+    "build-multicontact-passive-kernel/prepare_compile_draft_v1.py": {
+      "bytes": 3594,
+      "sha256": "00c28e4e5052e89ce7bec6179d0a0941619630c711c48d4427ce77ef4a33a017"
+    },
+    "build-multicontact-passive-kernel/compile_after_review_draft_v1.py": {
+      "bytes": 8458,
+      "sha256": "690b01828288c4f6e01a0061de8e78a6458d8e0eb061b8baf1e054ac76da5378"
+    },
+    "build-multicontact-passive-kernel/compile-protocol-draft-v1.json": {
+      "bytes": 5150,
+      "sha256": "50fefb3df42841b45230ad54cbbcda7c5ef898d4deddff9b98649f47b770d8ac"
+    },
+    "build-multicontact-passive-kernel/method-draft-v1.md": {
+      "bytes": 6374,
+      "sha256": "0f5765600a5d156b83936bb2d98621abc9a712cbf598d2ccca60ea803e4fa6be"
+    },
+    "Source/DSP/DspCompatibility.h": {
+      "bytes": 3810,
+      "sha256": "2231bb969c0683cba01a787fa2c8d44ea8952f23c47b315f5966edd4f0155e28"
+    },
+    "Source/DSP/DspMath.h": {
+      "bytes": 1174,
+      "sha256": "fbe4c96d53e3f067f3d64af2c5de750215c2be79fa648122c3bc444a18d24c7c"
+    },
+    "Source/DSP/ElectryEngine.cpp": {
+      "bytes": 506710,
+      "sha256": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567"
+    },
+    "Source/DSP/ElectryEngine.h": {
+      "bytes": 117129,
+      "sha256": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20"
+    },
+    "Source/DSP/ElectryFx.cpp": {
+      "bytes": 156040,
+      "sha256": "77d222b1efcf4bfbf81dc3c534dfcf4bfd32db81dcecf5b2003a2b6c348abc51"
+    },
+    "Source/DSP/ElectryFx.h": {
+      "bytes": 27411,
+      "sha256": "477f5a425e148051d7fa9e357635956077eb53f3ea071049a34ca2e851054282"
+    },
+    "Source/DSP/ElectryPerformer.cpp": {
+      "bytes": 19112,
+      "sha256": "309e1a7637ff8b3cfae444e6f36f9cc97c15d41107e8ea343d881fedcd0566ce"
+    },
+    "Source/DSP/ElectryPerformer.h": {
+      "bytes": 4845,
+      "sha256": "7884c6d58c7777f14ef01850b73f6fa976ca79179f4f4067ae1c1937ff5ec09c"
+    },
+    "Source/DSP/ElectryVisuals.cpp": {
+      "bytes": 6460,
+      "sha256": "ff1bde306d03d7f9fecd4b92480715744b6b02587f5810e497bbc0844a77f2eb"
+    },
+    "Source/DSP/ElectryVisuals.h": {
+      "bytes": 3968,
+      "sha256": "b1c15fd63114295fb59637048bc27138e454cf533f6b495f77f30e6ad4f90f75"
+    },
+    "Source/DSP/FrozenTables/PhaseCalibrationEcc81.inc": {
+      "bytes": 191,
+      "sha256": "593283526f91beff6534fa059217f25c3585c8ba0d7f018bdb022a09986df11d"
+    },
+    "Source/DSP/FrozenTables/PhaseCalibrationEcc83.inc": {
+      "bytes": 192,
+      "sha256": "79068c278916de38b5cd537cc5ab1c21121a969afb6a7439dae80df3984144ad"
+    },
+    "Source/DSP/FrozenTables/PhaseMath.inc": {
+      "bytes": 159716,
+      "sha256": "cc9ec28d05342669d0b399751bb3ed9af63ab8da0259d42bab79c4abefa1f349"
+    },
+    "Source/DSP/FrozenTables/PowerCalibration6L6.inc": {
+      "bytes": 127,
+      "sha256": "e1d9bd0154cb7f865bd9e9e641c273c7f1575e09a4c62efe7f364cba6873aebc"
+    },
+    "Source/DSP/FrozenTables/PowerCalibrationEl34.inc": {
+      "bytes": 127,
+      "sha256": "dd2bcedc2ab44883d55c2e6876628973c0966072334575b74c320b574d85dd50"
+    },
+    "Source/DSP/FrozenTables/PowerGrid.inc": {
+      "bytes": 65841,
+      "sha256": "f53c9dd72a005e8a0968459132873f7a69f97bab5b85d9424252a163d5c62e78"
+    },
+    "Source/DSP/FrozenTables/PowerTable6L6.inc": {
+      "bytes": 14118162,
+      "sha256": "d0bb32ee6b2fd11e6f747120477830d00767427b3f148d6c0bfb7dc4586eb90d"
+    },
+    "Source/DSP/FrozenTables/PowerTableEl34.inc": {
+      "bytes": 14066588,
+      "sha256": "411960efa85456c29d8795a138e731fd1d9ce27267708cb60323802588a8cbaa"
+    },
+    "Source/DSP/FrozenTables/TriodeTransfer.inc": {
+      "bytes": 255796,
+      "sha256": "ad1241cf1dd2c5b0dcdcc222ba0aecc3fd19be12d5ff31de757e43d815be949c"
+    },
+    "Source/DSP/ModernCabinetIR.h": {
+      "bytes": 10719,
+      "sha256": "81baddfe7f64d029f9b01e09d2e19d75f84ed70e1993dd295222445545d1b91f"
+    },
+    "Source/PluginEditor.cpp": {
+      "bytes": 112051,
+      "sha256": "3881b30dee8dff7b79096d0c0e51421f193f0d27d67854d71e4d44dc29b0fb5a"
+    },
+    "Source/PluginEditor.h": {
+      "bytes": 10688,
+      "sha256": "f97aea49af7c369f6b1daf5eea77dab88de71001e157d2c407728d20b6168412"
+    },
+    "Source/PluginProcessor.cpp": {
+      "bytes": 69155,
+      "sha256": "e31e11d5712e2feedf3a19d8bfd844d06f5ff9cfe94a15924d681a06c0c09daf"
+    },
+    "Source/PluginProcessor.h": {
+      "bytes": 14226,
+      "sha256": "bcf809cc149cf6a9bb3ff3bc3e73c992b1f893c9505f39c0b54c145d7ca35ad2"
+    },
+    "Tests/AnalyzeDryReferenceComparisonsTests.py": {
+      "bytes": 3429,
+      "sha256": "aeebfa207255dd3795e10a8add02c32ed29df2ef270a2eaaf099732a66a7bdff"
+    },
+    "Tests/AnalyzeRefretComparisonsTests.py": {
+      "bytes": 14007,
+      "sha256": "3beb40559ceb19e8eaab02345d289354fa7052cc1c09f81492b29bda75c5e64c"
+    },
+    "Tests/AuditDispersionTests.py": {
+      "bytes": 3454,
+      "sha256": "5e3e5f2db3215e635beec92d5e68e396a717aacca2613668a267bac047c00220"
+    },
+    "Tests/AuditModalDecayTests.py": {
+      "bytes": 2492,
+      "sha256": "2c7e34e1e431cba93aa0f3f86c9d5341e3ce4f2086192d76e749d74fe67f9470"
+    },
+    "Tests/AuditStringConstructionTests.py": {
+      "bytes": 6415,
+      "sha256": "e7eee24ad4381e29530163884373a3d4552267e6fda4280ee263997bc2bb5c40"
+    },
+    "Tests/BlindListeningTestSupport.py": {
+      "bytes": 25758,
+      "sha256": "0aa945d38e6be7cb2fc298cfd65db65af6277895ff4e85d567cdd8b152f1a10b"
+    },
+    "Tests/BuildDryReferenceComparisonsTests.py": {
+      "bytes": 8595,
+      "sha256": "53e1621a4100724f467bdcf3d5f63942abb85d14de25bc6b7c14bdc9ea048746"
+    },
+    "Tests/BuildPhraseComparisonsTests.py": {
+      "bytes": 4691,
+      "sha256": "def3ae4bd1f2f6f78164cb22d8bc28134cf56246026d4ae08a6e31316f210f3e"
+    },
+    "Tests/BuildRealismComparisonsTests.py": {
+      "bytes": 1904,
+      "sha256": "6f59fbfb9facfb0c1d84c822044250c21148c661ca25672fb1aa9d647f463ba3"
+    },
+    "Tests/CLAPArtifactSmokeTests.cpp": {
+      "bytes": 16868,
+      "sha256": "b378d2bd42ab604806fb248881fd5eaa01ea5b8ee4cd600e436c795d7091084f"
+    },
+    "Tests/CompareReferenceFixtureTests.py": {
+      "bytes": 23699,
+      "sha256": "ecd807013d9a950ae72883a717db1d257810b9c9c86c2ee0bbac29ceea4fcba2"
+    },
+    "Tests/DspCompatibilityTests.cpp": {
+      "bytes": 2943,
+      "sha256": "52fc804ceae4f434eac05a41d3bd0dbb64d755b3302362bb5251b2069ba604ca"
+    },
+    "Tests/DspFuzz.cpp": {
+      "bytes": 9966,
+      "sha256": "dc7900956a8a3e30b3cdba6004c27da6dbe96d8c50edbe25d9cf8a7fb6d69bf2"
+    },
+    "Tests/ElectryEngineTests.cpp": {
+      "bytes": 1112287,
+      "sha256": "7b46f0174c0f10601b9d6712606680440aea693e2c5dcf9679eb264e6649cabe"
+    },
+    "Tests/ElectryFxTests.cpp": {
+      "bytes": 195714,
+      "sha256": "9665f71ae5512832e58b8e41098186216d450df6d0cb30174f1e821a2d3101a1"
+    },
+    "Tests/ElectryPerformerTests.cpp": {
+      "bytes": 7932,
+      "sha256": "f7f56d5664cb62db37547665aaa5988015d02f53071552bbb999e40dddf4e87e"
+    },
+    "Tests/ElectryRefretTests.cpp": {
+      "bytes": 83435,
+      "sha256": "9639e550f9ab68a7bc932509d80bd2631e66026d25c8b9f5c5823f4582cadcbc"
+    },
+    "Tests/ElectryReleaseRestorationTests.cpp": {
+      "bytes": 23358,
+      "sha256": "dca272c29006bd2229d0245f0237c5751150cdde95ee962f199947823ca7fb68"
+    },
+    "Tests/ExploreDispersionTests.py": {
+      "bytes": 3060,
+      "sha256": "1bd540e70be44c52ea265f27125da1d9f443957e6d078f441b6090f70e5e825a"
+    },
+    "Tests/FitDispersionTests.py": {
+      "bytes": 13716,
+      "sha256": "ac2d250c040ad382335df5206e525767b3a21cbcbb1d1a97a4dc1006ef6d5993"
+    },
+    "Tests/FuzzHarness.h": {
+      "bytes": 6258,
+      "sha256": "3e552023a1fd5d9668c2ceea8cda516bba1e2820d8439cc42cd37fd2cb32f7b6"
+    },
+    "Tests/IdlePickupObservationTests.cpp": {
+      "bytes": 2327,
+      "sha256": "c4b5da23c00bb3fd4e8afafb81460be7311aa01dff8f7399688cd248dd842d72"
+    },
+    "Tests/LoopLossShelfTests.cpp": {
+      "bytes": 38418,
+      "sha256": "2897ba1e4c387ac4ffbeed44519a741def762f6bf8a5e365b0a6bdb3410747b1"
+    },
+    "Tests/ParallelRenderTests.py": {
+      "bytes": 2747,
+      "sha256": "3bb1d932813bb7871c3db8871041f76d0c46a032a1eea1bcf5fc3e3d3323e19d"
+    },
+    "Tests/ParameterMatrix.h": {
+      "bytes": 22692,
+      "sha256": "756a89f46bc91a99a56a953a887bb00a01434022d8ec70a82bd12d8377c3147f"
+    },
+    "Tests/ParameterMatrixTests.cpp": {
+      "bytes": 2741,
+      "sha256": "0a26b593049e0e305fd7dddfa071434c6e11e57eeb3f09d50dd427586f020dff"
+    },
+    "Tests/PerformanceComparisonTests.py": {
+      "bytes": 4750,
+      "sha256": "46219cd5729299ef803d744fcab5daa55d8f492f40f4381ffac465a0e6152ab5"
+    },
+    "Tests/PluginProcessorTests.cpp": {
+      "bytes": 327786,
+      "sha256": "b5182872466647fa4631fbd6c7449044a976c1ec2d40cfce7080325eeeb3a665"
+    },
+    "Tests/PrepareBlindListeningTests.py": {
+      "bytes": 41831,
+      "sha256": "55cdefd5752dcf6111da8ecb7932b5cd68289521e1ad4127062c449da832ec9f"
+    },
+    "Tests/RealismContactTests.cpp": {
+      "bytes": 11854,
+      "sha256": "cc4819e8d66ec0500ff1f1c92e549b8ff3b33f9a96ea07507e38c08bb8866083"
+    },
+    "Tests/RealismDecayTests.cpp": {
+      "bytes": 12222,
+      "sha256": "72ead7c313649f1c58113c77233787e85b0911afde67ca97423581cbe7075416"
+    },
+    "Tests/RealismEverydayContactTests.cpp": {
+      "bytes": 14400,
+      "sha256": "08f2ba5ca5db022bf11ded6857979a04d0d92ca8b21517f494ee3e66d3a8bbd7"
+    },
+    "Tests/RealismExcitationTests.cpp": {
+      "bytes": 9454,
+      "sha256": "509dd5f43239be82f7a2c3644509a65d09d5df644f098e53f36f39473792d57d"
+    },
+    "Tests/RealismGestureTests.cpp": {
+      "bytes": 12065,
+      "sha256": "558581a4503e69ad3123ca1793288cf56b9cfdb311184e73171deb0921461eb7"
+    },
+    "Tests/RealismHarmonicAttackTests.cpp": {
+      "bytes": 7460,
+      "sha256": "98482c381821ed3cbca249db13488c6d219e5a377845079f0286d22ee137076b"
+    },
+    "Tests/RealismHarmonicTests.cpp": {
+      "bytes": 9789,
+      "sha256": "2fbfe886a94d7d1907f60af60cab6ab21745a75a38b488ff1c092b51f8501899"
+    },
+    "Tests/RealismLossTests.cpp": {
+      "bytes": 14477,
+      "sha256": "57a954ef42eb34f41795bcfa2484a462088f55f95a2020d4e24dc1b1c222b12d"
+    },
+    "Tests/RealismModalReleaseTests.cpp": {
+      "bytes": 17871,
+      "sha256": "0962818acdc0075c646e904f8a7403dbf84cfc641b418fec44c1b21c188c9e63"
+    },
+    "Tests/RealismPickAttackTests.cpp": {
+      "bytes": 7637,
+      "sha256": "8e40eb0b2ba293a594821737483e58ab3b68eaca6b2a42364688b797f266bd42"
+    },
+    "Tests/RealismRhythmTests.cpp": {
+      "bytes": 11683,
+      "sha256": "632fd1f3598f0a9d71773033341625fb497c7b0516f2680c8859636d6d099802"
+    },
+    "Tests/RealismSympatheticLossTests.cpp": {
+      "bytes": 17244,
+      "sha256": "84c9a33d6938ff72b73b8a6d5a5e0dfe2e292b69ba0d5332fd85bf97c34d66c0"
+    },
+    "Tests/RealismTextureTests.cpp": {
+      "bytes": 9651,
+      "sha256": "b97086315b4fdc511c072ba2271dee99ed54c8475db7a2d7cbbb6351b283680a"
+    },
+    "Tests/RealismTimingTests.cpp": {
+      "bytes": 14554,
+      "sha256": "03ed19574dd27c80aa9ca7fd138f6e1ffcf939e59eaf023eb8289fa46993c0ab"
+    },
+    "Tests/RealismTransitionControlsTests.cpp": {
+      "bytes": 17230,
+      "sha256": "0bbfca6c36f93e40c55fea821a95c613eeb83fb12cddb611fc518289d493c204"
+    },
+    "Tests/ReferenceStringMassTests.cpp": {
+      "bytes": 13577,
+      "sha256": "e3ec113b98f1adc2aa273171d8d08276e4dd956d3dff5866fcd249946e163a6d"
+    },
+    "Tests/RefreshGeneratedMediaTests.py": {
+      "bytes": 18133,
+      "sha256": "7b7f74e81bd6e34d356d73bd4f3de8157f690ea3fb6cbc12b375fbbf64c18053"
+    },
+    "Tests/ScoreBlindListeningTests.py": {
+      "bytes": 31759,
+      "sha256": "2ccb2f0e68cb45ec7a6650fe65e79b46c726b4d707324c1e56231e4cb3080059"
+    },
+    "Tests/VST3ArtifactSmokeTests.cpp": {
+      "bytes": 12421,
+      "sha256": "f7c278b86dd5411809701a25a48d2fb757a67704a6dc4eb0f124a5efcfb38a6b"
+    },
+    "Tests/ValidateAUArtifact.cpp": {
+      "bytes": 24250,
+      "sha256": "e12a1fa13b5ad27de20fc18075c4581c2c23ac45460e9464469ab7ee534205cc"
+    },
+    "Tests/ValidateReferenceFixtureTests.py": {
+      "bytes": 17718,
+      "sha256": "f52990f311981429b2eab7ada66dbff0b70022a1c3b70392f9c361c687c7d7ba"
+    },
+    "CMakeLists.txt": {
+      "bytes": 38420,
+      "sha256": "54e2efacc172ea68a3540ce23bd0f1d5ae6d10865fcc6dddb1ff7417f5692b23"
+    },
+    "build-multicontact-passive-kernel/compile-authorization-v2.json": {
+      "bytes": 1227,
+      "sha256": "a1312cb3a7459f4e0d3da19034c59a84ddfb99357d8d8686eb35e3f95c67a27d"
+    },
+    "build-multicontact-passive-kernel/root-compile-static-review-v2.json": {
+      "bytes": 2349,
+      "sha256": "2fdb133cb394094ec1bc525147c144fd716ffee3c6ac25ae7983e016bca78f55"
+    },
+    "build-multicontact-passive-kernel-peer-review/compile-static-receipt-v2.json": {
+      "bytes": 20979,
+      "sha256": "f99c75553a4c670d364639d118f8d3903ca2dc6ef7713cd90794ac378a325a37"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-0-stdout.txt": {
+      "bytes": 159,
+      "sha256": "76a924f59997fb65051981eb13105e0a8c151f16cd9c3e45e0f7c27ecefdb839"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-0-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-1-stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-1-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-2-stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-2-stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build-multicontact-passive-kernel/compile-v2/attempt-v2.json": {
+      "bytes": 764,
+      "sha256": "b93cb0cf5cc5391e6d36f24edd2f3338b8b5bfd5755e197d1008e787bc2a99e7"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-0-attempt.json": {
+      "bytes": 230,
+      "sha256": "6ec6f656b8171368bf951ad3996150c0658750fbb83ee4be0ae910942bbf80bf"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-0-started.json": {
+      "bytes": 231,
+      "sha256": "ea58f0e54acbafe125e484e81f629f7cdfbab5371d589b1504149c2206a0a685"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-1-attempt.json": {
+      "bytes": 502,
+      "sha256": "0892ec3fad57eea2a3518a18cdc931086c875327f1c3c776ed10e1fb0fcf992f"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-1-started.json": {
+      "bytes": 503,
+      "sha256": "95141b12a3e5ea3ccf7948e3920da5675c2fcd40de3a98dc2c47b4016dab3b6d"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-2-attempt.json": {
+      "bytes": 532,
+      "sha256": "3a845ce090917bfc7a46ab2eeaf44fe389bd8c885699762c6d7b8c516454807b"
+    },
+    "build-multicontact-passive-kernel/compile-v2/compiler-2-started.json": {
+      "bytes": 533,
+      "sha256": "9a487cd492bc18c7fc887b0ecac2d8f11dfcbb3d910c14170586a88f1e0df913"
+    },
+    "build-multicontact-passive-kernel/compile-v2/driver_j5_draft_v1.bc": {
+      "bytes": 171840,
+      "sha256": "1f2915684a65ec08aacb1e2c83760f52349768467fd1129327d9cd5075d0de07"
+    },
+    "build-multicontact-passive-kernel/compile-v2/driver_j5_draft_v1.ii": {
+      "bytes": 3096893,
+      "sha256": "a52ca5f4e21a3a91e505e0271308002984e3c1a16c9fad02ac30156e5a3923f8"
+    },
+    "build-multicontact-passive-kernel/compile-v2/driver_j5_draft_v1.o": {
+      "bytes": 42704,
+      "sha256": "ae64fc538b5cca3c1f928b2a02231e8b49182314c0cf673ae3c6ced1d74815c6"
+    },
+    "build-multicontact-passive-kernel/compile-v2/driver_j5_draft_v1.s": {
+      "bytes": 302597,
+      "sha256": "c9ad9cce7799fc6269f697758b80a821fe57697a395fbee42ab44c10c62f56d8"
+    },
+    "build-multicontact-passive-kernel/compile-v2/environment_negatives_j5_draft_v1.bc": {
+      "bytes": 103216,
+      "sha256": "21de72483214a80fb17df272381684e8cd781267f14dde39f3849a665eb0a861"
+    },
+    "build-multicontact-passive-kernel/compile-v2/environment_negatives_j5_draft_v1.ii": {
+      "bytes": 3044356,
+      "sha256": "3d18559c2d6cb3091748a11216e09906083f703bef8bfef5edd688bc710b4bf0"
+    },
+    "build-multicontact-passive-kernel/compile-v2/environment_negatives_j5_draft_v1.o": {
+      "bytes": 22104,
+      "sha256": "0923e7fd4d943e478a347ed7f833fd3036cdb2e0091829539bf5c8526abba738"
+    },
+    "build-multicontact-passive-kernel/compile-v2/environment_negatives_j5_draft_v1.s": {
+      "bytes": 158220,
+      "sha256": "1dba27f00c395cfe9ef01187281c4528db2cee72031c3cb3f7c1138eb6f636c9"
+    },
+    "build-multicontact-passive-kernel/compile-v2/multicontact-environment-negatives-v1": {
+      "bytes": 38424,
+      "sha256": "00713af8eb81e7213eb4a9a7c7cb89dda9e318bf2d1fe86ac6f46dced6fc1354"
+    },
+    "build-multicontact-passive-kernel/compile-v2/multicontact-stream-v1": {
+      "bytes": 60104,
+      "sha256": "a0f78ebfa717017b4026c41dadcdf6464dcb9e018cfbc46b4c48acc251684cab"
+    }
+  },
+  "toolchain": {
+    "scope": "file/environment snapshot before compile; kernel not executed",
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "25.5.0",
+    "environment": {
+      "SDKROOT": null,
+      "DEVELOPER_DIR": null,
+      "TOOLCHAINS": null,
+      "CPATH": null,
+      "CPLUS_INCLUDE_PATH": null,
+      "C_INCLUDE_PATH": null,
+      "LIBRARY_PATH": null,
+      "MACOSX_DEPLOYMENT_TARGET": null,
+      "CCC_OVERRIDE_OPTIONS": null,
+      "COMPILER_PATH": null,
+      "GCC_EXEC_PREFIX": null
+    },
+    "files": {
+      "/usr/bin/clang++": {
+        "bytes": 118928,
+        "sha256": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+        "resolved_path": "/usr/bin/clang++"
+      },
+      "/usr/bin/xcrun": {
+        "bytes": 117392,
+        "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8",
+        "resolved_path": "/usr/bin/xcrun"
+      },
+      "/Library/Developer/CommandLineTools/usr/bin/clang": {
+        "bytes": 290664032,
+        "sha256": "f30550eab15fdf5ab8c0dc54c52679711241e5d4b636b027e18c09fef531775d",
+        "resolved_path": "/Library/Developer/CommandLineTools/usr/bin/clang"
+      },
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdint": {
+        "bytes": 3737,
+        "sha256": "5df941a16c69b0ceab18c14d3ca9a59fabe25f42bed98eba74a7a1315eb2badb",
+        "resolved_path": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/cstdint"
+      },
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__config": {
+        "bytes": 48249,
+        "sha256": "10c378256384ce1aa0372d8078411d94b83ea0f30a31155e0001bbe7256f29a0",
+        "resolved_path": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__config"
+      },
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/SDKSettings.json": {
+        "bytes": 7774,
+        "sha256": "f8d005f09381389167f9e0aeaa169bc9e7dff162ef22ca2fd8e98df7ff1acafe",
+        "resolved_path": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/SDKSettings.json"
+      }
+    },
+    "selected_developer_directory": "/Library/Developer/CommandLineTools",
+    "sdk_alias": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "sdk_resolved": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "metadata_queries": [
+    {
+      "argv": [
+        "/usr/bin/xcode-select",
+        "-p"
+      ],
+      "returncode": 0,
+      "stdout": "/Library/Developer/CommandLineTools\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "--no-optional-locks",
+        "diff",
+        "--exit-code",
+        "6c83ff453ff7ac346598e8e73367ced128a90838",
+        "--",
+        "Source",
+        "Tests",
+        "CMakeLists.txt"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "--no-optional-locks",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "908f8231ee0c130e0ceff4b75e1f8590d57877ba\n",
+      "stderr": ""
+    }
+  ],
+  "reviewer_compiler_or_binary_execution": false,
+  "producer_imports_or_payload_access": false,
+  "runtime_fixture_force_state_or_RT_qualification": false
+}

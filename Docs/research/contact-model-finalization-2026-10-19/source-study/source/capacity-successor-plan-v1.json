@@ -1,0 +1,45 @@
+{
+  "schema": "electry-passive-source-capacity-successor/v1",
+  "utc": "2026-10-19T09:30:26.336534+00:00",
+  "reason": "Actual storage interrupted the prior attempt; user-authorized cleanup changed available capacity.",
+  "predecessor_root": "build-passive-source-tone-candidate-iofix",
+  "predecessor_manifest_sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f",
+  "unchanged_scientific_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+  "predecessor_remains_incomplete_and_unqualified": true,
+  "all_old_artifacts_copied_byte_identically": 54,
+  "same_full_ordered96_cases384_histories480_rate_rows": true,
+  "no_reuse_or_skip_of11_previously_completed_cases": true,
+  "no_numerical_parameter_gate_cohort_model_or_IO_code_changes": true,
+  "same12GiB_budget256MiB_emergency_reserve": true,
+  "source_failure_policy_remains_in_force": true,
+  "historical_IO_provenance_is_retained_unchanged": true,
+  "lineage": {
+    "build-passive-source-tone-candidate-iofix/implementation-manifest-v1.json": {
+      "bytes": 444470,
+      "sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f"
+    },
+    "build-passive-source-tone-candidate-iofix/preparation-receipt-v1.json": {
+      "bytes": 412,
+      "sha256": "1be08a51b93595689a73f96339cb1eb723422b06e9f3d5ee77a8a52531015d84"
+    },
+    "build-passive-source-tone-candidate-iofix-root-review/execution-receipt-v1.json": {
+      "bytes": 1885523,
+      "sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4"
+    },
+    "build-passive-source-tone-candidate-iofix-root-review/administrative-storage-watchdog-receipt-v1.json": {
+      "bytes": 748,
+      "sha256": "99076fa21e60633f4350ddab8d2efa7cde206bc783b83d800368831f4402f80d"
+    },
+    "build-passive-source-tone-candidate-iofix/run-v1/study/emergency-original-error-and-attempt.json": {
+      "bytes": 5970,
+      "sha256": "7074ca79774dfe314a16ab64d9946f3e47fcf03aa116b1805df86301f81402b2"
+    },
+    "build-authorized-cleanup-20261019/cleanup-summary-v1.json": {
+      "bytes": 1519,
+      "sha256": "61b487a439c8afe9d0bd479be3ce26bf5eb045b402498a361e66ed3c9d80b1aa"
+    }
+  },
+  "actual_free_bytes_at_preparation": 13239947264,
+  "fresh_exact_root_peer_reviews_and_execution_authorization_required": true,
+  "source_states_fields_PCM_tone_or_production_authorized": false
+}

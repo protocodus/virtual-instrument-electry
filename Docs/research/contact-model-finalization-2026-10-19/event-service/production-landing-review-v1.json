@@ -1,0 +1,129 @@
+{
+  "schema": "electry-persistent-contact-production-landing-source-review/v1",
+  "utc": "2026-10-19T11:23:51.159133+00:00",
+  "source_commit": "6c83ff453ff7ac346598e8e73367ced128a90838",
+  "scope": "Source-only next-stage design, conditional on whole96 E qualification. No Source/test edits, implementation, imported numerical modules, experiments, state/force/PCM/E payload or archived raw-data access.",
+  "recommendation": "Specify an event-relative persistent contact service first, initially on one unchanged speaking geometry. Separate immutable ContactRecipe from live ContactInstance and lifetime physical-string state; only then qualify ringing same-note repicks. Do not land another finite-crop tap callback or per-note initialized field.",
+  "new_concrete_findings": [
+    {
+      "anchor": "build-passive-source-tone-candidate-iofix/mechanics_v2.py:28",
+      "finding": "attach accepts only the original absolute first Contact time. A later live repick requires an explicit event clock/origin, not replay of that case timestamp."
+    },
+    {
+      "anchor": "build-passive-source-tone-candidate-iofix/support_path_v1.py:9",
+      "finding": "SupportPath embeds absolute Contact/Release, allocates withdrawal knots to calls96, and refuses evaluation past the original crop at line40. It is a finite-study actuator, not an indefinite live string service."
+    },
+    {
+      "anchor": "Source/DSP/ElectryEngine.cpp:7125",
+      "finding": "Written fret/baseFrequency update before a queued wrist arrives. A new mechanical basis must not be re-keyed from these logical fields during a sounding transition. Finger-contact targets and performed field geometry need distinct ownership."
+    },
+    {
+      "anchor": "build-certified-contact-rt-kernel/contact_interval_v1.hpp:460",
+      "finding": "The qualified kernel explicitly rejects j>2. Retaining old/new fretting contacts while a pick is attached can require at least3 scalar force ports; J2 unit evidence does not cover that topology. Count actual independent constraints/ports before choosing a solver boundary."
+    }
+  ],
+  "minimum_service_contract": {
+    "PhysicalString": "Own persistent two-axis q/v, fixed spatial basis/material coordinates, cumulative work/D and active contact storage independently of MIDI ownership and audible Voice.active. Initialize at engine prepare/reset; NoteOff, pending cancellation or silenceVoice is not permission to erase mechanical energy.",
+    "ContactRecipe": "Owned existing pulse, release pole, spatial/axis weights, numerical contact stiffness and source setpoint inputs. No fitted actuator duration, knee, gain or human-contact calibration added.",
+    "ContactInstance": "Actual event boundary clock/order, y/v at attachment, support z/zdot/path progress, withdrawal filter state and cumulative release mass, active contact U and lifetime work. Same-note events cannot overwrite positive-U contacts.",
+    "causal_withdrawal": "For the same declared pulse/pole, a causal realization is r[k]=(1-a)*p[k]+a*r[k-1], R[k]=R[k-1]+r[k], z[k]=y_attach+D-2*D*R[k], with the existing PWL sides between fixed96k knots. Preserve initial states and exact operation-order evidence. Prove agreement with the owned finite prefix before using it; no tail renormalization, arbitrary cutoff, or claimed untested bitidentity.",
+    "arrival_seam": "Retain immediate and deferred startExcitation semantics. The delayed path renders its pending sample before countdown commit (Engine.cpp10005-10039). Record arrival boundary and first Contact-rendered clock distinctly; do not guess a universal plus/minus-one offset.",
+    "observer": "Keep one uninterrupted magnetic previousFlux/EMF/loaded-coil/output/decimator history from the initial rest state; no new prime at repick or Release, and no duplicate old spatial aperture on a physical spatial read.",
+    "ledger": "Keep Estring+sum(Ucontact)-Estart-Wexternal+D across the entire event sequence. Do not restart this ledger at every pluck. Keep existing force/native/applied-Gram/gather/work gates; characteristic .5FqD is not initial stored energy."
+  },
+  "ownership_decisions_before_fret_or_overlap_execution": [
+    "A new stroke arriving while the same pick contact has U>0 needs a declared continuation/retarget/queue policy preserving z, zdot, q/v and U. Recalling unstrained attach or silently replacing the old port is invalid. An unresolved busy contact must remain an explicit failed/unavailable performance event, not be silently delayed or deleted.",
+    "For fret changes, use one persistent full-open physical basis or an explicitly work-accounted exact representation change. A fixed-open basis avoids coefficient-index replacement but does not establish that its finger/fret constraints match a simply-supported short string; slope/moment transfer and resulting mode frequencies must be checked without frequency fitting.",
+    "The existing x5/x7,k6000,d0 ports are numerical fixtures, not calibrated steel frets or finger-behind-fret geometry. Actual fretting contact law, old-finger unloading, independent port count and simultaneous pick scheduling remain specific ownership prerequisites.",
+    "If a topology requires3ports, either qualify its complete coupled solver or prospectively define a reduced constrained system that retains reaction work and full damping. Do not remove an old constraint or serialize a real event merely to reuse J2 proof.",
+    "Bend/tension/mass/stiffness changes require their own parameter-work account. The first persistent same-geometry stage can keep these fixed; production configureVoicePitch is not such a physical work law."
+  ],
+  "minimum_meaningful_qualification_sequence": [
+    "1. Before DSP edits, freeze ContactRecipe/Instance/event-clock and active-port lifecycle contract. Validate a bounded causal actuator against unchanged declared source knots, including left/right Release sides and indefinite post-crop operation. This does not select physical hand parameters.",
+    "2. Persistent single-string/same-geometry mechanical prototype: one initial rest state, then ringing same-note repicks after retirement and during Contact/withdrawal; include same-clock ownership, older NoteOff, pending cancellation and CC64. Preserve q/v and all remaining U; retain busy-conflict failures. Use complete force/work/D/construction and first/refined continuous/event gates unchanged, not output continuity alone.",
+    "3. Qualify a separate persistent fret handoff (both directions, interrupted/queued/legato takeover) with explicit old/new contact work/storage and actual port count, retaining cutoff/rate/local-velocity/HF/event and frequency-consistency failures. No per-note q/v reset, delay glide, signal crossfade or unexplained0.28 physical choke.",
+    "4. Only after these mechanics pass, carry continuous spatial pickup and electrical history through a whole event sequence; recheck original engine ownership/repick/refret/release tests without weakening their numerical rails. Alias, fixed-memory/CPU/host feasibility remain separate qualifications.",
+    "5. Then compare NEW current-shipping6c83 A against that complete continuous candidate on whole registered P3 source06 phrases and source12 register checks, retaining all events/windows and fixed whole-crop level convention. No isolated-E stitching, per-note gain/EQ, inferred hand-force groundtruth or95percent score."
+  ],
+  "production_source_anchors": [
+    {
+      "path": "Source/DSP/ElectryEngine.h",
+      "line": 1167,
+      "role": "PendingRepick is intent/scheduler state, not a mechanical contact."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 2656,
+      "role": "repickHeldString preserves physical string and durable owner."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 5698,
+      "role": "Current refret handoff reuses Contact time as engineering duration, explicitly not identified physical fret duration."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 5752,
+      "role": "Actual-contact latch; new port must replace its owned legacy excitation/choke, not be added twice."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 7327,
+      "role": "Legato takes the currently performed incoming endpoint; preserve this ownership semantics."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 7615,
+      "role": "Pending cancellation distinguishes never-arrived contact from old ringing release."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 7779,
+      "role": "Audible silence clears logical/excitation state; keep physical-state lifetime separate."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 9174,
+      "role": "Continuous Faraday/EMF history; do not reset at a newly scheduled contact."
+    },
+    {
+      "path": "Source/DSP/ElectryEngine.cpp",
+      "line": 10005,
+      "role": "Render-before-deferred-contact-commit ordering."
+    }
+  ],
+  "inputs": {
+    "build-passive-source-production-landing-review/review-v1.json": {
+      "bytes": 11100,
+      "sha256": "fdde6922b75602adf5ab8678ef35afd370a3d48d88bd172b068c48d8ec1ad48f"
+    },
+    "Source/DSP/ElectryEngine.cpp": {
+      "bytes": 506710,
+      "sha256": "358e900bd1ee59f0a30bc8e021937e1c909b5e62486c1c434401e57297f2a567"
+    },
+    "Source/DSP/ElectryEngine.h": {
+      "bytes": 117129,
+      "sha256": "3c7328f5762089ee480a0dc6d591fe994f02285dff7cfc27bbcf719afef7ec20"
+    },
+    "build-passive-source-tone-candidate-iofix/mechanics_v2.py": {
+      "bytes": 7627,
+      "sha256": "f881a5dda18687d831496163f9d86740e915f2351eebec44032eba146fb54f45"
+    },
+    "build-passive-source-tone-candidate-iofix/support_path_v1.py": {
+      "bytes": 3964,
+      "sha256": "6ee304d09c170223a937a7e43c4302fd38213e646abbf38e28d299ecd1e1404e"
+    },
+    "build-certified-contact-rt-kernel/contact_interval_v1.hpp": {
+      "bytes": 22696,
+      "sha256": "f24774f99c72a40bac1037c9a6f3b0450b01dcee7d7332c491af1279093a3f9b"
+    },
+    "build-damped-native-unit-fixture/protocol.json": {
+      "bytes": 13521,
+      "sha256": "966a0be11622119df57097be60bfe944f82cea79c259fbeefb3bc945fcc1567c"
+    }
+  },
+  "production_Source_Tests_CMake_unchanged": true,
+  "new_numerical_or_audio_execution": false,
+  "E_outcomes_or_payloads_used": false,
+  "shipping_or_naturalness_qualification": false
+}

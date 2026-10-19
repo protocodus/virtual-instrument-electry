@@ -1,0 +1,11 @@
+{
+  "schema": "electry-source-DRAFT-v4-binding-successor/v1",
+  "prior_complete_snapshot_path": "complete-draft-snapshot-v4.json",
+  "prior_complete_snapshot_sha256": "4672405991d82f85168ca56bd16fbb0865d96dfa25a4095fd7a113133865cc67",
+  "prior_selected_preparer_path": "prepare_implementation_v1.py",
+  "prior_bytes_preserved_at": "draft-v4-preserved/prepare_implementation_v1.py",
+  "prior_bytes_sha256": "a0fbfac97f2c7defa1a83c26a72c28aaff3d0599c9f96ac072ff1cb1ef28cf50",
+  "new_preparer_sha256": "2a4134f568bafd30b59b95d374e624579124b5f38c60bcc24cc3be9755935bea",
+  "created_after_v4_not_a_claim_of_prior_archive_time": true,
+  "only_change": "Reuse existing unit environment_files1435 exact superset of coefficient1423, preserving and checking every shared fact; binds interpreter/exact-Fraction/native provenance. No different environment/science/rate/gate/trajectory. Historical source/metadata files are also bound as preparation artifacts without imports."
+}

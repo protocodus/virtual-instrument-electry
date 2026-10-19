@@ -1,0 +1,286 @@
+{
+  "schema": "electry-passive-source-mechanics-protocol/v1",
+  "status": "COMPLETE READABLE PRE-FREEZE DRAFT; no source execution authorization",
+  "candidate": "E / passive-source-v1",
+  "hypothesis_path": "build-next-tone-mechanism-synthesis/conditional-candidate-v2.json",
+  "hypothesis_sha256": "4755ed1a48c32f18ad2763cb18423888e19fcffd5a2cbdd2cf063ff70787b77a",
+  "coverage": {
+    "contexts": 96,
+    "neck_fresh_notes": 92,
+    "bridge_profiles": 4,
+    "case_ids": [
+      "neck/fresh-pick018-slot001",
+      "neck/fresh-pick018-slot002",
+      "neck/fresh-pick018-slot003",
+      "neck/fresh-pick018-slot004",
+      "neck/fresh-pick018-slot005",
+      "neck/fresh-pick018-slot006",
+      "neck/fresh-pick018-slot007",
+      "neck/fresh-pick018-slot008",
+      "neck/fresh-pick018-slot009",
+      "neck/fresh-pick018-slot010",
+      "neck/fresh-pick018-slot011",
+      "neck/fresh-pick018-slot012",
+      "neck/fresh-pick018-slot013",
+      "neck/fresh-pick018-slot014",
+      "neck/fresh-pick018-slot015",
+      "neck/fresh-pick018-slot016",
+      "neck/fresh-pick018-slot017",
+      "neck/fresh-pick018-slot018",
+      "neck/fresh-pick018-slot019",
+      "neck/fresh-pick018-slot020",
+      "neck/fresh-pick018-slot021",
+      "neck/fresh-pick018-slot022",
+      "neck/fresh-pick018-slot023",
+      "neck/fresh-pick018-slot024",
+      "neck/fresh-pick018-slot025",
+      "neck/fresh-pick018-slot026",
+      "neck/fresh-pick018-slot027",
+      "neck/fresh-pick018-slot028",
+      "neck/fresh-pick018-slot029",
+      "neck/fresh-pick018-slot030",
+      "neck/fresh-pick018-slot031",
+      "neck/fresh-pick018-slot032",
+      "neck/fresh-pick018-slot033",
+      "neck/fresh-pick018-slot034",
+      "neck/fresh-pick018-slot035",
+      "neck/fresh-pick018-slot036",
+      "neck/fresh-pick018-slot037",
+      "neck/fresh-pick018-slot038",
+      "neck/fresh-pick018-slot039",
+      "neck/fresh-pick018-slot040",
+      "neck/fresh-pick018-slot041",
+      "neck/fresh-pick018-slot042",
+      "neck/fresh-pick018-slot043",
+      "neck/fresh-pick018-slot044",
+      "neck/fresh-pick018-slot045",
+      "neck/fresh-pick018-slot046",
+      "neck/fresh-pick050-slot001",
+      "neck/fresh-pick050-slot002",
+      "neck/fresh-pick050-slot003",
+      "neck/fresh-pick050-slot004",
+      "neck/fresh-pick050-slot005",
+      "neck/fresh-pick050-slot006",
+      "neck/fresh-pick050-slot007",
+      "neck/fresh-pick050-slot008",
+      "neck/fresh-pick050-slot009",
+      "neck/fresh-pick050-slot010",
+      "neck/fresh-pick050-slot011",
+      "neck/fresh-pick050-slot012",
+      "neck/fresh-pick050-slot013",
+      "neck/fresh-pick050-slot014",
+      "neck/fresh-pick050-slot015",
+      "neck/fresh-pick050-slot016",
+      "neck/fresh-pick050-slot017",
+      "neck/fresh-pick050-slot018",
+      "neck/fresh-pick050-slot019",
+      "neck/fresh-pick050-slot020",
+      "neck/fresh-pick050-slot021",
+      "neck/fresh-pick050-slot022",
+      "neck/fresh-pick050-slot023",
+      "neck/fresh-pick050-slot024",
+      "neck/fresh-pick050-slot025",
+      "neck/fresh-pick050-slot026",
+      "neck/fresh-pick050-slot027",
+      "neck/fresh-pick050-slot028",
+      "neck/fresh-pick050-slot029",
+      "neck/fresh-pick050-slot030",
+      "neck/fresh-pick050-slot031",
+      "neck/fresh-pick050-slot032",
+      "neck/fresh-pick050-slot033",
+      "neck/fresh-pick050-slot034",
+      "neck/fresh-pick050-slot035",
+      "neck/fresh-pick050-slot036",
+      "neck/fresh-pick050-slot037",
+      "neck/fresh-pick050-slot038",
+      "neck/fresh-pick050-slot039",
+      "neck/fresh-pick050-slot040",
+      "neck/fresh-pick050-slot041",
+      "neck/fresh-pick050-slot042",
+      "neck/fresh-pick050-slot043",
+      "neck/fresh-pick050-slot044",
+      "neck/fresh-pick050-slot045",
+      "neck/fresh-pick050-slot046",
+      "bridge/hb018",
+      "bridge/hb050",
+      "bridge/sc018",
+      "bridge/sc050"
+    ]
+  },
+  "inputs": {
+    "C_protocol": {
+      "path": "build-inherited-field-C/protocol.json",
+      "sha256": "c35ba0501f022f93454f3d007cab4c5dd98d193832dc3ef704b9e0f90fb030f9"
+    },
+    "C_alpha_source_metadata": {
+      "path": "build-inherited-field-C/alpha-preflight-receipt.json",
+      "sha256": "a0bc60a9c343df2560aff5d2fc6bb2dbcff1664601a8c4261ff4626304bc21b6"
+    },
+    "qualified_coefficient_manifest_sha256": "8e479ca49c50b5c3e0cf58fdd734c9966d62060569dd3a29c9010268dfae1bfc",
+    "independent_coefficient_receipt": {
+      "path": "build-damped-collocated-source-port-premium-review/saved-coefficient-audit/completed-receipt-v1.json",
+      "sha256": "083b4e61ec8bfdbe7ef1c0de2910e98110aeb9a393d24569e4835154163330a6"
+    },
+    "native_full_flow_whole_lossless_qualification_is_not_source_authority": true,
+    "future_damped_unit_qualification_required": true
+  },
+  "physical_source": {
+    "K_N_m": 6000,
+    "Fq": "4.8*direct captured velocity-profile amplitude; Neck contact.velocity_amplitude; Bridge exact old geometry metadata.profile_amplitude. Never use contact.force_N, stroke_force_gain or force/stroke division.",
+    "stroke": "D=Fq*(L*a*(1-a)/T+1/K), same physical continuum compliance at actual pick_fraction, fixed across h/cutoff.",
+    "normal": "Normalize captured (vertical_weight,horizontal_weight) in float64 as declared physical geometry; no claim of bit-identical float32 voice normalization.",
+    "signed_orientation": "Physical b_axis,n=polarity*normal_axis*sin(n*pi*a). Captured polarity must be\u00b11; observer has fixed(.85,.35)/.040*old spatial factor WITHOUT second polarity. Exactly one sign, no fit. Existing passiveRepickNormal sets the unsigned normalized direction magnitudes; the captured stroke sign is explicitly placed on physical actuation in this hypothesis.",
+    "state": "Fresh cases rest q=v=0; attach gathers y/v from incoming complete field and changes no q/v bits. API also accepts ringing input, but no repick/performance qualification follows from these fresh cases.",
+    "no_legacy_injection": "No q0 preload/static replacement, old pulse/modal/edge additive force, strokeGain, gain rescale, crossfade, output EQ or attack fade."
+  },
+  "clock_and_path": {
+    "physical_knots_hz": 96000,
+    "contact": "first_contact_index in original callback coordinate",
+    "release": "first_release_index; Tcontact=(release-contact)/96000, not nominal ms",
+    "press": "Exact inherited velocity-matched C1 cubic from y0,v0 to y0+D,zdot=0.",
+    "withdrawal": "Literal saved normalized pulse -> captured onepole r_j via original SciPy lfilter; R_j=cumsum(r_j), z_j=y0+D-2D*R_j. Keep full original finite crop; no new truncation/renormalization/clipping/smoother.",
+    "refinement": "Main96k/192k and fresh continuous first/refined all share the SAME96k physical knots. PWL between withdrawal knots; split every slope jump. No nominal-control resampling.",
+    "policy": "Release-and-later delta<=0 AND zdot-bTv<=0; actual right-sided knot policy, with all left/right facts preserved. Interior smooth roots use max(delta,Tcontact*relativev), face-aware derivative, rawroot and bounded4096ULP feasible-side facts. No smoothroot treatment of slope jumps. Final crop has no invented right interval.",
+    "tail": "If not retired by original crop, retain active contact and mark source event unqualified; no extension/deletion. Unapplied kernel mass retained, not repaired.",
+    "root_ambiguity": "V2 records known_sided_physical_boundary separately from genuine_interior_ambiguity. A root at an exact physical knot routes through left/right boundary feasibility, never a waived interior tie/tangent. Existing event/state/work admission remains.",
+    "both_sided_PWL_boundary_facts": "Nonterminal delta closing/opening roots and original direction/derivative/tangency facts throughout press/withdrawal; known C1-entry and declared PWL boundary facts separately retained; genuine interior ambiguity unqualified."
+  },
+  "numerics_and_mechanics_gates": {
+    "tables": "All96 literal qualified naturalOmega/alpha/mass/n peraxis h/hhalf tables, no general expm or coefficient retune. Actual two-axis mobility against immutable fixed native bound at every step.",
+    "force": "Same immutable strict native T.lower adapter, exact stored target/native interval trace/cap/posterior, original actual NumPy residual<=2e-11, nonnegative forces, true exact residual for Gram/gather/application diagnostics.",
+    "D": "Per-mode raw nonnegative finite Gramian/positive16/positive32 contributions, no clipping or E0-Eend definition.",
+    "work": "Estring+U-W+D, actual initial storage0; original whole-work5e-10 rail normalized by max(initial0,maxabsW,1e-30). No scientific gate relaxation.",
+    "state_precision": "Source-specific state normalization energy .5*Fq*D (prospectively approved), explicitly not initial stored energy. Fresh physical reference first/refined state1e-7, reference work5e-8, original event/ambiguity/retirement-presence/order gates remain required.",
+    "all96_before_PCM": "Independent saved mechanics review must bind ALL96 source fields/history/certificates/reference outcomes before any renderer/PCM/tone read. One failed case does not admit a partial candidate."
+  },
+  "memory_and_disk": {
+    "available_budget_bytes": 12884901888,
+    "implementation": "Serial percase; full active q/v+raw force equation/native certificates in compressed4096frame evidence chunks. Chunk size is administrative, not DSP. Shared study budget fails incomplete instead of deleting contact evidence.",
+    "free_tail": "After own valid zero-storage retirement, save complete q/v/work/D, checkpoint frame and exact table/API/environment provenance. Model tail uses qualified stable analytical API from integer(frame-retireFrame)/rate, batched4096; composite per-h Gramian/positive16/positive32 D evaluates actual analytical left states. Every frame tap/E/W/D/ledger and all-state chunk hash/endqv remains stored. It is same free ODE but a different binary algorithm from v1 recurrence; no recurrence bitidentity claim.",
+    "reference_tail_architecture": "Fresh continuous first/refined retain their OWN interior event time/q/v/work/D. Separate independently coded direct q/v analytic solution evaluates original fixed192k times. Positive16/32 physical velocity-square quadrature covers exact event-to-first-sample partial interval, no snapping/full-h K. Thereafter use literal qualified positive16/32 composite operators on own analytic left states. Never D=E0-Eend.",
+    "resource_failure": "Preserve completed evidence prefix and raw attempted-state/certificate context; mark whole case/study incomplete. Storage is never a reason to force detach, shorten the score or publish a qualified subset."
+  },
+  "observation_and_rendering": {
+    "tap": "Fixed spatial coil factor and(.85,.35)/.040 read every current q/v field sample, including physical loading/withdrawal. No held-source replacement or pre-release mask.",
+    "drivers": "Bind/reuse immutable DriverGeometry/GeometryDriver and external physical pickup hook object only after mechanics. Hook overrides every selected pickup callback, before unchanged magnetic flux/Faraday/electrical path. Existing firstContact primeFlux remains unchanged; new fresh source tap at that exact instant must be0.",
+    "timing": "Preserve exact old calls/first_clock/timelines/Source/control/seed/block/48000Hz/96000frame native crop. No onset redetection or aligned candidate crops.",
+    "outputs": "Raw mechanics tap observation in percase NPZ only; a later all96 independently-qualified exacthash gate authorizes field export from saved taps (no rerender or new dynamics), then E/{neck,bridge}/<old_key>.f32 via existing immutable drivers.",
+    "tone": "Same frozen A/C/D and original96 contexts, source masks/body/H1/H2/H3/absolute levels/lowmid/complete upper prefixes, all failures/regressions. Keep all old whole-context gains, one candidate whole-context gain by same frozen convention; no pernote gain or fit. Actual candidate-only pre-onset background must be proven from later timeline/PCM, not assumed from resting-state plan.",
+    "legacy_force_metadata": "Unchanged renderer contact.force_N describes legacy internal diagnostic excitation, NOT E actual physical source. Its equality proves controls/timeline only. E physical Fq, actual contact force/work and damping bind the new E mechanics receipt; no strokeGain division/reuse."
+  },
+  "no_execution_authorized": true,
+  "no_parameters_arrays_imports_coefficients_native_forces_states_fields_PCM_or_reference_measurements_executed": true,
+  "preparation": "Source/JSON metadata/AST only. Parameter NPZ bindings recorded STAT+previous hash facts; no parameter member/read/hash, coefficient table decompression, source numerical import, native/force/state/ref/tap/field/PCM call before fresh execution auth.",
+  "source_stage": "Fresh source E mechanics/reference only; all96 independent qualification required before field export/PCM. Candidate loss/geometry/pickup/electrical remain unchanged.",
+  "selected_files": [
+    "source_inputs_v1.py",
+    "support_path_v1.py",
+    "mechanics_v2.py",
+    "analytic_tail_v3.py",
+    "reference_equations_v3.py",
+    "reference_tail_draft_v4.py",
+    "continuous_reference_draft_v3.py",
+    "run_model_v3.py",
+    "run_reference_v1.py",
+    "trajectory_v1.py",
+    "failure_io_v1.py",
+    "storage_v3.py",
+    "native_adapter_v1.py",
+    "gate_v1.py",
+    "preflight_v1.py",
+    "run_after_review_v1.py",
+    "prepare_implementation_v1.py",
+    "verify_preparation_v1.py"
+  ],
+  "numeric_tail_algorithm": {
+    "model": "Qualified stable analytic API from each method OWN sampled zero-U retirement checkpoint; integer(frame-retireFrame)/rate, all per-h D on actual analytic left states. No recurrence bitidentity claim.",
+    "reference": "Separate direct scalar q/v formula from own real event q/v/time. First offgrid event\u2192canonical sample positive16/32 quadrature, then composite per-h positive D on actual independent analytic left states. No event snapping/full-h first partial.",
+    "batch_size": 4096,
+    "batch_is_administrative_only": true,
+    "all_frames": "Every original callback time, full scalar diagnostics/tap/order qv hashes/checkpoints; active histories/certificates raw; free qv exactly reconstructible from declared saved checkpoint/method/coefficients."
+  },
+  "fixed_source_comparisons": {
+    "ids": [
+      "full_state",
+      "pick_displacement_m",
+      "pick_velocity_m_per_s",
+      "linear_pickup_tap",
+      "linear_pickup_tap_rate_s_inv"
+    ],
+    "rate_rows": 480,
+    "formula": "Existing full-energy norm and Cauchy-normalized fixed vectors; S=max(sqrt(Fq*D),1e-12), characteristic .5*Fq*D is NOT initial energy. No alignment.",
+    "pickup_units": "Fixed .85/.35/.040 coil-spatial read vector units1/m. Tap and tap-rate are declared preflux linear diagnostic, not SI displacement/velocity/voltage.",
+    "reference_gate": "Both own first/refined work/events/finite/retirement gates plus full-state first/refined<=1e-7 and same single-contact retirement presence/order. Other first/refined scalar errors descriptive.",
+    "rate_gate": "Per metric existing both errors<1e-9 resolved OR strict192k improvement; admitted only both model gates and fresh reference gate. Preserve all unadmitted/false rows, no subset candidate."
+  },
+  "coordinate_scaling": {
+    "initial_stored_energy_J": 0,
+    "characteristic_not_initial_energy_J": ".5*Fq*D",
+    "state_scale_sqrtJ": "max(sqrt(Fq*D),1e-12)",
+    "W_D_coordinate_scale_J": "max(.5*Fq*D,1e-30)",
+    "first": {
+      "rtol": 2e-10,
+      "state_atol": "2e-13*S",
+      "physical_W_D_atol_J": "2e-13*coordinateScale"
+    },
+    "refined": {
+      "rtol": 5e-12,
+      "state_atol": "5e-15*S",
+      "physical_W_D_atol_J": "5e-15*coordinateScale"
+    },
+    "all96_values_frozen": "ALL source preflight values and absolute atols saved before first state/native force call. Whole work normalization remains max(initial0,maxabsACTUALwork,1e-30); small actual work can fail."
+  },
+  "failure_policy": {
+    "runtime_or_resource_failure": "Stop incomplete, preserve original exception/raw attempted qv/equation/native cert/reference roots/attempted tail chunk, closed gzip/raw streams. No retry/restart/history shortening. Remaining case IDs explicit unavailable.",
+    "complete_scientific_failure": "Continue full fixed96 when outputs remain complete; every false model/reference/rate gate remains visible and blocks all96 candidate.",
+    "emergency_status_role": "Dormant administrative marker; not case completion or scientific admission.",
+    "storage": "One shared12GiB evidence budget including fixed256MiB preallocated emergency reserve before states. Case active raw q/v and raw all native certificates; reconstructible analytic free tail. No delete/truncation/rescale physical histories."
+  },
+  "orchestration": [
+    "Fresh exacthash joint root+peer auth, immutable Source/Tests/CMake/env and qualified dependencies; exclusive output collision rejection before numerical work.",
+    "Pinned312 NumPy/SciPy versions/roots; all96 literal table/input/path/lambda/absolute tolerance preflight, saved before states/native calls.",
+    "Serial model96/model192 + fresh independent first/refined reference on same96k physical knots; saved comparisons and 5 fixed rate rows each context.",
+    "Close immutable native child; all96+480 completeness then selfreported aggregate, independent review still pending.",
+    "Independent saved mechanics qualification plus fresh root authorization required for later field export/render. This entry has no field/PCM/tone authority."
+  ],
+  "renderer_contract": {
+    "Neck": "first_clock1/calls192000 Contact317 Release467 example; every callback overwritten by external mechanical tap.",
+    "Bridge": "first_clock4801/calls187200 Contact317 Release467 example; existing50ms native host prefix fixed.",
+    "tap": "Physical pickup tap throughout loading/withdrawal, no held source/fade/premask; fixed unchanged hook before magnetic/Faraday/electrical.",
+    "legacy_force": "Renderer metadata contact.force_N is stale internal legacy diagnostic and is NOT E actual Fq/force/work. Controls/timeline metadata identity only.",
+    "force_sign": "Signed polarity occurs exactly once in physical B; unsigned fixed observer .85/.35/.040, no second polarity."
+  },
+  "interpretation": "C\u2192E changes complete explicit quasistatic source amplitude/direction/loading/withdrawal formulation, not contact timing alone. Unknown actual hand force/path and source/reference geometry remain. No source/attack/naturalness/performance/material/RT/95% claim from mechanics.",
+  "prior_versions_preserved": true,
+  "io_successor_provenance": {
+    "kind": "administrative preflight NPZ filelike correction only",
+    "predecessor_closed_receipt": {
+      "path": "build-passive-source-tone-candidate-root-review/execution-receipt-v1.json",
+      "bytes": 1980,
+      "sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f"
+    },
+    "successor_protocol": {
+      "path": "successor-protocol-v1.json",
+      "bytes": 3387,
+      "sha256": "a691b7be76a1fbd2c6b8bc4eb487628d60a48af158963d3b0e4ddcbae229d282"
+    },
+    "successor_provenance": {
+      "path": "successor-provenance-v1.json",
+      "bytes": 19495,
+      "sha256": "3cd5ae8c14ac4de5943c5a4a4d260c720b65e864fbbc015d0f16fb918f8447a8"
+    },
+    "preparation_plan": {
+      "path": "successor-preparation-plan-v1.json",
+      "bytes": 2271,
+      "sha256": "38d2dea4f3306a8f1c8f2d028674773e74539e53c974b3b74d12bd7c93a66983"
+    },
+    "admin_IO_receipt": {
+      "path": "build-passive-source-iofix-admin-test/receipt-v1.json",
+      "bytes": 1334,
+      "sha256": "a7ce762dbcaeb4e4babfe30e77f3e08a8a8ea9e9fd9bde3ce493ae0047fec713"
+    },
+    "selected_metadata_preparer": "prepare_successor_v1.py",
+    "fresh_scientific_authorization_required": true,
+    "original_exit1_is_not_a_success": true
+  }
+}

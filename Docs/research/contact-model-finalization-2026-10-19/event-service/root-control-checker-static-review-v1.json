@@ -1,0 +1,34 @@
+{
+  "schema": "electry-event-relative-control-checker-root-static-review/v1",
+  "utc": "2026-10-19T12:13:12.771296+00:00",
+  "manifest": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-event-relative-contact-service/control-implementation-manifest-v1.json",
+    "bytes": 405492,
+    "sha256": "179937c3d3d1fcfdb2c7bb7723e04437f1d6c1d2bd3f61d1c4cf462cbf9a1a98"
+  },
+  "peer": {
+    "path": "/Users/vojta/Dev/electry-fundamental-20261018/build-event-relative-contact-service-final-review/control-checker-receipt-v1.json",
+    "bytes": 5295,
+    "sha256": "6c38ca29794ef6732984293c501fc9c83e389a89030086e744b9e1f637cc90d4"
+  },
+  "plan_sha256": "bd896025e99f09d3f6c4c68951e087de4b5dc54562d623ec19a835c6b0f0c27e",
+  "static_binding_counts": {
+    "artifacts": 8,
+    "inputs": 12,
+    "environment_files": 1435,
+    "Source24": 24
+  },
+  "source_review_clear": true,
+  "review_scope": [
+    "all96 original C pulse/pole/clocks, manufactured descriptors only",
+    "all primary knots both sides and every interval midpoint retained, original undefined terminal right kept",
+    "large origins limited to integer/Fraction proof plus fixed cursor clones, no full independent replay claim",
+    "baseline+XOR retains complete words, signedzero/nonfinite/failures and every unavailable ID",
+    "1GiB cap and 2GiB work floor, closure reserve and partial evidence retained",
+    "no new numerical tolerance or physics/RT/tone qualification"
+  ],
+  "control_execution_authorized": false,
+  "held_reason": "Preserve capacity for the live full96 source mechanics experiment; run only after separate capacity admission and fresh exact authority.",
+  "future_pulse_NPZ_statted_hashed_decoded": 0,
+  "no_numerical_modules_imported": true
+}

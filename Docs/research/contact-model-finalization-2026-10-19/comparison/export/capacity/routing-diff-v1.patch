@@ -1,0 +1,91 @@
+--- build-passive-source-tone-export-render/export_render_draft_v1.py
++++ build-passive-source-tone-capacity-export-render/export_render_draft_v1.py
+@@ -7,8 +7,8 @@
+ from pathlib import Path
+ import argparse,datetime,hashlib,importlib.util,json,os,platform,shutil,subprocess,sys,traceback
+ P=Path(__file__).resolve().parent;R=P.parent
+-SOURCE='build-passive-source-tone-candidate-iofix'
+-SOURCE_MANIFEST='5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f'
++SOURCE='build-passive-source-tone-candidate-capacity'
++SOURCE_MANIFEST='08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c'
+ SOURCE_PROTOCOL='7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058'
+ C_PROTOCOL='c35ba0501f022f93454f3d007cab4c5dd98d193832dc3ef704b9e0f90fb030f9'
+ BASE='6c83ff453ff7ac346598e8e73367ced128a90838'
+--- build-passive-source-tone-export-render/protocol-draft-v1.json
++++ build-passive-source-tone-capacity-export-render/protocol-draft-v1.json
+@@ -2,8 +2,8 @@
+   "schema": "electry-passive-source-E-export-render/DRAFT-v1",
+   "status": "READABLE UNEXECUTED DRAFT; no manifest/freeze, source result access, NumPy imports, compiler/render calls or execution authority. Root review before freeze.",
+   "candidate": "E / passive-source-v1",
+-  "source_root": "build-passive-source-tone-candidate-iofix",
+-  "source_manifest_sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f",
++  "source_root": "build-passive-source-tone-candidate-capacity",
++  "source_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
+   "source_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
+   "failed_original_root_forbidden": "build-passive-source-tone-candidate",
+   "all_contexts": "Exact existing C protocolc35ba050 all96 ordered IDs:92Neck+4Bridge, no fitted/profile/per-note selection.",
+@@ -19,7 +19,7 @@
+   "mechanics_qualification_schema": {
+     "PASS": true,
+     "all96_mechanics_qualified": true,
+-    "source_root": "build-passive-source-tone-candidate-iofix",
++    "source_root": "build-passive-source-tone-candidate-capacity",
+     "source_manifest_sha256": "same fixedsourceSHA",
+     "source_protocol_sha256": "same fixedsourceSHA",
+     "independent_saved_audit_completed": true,
+@@ -44,7 +44,7 @@
+     "actual_E_source_provenance": "Qualified mechanics Fq declaredquasistaticanchor/D/force/work history via prerequisite receipt. Legacy renderer top/contactforce_N andstrokeGain metadata remain frozen diagnostics, NOT actualEcontactF(t), calibratedhandforce orEwork.",
+     "analysis": "Combined rootqualification all96_mechanics_and_render_qualifiedtrue +exactrenderreceipt follows independentrenderchecks; onlythen freshanalysis auth. No source field reobserve/maskchange or background inferredzero."
+   },
+-  "fixed_downstream": "Existing build-passive-source-tone-analysis observer/window/cohort/gain/guard plan unchanged. E-only preContact background is measuredlater fromactualPCM usingactualmetadata clock2h+p+1 andexcludingwholeContacthostframe; no onsetredetection.",
++  "fixed_downstream": "Existing build-passive-source-tone-capacity-analysis observer/window/cohort/gain/guard plan unchanged. E-only preContact background is measuredlater fromactualPCM usingactualmetadata clock2h+p+1 andexcludingwholeContacthostframe; no onsetredetection.",
+   "missing_before_execution": [
+     "Source closed successfulall96 receipt and independentall96mechanical qualification (sourcecurrentlyrunning, outputsunread).",
+     "Exact export/render implementationmanifest, root/peerstaticreviews andfreshrootauthorization.",
+@@ -58,5 +58,46 @@
+     "no_new_reserve_layer": true,
+     "before_output_writes": true,
+     "insufficient_space": "Abort; never shorten field/crop/context or change source. Concurrent later IO failure retains incomplete files, no claim of guaranteed disk availability."
++  },
++  "administrative_capacity_routing_provenance": {
++    "prior_unexecuted_export_draft_code": {
++      "path": "build-passive-source-tone-export-render/export_render_draft_v1.py",
++      "bytes": 18822,
++      "sha256": "e461f2686b985a9aa66e8e8bad3c2b86c1c449bcd78f310e3d3d92682720ad56"
++    },
++    "prior_unexecuted_export_draft_protocol": {
++      "path": "build-passive-source-tone-export-render/protocol-draft-v1.json",
++      "bytes": 6612,
++      "sha256": "f4966b951a70a07d8b8bff161b54fd1e5ee8e8802a7370fc8ece2659d403d213"
++    },
++    "old_source_attempts_retained": [
++      {
++        "root": "build-passive-source-tone-candidate",
++        "manifest_sha256": "01bafe461aef3944657047647030bb706221463e889582411d75f55a1e3d0272",
++        "closed_receipt_sha256": "68d38c690dfbbdeedfa707566d8c44302d5423b19e27a7c196ed1f722519748f",
++        "status": "Failed preflight before physical/native calls; never an E source."
++      },
++      {
++        "root": "build-passive-source-tone-candidate-iofix",
++        "manifest_sha256": "5c7a7fdbdf894367e0dedf72cfb48f568defb3474b20f821a2c4de87dbddc97f",
++        "closed_receipt_sha256": "fee2b2ad3dde54a02c554fdd45e55bc7189fb01f575fb1a573f80999a13276a4",
++        "status": "Storage-interrupted incomplete source attempt; no prior completed subset reused or exported."
++      }
++    ],
++    "capacity_source_root": "build-passive-source-tone-candidate-capacity",
++    "capacity_source_manifest_sha256": "08fc876f88fe519eb2a1a24d6126e22ef6526b19c2807c0212a30b6471485e2c",
++    "unchanged_whole_source_protocol_sha256": "7d6c94db920cd607a0fccdfe05cb236cf65d9e8a9b63adf75d5a11a2fc138058",
++    "prospective_closed_source_receipt_path": "build-passive-source-tone-candidate-capacity-root-review/execution-receipt-v1.json",
++    "independent_saved_audit_root": "build-passive-source-tone-capacity-saved-audit",
++    "saved_audit_checker_plan_finalizer_are_routing_only_successors": true,
++    "mechanics_qualification_receipt": "Future exact export authorization supplies the root-owned capacity all96 mechanics qualification receipt path/hash. No future receipt filename, hash, completion or PASS is assumed here.",
++    "mechanics_qualification_must_bind_capacity_source_and_completed_independent_capacity_saved_audit": true,
++    "future_closed_audit_qualification_render_hashes_and_outcomes_unknown": true,
++    "export_root": "build-passive-source-tone-capacity-export-render",
++    "prospective_E_render_receipt": "E-render-v1.json; existing96rows path semantics relative to this receipt parent unchanged.",
++    "downstream_tone_analysis_root": "build-passive-source-tone-capacity-analysis",
++    "all_original_96_contexts_math_frames_samples_cohorts_renderer_argv_primes_controls_and_raw_gain_semantics_unchanged": true,
++    "separate_independent_all96_mechanics_qualification_and_new_exact_export_authorization_still_required": true,
++    "draft_only_no_implementation_manifest_authority_or_execution": true
+   }
+ }
