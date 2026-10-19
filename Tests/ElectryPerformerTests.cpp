@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <new>
 
@@ -157,6 +158,103 @@ void ignoredKeysCannotReleasePlayableNotes()
     expect(left == referenceLeft && right == referenceRight,
            "an ignored written key cannot release a different sounding note");
 }
+
+struct PitchRangeFixture
+{
+    std::unique_ptr<electry::ElectryPerformer> performer =
+        std::make_unique<electry::ElectryPerformer>();
+    std::unique_ptr<electry::ElectryEngine> leadReference, doubleReference;
+    Buffer left {}, right {}, expectedLeft {}, expectedRight {};
+
+    PitchRangeFixture()
+    {
+        performer->prepare(48000.0, 64);
+        auto parameters = defaultParameters();
+        parameters.outputMode = 2;
+        performer->setParameters(parameters);
+        strikeAndCopy();
+    }
+
+    void strikeAndCopy()
+    {
+        // Sounding E4 keeps even a two-octave dive above the existing 20 Hz
+        // pitch floor; this tests the controller interval, not that limiter.
+        performer->noteOn(76, 0.85f);
+        leadReference = std::make_unique<electry::ElectryEngine>(performer->getEngine());
+        doubleReference = std::make_unique<electry::ElectryEngine>(performer->getDoubleEngine());
+    }
+
+    void compare(float semitones, const char* message)
+    {
+        leadReference->setPitchBendSemitones(semitones);
+        doubleReference->setPitchBendSemitones(semitones);
+        // Process both owned engines independently so neither half of Double
+        // can hide a missing controller update behind the other channel.
+        performer->getEngine().process(left.data(), right.data(), left.size());
+        leadReference->process(expectedLeft.data(), expectedRight.data(), expectedLeft.size());
+        expect(left == expectedLeft && right == expectedRight, message);
+        expect(std::any_of(left.begin(), left.end(), [](float v) { return v != 0.0f; }),
+               "pitch range fixture has an audible lead string");
+        performer->getDoubleEngine().process(left.data(), right.data(), left.size());
+        doubleReference->process(expectedLeft.data(), expectedRight.data(), expectedLeft.size());
+        expect(left == expectedLeft && right == expectedRight, message);
+        expect(std::any_of(left.begin(), left.end(), [](float v) { return v != 0.0f; }),
+               "pitch range fixture has an audible Double string");
+    }
+};
+
+void pitchBendRangeAndBounds()
+{
+    PitchRangeFixture fixture;
+    struct Case { float range, wheel, expected; };
+    const std::array<Case, 10> cases {{
+        {0.0f, 1.0f, 0.0f}, {2.0f, 1.0f, 2.0f},
+        {12.0f, -1.0f, -12.0f}, {24.0f, -1.0f, -24.0f},
+        {24.0f, 1.0f, 24.0f}, {-8.0f, 1.0f, 0.0f},
+        {40.0f, 1.0f, 24.0f},
+        {std::numeric_limits<float>::quiet_NaN(), 1.0f, 2.0f},
+        {std::numeric_limits<float>::infinity(), 1.0f, 2.0f},
+        {-std::numeric_limits<float>::infinity(), -1.0f, -2.0f},
+    }};
+    allocationForbidden = true;
+    for (const auto& value : cases)
+    {
+        fixture.performer->setPitchBendRangeSemitones(value.range);
+        fixture.performer->setPitchBend(value.wheel);
+        fixture.compare(value.expected, "range and hostile inputs preserve the expected interval on both engines");
+    }
+    allocationForbidden = false;
+}
+
+void heldPitchBendRangeRetainsTuningAndReset()
+{
+    PitchRangeFixture fixture;
+    allocationForbidden = true;
+    fixture.performer->setPitchBend(0.5f);
+    fixture.performer->setMasterTuneCents(50.0f);
+    fixture.compare(1.5f, "default range remains two semitones plus master tuning");
+    // Do not resend the wheel: range automation must affect a held bend now.
+    fixture.performer->setPitchBendRangeSemitones(12.0f);
+    fixture.compare(6.5f, "a live range change updates both held engines");
+    fixture.performer->setPitchBendRangeSemitones(24.0f);
+    fixture.compare(12.5f, "a second live range change preserves master tuning");
+    fixture.performer->setMasterTuneCents(-100.0f);
+    fixture.compare(11.0f, "master tuning remains independent at an extended range");
+    fixture.performer->setPitchBendRangeSemitones(0.0f);
+    fixture.compare(-1.0f, "zero bend range preserves master tuning");
+    fixture.performer->setPitchBendRangeSemitones(24.0f);
+    fixture.performer->resetControllers();
+    fixture.compare(-1.0f, "controller reset recenters the wheel without clearing tuning");
+    fixture.performer->setPitchBend(0.5f);
+    fixture.compare(11.0f, "controller reset retains the configured bend range");
+    fixture.performer->reset();
+    allocationForbidden = false;
+    fixture.strikeAndCopy();
+    allocationForbidden = true;
+    fixture.performer->setPitchBend(-0.5f);
+    fixture.compare(-13.0f, "instrument reset retains range and master tuning");
+    allocationForbidden = false;
+}
 }
 
 void* operator new(std::size_t size)
@@ -181,6 +279,8 @@ int main()
         writtenNotesMatchCanonicalEngine(rate);
     performanceKeysAndDoubleRig();
     ignoredKeysCannotReleasePlayableNotes();
+    pitchBendRangeAndBounds();
+    heldPitchBendRangeRetainsTuningAndReset();
     if (failures == 0) std::puts("Electry performer contracts passed");
     return failures == 0 ? 0 : 1;
 }

@@ -175,6 +175,12 @@ void ElectryPerformer::setPitchBend(float value) noexcept
     updatePitchBend();
 }
 
+void ElectryPerformer::setPitchBendRangeSemitones(float value) noexcept
+{
+    pitchBendRangeSemitones = finite(value) ? bounded(0.0f, 24.0f, value) : 2.0f;
+    updatePitchBend();
+}
+
 void ElectryPerformer::setMasterTuneCents(float value) noexcept
 {
     masterTuneCents = finite(value) ? bounded(-100.0f, 100.0f, value) : 0.0f;
@@ -183,8 +189,9 @@ void ElectryPerformer::setMasterTuneCents(float value) noexcept
 
 void ElectryPerformer::updatePitchBend() noexcept
 {
-    engine.setPitchBendSemitones(2.0f * pitchBend + 0.01f * masterTuneCents);
-    doubleEngine->setPitchBendSemitones(2.0f * pitchBend + 0.01f * masterTuneCents);
+    const float semitones = pitchBendRangeSemitones * pitchBend + 0.01f * masterTuneCents;
+    engine.setPitchBendSemitones(semitones);
+    doubleEngine->setPitchBendSemitones(semitones);
 }
 
 void ElectryPerformer::noteOnChord(const ElectryEngine::NoteOnEvent* notes,
