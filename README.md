@@ -144,6 +144,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.7 — In development — Shared pitch-bend range
+
+The shared player accepts a 0–24-semitone pitch-bend range for the Rack
+adapter's front-panel and automation controls, and applies live range changes
+to held bends. The default remains ±2 semitones, with existing engine pitch
+limits. The plug-in's existing wheel and MPE ranges are unchanged.
+
 ### 1.2.5 — In development — Smoother fret handoffs
 
 Picked fret changes use a smoother two-tap fade to spend less time in the
