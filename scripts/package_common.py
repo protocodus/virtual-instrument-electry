@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-# Licence and notice files ship inside every binary package: the MIT licence
+# Licence and notice files ship inside every binary package: the project licence
 # and the bundled dependencies' licences require them to accompany binaries.
 NOTICES = [
     "LICENSE",

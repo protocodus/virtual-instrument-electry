@@ -1618,8 +1618,13 @@ staples the PKG.
 
 ## Licensing
 
-Original code under the MIT license (`LICENSE`). JUCE is used under its own
-terms — see `THIRD_PARTY_NOTICES.md`. No guitar performances, sample libraries,
-neural-network weights or third-party presets are included. The sole bundled
-third-party audio-derived data is the CC0 1,024-sample cabinet-impulse prefix
-identified in `THIRD_PARTY_NOTICES.md`.
+Electry's source is available under the [PolyForm Noncommercial License
+1.0.0](LICENSE): you may read, study, change and share it for any non-commercial
+purpose, but not sell it or use it commercially. Official Protocodus builds
+carry an additional permission in the same file to use them for any purpose,
+including making music commercially. Commits made before this licence change
+were published under MIT and remain so. JUCE is used under its own terms (a JUCE
+8 Starter licence in official builds) — see `THIRD_PARTY_NOTICES.md`. No guitar
+performances, sample libraries, neural-network weights or third-party presets
+are included. The sole bundled third-party audio-derived data is the CC0
+1,024-sample cabinet-impulse prefix identified in `THIRD_PARTY_NOTICES.md`.
