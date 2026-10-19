@@ -18,7 +18,10 @@ stronger low-partial cooling but severely overdamps 1.5–4 kHz. C keeps that
 field, source, undamped frequencies, force and observation unchanged, replacing
 only its loss with a fixed inherited per-axis production-bank law:
 
-`alpha(omega) = -Fs * log(abs(H(exp(i*omega/Fs)))) / groupDelay(omega)`.
+With `Omega = omega/Fs` in radians/sample and
+`tau_g(Omega) = -d arg H(exp(i*Omega)) / d Omega` in samples:
+
+`alpha(omega) = -Fs * log(abs(H(exp(i*Omega)))) / tau_g(Omega)` in s⁻¹.
 
 H includes real-arithmetic cubic interpolation, all eight allpass sections,
 scalar gain and active loss/material filters from the frozen 115-note noteOn
@@ -134,7 +137,9 @@ CMake remain identical to shipping 6c83. Local full studies and audio remain
 outside this portable scalar documentation; the JSON binds their exact paths
 and hashes.
 
-The next loss formulation needs causal storage/dispersion and independently
+The positive-alpha oldB/C modal ODEs are causal and passive as declared.
+A local material-relaxation formulation would additionally need its associated
+real dynamic stiffness, internal storage, preload history and independently
 owned physical parameters, while preserving low-partial cooling and upper
 sustain together. A guessed knee or blend chosen from these recordings would
 not establish the mechanism. A playable coherent field also needs a continuous

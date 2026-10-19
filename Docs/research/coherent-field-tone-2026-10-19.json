@@ -24543,7 +24543,13 @@
     "LongiGuitarDataset": {
       "url": "https://zenodo.org/records/19823590",
       "license": "CC BY4.0",
-      "modifications": "Original fixed first-pluck2s channel/crops/windows; one whole2s RMS gain and common peak cap across13 tracks per player, monoPCM24. No source audio committed in this scalar record."
+      "modifications": "Original fixed first-pluck2s channel/crops/windows; one whole2s RMS gain and common peak cap across13 tracks per player, monoPCM24. No source audio committed in this scalar record.",
+      "creators_as_listed": [
+        "Wright, Alec",
+        "McKenzie, Thomas",
+        "Matthew, Hamilton"
+      ],
+      "doi": "10.5281/zenodo.19823590"
     }
   }
 }
