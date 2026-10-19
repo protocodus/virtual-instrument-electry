@@ -53,6 +53,9 @@ public:
     void setResonance(float) noexcept;
     void setPalmMutePressure(float) noexcept;
     void setPitchBend(float normalizedBipolar) noexcept;
+    // Requested wheel depth, 0..24 semitones (default/nonfinite input: 2).
+    // Retained by resets; master tuning and the engine's pitch limits remain independent.
+    void setPitchBendRangeSemitones(float) noexcept;
     void setMasterTuneCents(float) noexcept;
     ElectryEngine& getEngine() noexcept { return engine; }
     const ElectryEngine& getEngine() const noexcept { return engine; }
@@ -108,6 +111,7 @@ private:
     int tremoloGesture = 0;
     bool sustainPedalDown = false;
     float pitchBend = 0.0f;
+    float pitchBendRangeSemitones = 2.0f;
     float masterTuneCents = 0.0f;
 };
 } // namespace electry
