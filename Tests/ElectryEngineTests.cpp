@@ -7469,10 +7469,10 @@ void testHeldLegatoSourceOutranksPlainReleaseTails()
                "different-target held source began the wrong contact");
     }
 
-    // Demo 17's opening lead leaves MIDI 67 ringing without a finger on
-    // string 5, then holds MIDI 62 on string 4 and asks that finger to Slide
-    // to 69. The closer 67 tail must remain a tail rather than becoming the
-    // performed gesture.
+    // Demo 17's opening lead stays in position: it leaves MIDI 67 ringing
+    // without a finger on string 7, then holds MIDI 62 on string 6 and asks
+    // that finger to Slide to 69. The closer 67 tail must remain a tail
+    // rather than becoming the performed gesture.
     {
         auto engineHeapFixture = std::make_unique<ElectryEngine>();
         auto& engine = *engineHeapFixture;
@@ -7511,18 +7511,18 @@ void testHeldLegatoSourceOutranksPlainReleaseTails()
         trigger(62, 0.90f);
         wait(engine, 0.24);
 
-        constexpr int demoSourceString = 4;
-        constexpr int demoTailString = 5;
+        constexpr int demoSourceString = 6;
+        constexpr int demoTailString = 7;
         const auto sourceBefore = TestAccess::snapshot(engine,
                                                        demoSourceString);
         const auto tailBefore = TestAccess::snapshot(engine, demoTailString);
         expect(sourceBefore.active && sourceBefore.keyDown
                    && ! sourceBefore.releasing && sourceBefore.midiNote == 62
-                   && sourceBefore.fret == 12
+                   && sourceBefore.fret == 3
                    && tailBefore.active && ! tailBefore.keyDown
                    && tailBefore.releasing && tailBefore.midiNote == 67
-                   && tailBefore.fret == 12,
-               "demo-17 opening Slide fixture missed held s4/released s5");
+                   && tailBefore.fret == 3,
+               "demo-17 opening Slide fixture missed held s6/released s7");
 
         engine.noteOn(styleKeyswitch(PlayStyle::Slide), 1.0f);
         trigger(69, 0.84f);
@@ -11147,7 +11147,7 @@ void testChordAssignmentIsPermutationInvariant()
 }
 
 // With no unused playable string, the second priority still chooses the
-// lowest fret. Release status and age must not override that choice.
+// lowest fret. A key-up tail counts as unused, so it is re-fretted first.
 void testVoiceStealingPriority()
 {
     constexpr double sampleRate = 48000.0;
@@ -11176,18 +11176,19 @@ void testVoiceStealingPriority()
     expect(TestAccess::stringForNote(engine, 59) == -1,
            "the stolen string still reports its original note as active");
 
-    // A releasing G string still sounds. It cannot outrank the lower fret
-    // on the B string once every playable string is occupied.
+    // A key-up G string is not reserved: the player re-frets it rather than
+    // stealing the held B string, even though B's fret would be lower.
     engine.reset();
     for (const int note : openNotes)
         engine.noteOn(note, 0.8f);
     engine.noteOff(55); // string 5: keyDown false, releasing, still active
     engine.noteOn(62, 0.8f);
     expect(engine.getActiveVoiceCount() == ElectryEngine::stringCount,
-           "stealing a releasing voice changed the active voice count");
-    expect(TestAccess::stringForNote(engine, 62) == 6
-               && TestAccess::stringForNote(engine, 55) == 5,
-           "a ringing release tail overrode lowest-fret exhausted allocation");
+           "re-fretting a key-up tail changed the active voice count");
+    expect(TestAccess::stringForNote(engine, 62) == 5
+               && TestAccess::stringForNote(engine, 59) == 6
+               && TestAccess::stringForNote(engine, 55) == -1,
+           "a key-up tail did not free its string before a held one was stolen");
 }
 
 void testUnusedStringsBeforeLowestFret()
@@ -11196,8 +11197,9 @@ void testUnusedStringsBeforeLowestFret()
     auto& engine = *fixture;
     engine.prepare(48000.0, 512);
     engine.setParameters(EngineParameters {});
-    // Held, releasing and pedal-sustained E4 all occupy the top string.
-    // G4 must use the free B string at fret8, not steal top-string fret3.
+    // Held and pedal-sustained E4 occupy the top string, so G4 must use the
+    // free B string at fret8 rather than steal top-string fret3. A key-up E4
+    // does not: the line stays in position and re-frets the top string.
     for (int state = 0; state < 3; ++state)
     {
         engine.reset();
@@ -11207,10 +11209,15 @@ void testUnusedStringsBeforeLowestFret()
         if (state != 0)
             engine.noteOff(64);
         engine.noteOn(67, 0.8f);
-        expect(TestAccess::stringForNote(engine, 67) == 6
-                   && TestAccess::snapshot(engine, 6).fret == 8
-                   && TestAccess::stringForNote(engine, 64) == 7,
-               "unused-first allocation displaced an occupied lower-fret string (state "
+        const bool keyUpTail = state == 1;
+        expect(keyUpTail
+                   ? TestAccess::stringForNote(engine, 67) == 7
+                         && TestAccess::snapshot(engine, 7).fret == 3
+                         && TestAccess::stringForNote(engine, 64) == -1
+                   : TestAccess::stringForNote(engine, 67) == 6
+                         && TestAccess::snapshot(engine, 6).fret == 8
+                         && TestAccess::stringForNote(engine, 64) == 7,
+               "unused-first allocation mishandled an occupied top string (state "
                    + std::to_string(state) + ")");
     }
     engine.reset();

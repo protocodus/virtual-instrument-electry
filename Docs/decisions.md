@@ -4,6 +4,31 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-10-20 — key-up tails no longer reserve their strings (B)
+
+Decided: whether a single note may re-fret a string whose previous note has
+only a key-up release tail. The owner reported open strings sounding like a
+different, hollow instrument from fretted notes. Isolated open notes measured
+smooth against their fret-1 neighbours (within about 1 dB and 3% centroid,
+compared with IDMT-SMT-Guitar dataset 1 recordings); the contrast came from
+string choice. A chromatic E2–E3 run put G#2 on E1 fret 16 and C#3 on B1
+fret 14 beside open A and D, notes about 7 dB hotter with half the centroid.
+
+- A: shipping 1.2.7, where a key-up tail reserved its string until retirement.
+- B: a plain key-up legacy tail is free; unused-first, then lowest fret, now
+  keeps a line at frets 0–4. Held keys, sustain-pedal notes, pending repicks,
+  MPE bindings and Hammer/Slide continuation keep their priority.
+
+Material: chromatic E2–E3–E2 eighths at 120 bpm, then an E-minor pentatonic
+line, default controls, FX off, whole-file RMS matched (A +21.2 dB, B +23.4 dB).
+Median note-to-note centroid jump over the run: A 507 cents, B 52 cents.
+
+**The owner chose B by ear.** It licenses the 1.2.8 allocation change and the
+updated allocation tests. It amends the 2026-10-16 unused-strings rule only for
+key-up tails. It does not settle the separate measured gap that real open
+strings keep their upper partials about 6 dB/s longer than fret 1, which
+Electry does not model.
+
 ## 2026-10-19 — known-Neck body gap and differential cooling
 
 Continue under the standing autonomous instruction without inventing a listener

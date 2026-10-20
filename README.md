@@ -144,6 +144,15 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.8 — In development — Lines stay in position
+
+A single note may now take a string whose previous note has only a key-up
+release tail, so a played line stays at the low frets instead of jumping to
+the 14th–20th fret of a thick wound string while the last string rings out.
+Open strings no longer alternate with those dark, louder high-fret notes, which
+is what made them sound like a different instrument. Sustain-pedal notes, held
+keys, MPE bindings and Hammer/Slide continuation keep their strings.
+
 ### 1.2.7 — In development — Shared pitch-bend range
 
 The shared player accepts a 0–24-semitone pitch-bend range for the Rack
@@ -473,8 +482,9 @@ Each playable note is allocated to one of eight physical strings. Repeated
 notes keep their string and balanced MIDI ownership, MPE members retain their
 physical binding, and Hammer/Slide continues an eligible sounding string.
 Otherwise unused strings come first, followed by the lowest playable fret.
-Release tails, sustain-held notes, pending contacts and silent held-key owners
-still reserve their strings. If every playable string is reserved, the lowest
+A key-up release tail does not reserve its string, so a line stays in
+position and re-frets the string it just left; sustain-held notes, pending
+contacts and silent held-key owners still reserve theirs. If every playable string is reserved, the lowest
 fret wins before release status and age break ties. A complete chord batch
 preserves the same ownership and legato priorities, then minimizes occupied
 strings and total fret height before considering hand reach and movement.

@@ -3213,14 +3213,21 @@ int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
         return releasedTargetTail;
 
     // Otherwise prefer an unused string, then the lowest playable fret.
-    // Release tails, sustain-held notes, pending contacts and silent held-key
-    // owners still reserve their strings. Exact ties keep the thicker string.
+    // Sustain-held notes, pending contacts and silent held-key owners still
+    // reserve their strings. A plain key-up tail does not: the player lifted
+    // that finger and re-frets the string, as a hand playing a line in
+    // position does. Reserving it pushed the next note of an ordinary line
+    // onto a thick string's 14th-20th fret, a dark, short, louder timbre
+    // beside the bright open and low-fret notes around it, which is what
+    // made the open strings sound like another instrument. Exact ties keep
+    // the thicker string.
     int best = -1;
     int bestFret = fretCount + 1;
     for (int s = 0; s < stringCount; ++s)
     {
         const auto index = static_cast<std::size_t>(s);
-        if (! playable(s) || voices_[index].active
+        if (! playable(s)
+            || (voices_[index].active && ! plainReleasedLegacyTail(index))
             || heldNoteCounts_[index] > 0 || voices_[index].pendingRepick.active)
             continue;
         const int fret = fretOn(s);
