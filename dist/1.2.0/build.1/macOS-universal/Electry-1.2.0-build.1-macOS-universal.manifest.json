@@ -1,0 +1,103 @@
+{
+  "product": "Electry",
+  "version": "1.2.0",
+  "build_number": "1",
+  "source_revision": "1fe45d6fec2e14148bfc8fd9addece722b7d9cec",
+  "source_dirty": false,
+  "binary_identity": "PROTOCODUS_BUILD_IDENTITY=Electry|1.2.0|1|1fe45d6fec2e14148bfc8fd9addece722b7d9cec",
+  "platform": "macOS",
+  "architecture": "universal",
+  "configuration": "Release",
+  "compiler_binaries": [
+    {
+      "format": "VST3",
+      "bundle": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/VST3/Electry.vst3",
+      "binary": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/VST3/Electry.vst3/Contents/MacOS/Electry",
+      "binary_sha256": "0bdb64cb73d423857d9a3d9303b501ec4c00aa300edb95f511b12cb37488e999",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "format": "Standalone",
+      "bundle": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/Standalone/Electry.app",
+      "binary": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/Standalone/Electry.app/Contents/MacOS/Electry",
+      "binary_sha256": "22b74a66b5198b63e235eb9c94b0c80bd6ba2fb96b87f482c2cc3b8d22c04775",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "format": "AU",
+      "bundle": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/AU/Electry.component",
+      "binary": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/AU/Electry.component/Contents/MacOS/Electry",
+      "binary_sha256": "c79f1162ef590b7f4dc4538c9391f40b6a0b427997452620cef8e7bc22f3a6ae",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "format": "CLAP",
+      "bundle": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/CLAP/Electry.clap",
+      "binary": "/Users/vojta/Dev/virtual-instrument-electry/build-main-20261006/Electry_artefacts/Release/CLAP/Electry.clap/Contents/MacOS/Electry",
+      "binary_sha256": "479369737be24850a5eaa896e95e1eae395667c68e441c3a0abd553f68c8b11a",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    }
+  ],
+  "packaged_binaries": [
+    {
+      "package": "Electry-1.2.0-build.1-macOS-universal.zip",
+      "path": "Library/Audio/Plug-Ins/VST3/Electry.vst3/Contents/MacOS/Electry",
+      "sha256": "c1d950083a5802bbf58a773b62f1e3ac75c1b115b8c674473fad2283b2d082ac",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "package": "Electry-1.2.0-build.1-macOS-universal.zip",
+      "path": "Applications/Electry.app/Contents/MacOS/Electry",
+      "sha256": "984ad580ade6fed27a41958a9fa9bb15429ce619a78e59fdbf65a0c5b17f766d",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "package": "Electry-1.2.0-build.1-macOS-universal.zip",
+      "path": "Library/Audio/Plug-Ins/Components/Electry.component/Contents/MacOS/Electry",
+      "sha256": "9fff627b837e2f80e777ab5ca8f28a63c11dba5e1ce4a7c470cd28dd521e780a",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    },
+    {
+      "package": "Electry-1.2.0-build.1-macOS-universal.zip",
+      "path": "Library/Audio/Plug-Ins/CLAP/Electry.clap/Contents/MacOS/Electry",
+      "sha256": "fd427e1b0d1d7740934f372796b80e2693be4c34a57bc661031b0c3e31f3f6a9",
+      "architectures": [
+        "arm64",
+        "x64"
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "path": "Electry-1.2.0-build.1-macOS-universal.pkg",
+      "sha256": "17dedac13e57f6978a7b711e3f804f138aeaba2637f1257e95182077bceb3aad",
+      "bytes": 15420053
+    },
+    {
+      "path": "Electry-1.2.0-build.1-macOS-universal.zip",
+      "sha256": "ad8d391b4b2eb9fe0fe02aa1147817a73dd5f79e3aca389861669eac2872e249",
+      "bytes": 15433762
+    }
+  ]
+}
