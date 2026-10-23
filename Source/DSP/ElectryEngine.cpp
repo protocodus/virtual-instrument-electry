@@ -1735,6 +1735,7 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     // used to each recompute this identical internal-rate expression - the
     // former on every control tick of every active voice.
     voiceDelayRetention_ = std::exp(-1.0f / (0.006f * internalRate));
+    releaseSpreadSamples_ = std::round(0.000125f * internalRate);
     emfScale_ = internalRate / (twoPi * 220.0f);
     emfLowpassCoefficient_ = std::exp(
         -twoPi * std::min(16000.0f, 0.40f * internalRate) * inverseSampleRate_);
@@ -8605,7 +8606,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                 // guarded span; a release during handoff cannot replace the
                 // source's spectrum abruptly with destination-only samples.
                 const float width = std::min(
-                    std::round(0.000125f * static_cast<float>(sampleRate_)),
+                    releaseSpreadSamples_,
                     scalarFloor(std::max(0.0f, std::min(boundaryDelay - 4.0f,
                         static_cast<float>(delayLineSize - 8) - boundaryDelay))));
                 const float spread = 0.5f * boundary + 0.25f * (
@@ -8686,7 +8687,11 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
             sample *= bank.loopGain * voice.releaseGain * extraFeedback;
             return sample;
         };
-        float sample = readBoundary(0.0f);
+        // A free string with no stopping hand or touching finger reads its
+        // boundary directly; only those contacts need the general reader.
+        float sample = voice.releaseSpectralDepth > 0.0f || touchWeight > 0.0f
+            ? readBoundary(0.0f)
+            : loop.readFractional(loop.currentDelay + 0.0f);
         if (voice.refretRemainingSamples > 0)
         {
             const float progress = static_cast<float>(
