@@ -284,6 +284,16 @@ const PhaseMathTables& phaseMathTables() noexcept
  #define ELECTRY_FX_HOT_INLINE inline
 #endif
 
+// Lookup-table cell below a table coordinate that the caller has already
+// clamped to be finite, non-negative and far below 2^63. There truncation
+// is floor, so this is the index scalarFloor() followed by an unsigned
+// conversion used to produce, without the sign/exponent bit work or the
+// double-to-unsigned conversion sequence.
+ELECTRY_FX_HOT_INLINE std::size_t tableIndexBelow(double position) noexcept
+{
+    return static_cast<std::size_t>(static_cast<std::int64_t>(position));
+}
+
 inline PhaseMathValue phaseSoftplus(
     double x, const PhaseMathTables& tables) noexcept
 {
@@ -1260,8 +1270,7 @@ ELECTRY_FX_HOT_INLINE double lookupPowerGridCurrent(double gridVoltage) noexcept
     const double position = std::sqrt(
         gridVoltage / maximumGridCurrentTableVoltage)
         * static_cast<double>(points - 1);
-    const auto lower = std::min(
-        static_cast<std::size_t>(scalarFloor(position)), points - 2);
+    const auto lower = std::min(tableIndexBelow(position), points - 2);
     const double fraction = position - static_cast<double>(lower);
     return monotonicLerp(static_cast<double>(table[lower]),
                      static_cast<double>(table[lower + 1]), fraction);
@@ -2405,7 +2414,7 @@ float ElectryFx::diodePairLookup(const GainBank& bank, double inputVolts, double
         return diodePairStep(inputVolts, bank.oversampledRate_, outputVolts,
                              previousDerivative);
     const double coordinate = magnitude * bank.diodeInverseScale_;
-    const auto lower = std::min(static_cast<std::size_t>(coordinate),
+    const auto lower = std::min(tableIndexBelow(coordinate),
                                 diodeInverseSegments - 1);
     const double t = coordinate - static_cast<double>(lower);
     const auto& lo = bank.diodeInverse_[lower];
@@ -2621,34 +2630,44 @@ const std::array<float, 16385>& ElectryFx::triodeTransferTable() noexcept
 #include "DSP/FrozenTables/TriodeTransfer.inc"
     ;
 #else
-    constexpr double minimumGridVoltage = -20.0 + triodeCathodeBias;
-    constexpr double maximumGridVoltage = 20.0 + triodeCathodeBias;
-    static const std::array<float, tableSize> transfer = []
-    {
-        std::array<float, tableSize> result {};
-        double warmStart = triodeSupplyVoltage;
-        for (std::size_t index = 0; index < result.size(); ++index)
-        {
-            const double fraction = static_cast<double>(index)
-                                  / static_cast<double>(result.size() - 1);
-            const double grid = minimumGridVoltage
-                              + fraction
-                                  * (maximumGridVoltage - minimumGridVoltage);
-            result[index] = triodeStage(grid, warmStart);
-        }
-        return result;
-    }();
-
+    // The solve lives in its own function so this accessor stays small
+    // enough to inline into every per-frame lookup.
+    static const std::array<float, tableSize> transfer = solveTriodeTransfer();
 #endif
     return transfer;
 }
 
-float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
+#if ! defined(ELECTRY_EMBEDDED_TARGET)
+std::array<float, 16385> ElectryFx::solveTriodeTransfer() noexcept
 {
     constexpr std::size_t tableSize = 16385;
     constexpr double minimumGridVoltage = -20.0 + triodeCathodeBias;
     constexpr double maximumGridVoltage = 20.0 + triodeCathodeBias;
-    const auto& transfer = triodeTransferTable();
+    std::array<float, tableSize> result {};
+    double warmStart = triodeSupplyVoltage;
+    for (std::size_t index = 0; index < result.size(); ++index)
+    {
+        const double fraction = static_cast<double>(index)
+                              / static_cast<double>(result.size() - 1);
+        const double grid = minimumGridVoltage
+                          + fraction
+                              * (maximumGridVoltage - minimumGridVoltage);
+        result[index] = triodeStage(grid, warmStart);
+    }
+    return result;
+}
+#endif
+
+namespace
+{
+// The solved triode transfer, interpolated. The amplifier fetches the table
+// once per oversampled frame and runs each of its stages through this.
+ELECTRY_FX_HOT_INLINE float interpolateTriodeTransfer(
+    const std::array<float, 16385>& transfer, double gridVoltage) noexcept
+{
+    constexpr std::size_t tableSize = 16385;
+    constexpr double minimumGridVoltage = -20.0 + triodeCathodeBias;
+    constexpr double maximumGridVoltage = 20.0 + triodeCathodeBias;
     if (! isFinite(gridVoltage))
         gridVoltage = 0.0;
     const double clamped = std::clamp(
@@ -2656,12 +2675,18 @@ float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
     const double position = (clamped - minimumGridVoltage)
                           / (maximumGridVoltage - minimumGridVoltage)
                           * static_cast<double>(tableSize - 1);
-    const auto lower = static_cast<std::size_t>(scalarFloor(position));
+    const auto lower = tableIndexBelow(position);
     if (lower >= tableSize - 1)
         return transfer.back();
     const float fraction = static_cast<float>(
         position - static_cast<double>(lower));
     return lerp(transfer[lower], transfer[lower + 1], fraction);
+}
+} // namespace
+
+float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
+{
+    return interpolateTriodeTransfer(triodeTransferTable(), gridVoltage);
 }
 
 std::array<double, 4> ElectryFx::phaseInverterMathValues(
@@ -3085,14 +3110,11 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         / (maximumPowerTubeRail - minimumPowerTubeRail)
         * static_cast<double>(powerTubeRailPoints - 1);
     const auto highGridLower = std::min(
-        static_cast<std::size_t>(scalarFloor(highGridPosition)),
-        powerTubeGridPoints - 2);
+        tableIndexBelow(highGridPosition), powerTubeGridPoints - 2);
     const auto lowGridLower = std::min(
-        static_cast<std::size_t>(scalarFloor(lowGridPosition)),
-        powerTubeGridPoints - 2);
+        tableIndexBelow(lowGridPosition), powerTubeGridPoints - 2);
     const auto railLower = std::min(
-        static_cast<std::size_t>(scalarFloor(railPosition)),
-        powerTubeRailPoints - 2);
+        tableIndexBelow(railPosition), powerTubeRailPoints - 2);
     const double highGridFraction = highGridPosition
         - static_cast<double>(highGridLower);
     const double lowGridFraction = lowGridPosition
@@ -3227,6 +3249,7 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
                           float input) noexcept
 {
     const auto index = ampModelIndex(model);
+    const auto& triodeTransfer = triodeTransferTable();
 
     // This is the original shipping amplifier path kept as its own branch.
     // The default build retains its exact cabinet arithmetic too; the
@@ -3238,16 +3261,16 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
 
         channel.bias += bank.biasCoefficient_ * (scalarAbs(sample) - channel.bias);
         const float bias = -0.22f - 1.10f * channel.bias;
-        const float biasTriode = triodeStageLookup(bias);
+        const float biasTriode = interpolateTriodeTransfer(triodeTransfer, bias);
 
-        float stage = triodeStageLookup(
+        float stage = interpolateTriodeTransfer(triodeTransfer,
             sample * ampDriveFirst_[index] * ampGridVolts + bias) - biasTriode;
         stage = channel.interstage.process(stage, bank.interstageCoefficient_[index]);
 
         const float droop = 1.0f
             - 0.30f * channel.sag / (0.30f + channel.sag);
         stage = droop
-            * (triodeStageLookup(
+            * (interpolateTriodeTransfer(triodeTransfer,
                    stage * ampDriveSecond_[index] * ampGridVolts / droop + bias)
                - biasTriode);
         const float rectified = stage < 0.0f ? -stage : stage;
@@ -3276,9 +3299,9 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
     channel.bias += bank.biasCoefficient_ * (scalarAbs(sample) - channel.bias);
     const float bias = (american ? -0.12f : -0.18f)
         - (american ? 0.40f : 0.78f) * channel.bias;
-    const float biasTriode = triodeStageLookup(bias);
+    const float biasTriode = interpolateTriodeTransfer(triodeTransfer, bias);
 
-    float stage = triodeStageLookup(
+    float stage = interpolateTriodeTransfer(triodeTransfer,
         sample * ampDriveFirst_[index] * ampGridVolts + bias) - biasTriode;
     // Miller capacitance between the stages: each one is progressively darker,
     // which is why a cascaded amplifier saturates smoothly instead of
