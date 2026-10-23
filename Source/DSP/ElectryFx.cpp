@@ -272,7 +272,20 @@ const PhaseMathTables& phaseMathTables() noexcept
     return tables;
 }
 
-PhaseMathValue phaseSoftplus(double x) noexcept
+// The coupled phase-inverter Newton solve evaluates these per oversampled
+// frame. Callers on that path pass the table set they fetched once, so the
+// hot loop neither re-checks a function-local static nor pays a call per
+// scalar; the arithmetic is the same either way.
+#if defined(__GNUC__) || defined(__clang__)
+ #define ELECTRY_FX_HOT_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+ #define ELECTRY_FX_HOT_INLINE __forceinline
+#else
+ #define ELECTRY_FX_HOT_INLINE inline
+#endif
+
+inline PhaseMathValue phaseSoftplus(
+    double x, const PhaseMathTables& tables) noexcept
 {
     const double position = (x - PhaseMathTables::softMinimum)
                             * PhaseMathTables::softInverseStep;
@@ -283,11 +296,17 @@ PhaseMathValue phaseSoftplus(double x) noexcept
                  x >= 0.0 ? 1.0 / (1.0 + e) : e / (1.0 + e) };
     }
     const auto index = static_cast<std::size_t>(position);
-    return phaseMathTables().soft[index].at(position - static_cast<double>(index),
-                                           PhaseMathTables::softInverseStep);
+    return tables.soft[index].at(position - static_cast<double>(index),
+                                 PhaseMathTables::softInverseStep);
 }
 
-PhaseMathValue phasePower(double x, AmpModel model) noexcept
+PhaseMathValue phaseSoftplus(double x) noexcept
+{
+    return phaseSoftplus(x, phaseMathTables());
+}
+
+inline PhaseMathValue phasePower(
+    double x, AmpModel model, const PhaseMathTables& tables) noexcept
 {
     const auto bits = bitCast<std::uint64_t>(x);
     const int exponent = static_cast<int>((bits >> 52) & 0x7ff) - 1023;
@@ -302,7 +321,7 @@ PhaseMathValue phasePower(double x, AmpModel model) noexcept
         (bits & 0x000fffffffffffffull) | 0x3ff0000000000000ull);
     const double position = (mantissa - 1.0) * PhaseMathTables::powerCount;
     const auto index = static_cast<std::size_t>(position);
-    const auto& power = phaseMathTables().powers[model == AmpModel::BritishCrunch ? 1 : 0];
+    const auto& power = tables.powers[model == AmpModel::BritishCrunch ? 1 : 0];
     const auto point = power.intervals[index].at(position - static_cast<double>(index),
                                                 PhaseMathTables::powerCount);
     const auto scaleIndex = static_cast<std::size_t>(exponent - PhaseMathTables::minimumExponent);
@@ -310,11 +329,16 @@ PhaseMathValue phasePower(double x, AmpModel model) noexcept
              point.slope * power.slopeScale[scaleIndex] };
 }
 
-PhaseInverterCurrent phaseInverterCurrentAndSlopes(
-    AmpModel model, double plateToCathodeVoltage,
+PhaseMathValue phasePower(double x, AmpModel model) noexcept
+{
+    return phasePower(x, model, phaseMathTables());
+}
+
+ELECTRY_FX_HOT_INLINE PhaseInverterCurrent phaseInverterCurrentAndSlopes(
+    AmpModel model, const PhaseInverterParameters& tube,
+    const PhaseMathTables& tables, double plateToCathodeVoltage,
     double gridToCathodeVoltage) noexcept
 {
-    const auto& tube = phaseInverterParameters(model);
     const double plate = std::max(plateToCathodeVoltage, 0.0);
     // This checkpoint remains strictly non-grid-conducting. TubeLib's generic
     // 2 kOhm/diode grid branch needs the two output coupling-cap states to be
@@ -323,13 +347,13 @@ PhaseInverterCurrent phaseInverterCurrentAndSlopes(
     const double root = std::sqrt(tube.kneeVoltage + plate * plate);
     const double drive = tube.kneeSoftness
         * (1.0 / tube.mu + grid / root);
-    const auto soft = phaseSoftplus(drive);
+    const auto soft = phaseSoftplus(drive, tables);
     const double softened = soft.value;
     const double e1 = plate / tube.kneeSoftness * softened;
     if (e1 <= 1.0e-18 || plate <= 0.0)
         return {};
 
-    const auto power = phasePower(e1, model);
+    const auto power = phasePower(e1, model, tables);
     const double current = power.value / tube.plateScale;
     const double currentPerE = power.slope / tube.plateScale;
     const double softSlope = soft.slope;
@@ -1216,12 +1240,14 @@ const std::array<float, powerGridTablePoints>& powerGridCurrentTable() noexcept
     return table;
 }
 
-double lookupPowerGridCurrent(double gridVoltage) noexcept
+// A cut-off grid conducts nothing; that is the usual case inside the
+// phase-inverter solve, so it returns before the table is even fetched.
+ELECTRY_FX_HOT_INLINE double lookupPowerGridCurrent(double gridVoltage) noexcept
 {
     constexpr std::size_t points = powerGridTablePoints;
-    const auto& table = powerGridCurrentTable();
     if (! isFinite(gridVoltage) || gridVoltage <= 0.0)
         return 0.0;
+    const auto& table = powerGridCurrentTable();
     if (gridVoltage >= maximumGridCurrentTableVoltage)
     {
         const double current = static_cast<double>(table.back());
@@ -2705,6 +2731,7 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
 
     const auto& circuit = phaseInverterParameters(model);
     const auto& calibration = phaseInverterCalibration(model);
+    const auto& mathTables = phaseMathTables();
     // This is the nonlinear frame clock, not the host rate. The 88.2 kHz
     // family legitimately reaches 705.6 kHz internally; upper-clamping it to
     // the 384 kHz host ceiling advances the capacitor companion model too
@@ -2824,10 +2851,10 @@ ElectryFx::CoupledPhaseInverterResult ElectryFx::phaseInverterCoupledStep(
 
         const double cathode = totalCurrent * totalResistance;
         const auto currentOne = phaseInverterCurrentAndSlopes(
-            model, result.plateOne - cathode,
+            model, circuit, mathTables, result.plateOne - cathode,
             calibration.idle.tail + inputVoltage - cathode);
         const auto currentTwo = phaseInverterCurrentAndSlopes(
-            model, result.plateTwo - cathode,
+            model, circuit, mathTables, result.plateTwo - cathode,
             calibration.idle.tail - cathode);
         result.residualCurrent = totalCurrent
             - currentOne.plate - currentTwo.plate;
