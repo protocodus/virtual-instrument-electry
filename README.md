@@ -144,6 +144,12 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.9 — In development — Lower CPU use
+
+The string engine and amplifier render about 9% fewer instructions (5–6%
+less CPU time) on a mixed rig, chord and FX workload, with bit-identical
+output: nothing about the sound, the controls or saved sessions changes.
+
 ### 1.2.8 — In development — Lines stay in position
 
 A single note may now take a string whose previous note has only a key-up

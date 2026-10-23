@@ -529,6 +529,9 @@ private:
     [[nodiscard]] static const std::array<float, 16385>&
         triodeTransferTable() noexcept;
     [[nodiscard]] static float triodeStageLookup(double gridVoltage) noexcept;
+#if ! defined(ELECTRY_EMBEDDED_TARGET)
+    static std::array<float, 16385> solveTriodeTransfer() noexcept;
+#endif
     struct PhaseInverterResult
     {
         double output { 0.0 };

@@ -1111,8 +1111,15 @@ private:
             // Split the delay before subtracting the integer ring cursor.
             // Subtracting in float rounds its fraction differently as the
             // cursor travels, modulating even a stationary string's pitch.
-            const float ceiling = std::ceil(delaySamples);
-            const int index = writeIndex - static_cast<int>(ceiling);
+            // The clamp above leaves a positive delay far below 2^23, where
+            // truncation plus "one if a fraction remains" is exactly ceil;
+            // it is spelled out because the baseline x86-64 target has no
+            // rounding instruction and std::ceil expands to a long sequence.
+            const int whole = static_cast<int>(delaySamples);
+            const int ceilingSamples = whole
+                + (static_cast<float>(whole) < delaySamples ? 1 : 0);
+            const float ceiling = static_cast<float>(ceilingSamples);
+            const int index = writeIndex - ceilingSamples;
             const float t = ceiling - delaySamples;
             constexpr int mask = delayLineSize - 1;
             const float y0 = line[static_cast<std::size_t>((index - 1) & mask)];
@@ -2270,6 +2277,9 @@ private:
     // it is resolved once here instead of with std::exp at every control tick
     // of every voice and every coupled-string wake.
     float voiceDelayRetention_ { 0.5f };
+    // Half-width of the stopping hand's release average, in internal
+    // samples: std::round(0.000125 * internal rate), fixed by prepare().
+    float releaseSpreadSamples_ { 0.0f };
 
     // Artifact shaping constants, evaluated once per control tick.
     float artifactContactShape_ { 0.0f };
