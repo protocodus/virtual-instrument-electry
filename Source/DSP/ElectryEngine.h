@@ -800,6 +800,20 @@ private:
         float dipFullDepthDb { 0.0f };
     };
 
+    // The last handDipCoefficients() solve for one loss band, keyed on the
+    // exact bits of its inputs. The pitch compensation re-reads the hand and
+    // material responses on every control tick in which the sounding period
+    // moves (the attack-pitch glide moves it on every tick), while the bands
+    // themselves change only when the hand or the fit does; a key match
+    // returns the identical coefficients without the pow/sin/cos solve.
+    struct DipCoefficientMemo
+    {
+        std::uint32_t depthBits { 0 }, omegaBits { 0 }, qBits { 0 },
+            fullDepthBits { 0 };
+        bool valid { false };
+        double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
+    };
+
     struct ModalResonator
     {
         // Low structural modes can run at 384 kHz, where float coefficient
@@ -1007,6 +1021,9 @@ private:
         DipBiquad materialLossDip {};
         HandLossShape materialLossShape {};
         float materialLossDepth { 0.0f };
+        // Response caches only: never part of the audible filter state.
+        mutable DipCoefficientMemo materialLossResponseMemo {};
+        mutable DipCoefficientMemo handLossResponseMemo {};
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         // Default-off empirical correction for the lowest physical string. It
         // reuses the same passive, minimum-phase section as the bridge hand,
@@ -1771,6 +1788,12 @@ private:
     static void handLossResponse(float depth, const HandLossShape& shape,
                                  float omega, float& magnitude,
                                  float& phase) noexcept;
+    // The same response, reusing `memo`'s coefficients when depth and shape
+    // are bit-identical to its last solve.
+    static void handLossResponse(float depth, const HandLossShape& shape,
+                                 float omega, float& magnitude,
+                                 float& phase,
+                                 DipCoefficientMemo& memo) noexcept;
     // The dip's biquad coefficients for a given depth. Shared by the solve, the
     // phase compensation and the per-voice setup for the same reason as above.
     static void handDipCoefficients(float depth, const HandLossShape& shape,
