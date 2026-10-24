@@ -1568,7 +1568,9 @@ small numerical changes. Standard versus High is an intentional rate and
 latency change and is not expected to pass a tiny-error null test.
 Use `--help` for individual scenarios, rates, block sizes and error limits.
 The [earlier FX CPU optimization measurements](Docs/benchmarks/fx-cpu-optimization.md)
-retain the preceding implementation's measurements and validation.
+retain the preceding implementation's measurements and validation; the
+[October 2026 bit-identical engine and FX optimizations](Docs/benchmarks/cpu-optimization-2026-10-24.md)
+record the method behind the in-process paired take comparison.
 
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
 universal VST3, Audio Unit, CLAP and Standalone app, runs every test tier and
