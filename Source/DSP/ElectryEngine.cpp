@@ -1500,20 +1500,14 @@ void ElectryEngine::handDipCoefficients(float depth, const HandLossShape& shape,
 // Magnitude and phase of what the hand puts in the loop. Used by the decay
 // solve, the tuning compensation and the per-voice setup, so none of the three
 // can disagree about what is actually in the loop.
-void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
-                                     float omega, float& magnitude,
-                                     float& phase) noexcept
+namespace
 {
-    magnitude = 1.0f;
-    phase = 0.0f;
-    if (depth <= 0.0f)
-        return;
-
-    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
-    if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
-        return;
-
+// Magnitude and phase of a dip section with the given coefficients at
+// z = e^{j omega}. Shared by both handLossResponse() overloads so a memoised
+// coefficient set is evaluated by exactly the same arithmetic.
+void dipSectionResponse(double b0, double b1, double b2, double a1, double a2,
+                        float omega, float& magnitude, float& phase) noexcept
+{
     // Evaluated at z = e^{j omega}, in double for the same cancellation reason
     // the section itself runs in double: the solve divides this magnitude out of
     // its targets, so an error here becomes an error in the fitted decay. The
@@ -1534,6 +1528,55 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
         return;
     magnitude *= (float) std::sqrt((nr * nr + ni * ni) / dn);
     phase += (float) (std::atan2(ni, nr) - std::atan2(di, dr));
+}
+} // namespace
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     float omega, float& magnitude,
+                                     float& phase) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
+    if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
+        return;
+    dipSectionResponse(b0, b1, b2, a1, a2, omega, magnitude, phase);
+}
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     float omega, float& magnitude,
+                                     float& phase,
+                                     DipCoefficientMemo& memo) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    const auto depthBits = bitCast<std::uint32_t>(depth);
+    const auto omegaBits = bitCast<std::uint32_t>(shape.dipOmega);
+    const auto qBits = bitCast<std::uint32_t>(shape.dipQ);
+    const auto fullDepthBits = bitCast<std::uint32_t>(shape.dipFullDepthDb);
+    if (! memo.valid || memo.depthBits != depthBits
+        || memo.omegaBits != omegaBits || memo.qBits != qBits
+        || memo.fullDepthBits != fullDepthBits)
+    {
+        handDipCoefficients(depth, shape, memo.b0, memo.b1, memo.b2,
+                            memo.a1, memo.a2);
+        memo.depthBits = depthBits;
+        memo.omegaBits = omegaBits;
+        memo.qBits = qBits;
+        memo.fullDepthBits = fullDepthBits;
+        memo.valid = true;
+    }
+    if (memo.b1 == 0.0 && memo.b2 == 0.0 && memo.a1 == 0.0 && memo.a2 == 0.0)
+        return;
+    dipSectionResponse(memo.b0, memo.b1, memo.b2, memo.a1, memo.a2,
+                       omega, magnitude, phase);
 }
 
 // One place that pushes a depth into both bands, so the note-on solve and the
@@ -4660,10 +4703,11 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
         float dipMagnitude = 1.0f;
         float dipPhase = 0.0f;
         handLossResponse(loop.handLossDepth, loop.handLossShape, phaseOmega,
-                         dipMagnitude, dipPhase);
+                         dipMagnitude, dipPhase, loop.handLossResponseMemo);
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
         handLossResponse(loop.materialLossDepth, loop.materialLossShape,
-                         phaseOmega, materialMagnitude, materialPhase);
+                         phaseOmega, materialMagnitude, materialPhase,
+                         loop.materialLossResponseMemo);
         const float dipDelay = phaseOmega > 1.0e-9f
             ? -(dipPhase + materialPhase) / phaseOmega : 0.0f;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
