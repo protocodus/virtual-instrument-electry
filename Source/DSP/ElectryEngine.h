@@ -1111,8 +1111,14 @@ private:
             // Split the delay before subtracting the integer ring cursor.
             // Subtracting in float rounds its fraction differently as the
             // cursor travels, modulating even a stationary string's pitch.
-            const float ceiling = std::ceil(delaySamples);
-            const int index = writeIndex - static_cast<int>(ceiling);
+            // The clamp keeps the delay positive and far below 2^23, where
+            // rounding the truncated integer up is exactly std::ceil without
+            // its general-range sequence.
+            const int truncated = static_cast<int>(delaySamples);
+            const int whole = static_cast<float>(truncated) < delaySamples
+                ? truncated + 1 : truncated;
+            const float ceiling = static_cast<float>(whole);
+            const int index = writeIndex - whole;
             const float t = ceiling - delaySamples;
             constexpr int mask = delayLineSize - 1;
             const float y0 = line[static_cast<std::size_t>((index - 1) & mask)];
