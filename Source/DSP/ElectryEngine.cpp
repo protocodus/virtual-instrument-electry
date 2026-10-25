@@ -494,6 +494,7 @@ void ElectryEngine::ModalResonator::configure(float frequencyHz, float q,
 void ElectryEngine::HalfbandDecimator::push(float input) noexcept
 {
     history[static_cast<std::size_t>(writeIndex)] = input;
+    history[static_cast<std::size_t>(writeIndex + decimatorHistorySize)] = input;
     writeIndex = (writeIndex + 1) & (decimatorHistorySize - 1);
 }
 
@@ -523,19 +524,18 @@ float ElectryEngine::HalfbandDecimator::output() const noexcept
         0.316972234517f,
     };
     static constexpr float centreTap = 0.500000294415f;
-    static constexpr int historyMask = decimatorHistorySize - 1;
 
-    // writeIndex points one slot past the newest internal sample.
-    const int newest = (writeIndex - 1) & historyMask;
-    float sum = centreTap
-              * history[static_cast<std::size_t>((newest - 31) & historyMask)];
+    // writeIndex points one slot past the newest internal sample. With the
+    // mirrored history, newest[-k] is the sample k steps older for every
+    // k < decimatorHistorySize, without a wrap.
+    const float* newest = history.data() + writeIndex + decimatorHistorySize - 1;
+    float sum = centreTap * newest[-31];
     for (int pair = 1; pair < static_cast<int>(sideTaps.size()); ++pair)
     {
         const int nearOffset = 2 * pair;
         const int farOffset = 62 - nearOffset;
         sum += sideTaps[static_cast<std::size_t>(pair)]
-             * (history[static_cast<std::size_t>((newest - nearOffset) & historyMask)]
-                + history[static_cast<std::size_t>((newest - farOffset) & historyMask)]);
+             * (newest[-nearOffset] + newest[-farOffset]);
     }
     return sum;
 }

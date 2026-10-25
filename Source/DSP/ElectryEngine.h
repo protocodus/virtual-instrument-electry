@@ -845,7 +845,11 @@ private:
     // to this linear-phase halfband FIR before one host-rate sample is read.
     struct HalfbandDecimator
     {
-        std::array<float, decimatorHistorySize> history {};
+        // Kept twice over: every sample is written at [writeIndex] and
+        // [writeIndex + decimatorHistorySize], so the newest 64 samples are
+        // always one contiguous run and the FIR reads them through a plain
+        // pointer, with the same products summed in the same order.
+        std::array<float, 2 * decimatorHistorySize> history {};
         int writeIndex { 0 };
 
         void reset() noexcept
