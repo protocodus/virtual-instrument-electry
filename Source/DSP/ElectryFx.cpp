@@ -1234,8 +1234,10 @@ double lookupPowerGridCurrent(double gridVoltage) noexcept
     const double position = scalarSqrt(
         gridVoltage / maximumGridCurrentTableVoltage)
         * static_cast<double>(points - 1);
+    // gridVoltage > 0 here, so position is non-negative and the integer
+    // conversion is floor.
     const auto lower = std::min(
-        static_cast<std::size_t>(scalarFloor(position)), points - 2);
+        static_cast<std::size_t>(position), points - 2);
     const double fraction = position - static_cast<double>(lower);
     return monotonicLerp(static_cast<double>(table[lower]),
                      static_cast<double>(table[lower + 1]), fraction);
@@ -2630,7 +2632,9 @@ float ElectryFx::triodeStageLookup(double gridVoltage) noexcept
     const double position = (clamped - minimumGridVoltage)
                           / (maximumGridVoltage - minimumGridVoltage)
                           * static_cast<double>(tableSize - 1);
-    const auto lower = static_cast<std::size_t>(scalarFloor(position));
+    // position is clamped to [0, tableSize - 1]: for a non-negative double
+    // the integer conversion truncates, which is floor exactly.
+    const auto lower = static_cast<std::size_t>(position);
     if (lower >= tableSize - 1)
         return transfer.back();
     const float fraction = static_cast<float>(
@@ -3057,14 +3061,17 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         (clampedRail - minimumPowerTubeRail)
         / (maximumPowerTubeRail - minimumPowerTubeRail)
         * static_cast<double>(powerTubeRailPoints - 1);
+    // The grids are clamped to [minimum, 0], so 1 - sqrt(grid / minimum)
+    // lies in [0, 1], and the rail is clamped to its table range: every
+    // position is non-negative, where the integer conversion is floor.
     const auto highGridLower = std::min(
-        static_cast<std::size_t>(scalarFloor(highGridPosition)),
+        static_cast<std::size_t>(highGridPosition),
         powerTubeGridPoints - 2);
     const auto lowGridLower = std::min(
-        static_cast<std::size_t>(scalarFloor(lowGridPosition)),
+        static_cast<std::size_t>(lowGridPosition),
         powerTubeGridPoints - 2);
     const auto railLower = std::min(
-        static_cast<std::size_t>(scalarFloor(railPosition)),
+        static_cast<std::size_t>(railPosition),
         powerTubeRailPoints - 2);
     const double highGridFraction = highGridPosition
         - static_cast<double>(highGridLower);

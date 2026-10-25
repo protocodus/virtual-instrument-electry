@@ -9,6 +9,8 @@
 //     --block N       frames per render call (default 64, the Rack's batch)
 //     --fx-quality Q  standard (shipping default) or high
 //     --rigs 0123     which rigs to render, in program order
+//     --amp M         american, british or modern: override the FX rigs' amp
+//                     voice (coverage for parity checks; not a factory rig)
 //
 // It prints one FNV-1a hash per rig over the float32 output bits and, when a
 // path is given, writes every rig's interleaved stereo float32 output there
@@ -190,6 +192,7 @@ int main(int argc, char** argv)
     int block = 64;
     FxOversampling quality = FxOversampling::Standard;
     std::string rigs = "0123";
+    int ampOverride = -1;
     std::vector<std::string> positional;
     for (int i = 1; i < argc; ++i)
     {
@@ -204,6 +207,11 @@ int main(int argc, char** argv)
         else if (arg == "--fx-quality")
             quality = next() == "high" ? FxOversampling::High : FxOversampling::Standard;
         else if (arg == "--rigs") rigs = next();
+        else if (arg == "--amp")
+        {
+            const std::string model = next();
+            ampOverride = model == "american" ? 0 : model == "british" ? 1 : 2;
+        }
         else positional.push_back(arg);
     }
     if (positional.empty() || block < 1 || !(rate > 0.0))
@@ -225,7 +233,9 @@ int main(int argc, char** argv)
             continue;
         const auto events = protocodus::demos::ReadMidi(
             positional[0] + "/" + rigStems[rigIndex] + ".mid");
-        const Rig rig = rigFor(rigIndex, quality);
+        Rig rig = rigFor(rigIndex, quality);
+        if (ampOverride >= 0)
+            rig.effects.ampModel = static_cast<AmpModel>(ampOverride);
 
         auto performer = std::make_unique<ElectryPerformer>();
         performer->prepare(rate, block);
