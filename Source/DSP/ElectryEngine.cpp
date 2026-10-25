@@ -4303,6 +4303,12 @@ void ElectryEngine::configureVoiceDispersion(
                             / groupPeriod;
                         maximum = std::max(maximum, scalarAbs(error));
                         squared += error * error;
+                        // The running maximum never falls, and a pair is
+                        // taken only at maximum <= bestMaximum, so a pair
+                        // already above it cannot win: stop scoring it. The
+                        // selected pair, and every tie-break, is unchanged.
+                        if (maximum > bestMaximum)
+                            break;
                     }
                     // Minimax gives every resolved mode the same frequency
                     // tolerance. Sum-of-squares breaks exact ties without a
