@@ -16,7 +16,7 @@
 // path is given, writes every rig's interleaved stereo float32 output there
 // (rig 0 first) for a byte comparison or a null test against another build.
 //
-// Measurement protocol (Docs/benchmarks/cpu-*-2026-10-25.md):
+// Measurement protocol (results: Docs/benchmarks/cpu-exact-trims-2026-10-25.md):
 // - The regression stream is fixed: each rig's committed demo MIDI from
 //   Docs/audio/midi, events delivered on their own sample, the rig's factory
 //   parameters as RenderPresetDemos loads them (FX on for Drop-E Metal and
