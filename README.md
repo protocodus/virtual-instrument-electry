@@ -144,6 +144,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.9 — In development — Lower CPU, same sound
+
+About 8 % fewer instructions on the factory rigs in the Rack-like build
+(about 9 % with High FX oversampling), with the output of every rig
+bit-identical to 1.2.8. Measurements are in the
+[benchmark](Docs/benchmarks/cpu-exact-trims-2026-10-25.md).
+
 ### 1.2.8 — In development — Lines stay in position
 
 A single note may now take a string whose previous note has only a key-up
