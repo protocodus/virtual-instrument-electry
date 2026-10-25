@@ -1743,11 +1743,35 @@ private:
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+    // One frequency's sine and cosine, shared by every phase term the pitch
+    // compensation evaluates there (both polarisations' one-pole, shelf and
+    // dip sections). The float pair is std::sin/std::cos(omega) and the
+    // double pair std::sin/std::cos(double(omega)), exactly what each term
+    // used to compute for itself; the double pair is only resolved on first
+    // use. Using it changes no arithmetic.
+    struct PhaseFrequency
+    {
+        explicit PhaseFrequency(float frequency) noexcept;
+        [[nodiscard]] double sineD() const noexcept { resolveDouble(); return sineDouble; }
+        [[nodiscard]] double cosineD() const noexcept { resolveDouble(); return cosineDouble; }
+        float omega;
+        float sine;
+        float cosine;
+    private:
+        void resolveDouble() const noexcept;
+        mutable double sineDouble { 0.0 };
+        mutable double cosineDouble { 0.0 };
+        mutable bool doubleResolved { false };
+    };
+    static float onePolePhaseDelay(float coefficient,
+                                   const PhaseFrequency& frequency) noexcept;
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                                        float omegaHigh, float intrinsicPole,
                                        float intrinsicGain) noexcept;
     static float loopLossPhaseDelay(const LoopFilterBank &loop, float omega) noexcept;
+    static float loopLossPhaseDelay(const LoopFilterBank &loop,
+                                    const PhaseFrequency& frequency) noexcept;
 #endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
@@ -1797,6 +1821,14 @@ private:
     [[nodiscard]] static HandLossSection handLossSection(
         float depth, const HandLossShape& shape) noexcept;
     static void handLossResponse(const HandLossSection& section, float omega,
+                                 float& magnitude, float& phase) noexcept;
+    static void handLossResponse(const HandLossSection& section,
+                                 const PhaseFrequency& frequency,
+                                 float& magnitude, float& phase) noexcept;
+    // The section's response from cos/sin of omega; magnitude and phase
+    // arrive at their identity values and the section is active.
+    static void handLossResponse(const HandLossSection& section,
+                                 double cosine, double sine,
                                  float& magnitude, float& phase) noexcept;
     [[nodiscard]] static const HandLossSection& cachedHandLossSection(
         HandLossSectionCache& cache, float depth,
