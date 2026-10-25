@@ -376,14 +376,14 @@ float boundPickupDisplacement(float displacement) noexcept
     if (magnitude <= 1.0)
     {
         const double squared = ratio * ratio;
-        boundedRatio = ratio / std::sqrt(std::sqrt(1.0 + squared * squared));
+        boundedRatio = ratio / scalarSqrt(scalarSqrt(1.0 + squared * squared));
     }
     else
     {
         const double inverse = 1.0 / magnitude;
         const double squared = inverse * inverse;
         boundedRatio = copySign(
-            1.0 / std::sqrt(std::sqrt(1.0 + squared * squared)), ratio);
+            1.0 / scalarSqrt(scalarSqrt(1.0 + squared * squared)), ratio);
     }
     return static_cast<float>(maximumPickupDisplacementMetres * boundedRatio);
 }
@@ -487,7 +487,7 @@ void ElectryEngine::ModalResonator::configure(float frequencyHz, float q,
     // high sample rates.
     const double oneMinusRadius = 1.0 - radius;
     const double denominatorMagnitude = oneMinusRadius * std::hypot(
-        oneMinusRadius, 2.0 * std::sqrt(radius) * std::sin(omega));
+        oneMinusRadius, 2.0 * scalarSqrt(radius) * std::sin(omega));
     gain = denominatorMagnitude * static_cast<double>(modeGain);
 }
 
@@ -1043,7 +1043,7 @@ float ElectryEngine::onePoleMagnitude(float coefficient, float omega) noexcept
     const float gap = 1.0f - coefficient;
     const float denominator = gap * gap
                             + 4.0f * coefficient * halfAngleSine * halfAngleSine;
-    return gap / std::sqrt(std::max(denominator, 1.0e-30f));
+    return gap / scalarSqrt(std::max(denominator, 1.0e-30f));
 }
 
 float ElectryEngine::solveOnePoleDamping(float magnitudeRatio, float omega0,
@@ -1122,7 +1122,7 @@ void ElectryEngine::solveLoopLoss(float t60Fundamental, float t60High,
     // apart, and what matters is the ratio between them.
     for (int i = 0; i < 18; ++i)
     {
-        const float mid = std::sqrt(infeasible * feasible);
+        const float mid = scalarSqrt(infeasible * feasible);
         float coefficient = 0.0f, gain = 0.0f;
         if (solveFor(mid, coefficient, gain))
         {
@@ -1199,11 +1199,11 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
         (ratioSquared * oh * oh * oh * oh - o0 * o0 * o0 * o0) / (1.0 - ratioSquared);
     if (!(c4 > 0.0))
         return;
-    const double kp = 1.0 / std::sqrt(std::sqrt(c4));
+    const double kp = 1.0 / scalarSqrt(scalarSqrt(c4));
     const double kz = 0.0;
 #else
-    const double q = std::sqrt(qSquared);
-    const double rootQ = std::sqrt(q);
+    const double q = scalarSqrt(qSquared);
+    const double rootQ = scalarSqrt(q);
     const double kp = 1.0 / (oh * rootQ);
     const double kz = rootQ / oh;
 #endif
@@ -1212,7 +1212,7 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
         clearInvalidCorrection();
         return;
     }
-    const double rootTwo = std::sqrt(2.0);
+    const double rootTwo = scalarSqrt(2.0);
     const double inverseA0 = 1.0 / (1.0 + rootTwo * kp + kp * kp);
     const double a1 = 2.0 * (1.0 - kp * kp) * inverseA0;
     const double a2 = (1.0 - rootTwo * kp + kp * kp) * inverseA0;
@@ -1224,11 +1224,11 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
         clearInvalidCorrection();
         return;
     }
-    const double gain = static_cast<double>(intrinsicGain) * std::sqrt(m0)
+    const double gain = static_cast<double>(intrinsicGain) * scalarSqrt(m0)
 #if ELECTRY_INTRINSIC_LOSS_LOWPASS
-                        * std::sqrt(1.0 + o0 * o0 * o0 * o0 / c4);
+                        * scalarSqrt(1.0 + o0 * o0 * o0 * o0 / c4);
 #else
-                        * std::sqrt((1.0 + r / qSquared) / (1.0 + r * qSquared));
+                        * scalarSqrt((1.0 + r / qSquared) / (1.0 + r * qSquared));
 #endif
     // The original solver remains the feasibility oracle. Guard passivity at
     // the scalar as well; a rejected transform leaves that exact solve intact.
@@ -1345,7 +1345,7 @@ void ElectryEngine::configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                         && std::numeric_limits<long double>::min_exponent == std::numeric_limits<double>::min_exponent,
                     "SDK root bridge requires equal double/long-double value precision and range");
 #endif
-                const long double root = std::sqrt(static_cast<double>(discriminant));
+                const long double root = scalarSqrt(static_cast<double>(discriminant));
                 const long double stable = -.5L * (qb + static_cast<long double>(
                     electry::copySign(static_cast<double>(root), static_cast<double>(qb))));
 #else
@@ -1533,7 +1533,7 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
     const double dn = dr * dr + di * di;
     if (dn < 1.0e-20)
         return;
-    magnitude *= (float) std::sqrt((nr * nr + ni * ni) / dn);
+    magnitude *= (float) scalarSqrt((nr * nr + ni * ni) / dn);
     phase += (float) (std::atan2(ni, nr) - std::atan2(di, dr));
 }
 
@@ -1617,7 +1617,7 @@ ElectryEngine::makeVelocityProfile(float velocity) const noexcept
     profile.releaseRate = lerp(smoothStep(0.65f), releaseRate, response);
 
     profile.brightness = lerp(0.20f, 2.10f, profile.releaseRate);
-    profile.noise = lerp(1.0f, 0.18f + 0.82f * std::sqrt(v), response);
+    profile.noise = lerp(1.0f, 0.18f + 0.82f * scalarSqrt(v), response);
     profile.collision = smoothStep(
         clampf((profile.effort - 0.25f) / 0.75f, 0.0f, 1.0f));
     return profile;
@@ -3989,7 +3989,7 @@ void ElectryEngine::configureBassMaterialLoss(
 {
     if (! (fHigh > f0))
         return;
-    const float middleFrequency = std::sqrt(f0 * fHigh);
+    const float middleFrequency = scalarSqrt(f0 * fHigh);
     const float omega0 = twoPi * f0 * inverseSampleRate_;
     const float omegaMiddle = twoPi * middleFrequency * inverseSampleRate_;
     const float omegaHigh = twoPi * fHigh * inverseSampleRate_;
@@ -4108,7 +4108,7 @@ void ElectryEngine::configureVoiceDispersion(
 #if ELECTRY_ANALYTIC_RELEASE_IC || ELECTRY_ENERGY_ATTACK_PITCH
     voice.stringTensionNewtons = liveTension;
 #endif
-    voice.stringWaveImpedance = std::sqrt(
+    voice.stringWaveImpedance = scalarSqrt(
         std::max(liveTension * linearMass, 1.0e-12f));
     const float bendingStiffness = pi * pi * pi * steelYoungModulus
                                  * bendingDiameter * bendingDiameter
@@ -4149,7 +4149,7 @@ void ElectryEngine::configureVoiceDispersion(
         for (int partial = 2; partial <= static_cast<int>(highPartial); ++partial)
         {
             const float n = static_cast<float>(partial);
-            const float stretch = std::sqrt(
+            const float stretch = scalarSqrt(
                 (1.0f + inharmonicity * n * n) / (1.0f + inharmonicity));
             const float omega = dispersionOmega * n * stretch;
             if (omega >= pi * 0.95f)
@@ -4308,7 +4308,7 @@ void ElectryEngine::configureVoiceDispersion(
     const auto wantedDeficit = [&] (float partial)
     {
         const float stretch =
-            std::sqrt((1.0f + inharmonicity * partial * partial)
+            scalarSqrt((1.0f + inharmonicity * partial * partial)
                       / (1.0f + inharmonicity));
         return dispersionPeriod * (1.0f - 1.0f / stretch);
     };
@@ -4460,7 +4460,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
         attackPitchTensionRatio = 0.0f;
     attackPitchTensionRatio = clampf(
         attackPitchTensionRatio, 0.0f, maximumAttackPitchTensionRatio);
-    voice.attackPitchFrequencyFactor = std::sqrt(
+    voice.attackPitchFrequencyFactor = scalarSqrt(
         1.0f + attackPitchTensionRatio);
     const float f0 = clampf(
         configuredF0 * voice.attackPitchFrequencyFactor,
@@ -5473,7 +5473,7 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
     {
         gaps[static_cast<std::size_t>(k)] =
             (1.0f + strumCrossingSigma * normal())
-            / std::sqrt(1.0f + acceleration * static_cast<float>(k));
+            / scalarSqrt(1.0f + acceleration * static_cast<float>(k));
         total += gaps[static_cast<std::size_t>(k)];
     }
 
@@ -6592,7 +6592,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     // resolved above, so the styles stay as distinct as they were.
     const float openFrequency = midiToHz(static_cast<float>(spec.openMidiNote));
     const float stringReleaseCutoff =
-        330.0f * std::sqrt(openFrequency / 82.4069f)
+        330.0f * scalarSqrt(openFrequency / 82.4069f)
                * lerp(0.32f, 2.70f, effectivePickHardness)
                * lerp(0.72f, 1.45f, profile.releaseRate)
                * lerp(1.12f, 0.72f, parameters.stringAge);
@@ -6637,7 +6637,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
 #else
     const float releaseRatio = 2.0f * voice.baseFrequency / releaseCutoff;
     voice.excitationAmplitude *= clampf(
-        std::sqrt(1.0f + releaseRatio * releaseRatio), 1.0f, 6.0f);
+        scalarSqrt(1.0f + releaseRatio * releaseRatio), 1.0f, 6.0f);
 #endif
 
     // Preserve the existing truncation budget for the new pole shape. Its
@@ -6668,7 +6668,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         // the ridge amount continuous all the way to Pick Noise == 0.
         voice.pickRidgeMix = 0.35f * clampf(
             pickNoiseLevel / std::max(noiseLevel, 1.0e-12f), 0.0f, 1.0f);
-        voice.pickRoughnessMix = std::sqrt(
+        voice.pickRoughnessMix = scalarSqrt(
             1.0f - voice.pickRidgeMix * voice.pickRidgeMix);
         voice.pickRidgeCyclesPerSample = std::min(
             0.35f, 0.65f * noiseCutoff * inverseSampleRate_)
@@ -6718,7 +6718,7 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         voice.passiveRepickPole = (bilinearRate - 1.0f)
                                 * inverseDenominator;
 
-        const float normalLength = std::sqrt(
+        const float normalLength = scalarSqrt(
             voice.verticalWeight * voice.verticalWeight
             + voice.horizontalWeight * voice.horizontalWeight);
         voice.passiveRepickNormalVertical = voice.verticalWeight
@@ -6867,7 +6867,7 @@ void ElectryEngine::updateStyleWeights(Voice& voice, bool legato) noexcept
     // is asked rather than the style compared.
     if (plectrumContacts(voice.playStyle, legato) && voice.strokeAngleOffset != 0.0f)
     {
-        const float magnitude = std::sqrt(verticalWeight * verticalWeight
+        const float magnitude = scalarSqrt(verticalWeight * verticalWeight
                                           + horizontalWeight * horizontalWeight);
         const float angle = clampf(
             std::atan2(horizontalWeight, verticalWeight) + voice.strokeAngleOffset,
@@ -7776,7 +7776,7 @@ void ElectryEngine::beginVoiceRelease(Voice& voice) noexcept
                           * (spec.wound ? 0.20f : 0.13f)
                           * voice.velocityProfile.noise;
         const float remainingMotion = voice.releaseMotionPeak > 1.0e-12f
-            ? std::sqrt(clampf(voice.outputEnergy / voice.releaseMotionPeak,
+            ? scalarSqrt(clampf(voice.outputEnergy / voice.releaseMotionPeak,
                                0.0f, 1.0f)) : 0.0f;
         // A hand stopping an open string has no fretting-finger lift scrape.
         // Keep its quieter, darker contact through the existing noise control.
@@ -8356,7 +8356,7 @@ void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
     // Ballistic display level for the fretboard readout. It is derived from
     // the same energy follower the retirement logic uses, so it costs one
     // square root and one one-pole per control tick.
-    const float target = std::sqrt(std::max(voice.outputEnergy, 0.0f));
+    const float target = scalarSqrt(std::max(voice.outputEnergy, 0.0f));
     const float ballistic = target > voice.displayLevel ? displayLevelAttack_
                                                         : displayLevelRelease_;
     voice.displayLevel += ballistic * (target - voice.displayLevel);
@@ -8411,7 +8411,7 @@ float ElectryEngine::renderSlideFriction(Voice& voice) noexcept
     voice.slideRidgePhase -= scalarFloor(voice.slideRidgePhase);
     voice.slideFrictionEnergy += slideFrictionEnergyCoefficient_
         * (friction * friction - voice.slideFrictionEnergy);
-    const float ridge = std::sqrt(2.0f * std::max(voice.slideFrictionEnergy, 0.0f))
+    const float ridge = scalarSqrt(2.0f * std::max(voice.slideFrictionEnergy, 0.0f))
         * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * voice.slideRidgePhase));
     // Modest texture, with the same expected RMS as the original friction.
     // Tracking energy after its filters avoids amplifying a coherent ridge by
@@ -9137,7 +9137,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
         constexpr float inverseCeilingSquared = 1.0f / (ceiling * ceiling);
         const float driven = displacement * drive;
         const float x = driven
-            / std::sqrt(1.0f + driven * driven * inverseCeilingSquared);
+            / scalarSqrt(1.0f + driven * driven * inverseCeilingSquared);
         return (x + x * x * (0.55f + 0.30f * x)) * inverseDrive;
     };
 #endif
@@ -10011,7 +10011,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
     if (feedbackGain_ > 0.0f)
     {
         const float bounded = acousticIn
-            / std::sqrt(1.0f + acousticIn * acousticIn);
+            / scalarSqrt(1.0f + acousticIn * acousticIn);
         feedbackDrive_ = feedbackGain_ * bounded;
     }
     else
@@ -10151,7 +10151,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
     // channels are equal and this is the original scalar soft-limit law.
     const float guardInput = std::max(scalarAbs(raw[0]), scalarAbs(raw[1]));
     const float guardGain = 1.0f
-        / std::sqrt(1.0f + 0.4356f * guardInput * guardInput);
+        / scalarSqrt(1.0f + 0.4356f * guardInput * guardInput);
     output.left = raw[0] * guardGain * smoothedOutputGain_;
     output.right = raw[1] * guardGain * smoothedOutputGain_;
 
@@ -10386,7 +10386,7 @@ void ElectryEngine::getStringVisualState(
                 : -1;
             state.fret = ringing ? 0 : -1;
             state.level = ringing
-                ? clampf(6.0f * std::sqrt(std::max(voice.sympatheticEnergy, 0.0f)),
+                ? clampf(6.0f * scalarSqrt(std::max(voice.sympatheticEnergy, 0.0f)),
                          0.0f, 1.0f)
                 : 0.0f;
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -97,6 +98,40 @@ template <typename T>
         return value;
     const T truncated = bitCast<T>(bits & ~fraction);
     return (bits & Bits::sign) ? truncated - T(1) : truncated;
+}
+
+// std::sqrt as the IEEE-754 square root instruction. sqrt is correctly
+// rounded, so the instruction and libm give the same bits. Under -fno-builtin
+// the std:: spelling is an out-of-line call (in the Rack SDK's libc a
+// bit-serial software routine), and several run per string per sample. Clang
+// still lowers __builtin_sqrt to the errno-setting libm call on a hosted
+// target with -fno-builtin; its elementwise form is the plain instruction.
+#if defined(__has_builtin)
+#if __has_builtin(__builtin_elementwise_sqrt)
+#define ELECTRY_ELEMENTWISE_SQRT 1
+#endif
+#endif
+
+[[nodiscard]] inline float scalarSqrt(float value) noexcept
+{
+#if defined(ELECTRY_ELEMENTWISE_SQRT)
+    return __builtin_elementwise_sqrt(value);
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_sqrtf(value);
+#else
+    return std::sqrt(value);
+#endif
+}
+
+[[nodiscard]] inline double scalarSqrt(double value) noexcept
+{
+#if defined(ELECTRY_ELEMENTWISE_SQRT)
+    return __builtin_elementwise_sqrt(value);
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_sqrt(value);
+#else
+    return std::sqrt(value);
+#endif
 }
 
 // std::ceil for the delay-line split points, as the integer the ring index

@@ -32,6 +32,7 @@ bool checkValue(T value, T sign)
     return same(electry::scalarAbs(value), std::abs(value))
         && same(electry::scalarFloor(value), std::floor(value))
         && same(electry::copySign(value, sign), std::copysign(value, sign))
+        && same(electry::scalarSqrt(value), std::sqrt(value))
         && electry::isFinite(value) == std::isfinite(value);
 }
 
