@@ -800,6 +800,24 @@ private:
         float dipFullDepthDb { 0.0f };
     };
 
+    struct HandLossSection
+    {
+        double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
+        bool active { false };
+    };
+
+    // The last handLossSection() of one filter bank's dip, kept while the
+    // exact bits of its depth and shape hold. The per-tick pitch
+    // compensation evaluates the same hand and material dips at a new
+    // frequency on every control tick; only a change of depth or shape
+    // rebuilds the section, so the result is the uncached one bit for bit.
+    struct HandLossSectionCache
+    {
+        std::uint32_t depthBits { 0 }, omegaBits { 0 }, qBits { 0 }, dbBits { 0 };
+        bool valid { false };
+        HandLossSection section {};
+    };
+
     struct ModalResonator
     {
         // Low structural modes can run at 384 kHz, where float coefficient
@@ -1047,6 +1065,10 @@ private:
         // unity above its band, so it costs almost nothing at the fitted point
         // and the ceiling stops binding.
         DipBiquad handDip {};
+        // Sections of the hand and material dips for the phase solves; a
+        // cache keyed by exact inputs, so stale entries are never read.
+        mutable HandLossSectionCache handSectionCache {};
+        mutable HandLossSectionCache materialSectionCache {};
         HandLossShape handLossShape {};
         float handLossDepth { 0.0f };
         float handLossSolvedDepth { 0.0f };
@@ -1771,15 +1793,14 @@ private:
     // evaluates one candidate depth at several frequencies builds the
     // section once; the arithmetic, and so every bit, is the same as calling
     // handLossResponse at each frequency.
-    struct HandLossSection
-    {
-        double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
-        bool active { false };
-    };
+    // (HandLossSection is declared beside HandLossShape.)
     [[nodiscard]] static HandLossSection handLossSection(
         float depth, const HandLossShape& shape) noexcept;
     static void handLossResponse(const HandLossSection& section, float omega,
                                  float& magnitude, float& phase) noexcept;
+    [[nodiscard]] static const HandLossSection& cachedHandLossSection(
+        HandLossSectionCache& cache, float depth,
+        const HandLossShape& shape) noexcept;
     // The dip's biquad coefficients for a given depth. Shared by the solve, the
     // phase compensation and the per-voice setup for the same reason as above.
     static void handDipCoefficients(float depth, const HandLossShape& shape,

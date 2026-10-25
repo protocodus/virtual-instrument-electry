@@ -1521,6 +1521,28 @@ ElectryEngine::HandLossSection ElectryEngine::handLossSection(
     return section;
 }
 
+const ElectryEngine::HandLossSection& ElectryEngine::cachedHandLossSection(
+    HandLossSectionCache& cache, float depth,
+    const HandLossShape& shape) noexcept
+{
+    const auto depthBits = bitCast<std::uint32_t>(depth);
+    const auto omegaBits = bitCast<std::uint32_t>(shape.dipOmega);
+    const auto qBits = bitCast<std::uint32_t>(shape.dipQ);
+    const auto dbBits = bitCast<std::uint32_t>(shape.dipFullDepthDb);
+    if (! cache.valid || cache.depthBits != depthBits
+        || cache.omegaBits != omegaBits || cache.qBits != qBits
+        || cache.dbBits != dbBits)
+    {
+        cache.section = handLossSection(depth, shape);
+        cache.depthBits = depthBits;
+        cache.omegaBits = omegaBits;
+        cache.qBits = qBits;
+        cache.dbBits = dbBits;
+        cache.valid = true;
+    }
+    return cache.section;
+}
+
 void ElectryEngine::handLossResponse(const HandLossSection& section,
                                      float omega, float& magnitude,
                                      float& phase) noexcept
@@ -4686,10 +4708,12 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
     {
         float dipMagnitude = 1.0f;
         float dipPhase = 0.0f;
-        handLossResponse(loop.handLossDepth, loop.handLossShape, phaseOmega,
-                         dipMagnitude, dipPhase);
+        handLossResponse(cachedHandLossSection(loop.handSectionCache,
+                             loop.handLossDepth, loop.handLossShape),
+                         phaseOmega, dipMagnitude, dipPhase);
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
-        handLossResponse(loop.materialLossDepth, loop.materialLossShape,
+        handLossResponse(cachedHandLossSection(loop.materialSectionCache,
+                             loop.materialLossDepth, loop.materialLossShape),
                          phaseOmega, materialMagnitude, materialPhase);
         const float dipDelay = phaseOmega > 1.0e-9f
             ? -(dipPhase + materialPhase) / phaseOmega : 0.0f;
@@ -5189,7 +5213,8 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     const auto materialPhaseDelay = [&] ()
     {
         float magnitude = 1.0f, phase = 0.0f;
-        handLossResponse(loop.materialLossDepth, loop.materialLossShape,
+        handLossResponse(cachedHandLossSection(loop.materialSectionCache,
+                             loop.materialLossDepth, loop.materialLossShape),
                          omega, magnitude, phase);
         return -phase / omega;
     };
@@ -5666,9 +5691,11 @@ float ElectryEngine::refretBankPhaseDelay(const LoopFilterBank& bank,
 {
     const float omega = twoPi / std::max(physicalPeriod, 1.0f);
     float magnitude = 1.0f, handPhase = 0.0f, materialPhase = 0.0f;
-    handLossResponse(bank.handLossDepth, bank.handLossShape,
+    handLossResponse(cachedHandLossSection(bank.handSectionCache,
+                         bank.handLossDepth, bank.handLossShape),
                      omega, magnitude, handPhase);
-    handLossResponse(bank.materialLossDepth, bank.materialLossShape,
+    handLossResponse(cachedHandLossSection(bank.materialSectionCache,
+                         bank.materialLossDepth, bank.materialLossShape),
                      omega, magnitude, materialPhase);
     float phase =
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
