@@ -1972,6 +1972,10 @@ private:
     double hostSampleRate_ { 48000.0 };
     double sampleRate_ { 48000.0 };
     float inverseSampleRate_ { 1.0f / 48000.0f };
+    // round(0.000125 s * sampleRate_): the releasing hand's boundary-average
+    // half-width in samples, a constant of the rate read on every sample of a
+    // release. 6 matches the 48 kHz default above.
+    float releaseSpreadSamples_ { 6.0f };
     int oversamplingFactor_ { 1 };
     bool prepared_ { false };
     PickStyle pickStyle_ { PickStyle::Down };

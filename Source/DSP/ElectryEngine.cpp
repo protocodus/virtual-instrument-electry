@@ -1659,6 +1659,7 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     oversamplingFactor_ = hostSampleRate_ <= 96000.0 ? 2 : 1;
     sampleRate_ = hostSampleRate_ * static_cast<double>(oversamplingFactor_);
     inverseSampleRate_ = static_cast<float>(1.0 / sampleRate_);
+    releaseSpreadSamples_ = std::round(0.000125f * static_cast<float>(sampleRate_));
 
     // 14 ms continuous-parameter smoothing and a 4 ms pickup selector fade,
     // both advanced at the control tick.
@@ -8606,7 +8607,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                 // guarded span; a release during handoff cannot replace the
                 // source's spectrum abruptly with destination-only samples.
                 const float width = std::min(
-                    std::round(0.000125f * static_cast<float>(sampleRate_)),
+                    releaseSpreadSamples_,
                     scalarFloor(std::max(0.0f, std::min(boundaryDelay - 4.0f,
                         static_cast<float>(delayLineSize - 8) - boundaryDelay))));
                 const float spread = 0.5f * boundary + 0.25f * (
