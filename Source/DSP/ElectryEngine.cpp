@@ -620,8 +620,8 @@ void ElectryEngine::DelayTap::setDelay(float delaySamples) noexcept
     // The read is `writeIndex - delaySamples`, and the write index is an
     // integer, so the interpolation's unit interval starts `ceil(delay)` back
     // and its fractional position is `ceil(delay) - delay`.
-    const float ceiling = std::ceil(delaySamples);
-    offset = static_cast<int>(ceiling);
+    offset = positiveCeilToInt(delaySamples);
+    const float ceiling = static_cast<float>(offset);
     const float t = ceiling - delaySamples;
     const float tMinus1 = t - 1.0f;
     const float tMinus2 = t - 2.0f;
@@ -636,8 +636,9 @@ void ElectryEngine::PolarisationLoop::writeAdd(float offsetSamples, float value)
 {
     offsetSamples = clampf(offsetSamples, 1.0f, static_cast<float>(delayLineSize - 8));
     // Match the moving read's cursor-independent fractional coordinate.
-    const float ceiling = std::ceil(offsetSamples);
-    const int index = writeIndex - static_cast<int>(ceiling);
+    const int wholeCeiling = positiveCeilToInt(offsetSamples);
+    const float ceiling = static_cast<float>(wholeCeiling);
+    const int index = writeIndex - wholeCeiling;
     const float fraction = ceiling - offsetSamples;
     const int mask = delayLineSize - 1;
     line[static_cast<std::size_t>(index & mask)] += value * (1.0f - fraction);

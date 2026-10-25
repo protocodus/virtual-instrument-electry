@@ -99,6 +99,19 @@ template <typename T>
     return (bits & Bits::sign) ? truncated - T(1) : truncated;
 }
 
+// std::ceil for the delay-line split points, as the integer the ring index
+// needs. Callers have already clamped the delay to a positive range far below
+// 2^31; truncation is floor for a positive float and every such float
+// converts to int exactly, so static_cast<float> of the result is std::ceil
+// bit for bit there. Under -fno-builtin std::ceil would otherwise be an
+// out-of-line libm call in every fractional delay read of the sample loop.
+// Not for zero, negative or non-finite input.
+[[nodiscard]] inline int positiveCeilToInt(float value) noexcept
+{
+    const int truncated = static_cast<int>(value);
+    return static_cast<float>(truncated) < value ? truncated + 1 : truncated;
+}
+
 // C++20 lerp's endpoint and monotonicity guarantees, including extrapolation.
 // Keep the older float-only electry::lerp arithmetic unchanged in DspMath.h.
 template <typename T>

@@ -1111,8 +1111,9 @@ private:
             // Split the delay before subtracting the integer ring cursor.
             // Subtracting in float rounds its fraction differently as the
             // cursor travels, modulating even a stationary string's pitch.
-            const float ceiling = std::ceil(delaySamples);
-            const int index = writeIndex - static_cast<int>(ceiling);
+            const int wholeCeiling = positiveCeilToInt(delaySamples);
+            const float ceiling = static_cast<float>(wholeCeiling);
+            const int index = writeIndex - wholeCeiling;
             const float t = ceiling - delaySamples;
             constexpr int mask = delayLineSize - 1;
             const float y0 = line[static_cast<std::size_t>((index - 1) & mask)];
