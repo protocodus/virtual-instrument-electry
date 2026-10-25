@@ -1505,15 +1505,32 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
                                      float omega, float& magnitude,
                                      float& phase) noexcept
 {
+    handLossResponse(handLossSection(depth, shape), omega, magnitude, phase);
+}
+
+ElectryEngine::HandLossSection ElectryEngine::handLossSection(
+    float depth, const HandLossShape& shape) noexcept
+{
+    HandLossSection section;
+    if (depth <= 0.0f)
+        return section;
+    handDipCoefficients(depth, shape, section.b0, section.b1, section.b2,
+                        section.a1, section.a2);
+    section.active = ! (section.b1 == 0.0 && section.b2 == 0.0
+                        && section.a1 == 0.0 && section.a2 == 0.0);
+    return section;
+}
+
+void ElectryEngine::handLossResponse(const HandLossSection& section,
+                                     float omega, float& magnitude,
+                                     float& phase) noexcept
+{
     magnitude = 1.0f;
     phase = 0.0f;
-    if (depth <= 0.0f)
+    if (! section.active)
         return;
-
-    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
-    if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
-        return;
+    const double b0 = section.b0, b1 = section.b1, b2 = section.b2;
+    const double a1 = section.a1, a2 = section.a2;
 
     // Evaluated at z = e^{j omega}, in double for the same cancellation reason
     // the section itself runs in double: the solve divides this magnitude out of
@@ -3870,8 +3887,9 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
                                    float& gainOut, float& dipAtF0Out)
         {
             float atF0 = 1.0f, atHigh = 1.0f, unused = 0.0f;
-            handLossResponse(depth, shape, omega0, atF0, unused);
-            handLossResponse(depth, shape, omegaHigh, atHigh, unused);
+            const HandLossSection section = handLossSection(depth, shape);
+            handLossResponse(section, omega0, atF0, unused);
+            handLossResponse(section, omegaHigh, atHigh, unused);
             atF0 = clampf(atF0, 1.0e-3f, 1.0f);
             atHigh = clampf(atHigh, 1.0e-3f, 1.0f);
             // The shelf must not be what makes the remainder unsolvable. The
@@ -4008,12 +4026,11 @@ void ElectryEngine::configureBassMaterialLoss(
     materialShape.dipQ = bassMaterialLossQ;
     materialShape.dipFullDepthDb = 1.0f;
     float hand0 = 1.0f, handMiddle = 1.0f, handHigh = 1.0f, unused = 0.0f;
-    handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omega0, hand0, unused);
-    handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omegaMiddle, handMiddle, unused);
-    handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omegaHigh, handHigh, unused);
+    const HandLossSection handSection =
+        handLossSection(loop.handLossDepth, loop.handLossShape);
+    handLossResponse(handSection, omega0, hand0, unused);
+    handLossResponse(handSection, omegaMiddle, handMiddle, unused);
+    handLossResponse(handSection, omegaHigh, handHigh, unused);
     const float fixed0 = loop.loopGain
         * onePoleMagnitude(loop.loopDampingCoefficient, omega0) * hand0;
     const float fixedHigh = loop.loopGain
@@ -4029,9 +4046,11 @@ void ElectryEngine::configureBassMaterialLoss(
                          float& middleMagnitude)
     {
         float material0 = 1.0f, materialMiddle = 1.0f, materialHigh = 1.0f;
-        handLossResponse(depth, materialShape, omega0, material0, unused);
-        handLossResponse(depth, materialShape, omegaMiddle, materialMiddle, unused);
-        handLossResponse(depth, materialShape, omegaHigh, materialHigh, unused);
+        const HandLossSection materialSection =
+            handLossSection(depth, materialShape);
+        handLossResponse(materialSection, omega0, material0, unused);
+        handLossResponse(materialSection, omegaMiddle, materialMiddle, unused);
+        handLossResponse(materialSection, omegaHigh, materialHigh, unused);
         const float ratio = fixedHigh / fixed0
                           * hand0 * material0 / (handHigh * materialHigh);
         if (ratio > 1.0f)

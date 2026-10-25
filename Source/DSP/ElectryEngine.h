@@ -1766,6 +1766,20 @@ private:
     static void handLossResponse(float depth, const HandLossShape& shape,
                                  float omega, float& magnitude,
                                  float& phase) noexcept;
+    // handLossResponse split at its frequency argument: the dip section for
+    // one depth and shape, then its response at any omega. A solve that
+    // evaluates one candidate depth at several frequencies builds the
+    // section once; the arithmetic, and so every bit, is the same as calling
+    // handLossResponse at each frequency.
+    struct HandLossSection
+    {
+        double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
+        bool active { false };
+    };
+    [[nodiscard]] static HandLossSection handLossSection(
+        float depth, const HandLossShape& shape) noexcept;
+    static void handLossResponse(const HandLossSection& section, float omega,
+                                 float& magnitude, float& phase) noexcept;
     // The dip's biquad coefficients for a given depth. Shared by the solve, the
     // phase compensation and the per-voice setup for the same reason as above.
     static void handDipCoefficients(float depth, const HandLossShape& shape,
