@@ -144,7 +144,7 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
-### 1.2.8 — In development — Lines stay in position
+### 1.2.8 — 2026-10-20 — Lines stay in position
 
 A single note may now take a string whose previous note has only a key-up
 release tail, so a played line stays at the low frets instead of jumping to
@@ -153,14 +153,14 @@ Open strings no longer alternate with those dark, louder high-fret notes, which
 is what made them sound like a different instrument. Sustain-pedal notes, held
 keys, MPE bindings and Hammer/Slide continuation keep their strings.
 
-### 1.2.7 — In development — Shared pitch-bend range
+### 1.2.7 — 2026-10-19 — Shared pitch-bend range
 
 The shared player accepts a 0–24-semitone pitch-bend range for the Rack
 adapter's front-panel and automation controls, and applies live range changes
 to held bends. The default remains ±2 semitones, with existing engine pitch
 limits. The plug-in's existing wheel and MPE ranges are unchanged.
 
-### 1.2.5 — In development — Smoother fret handoffs
+### 1.2.5 — 2026-10-18 — Smoother fret handoffs
 
 Picked fret changes use a smoother two-tap fade to spend less time in the
 handoff's cancellation region, keeping the existing Contact duration and
@@ -169,7 +169,7 @@ The remaining midpoint comb notch and hardware-dependent dry-guitar tone
 differences are documented in the
 [coloration analysis and comparisons](Docs/validation/refret-coloration-2026-10-18.md).
 
-### 1.2.4 — In development — Picked fret transitions
+### 1.2.4 — 2026-10-18 — Picked fret transitions
 
 Small picked changes on a ringing string hand off between stationary old- and
 new-fret feedback taps, avoiding the unintended pitch sweep from the bend
@@ -183,7 +183,7 @@ arrival, including when a new MPE member takes the same pitch.
 See the [fret-handoff validation](Docs/validation/refret-handoff-2026-10-18.md)
 for real DI comparisons and the method's limits.
 
-### 1.2.3 — In development — Same-string note handoffs
+### 1.2.3 — 2026-10-18 — Same-string note handoffs
 
 An older MIDI Note Off no longer stops a newer note after an A → B → A
 passage on the same string. Displaced MIDI owners are retained until their
@@ -191,7 +191,7 @@ matching ends arrive, so overlapping riffs and repeated notes keep their
 intended sustain. Picking-hand repick keys retain their separate ownership.
 See the [real DI comparisons and validation](Docs/validation/performance-realism-2026-10-18.md).
 
-### 1.2.2 — In development — String mass, modal fitting and continuous legato
+### 1.2.2 — 2026-10-17 — String mass, modal fitting and continuous legato
 
 Hammer-ons and slides retain their continuous stiffness fit when the finger
 reaches its destination, avoiding a global coefficient jump on a ringing
