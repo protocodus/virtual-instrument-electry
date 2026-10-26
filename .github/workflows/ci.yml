@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: ['**']
   workflow_dispatch:
 
 permissions:
@@ -11,7 +10,7 @@ permissions:
 
 # Supersede outdated PR checks, but keep every main push's build.
 concurrency:
-  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  group: ci-${{ github.ref != 'refs/heads/main' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:

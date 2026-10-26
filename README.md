@@ -1581,7 +1581,7 @@ proof that it found the just-built component. `./scripts/sign-and-package-macos.
 stages, signs and packages all four products; provide the signing and
 notarization environment described by that script for Developer ID distribution.
 
-Every push to `main` (including a merged pull request) runs the
+Every push to `main` runs the
 [Main build workflow](.github/workflows/main-build.yml). It builds macOS universal
 (Apple Silicon + Intel) VST3, Audio Unit, CLAP and Standalone as a ZIP and PKG;
 Windows x64 VST3, CLAP and Standalone as a ZIP; and Linux x64 VST3, CLAP and
