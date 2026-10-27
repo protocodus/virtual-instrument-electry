@@ -1,4 +1,4 @@
-"""Check full-set byte determinism and output ownership for offline workers."""
+"""Check full-set byte determinism and unrelated-file safety for offline workers."""
 import hashlib
 from pathlib import Path
 import subprocess
@@ -21,18 +21,8 @@ def main():
             )
             assert result.returncode != 0 and not output.exists(), value
 
-        # A broken canonical ownership marker must fail before writing audio.
-        canonical = root / "canonical"
-        audio = canonical / "Docs" / "audio"
-        audio.mkdir(parents=True)
-        (canonical / "README.md").write_text("Missing the renderer's markers\n")
-        original = audio / "01-range-open-strings.wav"
-        original.write_bytes(b"do not overwrite")
-        rejected = subprocess.run(
-            [renderer, "--jobs", "4", str(audio)], capture_output=True, timeout=10
-        )
-        assert rejected.returncode != 0
-        assert original.read_bytes() == b"do not overwrite"
+        # The takes are never committed, so there is no default directory.
+        assert subprocess.run([renderer], capture_output=True, timeout=10).returncode != 0
 
         hashes = []
         logs = []

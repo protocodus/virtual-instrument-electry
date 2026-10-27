@@ -272,10 +272,9 @@ zero-length calls, including a single non-finite sample in the middle of an
 otherwise clean block. The cabinet's low-frequency probe sits below the modelled
 box corner, which is deliberately low enough that a Drop-E eighth string's
 fundamental reaches the cabinet rather than being cut before it. A further test renders a short take through the demo
-renderer, so the committed demonstration audio's toolchain is covered too.
+renderer, so the technique takes' toolchain is covered too.
 
-Twenty-three rendered examples of the whole path are committed under
-`Docs/audio/` and produced from this same JUCE-free code by
-`Tools/RenderDemos.cpp`, so what the document describes can be listened to
-rather than only read. They are demonstrations, not evidence: an audible
+Twenty-three rendered examples of the whole path are produced locally from
+this same JUCE-free code by `Tools/RenderDemos.cpp`, so what the document
+describes can be listened to rather than only read. They are demonstrations, not evidence: an audible
 example is not a measurement, and none of the claims above rest on them.

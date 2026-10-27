@@ -26,10 +26,8 @@ env:
 # pending builds when several merges arrive while another run is still active.
 
 jobs:
-  # Linux is the canonical demo renderer. Keep the whole rendered set in the
-  # run even when a newer source commit makes this run too old to update main.
-  refresh-audio-demos:
-    name: DSP tiers, audio demos and README peak table
+  dsp-tiers:
+    name: DSP unit and audio tiers
     runs-on: ubuntu-24.04
     steps:
       - name: Number this build
@@ -54,27 +52,6 @@ jobs:
             -DELECTRY_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
           cmake --build build-dsp --parallel
           ctest --test-dir build-dsp --output-on-failure --no-tests=error -L 'unit|audio'
-
-      - name: Render and verify all 23 audio demos
-        run: |
-          set -euo pipefail
-          ./build-dsp/ElectryRenderDemos Docs/audio
-          rendered=$(find Docs/audio -maxdepth 1 -name '*.wav' | wc -l)
-          if (( rendered != 23 )); then
-            echo "error: rendered $rendered demo WAVs, expected 23" >&2
-            exit 1
-          fi
-          # Only canonical demos belong in this payload; frozen listening and
-          # per-fix previews in subdirectories remain outside the refresh.
-          tar -czf build-dsp/audio-demos.tar.gz README.md Docs/audio/*.wav
-
-      - name: Upload audio demos and generated README
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: main-build-audio
-          path: build-dsp/audio-demos.tar.gz
-          if-no-files-found: error
-          retention-days: 30
 
   # The long coverage-guided session; every PR runs a short one in ci.yml.
   long-fuzz:
@@ -283,7 +260,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build pkg-config xvfb xauth ffmpeg \
+            ninja-build pkg-config xvfb xauth \
             libasound2-dev \
             libfreetype-dev libfontconfig1-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
@@ -312,14 +289,19 @@ jobs:
           xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
             --no-tests=error -L unit -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
-      # Linux renders the factory rig demos (G3); the publication job writes
-      # their README table from demos.json.
-      - name: Render the factory rig demos
+      # Linux is the canonical demo renderer: the factory rig demos (G3) and
+      # the More demos (G3d). The publication job writes the rig demos' README
+      # table from demos.json; the More demos' list is hand-written. Keep the
+      # whole rendered set in the run even when a newer source commit makes
+      # this run too old to update main.
+      - name: Render the rig and More demos
         run: |
           set -euo pipefail
           xvfb-run -a ./build-plugin/RenderElectryPresetDemos --jobs 4 Docs/audio/midi preset-demos
+          xvfb-run -a ./build-plugin/RenderElectryPresetDemos --more --jobs 4 \
+            Docs/audio/midi/more preset-demos/more
 
-      - name: Upload the factory rig demos
+      - name: Upload the rig and More demos
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: main-build-preset-demos
@@ -407,7 +389,7 @@ jobs:
   collect-packages:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: Collect packages, screenshot and audio demos
-    needs: [build-macos, build-plugin, build-plugindows, refresh-audio-demos]
+    needs: [build-macos, build-plugin, build-plugindows, dsp-tiers]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -463,18 +445,7 @@ jobs:
           fi
           printf 'Release asset: %s\n' "${assets[@]}"
 
-      - name: Download the rendered audio demos
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: main-build-audio
-          path: rendered-audio
-
-      - name: Unpack the audio demos and generated README
-        run: |
-          mkdir -p dist/media
-          tar -xzf rendered-audio/audio-demos.tar.gz -C dist/media
-
-      - name: Download the factory rig demos
+      - name: Download the rig and More demos
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: main-build-preset-demos
