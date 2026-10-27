@@ -60,7 +60,7 @@ build from `main`. Per-change notes are in the
 ### 1.2.9 — In development — Lower CPU use
 
 The string engine and amplifier render about 9% fewer instructions (5–6%
-less CPU time) on a mixed rig, chord and FX workload, with bit-identical
+less CPU time) on the original measured rig, chord and FX workload, with bit-identical
 output: nothing about the sound, the controls or saved sessions changes.
 
 ### 1.2.8 — 2026-10-20 — Lines stay in position

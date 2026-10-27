@@ -370,6 +370,13 @@ if(ELECTRY_BUILD_TOOLS)
     target_link_libraries(ElectryBenchmarkFx PRIVATE ElectryDSP)
     target_compile_features(ElectryBenchmarkFx PRIVATE cxx_std_20)
 
+    # Whole-instrument callgrind/parity harness over the factory rigs; see the
+    # measurement protocol at the head of the tool.
+    add_executable(ElectryBenchmarkPerformer Tools/BenchmarkPerformer.cpp)
+    target_link_libraries(ElectryBenchmarkPerformer PRIVATE ElectryDSP)
+    target_include_directories(ElectryBenchmarkPerformer
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Tools")
+
     if(MSVC)
         target_compile_options(ElectryRenderDemos PRIVATE /W4 /permissive-)
         target_compile_options(ElectryRenderEvaluation PRIVATE /W4 /permissive-)

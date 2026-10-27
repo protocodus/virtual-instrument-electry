@@ -354,7 +354,7 @@ ELECTRY_FX_HOT_INLINE PhaseInverterCurrent phaseInverterCurrentAndSlopes(
     // 2 kOhm/diode grid branch needs the two output coupling-cap states to be
     // meaningful, so no TriodeK curve is extrapolated past Vgk = 0 here.
     const double grid = std::min(gridToCathodeVoltage, 0.0);
-    const double root = std::sqrt(tube.kneeVoltage + plate * plate);
+    const double root = scalarSqrt(tube.kneeVoltage + plate * plate);
     const double drive = tube.kneeSoftness
         * (1.0 / tube.mu + grid / root);
     const auto soft = phaseSoftplus(drive, tables);
@@ -389,7 +389,7 @@ PhaseInverterCurrent exactPhaseInverterCurrentAndSlopes(
     // 2 kOhm/diode grid branch needs the two output coupling-cap states to be
     // meaningful, so no TriodeK curve is extrapolated past Vgk = 0 here.
     const double grid = std::min(gridToCathodeVoltage, 0.0);
-    const double root = std::sqrt(tube.kneeVoltage + plate * plate);
+    const double root = scalarSqrt(tube.kneeVoltage + plate * plate);
     const double drive = tube.kneeSoftness
         * (1.0 / tube.mu + grid / root);
     // The current and its Newton slope share the same exponential. Keeping
@@ -689,7 +689,7 @@ PowerTubeCurrents measuredPowerTubeCurrents(
     // but it must not silently turn this measured AB1 plate-current fit into
     // an ideal, unvalidated AB2 voltage source.
     const double grid = std::min(gridVoltage, 0.0);
-    const double kneeRoot = std::sqrt(
+    const double kneeRoot = scalarSqrt(
         tube.kneeVoltage + screen * screen);
     const double drive = tube.kneeSoftness
         * (1.0 / tube.mu + grid / kneeRoot);
@@ -707,11 +707,11 @@ PowerTubeCurrents measuredPowerTubeCurrents(
         : 0.0;
     const double lowPlate = tube.beamTetrode
         ? std::exp(-tube.lowPlateSlope * plate
-                   * std::sqrt(tube.lowPlateSlope * plate))
+                   * scalarSqrt(tube.lowPlateSlope * plate))
         : 1.0 / (1.0 + tube.lowPlateSlope * plate);
     const double lowPlateSlope = tube.beamTetrode
         ? lowPlate * -1.5 * tube.lowPlateSlope
-            * std::sqrt(tube.lowPlateSlope * plate)
+            * scalarSqrt(tube.lowPlateSlope * plate)
         : -tube.lowPlateSlope * lowPlate * lowPlate;
     const double secondaryArgument = -tube.secondarySlope
         * (plate - screen / tube.secondaryScreenRatio
@@ -1161,7 +1161,7 @@ PowerTubeTable makePowerTubeTable(AmpModel model)
     // forced into the nonlinear axis. Cache this table's own bilinear idle
     // error and remove it after interpolation, or a tiny convexity error would
     // create reservoir sag during digital silence.
-    const double idlePosition = (1.0 - std::sqrt(
+    const double idlePosition = (1.0 - scalarSqrt(
         -1.0 / minimumNormalisedPowerGrid))
         * static_cast<double>(powerTubeGridPoints - 1);
     const auto idleLower = std::min(
@@ -1267,7 +1267,7 @@ ELECTRY_FX_HOT_INLINE double lookupPowerGridCurrent(double gridVoltage) noexcept
         return current + slope
             * (gridVoltage - maximumGridCurrentTableVoltage);
     }
-    const double position = std::sqrt(
+    const double position = scalarSqrt(
         gridVoltage / maximumGridCurrentTableVoltage)
         * static_cast<double>(points - 1);
     const auto lower = std::min(tableIndexBelow(position), points - 2);
@@ -1480,7 +1480,7 @@ void ElectryFx::HalfbandStage::design() noexcept
     {
         const double distance = static_cast<double>(2 * m - 1);
         const double ratio = distance / edge;
-        const double window = besselI0(beta * std::sqrt(1.0 - ratio * ratio))
+        const double window = besselI0(beta * scalarSqrt(1.0 - ratio * ratio))
                             / normaliser;
         const double sign = (m % 2) == 1 ? 1.0 : -1.0;
         const double value = window * sign / (pi * distance);
@@ -1712,7 +1712,7 @@ void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
             : std::sin(pi * distance) / (pi * distance);
         const double position = distance / static_cast<double>(halfWidth);
         const double window = besselI0(
-            beta * std::sqrt(std::max(0.0, 1.0 - position * position)))
+            beta * scalarSqrt(std::max(0.0, 1.0 - position * position)))
             / windowNormaliser;
         return sinc * window;
     };
@@ -2352,7 +2352,7 @@ float ElectryFx::transformerCore(OnePole& flux, float input,
     constexpr float inverseLimitSquared = 1.0f / (fluxLimit * fluxLimit);
     const float held = flux.process(input, coefficient);
     const float carried = held
-        / std::sqrt(1.0f + held * held * inverseLimitSquared);
+        / scalarSqrt(1.0f + held * held * inverseLimitSquared);
     return input - (held - carried);
 }
 
@@ -3099,7 +3099,7 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         minimumNormalisedPowerGrid, 0.0);
     const auto gridPosition = [] (double grid)
     {
-        return (1.0 - std::sqrt(
+        return (1.0 - scalarSqrt(
             grid / minimumNormalisedPowerGrid))
             * static_cast<double>(powerTubeGridPoints - 1);
     };

@@ -800,18 +800,22 @@ private:
         float dipFullDepthDb { 0.0f };
     };
 
-    // The last handDipCoefficients() solve for one loss band, keyed on the
-    // exact bits of its inputs. The pitch compensation re-reads the hand and
-    // material responses on every control tick in which the sounding period
-    // moves (the attack-pitch glide moves it on every tick), while the bands
-    // themselves change only when the hand or the fit does; a key match
-    // returns the identical coefficients without the pow/sin/cos solve.
-    struct DipCoefficientMemo
+    struct HandLossSection
     {
-        std::uint32_t depthBits { 0 }, omegaBits { 0 }, qBits { 0 },
-            fullDepthBits { 0 };
-        bool valid { false };
         double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
+        bool active { false };
+    };
+
+    // The last handLossSection() of one filter bank's dip, kept while the
+    // exact bits of its depth and shape hold. The per-tick pitch
+    // compensation evaluates the same hand and material dips at a new
+    // frequency on every control tick; only a change of depth or shape
+    // rebuilds the section, so the result is the uncached one bit for bit.
+    struct HandLossSectionCache
+    {
+        std::uint32_t depthBits { 0 }, omegaBits { 0 }, qBits { 0 }, dbBits { 0 };
+        bool valid { false };
+        HandLossSection section {};
     };
 
     struct ModalResonator
@@ -841,7 +845,11 @@ private:
     // to this linear-phase halfband FIR before one host-rate sample is read.
     struct HalfbandDecimator
     {
-        std::array<float, decimatorHistorySize> history {};
+        // Kept twice over: every sample is written at [writeIndex] and
+        // [writeIndex + decimatorHistorySize], so the newest 64 samples are
+        // always one contiguous run and the FIR reads them through a plain
+        // pointer, with the same products summed in the same order.
+        std::array<float, 2 * decimatorHistorySize> history {};
         int writeIndex { 0 };
 
         void reset() noexcept
@@ -1022,8 +1030,6 @@ private:
         HandLossShape materialLossShape {};
         float materialLossDepth { 0.0f };
         // Response caches only: never part of the audible filter state.
-        mutable DipCoefficientMemo materialLossResponseMemo {};
-        mutable DipCoefficientMemo handLossResponseMemo {};
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         // Default-off empirical correction for the lowest physical string. It
         // reuses the same passive, minimum-phase section as the bridge hand,
@@ -1064,6 +1070,10 @@ private:
         // unity above its band, so it costs almost nothing at the fitted point
         // and the ceiling stops binding.
         DipBiquad handDip {};
+        // Sections of the hand and material dips for the phase solves; a
+        // cache keyed by exact inputs, so stale entries are never read.
+        mutable HandLossSectionCache handSectionCache {};
+        mutable HandLossSectionCache materialSectionCache {};
         HandLossShape handLossShape {};
         float handLossDepth { 0.0f };
         float handLossSolvedDepth { 0.0f };
@@ -1744,11 +1754,35 @@ private:
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+    // One frequency's sine and cosine, shared by every phase term the pitch
+    // compensation evaluates there (both polarisations' one-pole, shelf and
+    // dip sections). The float pair is std::sin/std::cos(omega) and the
+    // double pair std::sin/std::cos(double(omega)), exactly what each term
+    // used to compute for itself; the double pair is only resolved on first
+    // use. Using it changes no arithmetic.
+    struct PhaseFrequency
+    {
+        explicit PhaseFrequency(float frequency) noexcept;
+        [[nodiscard]] double sineD() const noexcept { resolveDouble(); return sineDouble; }
+        [[nodiscard]] double cosineD() const noexcept { resolveDouble(); return cosineDouble; }
+        float omega;
+        float sine;
+        float cosine;
+    private:
+        void resolveDouble() const noexcept;
+        mutable double sineDouble { 0.0 };
+        mutable double cosineDouble { 0.0 };
+        mutable bool doubleResolved { false };
+    };
+    static float onePolePhaseDelay(float coefficient,
+                                   const PhaseFrequency& frequency) noexcept;
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                                        float omegaHigh, float intrinsicPole,
                                        float intrinsicGain) noexcept;
     static float loopLossPhaseDelay(const LoopFilterBank &loop, float omega) noexcept;
+    static float loopLossPhaseDelay(const LoopFilterBank &loop,
+                                    const PhaseFrequency& frequency) noexcept;
 #endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
@@ -1789,12 +1823,27 @@ private:
     static void handLossResponse(float depth, const HandLossShape& shape,
                                  float omega, float& magnitude,
                                  float& phase) noexcept;
-    // The same response, reusing `memo`'s coefficients when depth and shape
-    // are bit-identical to its last solve.
-    static void handLossResponse(float depth, const HandLossShape& shape,
-                                 float omega, float& magnitude,
-                                 float& phase,
-                                 DipCoefficientMemo& memo) noexcept;
+    // handLossResponse split at its frequency argument: the dip section for
+    // one depth and shape, then its response at any omega. A solve that
+    // evaluates one candidate depth at several frequencies builds the
+    // section once; the arithmetic, and so every bit, is the same as calling
+    // handLossResponse at each frequency.
+    // (HandLossSection is declared beside HandLossShape.)
+    [[nodiscard]] static HandLossSection handLossSection(
+        float depth, const HandLossShape& shape) noexcept;
+    static void handLossResponse(const HandLossSection& section, float omega,
+                                 float& magnitude, float& phase) noexcept;
+    static void handLossResponse(const HandLossSection& section,
+                                 const PhaseFrequency& frequency,
+                                 float& magnitude, float& phase) noexcept;
+    // The section's response from cos/sin of omega; magnitude and phase
+    // arrive at their identity values and the section is active.
+    static void handLossResponse(const HandLossSection& section,
+                                 double cosine, double sine,
+                                 float& magnitude, float& phase) noexcept;
+    [[nodiscard]] static const HandLossSection& cachedHandLossSection(
+        HandLossSectionCache& cache, float depth,
+        const HandLossShape& shape) noexcept;
     // The dip's biquad coefficients for a given depth. Shared by the solve, the
     // phase compensation and the per-voice setup for the same reason as above.
     static void handDipCoefficients(float depth, const HandLossShape& shape,
@@ -2001,6 +2050,10 @@ private:
     double hostSampleRate_ { 48000.0 };
     double sampleRate_ { 48000.0 };
     float inverseSampleRate_ { 1.0f / 48000.0f };
+    // round(0.000125 s * sampleRate_): the releasing hand's boundary-average
+    // half-width in samples, a constant of the rate read on every sample of a
+    // release. 6 matches the 48 kHz default above.
+    float releaseSpreadSamples_ { 6.0f };
     int oversamplingFactor_ { 1 };
     bool prepared_ { false };
     PickStyle pickStyle_ { PickStyle::Down };
@@ -2302,7 +2355,6 @@ private:
     float voiceDelayRetention_ { 0.5f };
     // Half-width of the stopping hand's release average, in internal
     // samples: std::round(0.000125 * internal rate), fixed by prepare().
-    float releaseSpreadSamples_ { 0.0f };
 
     // Artifact shaping constants, evaluated once per control tick.
     float artifactContactShape_ { 0.0f };
