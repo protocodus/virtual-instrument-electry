@@ -1967,7 +1967,7 @@ void ElectryFx::prepare(double sampleRate)
         AmpModel::AmericanClean, 0.0));
     static_cast<void>(phaseInverterDirect(
         AmpModel::BritishCrunch, 0.0));
-    static_cast<void>(powerGridCurrentLookup(0.0));
+    static_cast<void>(powerGridCurrentTable()); // a 0 V lookup returns before reading it
     static_cast<void>(powerTubePairLookup(
         AmpModel::AmericanClean, 0.0f, 0.0f, 1.0f));
     static_cast<void>(powerTubePairLookup(
@@ -3109,6 +3109,8 @@ ElectryFx::PowerTubeResult ElectryFx::powerTubePairLookup(
         (clampedRail - minimumPowerTubeRail)
         / (maximumPowerTubeRail - minimumPowerTubeRail)
         * static_cast<double>(powerTubeRailPoints - 1);
+    // The clamps keep all three positions finite and non-negative, where
+    // truncation selects the same cell as floor.
     const auto highGridLower = std::min(
         tableIndexBelow(highGridPosition), powerTubeGridPoints - 2);
     const auto lowGridLower = std::min(
