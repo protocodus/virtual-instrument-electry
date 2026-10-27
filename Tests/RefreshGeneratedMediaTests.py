@@ -15,16 +15,21 @@ UPDATER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(UPDATER)
 PNG = b"\x89PNG\r\n\x1a\nfixtureIEND\xaeB`\x82"
 ARTIFACT_URL = "https://github.com/example/electry/actions/runs/123/artifacts/456"
-MP3 = b"\xff\xfb" + bytes(4096)
+WAV = b"RIFF\x00\x00\x00\x00WAVE" + bytes(4096)
+MORE_WAV = WAV + b"more"
 MANIFEST = (
-    b'{"demos": [{"number": 1, "preset": "Factory Default", "file": "01-factory-default.mp3",'
-    b' "seconds": 12.0, "peak_dbfs": -9.0}]}'
+    b'{"demos": [{"number": 1, "preset": "Factory Default", "file": "01-factory-default.wav",'
+    b' "seconds": 11.3, "peak_dbfs": -17.3}]}'
+)
+MORE_MANIFEST = (
+    b'{"demos": [{"number": 1, "preset": "Full Range", "file": "01-full-range.wav",'
+    b' "seconds": 11.5, "peak_dbfs": -21.3}]}'
 )
 
 
 def rendered_demo_table():
     with tempfile.TemporaryDirectory() as directory:
-        (Path(directory) / "01-factory-default.mp3").write_bytes(MP3)
+        (Path(directory) / "01-factory-default.wav").write_bytes(WAV)
         (Path(directory) / "demos.json").write_bytes(MANIFEST)
         return UPDATER.update_readme_blocks.demo_table(Path(directory) / "demos.json").encode()
 
@@ -50,9 +55,9 @@ def download(build_number, artifact_url=ARTIFACT_URL, source=None):
 README = (
     b"Human introduction\n" + UPDATER.DEMOS_BEGIN + DEMO_TABLE + UPDATER.DEMOS_END
     + b"\nHuman demos\n" + UPDATER.DOWNLOAD_BEGIN + download(1) + UPDATER.DOWNLOAD_END
-    + b"\nHuman middle\n" + UPDATER.PEAKS_BEGIN + b"\nold table\n"
-    + UPDATER.PEAKS_END + b"\nHuman footer\n"
+    + b"\nHuman middle\n"
 )
+OTHER_TABLE = README.replace(DEMO_TABLE, b"\nother generated table\n")
 
 
 @unittest.skipUnless(shutil.which("git"), "Git is required for publication tests")
@@ -75,6 +80,8 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.put(self.seed, "source.txt", b"source version one\n")
         self.put(self.seed, UPDATER.SCREENSHOT, PNG)
         self.put(self.seed, "Docs/audio/00-retired.wav", b"retired demo")
+        self.put(self.seed, "Docs/audio/01-factory-default.mp3", b"retired MP3 demo")
+        self.put(self.seed, "Docs/audio/more/00-retired.wav", b"retired More demo")
         self.put(self.seed, "Docs/audio/listening-tests/frozen.wav", b"frozen evidence")
         self.git(self.seed, "add", ".")
         self.git(self.seed, "commit", "-m", "source")
@@ -83,12 +90,11 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.git(self.seed, "push", "origin", "main")
         self.git(self.root, "clone", str(self.remote), str(self.checkout))
         self.git(self.checkout, "config", "core.autocrlf", "false")
-        self.put(self.media, "README.md", README.replace(b"old table", b"new table"))
         self.put(self.media, UPDATER.SCREENSHOT, PNG.replace(b"fixture", b"new screenshot"))
-        for index in range(1, 24):
-            self.put(self.media, f"Docs/audio/{index:02d}-demo.wav", f"RIFF demo {index}".encode())
-        self.put(self.media, "Docs/audio/01-factory-default.mp3", MP3)
+        self.put(self.media, "Docs/audio/01-factory-default.wav", WAV)
         self.put(self.media, UPDATER.DEMO_MANIFEST, MANIFEST)
+        self.put(self.media, "Docs/audio/more/01-full-range.wav", MORE_WAV)
+        self.put(self.media, UPDATER.MORE_MANIFEST, MORE_MANIFEST)
 
     def git(self, repo, *args):
         result = subprocess.run(["git", *args], cwd=repo, env=self.env,
@@ -128,18 +134,18 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.git(self.seed, "push", "origin", "main")
         return self.tip()
 
-    def assert_published(self, readme=None):
-        if readme is None:
-            readme = README.replace(b"old table", b"new table")
+    def assert_published(self, readme=README):
         self.assertEqual(self.remote_show("README.md"), readme)
         self.assertEqual(self.remote_show(UPDATER.SCREENSHOT), PNG.replace(b"fixture", b"new screenshot"))
-        self.assertEqual(self.remote_show("Docs/audio/23-demo.wav"), b"RIFF demo 23")
+        self.assertEqual(self.remote_show("Docs/audio/01-factory-default.wav"), WAV)
+        self.assertEqual(self.remote_show("Docs/audio/more/01-full-range.wav"), MORE_WAV)
         self.assertEqual(self.remote_show("Docs/audio/listening-tests/frozen.wav"), b"frozen evidence")
         names = self.git(self.remote, "ls-tree", "-r", "--name-only", "main").decode().splitlines()
-        self.assertNotIn("Docs/audio/00-retired.wav", names)
-        self.assertEqual(sum(UPDATER.root_demo(name) and name.endswith(".wav") for name in names), 23)
-        self.assertEqual(self.remote_show("Docs/audio/01-factory-default.mp3"), MP3)
+        for retired in ("00-retired.wav", "01-factory-default.mp3", "more/00-retired.wav"):
+            self.assertNotIn(f"Docs/audio/{retired}", names)
+        self.assertEqual(sum(UPDATER.root_demo(name) for name in names), 2)
         self.assertNotIn(UPDATER.DEMO_MANIFEST, names)
+        self.assertNotIn(UPDATER.MORE_MANIFEST, names)
 
     def test_combined_update_and_unchanged_noop(self):
         self.publish()
@@ -156,17 +162,29 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assert_published()
 
     def test_missing_preset_demo_does_not_write_repository(self):
-        (self.media / "Docs/audio/01-factory-default.mp3").unlink()
+        (self.media / "Docs/audio/01-factory-default.wav").unlink()
         self.assertIn("preset demos", self.publish(success=False).stderr)
         self.assertEqual(self.tip().decode(), self.source)
 
-    def test_download_and_media_update_preserves_authored_readme(self):
-        # Authored content in the renderer's README is not part of its payload.
-        rendered = (self.media / "README.md").read_bytes()
-        self.put(self.media, "README.md", rendered.replace(b"Human middle", b"Stale prose"))
+    def test_missing_more_demo_does_not_write_repository(self):
+        (self.media / "Docs/audio/more/01-full-range.wav").unlink()
+        self.assertIn("More demos", self.publish(success=False).stderr)
+        self.assertEqual(self.tip().decode(), self.source)
+
+    def test_more_than_four_more_demos_do_not_write_repository(self):
+        demos = []
+        for number in range(1, 6):
+            name = f"{number:02d}-take.wav"
+            self.put(self.media, f"Docs/audio/more/{name}", WAV)
+            demos.append(f'{{"number": {number}, "preset": "Take", "file": "{name}",'
+                         ' "seconds": 10.0, "peak_dbfs": -9.0}')
+        self.put(self.media, UPDATER.MORE_MANIFEST, f'{{"demos": [{", ".join(demos)}]}}'.encode())
+        self.assertIn("at most 4", self.publish(success=False).stderr)
+        self.assertEqual(self.tip().decode(), self.source)
+
+    def test_download_and_media_update(self):
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(2, source=self.source))
-        self.assert_published(expected)
+        self.assert_published(README.replace(download(1), download(2, source=self.source)))
 
     def test_download_only_new_build_and_same_build_noop(self):
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
@@ -176,7 +194,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertEqual(
             self.git(self.remote, "diff", "--name-only", previous, "main"), b"README.md\n"
         )
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
+        expected = README.replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertIn("unchanged", self.publish(build_number=3, artifact_url=ARTIFACT_URL).stdout)
         self.assertEqual(self.tip(), published)
@@ -185,13 +203,13 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.publish(build_number=2, artifact_url=ARTIFACT_URL)
         rerun_url = ARTIFACT_URL.replace("/456", "/789")
         self.publish(build_number=2, artifact_url=rerun_url)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(2, rerun_url, source=self.source))
+        expected = README.replace(download(1), download(2, rerun_url, source=self.source))
         self.assert_published(expected)
 
     def test_generated_download_commit_does_not_suppress_publication(self):
         latest = self.upstream("README.md", README.replace(download(1), download(2)))
         self.publish(build_number=3, artifact_url=ARTIFACT_URL)
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
+        expected = README.replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertEqual(self.git(self.remote, "rev-parse", "main^").strip(), latest)
 
@@ -235,7 +253,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.assertEqual(self.remote_show("README.md"), changed)
 
     def test_generated_table_commit_does_not_suppress_screenshot(self):
-        latest = self.upstream("README.md", README.replace(b"old table", b"other generated table"))
+        latest = self.upstream("README.md", OTHER_TABLE)
         self.publish()
         self.assert_published()
         self.assertEqual(self.git(self.remote, "rev-parse", "main^").strip(), latest)
@@ -288,7 +306,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         self.source = self.upstream("README.md", legacy).decode()
         self.git(self.checkout, "fetch", "origin")
         self.publish()
-        self.assert_published(legacy.replace(b"old table", b"new table"))
+        self.assert_published(legacy)
 
     def test_non_fast_forward_push_rechecks_and_reapplies_media(self):
         original_git = UPDATER.git
@@ -297,7 +315,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
         def competing_push(repo, *args, **kwargs):
             nonlocal raced_tip
             if args[0] == "push" and raced_tip is None:
-                raced_tip = self.upstream("README.md", README.replace(b"old table", b"racing table"))
+                raced_tip = self.upstream("README.md", OTHER_TABLE)
             return original_git(repo, *args, **kwargs)
 
         previous_directory = Path.cwd()
@@ -335,7 +353,7 @@ class RefreshGeneratedMediaTests(unittest.TestCase):
 
     def test_push_retry_reapplies_download_after_generated_change(self):
         raced_tip = self.run_download_race("README.md", README.replace(download(1), download(2)))
-        expected = README.replace(b"old table", b"new table").replace(download(1), download(3, source=self.source))
+        expected = README.replace(download(1), download(3, source=self.source))
         self.assert_published(expected)
         self.assertEqual(self.git(self.remote, "rev-parse", "main^").strip(), raced_tip)
 

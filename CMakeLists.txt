@@ -343,10 +343,10 @@ if(ELECTRY_BUILD_PLUGIN)
     endif()
 endif()
 
-# The committed demonstration WAVs under Docs/audio are rendered by this tool
-# from the same JUCE-free path the plug-in uses, so they cannot drift away from
-# what Electry actually produces. It is built by default, including on Linux CI,
-# so it cannot rot unnoticed.
+# The technique takes (local listening material, not committed) are rendered
+# by ElectryRenderDemos from the same JUCE-free path the plug-in uses, so they
+# cannot drift away from what Electry actually produces. It is built by
+# default, including on Linux CI, so it cannot rot unnoticed.
 option(ELECTRY_BUILD_TOOLS "Build the demo/evaluation renderers and FX benchmark" ON)
 
 if(ELECTRY_BUILD_TOOLS)
@@ -530,7 +530,7 @@ if(BUILD_TESTING)
         TIMEOUT ${ELECTRY_FX_TEST_TIMEOUT})
 
     if(ELECTRY_BUILD_TOOLS)
-        # Guards the renderer that produces the committed demonstration WAVs:
+        # Guards the renderer that produces the technique takes:
         # it renders a short take to a temporary directory and checks that the
         # audio is finite, audible and written as a readable WAV.
         add_test(NAME Electry.RenderDemos
@@ -600,7 +600,8 @@ if(BUILD_TESTING)
         add_test(NAME Electry.ParameterMatrix COMMAND ElectryParameterMatrixTests)
         set_tests_properties(Electry.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 1800)
 
-        # One demo per factory rig (G3), played through the processor itself.
+        # One demo per factory rig (G3) and the More demos (G3d), played
+        # through the processor itself.
         find_package(Threads REQUIRED)
         add_executable(RenderElectryPresetDemos Tools/RenderPresetDemos.cpp)
         target_link_libraries(RenderElectryPresetDemos PRIVATE Electry Threads::Threads)
@@ -614,6 +615,10 @@ if(BUILD_TESTING)
                  COMMAND RenderElectryPresetDemos --check
                          "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
         set_tests_properties(Electry.AudioDemos PROPERTIES LABELS audio TIMEOUT 600)
+        add_test(NAME Electry.MoreDemos
+                 COMMAND RenderElectryPresetDemos --more --check
+                         "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi/more")
+        set_tests_properties(Electry.MoreDemos PROPERTIES LABELS audio TIMEOUT 600)
 
         # The README screenshot is the processor suite's own editor render;
         # this test writes it to the build tree and checks the finished PNG.

@@ -64,29 +64,27 @@ jobs:
           ctest --test-dir build-embedded --output-on-failure \
             -R '^Electry\.(Performer|ElectryFx)$'
 
-      # The count is the point of the check: it is what turns "the renderer ran"
-      # into "the renderer rendered the whole set", so a take that silently
-      # stopped being written fails CI instead of leaving a stale WAV committed
-      # forever. Adding or removing a take means updating the number here in the
-      # same change.
-      - name: Render and verify demo audio
+      # The technique takes are local listening material, not committed demos
+      # (G3d); CI keeps them for review. The count is the point of the check:
+      # it turns "the renderer ran" into "the renderer rendered the whole set",
+      # so a take that silently stopped being written fails here. Adding or
+      # removing a take means updating the number here in the same change.
+      - name: Render and verify the technique takes
         run: |
           set -euo pipefail
-          ./build-dsp/ElectryRenderDemos Docs/audio
-          rendered=$(find Docs/audio -maxdepth 1 -name '*.wav' | wc -l)
+          ./build-dsp/ElectryRenderDemos --jobs 4 build-dsp/technique-takes
+          rendered=$(find build-dsp/technique-takes -maxdepth 1 -name '*.wav' | wc -l)
           if (( rendered != 23 )); then
-            echo "error: rendered $rendered demo WAVs, expected 23" >&2
+            echo "error: rendered $rendered technique WAVs, expected 23" >&2
             exit 1
           fi
-          echo "Electry: rendered all $rendered demo WAVs"
+          echo "Electry: rendered all $rendered technique WAVs"
 
-      - name: Upload demo audio
+      - name: Upload the technique takes
         uses: actions/upload-artifact@v4
         with:
-          name: ci-audio-demos
-          path: |
-            README.md
-            Docs/audio/*.wav
+          name: ci-technique-takes
+          path: build-dsp/technique-takes/*.wav
           if-no-files-found: error
           retention-days: 7
 
@@ -110,10 +108,10 @@ jobs:
           xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
             --no-tests=error -L unit -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact)$'
 
-      - name: Render every factory rig demo twice and compare bits
+      - name: Render every rig and More demo twice and compare bits
         run: |
           xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
-            --no-tests=error -L audio -R '^Electry\.AudioDemos$'
+            --no-tests=error -L audio -R '^Electry\.(AudioDemos|MoreDemos)$'
 
       - name: Package Linux VST3, CLAP and standalone
         run: python3 scripts/package-linux.py --build-dir build-plugin

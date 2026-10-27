@@ -1429,7 +1429,7 @@ the smoother from 12-40 ms keeps both annotations within 13 ms.
 
 The comparison below uses the safe 0-30 and 30-80 ms windows common to the
 real phrase and the new 83.31 ms-IOI
-[`16-mute-and-dead-metal.wav`](../audio/16-mute-and-dead-metal.wav), SHA-256
+`16-mute-and-dead-metal.wav` (an `ElectryRenderDemos` technique take), SHA-256
 `4ebe4cecde49d744ddfc9bb820ec66237602cabf0caf8911ead69f9b6ef20228`.
 The model rows are medians of their first twelve E1-only hits. Mute windows
 start at frame `22,050 + 3,674 n`; Dead windows start at the renderer's actual
