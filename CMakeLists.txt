@@ -23,7 +23,7 @@ endif()
 # C is required in addition to C++: JUCE's macOS plug-in wrappers (AU, Standalone)
 # compile C/Objective-C sources. Restricting this to CXX breaks non-Xcode
 # generators (Ninja/Makefiles) with a missing CMAKE_C_COMPILE_OBJECT error.
-project(Electry VERSION 1.2.8 LANGUAGES C CXX)
+project(Electry VERSION 1.2.9 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -369,6 +369,13 @@ if(ELECTRY_BUILD_TOOLS)
     add_executable(ElectryBenchmarkFx Tools/BenchmarkFx.cpp)
     target_link_libraries(ElectryBenchmarkFx PRIVATE ElectryDSP)
     target_compile_features(ElectryBenchmarkFx PRIVATE cxx_std_20)
+
+    # Whole-instrument callgrind/parity harness over the factory rigs; see the
+    # measurement protocol at the head of the tool.
+    add_executable(ElectryBenchmarkPerformer Tools/BenchmarkPerformer.cpp)
+    target_link_libraries(ElectryBenchmarkPerformer PRIVATE ElectryDSP)
+    target_include_directories(ElectryBenchmarkPerformer
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Tools")
 
     if(MSVC)
         target_compile_options(ElectryRenderDemos PRIVATE /W4 /permissive-)

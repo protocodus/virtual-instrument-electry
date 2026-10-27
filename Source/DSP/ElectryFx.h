@@ -195,7 +195,10 @@ private:
 
         std::array<float, oddTapCount> oddTaps {};
         float centreTap { 0.5f };
-        std::array<float, historySize> history {};
+        // Kept twice over: every push writes [writeIndex] and
+        // [writeIndex + historySize], so the newest historySize samples are
+        // one contiguous run and at() needs no wrap mask.
+        std::array<float, 2 * historySize> history {};
         int writeIndex { 0 };
 
         void design() noexcept;
@@ -205,16 +208,18 @@ private:
             writeIndex = 0;
         }
 
-        // Newest sample first: `at(0)` is the sample pushed last.
+        // Newest sample first: `at(0)` is the sample pushed last. Valid for
+        // samplesAgo < historySize.
         [[nodiscard]] float at(int samplesAgo) const noexcept
         {
             return history[static_cast<std::size_t>(
-                (writeIndex - 1 - samplesAgo) & historyMask)];
+                writeIndex + historySize - 1 - samplesAgo)];
         }
 
         void push(float input) noexcept
         {
             history[static_cast<std::size_t>(writeIndex)] = input;
+            history[static_cast<std::size_t>(writeIndex + historySize)] = input;
             writeIndex = (writeIndex + 1) & historyMask;
         }
 
@@ -529,6 +534,9 @@ private:
     [[nodiscard]] static const std::array<float, 16385>&
         triodeTransferTable() noexcept;
     [[nodiscard]] static float triodeStageLookup(double gridVoltage) noexcept;
+#if ! defined(ELECTRY_EMBEDDED_TARGET)
+    static std::array<float, 16385> solveTriodeTransfer() noexcept;
+#endif
     struct PhaseInverterResult
     {
         double output { 0.0 };
