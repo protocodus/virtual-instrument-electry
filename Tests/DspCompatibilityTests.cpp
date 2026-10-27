@@ -32,6 +32,7 @@ bool checkValue(T value, T sign)
     return same(electry::scalarAbs(value), std::abs(value))
         && same(electry::scalarFloor(value), std::floor(value))
         && same(electry::copySign(value, sign), std::copysign(value, sign))
+        && same(electry::scalarSqrt(value), std::sqrt(value))
         && electry::isFinite(value) == std::isfinite(value);
 }
 
@@ -72,11 +73,32 @@ bool checkType()
     }
     return true;
 }
+
+// positiveCeilToInt's domain is the clamped delay range: positive and far below
+// 2^31. Check every boundary class and many patterns across that domain.
+bool checkPositiveCeil()
+{
+    for (const float value : { std::numeric_limits<float>::denorm_min(),
+                               std::numeric_limits<float>::min(), 0.5f, 1.0f,
+                               std::nextafter(1.0f, 2.0f), 3.999999f, 4.0f,
+                               8183.5f, 8184.0f, 8388607.5f, 8388608.0f,
+                               16777217.0f, 2147483520.0f })
+        if (!same(static_cast<float>(electry::positiveCeilToInt(value)), std::ceil(value))) return false;
+    std::uint64_t state = 0x5be6c0d4a1f39e27ull;
+    for (int i = 0; i < 200000; ++i)
+    {
+        const float value = std::bit_cast<float>(
+            static_cast<std::uint32_t>(next(state) % 0x4f000000u));
+        if (value > 0.0f && !same(static_cast<float>(electry::positiveCeilToInt(value)), std::ceil(value)))
+            return false;
+    }
+    return true;
+}
 }
 
 int main()
 {
-    if (!checkType<float>() || !checkType<double>())
+    if (!checkType<float>() || !checkType<double>() || !checkPositiveCeil())
     {
         std::cerr << "C++17 DSP scalar compatibility differs from standard math\n";
         return EXIT_FAILURE;

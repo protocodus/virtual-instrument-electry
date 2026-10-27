@@ -57,6 +57,12 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 1.2.9 — In development — Lower CPU use
+
+The string engine and amplifier render about 9% fewer instructions (5–6%
+less CPU time) on the original measured rig, chord and FX workload, with bit-identical
+output: nothing about the sound, the controls or saved sessions changes.
+
 ### 1.2.8 — 2026-10-20 — Lines stay in position
 
 A single note may now take a string whose previous note has only a key-up
@@ -1483,7 +1489,9 @@ small numerical changes. Standard versus High is an intentional rate and
 latency change and is not expected to pass a tiny-error null test.
 Use `--help` for individual scenarios, rates, block sizes and error limits.
 The [earlier FX CPU optimization measurements](Docs/benchmarks/fx-cpu-optimization.md)
-retain the preceding implementation's measurements and validation.
+retain the preceding implementation's measurements and validation; the
+[October 2026 bit-identical engine and FX optimizations](Docs/benchmarks/cpu-optimization-2026-10-24.md)
+record the method behind the in-process paired take comparison.
 
 On macOS, `./scripts/build-macos.sh` drives the same build through Xcode as a
 universal VST3, Audio Unit, CLAP and Standalone app, runs every test tier and
