@@ -15,11 +15,6 @@ concurrency:
 
 env:
   BUILD_NUMBER: ${{ github.run_number }}
-  # A pinned pluginval release, each archive checked against its SHA-256.
-  PLUGINVAL_VERSION: v1.0.4
-  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
-  PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
-  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
 
 jobs:
   version:
@@ -62,25 +57,9 @@ jobs:
       - name: Build universal plug-in and run every tier
         run: ./scripts/build-macos.sh
 
-      - name: Validate the AU with auval
-        run: |
-          set -euo pipefail
-          components="$HOME/Library/Audio/Plug-Ins/Components"
-          mkdir -p "$components"
-          ditto "build-macos/Electry_artefacts/Release/AU/Electry.component" "$components/Electry.component"
-          # The registrar caches the component list; restarting it rescans.
-          killall -9 AudioComponentRegistrar 2>/dev/null || true
-          auval -strict -v aumu Elc1 Eltr
-
-      - name: Validate the VST3 with pluginval
-        working-directory: build-macos
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
-          echo "${PLUGINVAL_MACOS_SHA256}  pluginval.zip" | shasum -a 256 -c -
-          ditto -x -k pluginval.zip .
-          pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --verbose \
-            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
+        shell: bash
+        run: ./scripts/validate-plugins.sh build-macos Electry aumu Elc1 Eltr 0x454c5452
 
       - name: Import Developer ID identities
         id: signing
@@ -190,15 +169,9 @@ jobs:
           xvfb-run -a ctest --test-dir build-plugin --output-on-failure --no-tests=error \
             -R '^Electry\.(PluginProcessor|(VST3|CLAP)Artifact|EditorScreenshot)$'
 
-      - name: Validate the VST3 with pluginval
-        working-directory: build-plugin
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
-          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
-          unzip -q -o pluginval.zip
-          xvfb-run -a ./pluginval --strictness-level 10 --verbose \
-            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
+        shell: bash
+        run: ./scripts/validate-plugins.sh build-plugin Electry aumu Elc1 Eltr 0x454c5452
 
       - name: Package
         run: python3 scripts/package-linux.py --build-dir build-plugin
@@ -237,16 +210,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --test-dir build-plugin -C Release --output-on-failure --no-tests=error
 
-      - name: Validate the VST3 with pluginval
-        working-directory: build-plugin
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
         shell: bash
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
-          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
-          7z x -y pluginval.zip
-          ./pluginval.exe --strictness-level 10 --verbose \
-            --validate "Electry_artefacts/Release/VST3/Electry.vst3"
+        run: ./scripts/validate-plugins.sh build-plugin Electry aumu Elc1 Eltr 0x454c5452
 
       - name: Package
         run: python scripts/package-windows.py --build-dir build-plugin
@@ -281,7 +247,8 @@ jobs:
             libxinerama-dev libxrandr-dev libxrender-dev
       - name: Build and run
         env:
-          UBSAN_OPTIONS: print_stacktrace=1
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
           cmake -S . -B build-sanitize -G Ninja \
             -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \

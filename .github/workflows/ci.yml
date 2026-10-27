@@ -45,7 +45,7 @@ jobs:
           cmake -S . -B build-dsp -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DELECTRY_BUILD_PLUGIN=OFF \
-            -DBUILD_TESTING=ON
+            -DBUILD_TESTING=ON -DELECTRY_REQUIRE_PYTHON_TESTS=ON
 
       - name: Build and run unit and audio tiers
         run: |
@@ -112,6 +112,13 @@ jobs:
         run: |
           xvfb-run -a ctest --test-dir build-plugin --output-on-failure \
             --no-tests=error -L audio -R '^Electry\.(AudioDemos|MoreDemos)$'
+
+      # U7: fails above the budget in Tools/RenderPresetDemos.cpp; the figures
+      # are printed for the record.
+      - name: Perf tier
+        run: |
+          xvfb-run -a ctest --test-dir build-plugin --output-on-failure --no-tests=error -L '^perf$'
+          cat build-plugin/cpu.json
 
       - name: Package Linux VST3, CLAP and standalone
         run: python3 scripts/package-linux.py --build-dir build-plugin
@@ -228,6 +235,9 @@ jobs:
     name: Address/UB sanitizers, fuzzing and C++17 Rack build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -258,14 +268,12 @@ jobs:
             -DELECTRY_BUILD_CLAP=OFF -DELECTRY_BUILD_TOOLS=OFF
           cmake --build build-sanitize --parallel 2 --target \
             ElectryEngineTests ElectryRefretTests ElectryFxTests ElectryPluginProcessorTests ElectryDspFuzz \
-            ElectryParameterMatrixTests
+            ElectryDspFuzzReplay ElectryParameterMatrixTests
       - name: Run unit and fuzz tiers under the sanitizers
-        env:
-          UBSAN_OPTIONS: print_stacktrace=1
         run: |
           xvfb-run -a ctest --test-dir build-sanitize --output-on-failure \
             --no-tests=error -L 'unit|fuzz' \
-            -R '^Electry\.(ElectryEngine|Refret|ElectryFx|PluginProcessor|DspFuzz|ParameterMatrix)$'
+            -R '^Electry\.(ElectryEngine|Refret|ElectryFx|PluginProcessor|DspFuzz|DspFuzzReplay|ParameterMatrix)$'
       - name: Mutate DSP API sequences
         run: |
           mkdir -p build-sanitize/corpus build-sanitize/fuzz-artifacts

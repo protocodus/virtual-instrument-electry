@@ -37,6 +37,7 @@ option(ELECTRY_BUILD_CLAP "Build the CLAP plug-in alongside the JUCE formats" ON
 option(ELECTRY_ENABLE_SANITIZERS
     "Instrument tests and DSP with address/undefined-behaviour sanitizers" OFF)
 option(ELECTRY_BUILD_FUZZER "Build the Clang libFuzzer DSP input harness" OFF)
+option(ELECTRY_REQUIRE_PYTHON_TESTS "Fail to configure without the interpreter the Python checks need" OFF)
 set(ELECTRY_LIBFUZZER_LIBRARY "" CACHE FILEPATH
     "Optional libFuzzer archive for Clang distributions without its runtime")
 if(ELECTRY_ENABLE_SANITIZERS OR ELECTRY_BUILD_FUZZER)
@@ -597,7 +598,7 @@ if(BUILD_TESTING)
             "$<TARGET_PROPERTY:Electry,JUCE_GENERATED_SOURCES_DIRECTORY>"
             "$<TARGET_PROPERTY:Electry,INCLUDE_DIRECTORIES>")
         target_compile_features(ElectryParameterMatrixTests PRIVATE cxx_std_20)
-        add_test(NAME Electry.ParameterMatrix COMMAND ElectryParameterMatrixTests)
+        add_test(NAME Electry.ParameterMatrix COMMAND ElectryParameterMatrixTests --rotation)
         set_tests_properties(Electry.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 1800)
 
         # One demo per factory rig (G3) and the More demos (G3d), played
@@ -619,6 +620,14 @@ if(BUILD_TESTING)
                  COMMAND RenderElectryPresetDemos --more --check
                          "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi/more")
         set_tests_properties(Electry.MoreDemos PROPERTIES LABELS audio TIMEOUT 600)
+        # U7: the rig demos timed on one thread against the budget in
+        # Tools/RenderPresetDemos.cpp. Timing means nothing instrumented.
+        if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT ELECTRY_ENABLE_SANITIZERS AND NOT ELECTRY_BUILD_FUZZER)
+            add_test(NAME Electry.CpuBudget
+                     COMMAND RenderElectryPresetDemos --cpu --json "${CMAKE_BINARY_DIR}/cpu.json"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
+            set_tests_properties(Electry.CpuBudget PROPERTIES LABELS perf RUN_SERIAL TRUE TIMEOUT 1800)
+        endif()
 
         # The README screenshot is the processor suite's own editor render;
         # this test writes it to the build tree and checks the finished PNG.
@@ -708,7 +717,13 @@ if(BUILD_TESTING)
         endif()
     endif()
 
-    find_package(Python3 COMPONENTS Interpreter QUIET)
+    # CI requires the interpreter, so a missing one cannot silently register
+    # fewer tests.
+    if(ELECTRY_REQUIRE_PYTHON_TESTS)
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    else()
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+    endif()
     if(Python3_Interpreter_FOUND)
         # Offline NumPy/SciPy review tooling belongs to the normal tools build;
         # embedded/fuzz/sanitizer configurations validate their selected DSP
@@ -769,6 +784,17 @@ if(BUILD_TESTING)
             PROPERTIES TIMEOUT 60)
     endif()
 
+    # U8: the same harness with FuzzHarness.h's own main replays the fixed
+    # crashes committed in Tests/Fixtures/fuzz/, then seeded random inputs,
+    # on every compiler as a unit test.
+    add_executable(ElectryDspFuzzReplay Tests/DspFuzz.cpp)
+    target_link_libraries(ElectryDspFuzzReplay PRIVATE ElectryDSP)
+    target_compile_definitions(ElectryDspFuzzReplay PRIVATE PROTOCODUS_FUZZ_MAIN)
+    file(GLOB ELECTRY_FUZZ_REPRODUCERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/Fixtures/fuzz/*")
+    add_test(NAME Electry.DspFuzzReplay
+             COMMAND ElectryDspFuzzReplay -seed=20260914 -runs=300 -max_len=4096 ${ELECTRY_FUZZ_REPRODUCERS})
+    set_tests_properties(Electry.DspFuzzReplay PROPERTIES TIMEOUT 600)
+
     if(ELECTRY_BUILD_FUZZER)
         # A short, fixed-seed libFuzzer session; CI adds a longer time-boxed run.
         add_test(NAME Electry.DspFuzz
@@ -779,7 +805,7 @@ if(BUILD_TESTING)
             TIMEOUT 600)
     endif()
 
-    # Every test carries exactly one tier label (unit, audio, render or fuzz)
+    # Every test carries exactly one tier label (unit, audio, render, fuzz or perf)
     # so CI selects tiers with `ctest -L`; a test not labelled above is a unit
     # contract.
     get_property(ELECTRY_TESTS DIRECTORY PROPERTY TESTS)

@@ -1,7 +1,7 @@
 // U4 parameter-extremes matrix over the plug-in's automatable parameters and
-// factory rigs. CTest runs each case at one rate and block size in rotation;
-// `--full` runs the standard's full matrix (every case at all nine), which the
-// main build's long fuzz job does.
+// factory rigs, with the shared command line (U9). CTest passes --rotation,
+// each case at one rate and block size in turn; the main build's long fuzz
+// job runs the default, the standard's full matrix (every case at all nine).
 #include "PluginProcessor.h"
 
 #include <juce_events/juce_events.h>
@@ -9,7 +9,6 @@
 #include "ParameterMatrix.h"
 
 #include <cmath>
-#include <cstring>
 #include <thread>
 
 namespace
@@ -66,8 +65,6 @@ int main(int argc, char** argv)
 {
     const juce::ScopedJuceInitialiser_GUI juce;
     protocodus::matrix::Options options;
-    options.everyConfiguration = argc > 1 && std::strcmp(argv[1], "--full") == 0;
     options.jobs = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
-    return protocodus::matrix::Run([] { return std::make_unique<ElectryMatrixDevice>(); }, options) == 0
-        ? 0 : 1;
+    return protocodus::matrix::Main(argc, argv, [] { return std::make_unique<ElectryMatrixDevice>(); }, options);
 }

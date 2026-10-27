@@ -90,6 +90,26 @@ main build commits both sets through `scripts/refresh-generated-media.py`.
 The 23 technique takes of `Tools/RenderDemos.cpp` are local listening
 material, never committed.
 
+## Testing
+
+Tests follow the portfolio testing standard (U1–U10); the `portfolio-testing`
+skill has the procedures. These hold in every session:
+
+- Every CTest test is `<Name>.<Suite>` with exactly one tier label: `unit`,
+  `audio`, `render`, `fuzz` or `perf`.
+- A test is never skipped, disabled, loosened or given a longer timeout to
+  get green. Diagnose a failure against the baseline first; when a fixture or
+  limit was wrong, fix it and say why beside it, in the same commit.
+- Checks run in Release builds: use the file's always-on helper, never a bare
+  `assert()`. Seeds, rates and block sizes are fixed.
+- No test outside the `perf` tier passes or fails on time, and `perf` never
+  runs in a Debug or sanitized build. CPU figures are development-machine
+  figures, never Reason or DAW CPU.
+- A fixed fuzz crash's input goes in `Tests/Fixtures/fuzz/`, which
+  `<Name>.DspFuzzReplay` replays in the `unit` tier.
+- A DSP change is done when the suites it touches, the `unit`, `audio` and
+  `perf` tiers and `<Name>DSPCxx17` pass.
+
 ## Build and verify
 
 ```sh
@@ -99,18 +119,16 @@ ctest --test-dir build-dsp -L unit --output-on-failure
 ```
 
 Use a separate `build-plugin` directory (`-DELECTRY_BUILD_PLUGIN=ON`, the
-default) for the processor, editor and packaging. Every test is
-`Electry.<Suite>` with one tier label: `unit`, `audio` (the rig and More demos in
+default) for the processor, editor and packaging. Electry's suites by tier:
+`unit` (including `Electry.DspFuzzReplay`), `audio` (the rig and More demos in
 `build-plugin`, the technique takes in `build-dsp`), `render` (the editor
-screenshot) or `fuzz` (the parameter matrix in `build-plugin`, whose `--full`
-runs every configuration; `ElectryDspFuzz` with `-DELECTRY_BUILD_FUZZER=ON` and
-Clang). Select the suites that cover a change with `-R`, build
-`ElectryDSPCxx17` for any `Source/DSP/` change, then run the `unit` and
-`audio` tiers before a substantive DSP change is called done.
-
-A test is never skipped, disabled or loosened to get green. Diagnose a failed
-contract against the baseline before changing a fixture, and document why an
-assumption was stale.
+screenshot), `fuzz` (the parameter matrix in `build-plugin`, which CTest runs
+with `--rotation` and the main build in full; `ElectryDspFuzz` with
+`-DELECTRY_BUILD_FUZZER=ON` and Clang) and `perf` (`Electry.CpuBudget`, the rig
+demos in a Release `build-plugin` without sanitizers). Select the suites that
+cover a change with `-R` and build `ElectryDSPCxx17` for any `Source/DSP/`
+change. `scripts/validate-plugins.sh build-plugin Electry aumu Elc1 Eltr
+0x454c5452` runs the host validators on a plug-in build.
 
 ## A–Z listening tests
 

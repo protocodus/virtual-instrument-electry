@@ -1502,8 +1502,9 @@ Every push to `main` runs the
 Windows x64 VST3, CLAP and Standalone as a ZIP; and Linux x64 VST3, CLAP and
 Standalone as a tarball. Audio Unit is macOS-only. Windows Release builds link
 the C++ runtime statically. macOS bundles are ad-hoc signed; the CI installer
-is unsigned and is not notarized. The VST3 must pass pluginval at strictness
-level 10 on every platform and the AU must pass `auval -strict`; a 30-minute
+is unsigned and is not notarized. `scripts/validate-plugins.sh` checks every
+platform's build: the VST3 must pass pluginval at strictness level 10 and the
+CLAP clap-validator, and the AU must pass `auval -strict`; a 30-minute
 sanitized libFuzzer run goes alongside.
 
 Each main build also renders the editor screenshot and all 23 canonical audio
@@ -1533,7 +1534,8 @@ build `0` when neither is set. Set `BUILD_NUMBER=123`, or pass
 
 A `vX.Y.Z` tag runs the [Release workflow](.github/workflows/release.yml): it
 checks that the tag names the CMake version, runs every test tier on all three
-platforms and under the sanitizers, validates with pluginval and auval, and
+platforms and under the sanitizers, validates with pluginval, clap-validator
+and auval, and
 drafts a GitHub release with the four packages and `SHA256SUMS`. When the
 `MACOS_CERTIFICATES_P12`, `MACOS_CERTIFICATES_PASSWORD`,
 `MACOS_APP_SIGN_IDENTITY` and `MACOS_INSTALLER_SIGN_IDENTITY` secrets exist it

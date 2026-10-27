@@ -7,6 +7,10 @@
 #include "DSP/ElectryEngine.h"
 #include "DSP/ElectryFx.h"
 
+// Only for its PROTOCODUS_FUZZ_MAIN replay main (Electry.DspFuzzReplay); the
+// harness below keeps the input reader the shared header was modelled on.
+#include "FuzzHarness.h"
+
 #include <algorithm>
 #include <array>
 #include <bit>
