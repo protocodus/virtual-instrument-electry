@@ -104,9 +104,10 @@ int main(int argc, char** argv)
             presetFor.push_back(static_cast<std::size_t>(program));
         }
     }
-    // U7 perf budget: 0 reports without failing until the CI runner's median
-    // is measured.
-    instrument.cpuBudget = 0.0;
+    // U7 perf budget: about 3x the slowest demo's median realtime factor on
+    // the CI runner, 0.131 (04-blues-rock-lead) in ci.yml run 82 (ubuntu-24.04,
+    // AMD EPYC 7763, three repeats), 2026-10-27.
+    instrument.cpuBudget = 0.4;
     instrument.open = [presetFor](std::size_t demo, double rate, int maxBlockFrames, std::uint32_t) {
         return std::make_unique<ElectryVoice>(presetFor[demo], rate, maxBlockFrames);
     };
