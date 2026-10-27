@@ -758,6 +758,10 @@ if(BUILD_TESTING)
         add_test(NAME Electry.FitDispersion
                  COMMAND "${Python3_EXECUTABLE}"
                          "${CMAKE_CURRENT_SOURCE_DIR}/Tests/FitDispersionTests.py")
+        # The committed demo phrases are what the writer writes (G3a).
+        add_test(NAME Electry.DemoMidiSources
+                 COMMAND "${Python3_EXECUTABLE}"
+                         "${CMAKE_CURRENT_SOURCE_DIR}/Tools/write_preset_midi.py" --check)
         # Each case builds, commits and pushes throwaway Git repositories: about
         # 800 git processes in all, which take a minute on Windows runners,
         # where process creation is slow.

@@ -1392,6 +1392,9 @@ ctest --test-dir build-plugin --output-on-failure
 ./build-plugin/RenderElectryPresetDemos --more --jobs 4 Docs/audio/midi/more build-plugin/demos/more
 ```
 
+`Tools/write_preset_midi.py` writes the demo phrases those commands play;
+rerun it only to change a phrase on purpose.
+
 Every CTest test carries one tier label: `unit` (DSP, performer, processor and
 tool contracts), `audio` (the rig and More demos in `build-plugin`, the
 technique takes in `build-dsp`, each rendered identically twice),
