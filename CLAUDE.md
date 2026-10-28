@@ -82,11 +82,12 @@ later engine changes make them stale.
 Electry's factory rigs are its presets: `RenderElectryPresetDemos`
 (`Tools/RenderPresetDemos.cpp`, plug-in build) plays each
 `Docs/audio/midi/<NN>-<rig-slug>.mid` through the processor with that rig
-loaded, FX on for the amplifier rigs. With `--more` it plays the four
-**More demos** from `Docs/audio/midi/more/` through the rigs named in its
-showcase table, to `Docs/audio/more/`; the README list beside them is
-hand-written, so keep it in step when a showcase is added or renamed. The
-main build commits both sets through `scripts/refresh-generated-media.py`.
+loaded. FX on is the one setting a demo adds: a rig does not set FX, so the
+two amplifier rigs turn it on as a player would. With `--more` it plays the
+four **More demos** through the rigs named in its showcase table; the README
+list beside them is hand-written, so keep it in step when a showcase is added
+or renamed. The main build commits both sets through
+`scripts/refresh-generated-media.py`.
 The 23 technique takes of `Tools/RenderDemos.cpp` are local listening
 material, never committed.
 
@@ -188,3 +189,27 @@ written up as though a measurement had settled it.
 defensible on their own physics. It does not license drawing a constant, fitting
 a curve, or keeping a formulation the measurements reject. If every candidate
 needs an invented number, the answer is still that none of them ships.
+
+## Demo songs
+
+The README demos play the committed MIDI in `Docs/audio/midi/` (More demos in
+`more/`), written only by `Tools/write_preset_midi.py`; `<Name>.DemoMidiSources`
+fails when the files and the script differ. Change a phrase in the script, on
+purpose, and commit it with its regenerated `.mid` files on their own. Never
+edit a `.mid` by hand or rewrite a phrase because the DSP changed. The demos
+play each preset as a freshly loaded plug-in does, with no per-demo trims.
+The WAVs and the README table come only from the main build. Use the
+`portfolio-demo-songs` skill when choosing presets, writing phrases or changing
+the renderer.
+
+## Promotion and Shop material
+
+Promo videos, Shorts, their music, stems and thumbnails are review
+deliverables: render them to a dated folder outside the checkout, hand them
+over, and never commit them. Their sound comes from the shipping engine
+playing original MIDI, and every claim on screen or in the copy is one How it
+works supports. Use the `portfolio-youtube-promo` skill for a 16:9 YouTube
+promo and `portfolio-shorts` for YouTube Shorts and TikTok. Reason Shop copy
+and images belong to the Rack repository's `rack-shop-content` skill, and
+panel artwork to its `rack-panel-design` skill. Uploading or publishing any of
+it is the owner's step.

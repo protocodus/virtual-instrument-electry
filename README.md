@@ -135,7 +135,7 @@ distribution builds arrived during 1.2.0 development.
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 95](https://github.com/protocodus/virtual-instrument-electry/actions/runs/40446138335/artifacts/12711830086)**, built from [`616708e08af6`](https://github.com/protocodus/virtual-instrument-electry/commit/616708e08af67b712afce6131847ab5f94d15a65). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 98](https://github.com/protocodus/virtual-instrument-electry/actions/runs/40516591817/artifacts/12763896846)**, built from [`cb491b85751e`](https://github.com/protocodus/virtual-instrument-electry/commit/cb491b85751eb292d6906bcec3ea1eaaf965c5d1). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 This link downloads the complete binary package set, including the plug-ins and
@@ -1391,6 +1391,9 @@ ctest --test-dir build-plugin --output-on-failure
 ./build-plugin/RenderElectryPresetDemos --jobs 4 Docs/audio/midi build-plugin/demos
 ./build-plugin/RenderElectryPresetDemos --more --jobs 4 Docs/audio/midi/more build-plugin/demos/more
 ```
+
+`Tools/write_preset_midi.py` writes the demo phrases those commands play;
+rerun it only to change a phrase on purpose.
 
 Every CTest test carries one tier label: `unit` (DSP, performer, processor and
 tool contracts), `audio` (the rig and More demos in `build-plugin`, the
