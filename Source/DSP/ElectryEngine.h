@@ -2004,6 +2004,9 @@ private:
     double hostSampleRate_ { 48000.0 };
     double sampleRate_ { 48000.0 };
     float inverseSampleRate_ { 1.0f / 48000.0f };
+    // The stopping hand's 125 us release-average half-width in whole internal
+    // samples, rounded once in prepare() rather than per read.
+    float releaseSpreadSamples_ { 6.0f };
     int oversamplingFactor_ { 1 };
     bool prepared_ { false };
     PickStyle pickStyle_ { PickStyle::Down };
