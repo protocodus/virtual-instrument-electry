@@ -195,7 +195,9 @@ private:
 
         std::array<float, oddTapCount> oddTaps {};
         float centreTap { 0.5f };
-        std::array<float, historySize> history {};
+        // Each sample is stored twice, historySize apart, so at() reads the
+        // kernel span at a fixed offset from the cursor without wrapping.
+        std::array<float, 2 * historySize> history {};
         int writeIndex { 0 };
 
         void design() noexcept;
@@ -205,16 +207,18 @@ private:
             writeIndex = 0;
         }
 
-        // Newest sample first: `at(0)` is the sample pushed last.
+        // Newest sample first: `at(0)` is the sample pushed last. Valid for
+        // samplesAgo in [0, historySize - 1]; the kernels read at most 2 * span.
         [[nodiscard]] float at(int samplesAgo) const noexcept
         {
             return history[static_cast<std::size_t>(
-                (writeIndex - 1 - samplesAgo) & historyMask)];
+                writeIndex - 1 - samplesAgo + historySize)];
         }
 
         void push(float input) noexcept
         {
             history[static_cast<std::size_t>(writeIndex)] = input;
+            history[static_cast<std::size_t>(writeIndex + historySize)] = input;
             writeIndex = (writeIndex + 1) & historyMask;
         }
 
