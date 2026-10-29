@@ -529,6 +529,8 @@ private:
     [[nodiscard]] static const std::array<float, 16385>&
         triodeTransferTable() noexcept;
     [[nodiscard]] static float triodeStageLookup(double gridVoltage) noexcept;
+    [[nodiscard]] static float interpolateTriodeTransfer(
+        const float* transfer, double gridVoltage) noexcept;
     struct PhaseInverterResult
     {
         double output { 0.0 };
@@ -638,6 +640,10 @@ private:
     float delayFeedbackDamping_ { 0.5f };
     float delayFeedbackHighpass_ { 0.02f };
     bool prepared_ { false };
+    // triodeTransferTable()'s storage, read once in prepare(). The native
+    // table sits behind a function-local static guard; the amp stages read it
+    // two or three times per oversampled frame, so they use this pointer.
+    const float* triodeTransfer_ { nullptr };
 
 
     std::array<std::vector<float>, 2> delayLines_ {};
