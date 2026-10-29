@@ -195,7 +195,9 @@ private:
 
         std::array<float, oddTapCount> oddTaps {};
         float centreTap { 0.5f };
-        std::array<float, historySize> history {};
+        // Each sample is stored twice, historySize apart, so at() reads the
+        // kernel span at a fixed offset from the cursor without wrapping.
+        std::array<float, 2 * historySize> history {};
         int writeIndex { 0 };
 
         void design() noexcept;
@@ -205,16 +207,18 @@ private:
             writeIndex = 0;
         }
 
-        // Newest sample first: `at(0)` is the sample pushed last.
+        // Newest sample first: `at(0)` is the sample pushed last. Valid for
+        // samplesAgo in [0, historySize - 1]; the kernels read at most 2 * span.
         [[nodiscard]] float at(int samplesAgo) const noexcept
         {
             return history[static_cast<std::size_t>(
-                (writeIndex - 1 - samplesAgo) & historyMask)];
+                writeIndex - 1 - samplesAgo + historySize)];
         }
 
         void push(float input) noexcept
         {
             history[static_cast<std::size_t>(writeIndex)] = input;
+            history[static_cast<std::size_t>(writeIndex + historySize)] = input;
             writeIndex = (writeIndex + 1) & historyMask;
         }
 
@@ -529,6 +533,8 @@ private:
     [[nodiscard]] static const std::array<float, 16385>&
         triodeTransferTable() noexcept;
     [[nodiscard]] static float triodeStageLookup(double gridVoltage) noexcept;
+    [[nodiscard]] static float interpolateTriodeTransfer(
+        const float* transfer, double gridVoltage) noexcept;
     struct PhaseInverterResult
     {
         double output { 0.0 };
@@ -638,6 +644,10 @@ private:
     float delayFeedbackDamping_ { 0.5f };
     float delayFeedbackHighpass_ { 0.02f };
     bool prepared_ { false };
+    // triodeTransferTable()'s storage, read once in prepare(). The native
+    // table sits behind a function-local static guard; the amp stages read it
+    // two or three times per oversampled frame, so they use this pointer.
+    const float* triodeTransfer_ { nullptr };
 
 
     std::array<std::vector<float>, 2> delayLines_ {};
