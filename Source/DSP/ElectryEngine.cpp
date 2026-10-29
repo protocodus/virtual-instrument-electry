@@ -494,6 +494,7 @@ void ElectryEngine::ModalResonator::configure(float frequencyHz, float q,
 void ElectryEngine::HalfbandDecimator::push(float input) noexcept
 {
     history[static_cast<std::size_t>(writeIndex)] = input;
+    history[static_cast<std::size_t>(writeIndex + decimatorHistorySize)] = input;
     writeIndex = (writeIndex + 1) & (decimatorHistorySize - 1);
 }
 
@@ -524,18 +525,21 @@ float ElectryEngine::HalfbandDecimator::output() const noexcept
     };
     static constexpr float centreTap = 0.500000294415f;
     static constexpr int historyMask = decimatorHistorySize - 1;
+    static_assert(decimatorHistorySize >= 63,
+                  "the mirrored window must hold the 63-tap span");
 
-    // writeIndex points one slot past the newest internal sample.
+    // writeIndex points one slot past the newest internal sample. Its second
+    // copy sits decimatorHistorySize later, so window[-k] is the sample k
+    // steps older for every k in [0, 62], without wrapping.
     const int newest = (writeIndex - 1) & historyMask;
-    float sum = centreTap
-              * history[static_cast<std::size_t>((newest - 31) & historyMask)];
+    const float* window = history.data() + newest + decimatorHistorySize;
+    float sum = centreTap * window[-31];
     for (int pair = 1; pair < static_cast<int>(sideTaps.size()); ++pair)
     {
         const int nearOffset = 2 * pair;
         const int farOffset = 62 - nearOffset;
         sum += sideTaps[static_cast<std::size_t>(pair)]
-             * (history[static_cast<std::size_t>((newest - nearOffset) & historyMask)]
-                + history[static_cast<std::size_t>((newest - farOffset) & historyMask)]);
+             * (window[-nearOffset] + window[-farOffset]);
     }
     return sum;
 }
