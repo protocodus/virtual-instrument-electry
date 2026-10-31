@@ -1,8 +1,5 @@
 #include "DSP/ElectryFx.h"
 #include "DSP/DspMath.h"
-#if ELECTRY_MEASURED_MODERN_CABINET
-#include "DSP/ModernCabinetIR.h"
-#endif
 
 #include <algorithm>
 #include <cmath>
@@ -1461,348 +1458,6 @@ void ElectryFx::HalfbandStage::design() noexcept
     reset();
 }
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-template <std::size_t Size>
-void ElectryFx::FftPlan<Size>::prepare() noexcept
-{
-    unsigned bitCount = 0;
-    for (std::size_t value = Size; value > 1; value >>= 1)
-        ++bitCount;
-
-    for (std::size_t index = 0; index < Size; ++index)
-    {
-        std::size_t source = index;
-        std::size_t destination = 0;
-        for (unsigned bit = 0; bit < bitCount; ++bit)
-        {
-            destination = (destination << 1) | (source & 1u);
-            source >>= 1;
-        }
-        reversed[index] = static_cast<std::uint16_t>(destination);
-    }
-
-    for (std::size_t index = 0; index < Size / 2; ++index)
-    {
-        const double angle = -2.0 * pi * static_cast<double>(index)
-                           / static_cast<double>(Size);
-        roots[index] = { static_cast<float>(std::cos(angle)),
-                         static_cast<float>(std::sin(angle)) };
-    }
-}
-
-template <std::size_t Size>
-void ElectryFx::FftPlan<Size>::transform(
-    std::array<FftComplex, Size>& data, bool inverse) const noexcept
-{
-    for (std::size_t index = 0; index < Size; ++index)
-    {
-        const auto destination = static_cast<std::size_t>(reversed[index]);
-        if (destination > index)
-            std::swap(data[index], data[destination]);
-    }
-
-    for (std::size_t length = 2; length <= Size; length <<= 1)
-    {
-        const std::size_t half = length / 2;
-        const std::size_t rootStep = Size / length;
-        for (std::size_t base = 0; base < Size; base += length)
-        {
-            for (std::size_t offset = 0; offset < half; ++offset)
-            {
-                auto root = roots[offset * rootStep];
-                if (inverse)
-                    root.imaginary = -root.imaginary;
-                const auto& source = data[base + offset + half];
-                const FftComplex rotated {
-                    source.real * root.real
-                        - source.imaginary * root.imaginary,
-                    source.real * root.imaginary
-                        + source.imaginary * root.real
-                };
-                const auto first = data[base + offset];
-                data[base + offset] = {
-                    first.real + rotated.real,
-                    first.imaginary + rotated.imaginary
-                };
-                data[base + offset + half] = {
-                    first.real - rotated.real,
-                    first.imaginary - rotated.imaginary
-                };
-            }
-        }
-    }
-
-    if (inverse)
-    {
-        const float scale = 1.0f / static_cast<float>(Size);
-        for (auto& value : data)
-        {
-            value.real *= scale;
-            value.imaginary *= scale;
-        }
-    }
-}
-
-template <int BlockSize, int MaximumPartitions>
-void ElectryFx::CabinetPartitionTier<BlockSize, MaximumPartitions>::reset() noexcept
-{
-    for (auto& spectrum : history)
-        spectrum.fill(FftComplex {});
-    input.fill(0.0f);
-    output.fill(0.0f);
-    overlap.fill(0.0f);
-    scratch.fill(FftComplex {});
-    position = 0;
-    writePartition = 0;
-}
-
-template <int BlockSize, int MaximumPartitions>
-float ElectryFx::CabinetPartitionTier<BlockSize, MaximumPartitions>::process(
-    float sample,
-    const std::array<Spectrum,
-                     static_cast<std::size_t>(MaximumPartitions)>& kernels,
-    int activePartitions,
-    const FftPlan<static_cast<std::size_t>(fftSize)>& plan) noexcept
-{
-    activePartitions = std::clamp(activePartitions, 0, MaximumPartitions);
-    if (activePartitions <= 0)
-        return 0.0f;
-
-    const auto sampleIndex = static_cast<std::size_t>(position);
-    const float result = output[sampleIndex];
-    input[sampleIndex] = sample;
-    if (++position < BlockSize)
-        return result;
-    position = 0;
-
-    scratch.fill(FftComplex {});
-    for (int index = 0; index < BlockSize; ++index)
-        scratch[static_cast<std::size_t>(index)].real =
-            input[static_cast<std::size_t>(index)];
-    plan.transform(scratch, false);
-    history[static_cast<std::size_t>(writePartition)] = scratch;
-
-    scratch.fill(FftComplex {});
-    for (int partition = 0; partition < activePartitions; ++partition)
-    {
-        int historyIndex = writePartition - partition;
-        if (historyIndex < 0)
-            historyIndex += activePartitions;
-        const auto& signal = history[static_cast<std::size_t>(historyIndex)];
-        const auto& kernel = kernels[static_cast<std::size_t>(partition)];
-        for (int bin = 0; bin < fftSize; ++bin)
-        {
-            const auto index = static_cast<std::size_t>(bin);
-            scratch[index].real += signal[index].real * kernel[index].real
-                                 - signal[index].imaginary
-                                       * kernel[index].imaginary;
-            scratch[index].imaginary +=
-                signal[index].real * kernel[index].imaginary
-              + signal[index].imaginary * kernel[index].real;
-        }
-    }
-    plan.transform(scratch, true);
-
-    for (int index = 0; index < BlockSize; ++index)
-    {
-        const auto destination = static_cast<std::size_t>(index);
-        output[destination] = overlap[destination]
-                            + scratch[destination].real;
-        overlap[destination] =
-            scratch[static_cast<std::size_t>(index + BlockSize)].real;
-    }
-    writePartition = (writePartition + 1) % activePartitions;
-    return result;
-}
-
-template <int BlockSize, int MaximumPartitions>
-bool ElectryFx::CabinetPartitionTier<BlockSize, MaximumPartitions>::atRest()
-    const noexcept
-{
-    const auto complexZero = [] (const FftComplex& value)
-    {
-        return value.real == 0.0f && value.imaginary == 0.0f;
-    };
-    return std::all_of(input.begin(), input.end(), [] (float value)
-           { return value == 0.0f; })
-        && std::all_of(output.begin(), output.end(), [] (float value)
-           { return value == 0.0f; })
-        && std::all_of(overlap.begin(), overlap.end(), [] (float value)
-           { return value == 0.0f; })
-        && std::all_of(scratch.begin(), scratch.end(), complexZero)
-        && std::all_of(history.begin(), history.end(), [&] (const auto& spectrum)
-           { return std::all_of(spectrum.begin(), spectrum.end(), complexZero); });
-}
-
-void ElectryFx::CabinetKernel::prepare(float internalSampleRate,
-                                       float referenceMagnitude) noexcept
-{
-    mediumPlan.prepare();
-    longPlan.prepare();
-    impulse.fill(0.0f);
-    for (auto& spectrum : medium)
-        spectrum.fill(FftComplex {});
-    for (auto& spectrum : longTail)
-        spectrum.fill(FftComplex {});
-
-    const double sourceRate = static_cast<double>(
-        assets::modernCabinetIrSourceSampleRate);
-    const double rate = std::clamp(
-        isFinite(internalSampleRate)
-            ? static_cast<double>(internalSampleRate) : sourceRate,
-        sourceRate, 8.0 * sourceRate);
-    const double ratio = rate / sourceRate;
-    const double inverseRatio = 1.0 / ratio;
-    tapCount = std::min(
-        maximumTapCount,
-        static_cast<int>(std::ceil(
-            static_cast<double>(assets::modernCabinetIrSampleCount) * ratio)));
-
-    // The IR is a sampled filter, not an audio clip: the 48k/internal-rate
-    // factor preserves its transfer gain after inserting more coefficients.
-    // A symmetric 32-point Kaiser-windowed sinc is evaluated only in prepare;
-    // at source position zero every other integer sinc is exactly zero, so the
-    // original causal sample zero remains the first non-zero coefficient.
-    constexpr int halfWidth = 16;
-    constexpr double beta = 7.5;
-    const double windowNormaliser = besselI0(beta);
-    const auto interpolationWeight = [&] (double distance)
-    {
-        const double absolute = scalarAbs(distance);
-        if (absolute >= static_cast<double>(halfWidth))
-            return 0.0;
-        const double nearestInteger = std::round(distance);
-        const double sinc = scalarAbs(distance - nearestInteger) < 1.0e-12
-            ? (nearestInteger == 0.0 ? 1.0 : 0.0)
-            : std::sin(pi * distance) / (pi * distance);
-        const double position = distance / static_cast<double>(halfWidth);
-        const double window = besselI0(
-            beta * std::sqrt(std::max(0.0, 1.0 - position * position)))
-            / windowNormaliser;
-        return sinc * window;
-    };
-
-    constexpr double pcmScale = 1.0 / 8388608.0;
-    for (int outputIndex = 0; outputIndex < tapCount; ++outputIndex)
-    {
-        const double sourcePosition = static_cast<double>(outputIndex) / ratio;
-        const int centre = static_cast<int>(scalarFloor(sourcePosition));
-        double value = 0.0;
-        double weightSum = 0.0;
-        for (int sourceIndex = centre - halfWidth + 1;
-             sourceIndex <= centre + halfWidth; ++sourceIndex)
-        {
-            const double weight = interpolationWeight(
-                sourcePosition - static_cast<double>(sourceIndex));
-            weightSum += weight;
-            if (sourceIndex >= 0
-                && sourceIndex < static_cast<int>(
-                    assets::modernCabinetIrSampleCount))
-            {
-                value += weight * static_cast<double>(
-                    assets::modernCabinetIrPcm24[
-                        static_cast<std::size_t>(sourceIndex)]);
-            }
-        }
-        if (scalarAbs(weightSum) > 1.0e-12)
-            value /= weightSum;
-        impulse[static_cast<std::size_t>(outputIndex)] =
-            static_cast<float>(value * pcmScale * inverseRatio);
-    }
-
-    const double omega = twoPi * 1000.0 / rate;
-    double real = 0.0;
-    double imaginary = 0.0;
-    for (int index = 0; index < tapCount; ++index)
-    {
-        const double angle = omega * static_cast<double>(index);
-        const double value = static_cast<double>(
-            impulse[static_cast<std::size_t>(index)]);
-        real += value * std::cos(angle);
-        imaginary -= value * std::sin(angle);
-    }
-    const double measuredMagnitude = std::hypot(real, imaginary);
-    const double wantedMagnitude = isFinite(referenceMagnitude)
-        && referenceMagnitude > 0.0f
-        ? static_cast<double>(referenceMagnitude) : 1.0;
-    normalisationGain = static_cast<float>(
-        wantedMagnitude / std::max(measuredMagnitude, 1.0e-12));
-    for (int index = 0; index < tapCount; ++index)
-        impulse[static_cast<std::size_t>(index)] *= normalisationGain;
-
-    for (int partition = 0; partition < mediumPartitionCount; ++partition)
-    {
-        MediumTier::Spectrum spectrum {};
-        const int start = directTapCount + partition * mediumBlockSize;
-        for (int index = 0; index < mediumBlockSize; ++index)
-        {
-            const int tap = start + index;
-            if (tap < tapCount)
-                spectrum[static_cast<std::size_t>(index)].real =
-                    impulse[static_cast<std::size_t>(tap)];
-        }
-        mediumPlan.transform(spectrum, false);
-        medium[static_cast<std::size_t>(partition)] = spectrum;
-    }
-
-    longPartitionCount = std::clamp(
-        (tapCount - longStartTap + longBlockSize - 1) / longBlockSize,
-        0, maximumLongPartitions);
-    for (int partition = 0; partition < longPartitionCount; ++partition)
-    {
-        LongTier::Spectrum spectrum {};
-        const int start = longStartTap + partition * longBlockSize;
-        for (int index = 0; index < longBlockSize; ++index)
-        {
-            const int tap = start + index;
-            if (tap < tapCount)
-                spectrum[static_cast<std::size_t>(index)].real =
-                    impulse[static_cast<std::size_t>(tap)];
-        }
-        longPlan.transform(spectrum, false);
-        longTail[static_cast<std::size_t>(partition)] = spectrum;
-    }
-}
-
-void ElectryFx::CabinetConvolver::reset() noexcept
-{
-    directHistory.fill(0.0f);
-    directWriteIndex = 0;
-    medium.reset();
-    longTail.reset();
-}
-
-float ElectryFx::CabinetConvolver::process(
-    float input, const CabinetKernel& kernel) noexcept
-{
-    const int mask = CabinetKernel::directTapCount - 1;
-    directHistory[static_cast<std::size_t>(directWriteIndex)] = input;
-    float output = 0.0f;
-    const int directTaps = std::min(kernel.tapCount,
-                                    CabinetKernel::directTapCount);
-    for (int tap = 0; tap < directTaps; ++tap)
-    {
-        output += kernel.impulse[static_cast<std::size_t>(tap)]
-                * directHistory[static_cast<std::size_t>(
-                    (directWriteIndex - tap) & mask)];
-    }
-    directWriteIndex = (directWriteIndex + 1) & mask;
-    output += medium.process(input, kernel.medium,
-                             CabinetKernel::mediumPartitionCount,
-                             kernel.mediumPlan);
-    output += longTail.process(input, kernel.longTail,
-                               kernel.longPartitionCount,
-                               kernel.longPlan);
-    return output;
-}
-
-bool ElectryFx::CabinetConvolver::atRest() const noexcept
-{
-    return std::all_of(directHistory.begin(), directHistory.end(),
-                       [] (float value) { return value == 0.0f; })
-        && medium.atRest() && longTail.atRest();
-}
-#endif
 
 void ElectryFx::Allpass::prepare(int lengthSamples)
 {
@@ -1866,10 +1521,6 @@ void ElectryFx::GainChannel::resetAmp() noexcept
 {
     for (auto& amplifier : amplifiers)
         amplifier.reset();
-#if ELECTRY_MEASURED_MODERN_CABINET
-    if (modernCabinet != nullptr)
-        modernCabinet->reset();
-#endif
     ampWasActive = false;
 }
 
@@ -1895,11 +1546,6 @@ void ElectryFx::GainChannel::copyStateFrom(const GainChannel& source) noexcept
     pedalWasActive = source.pedalWasActive;
     amplifiers = source.amplifiers;
     ampWasActive = source.ampWasActive;
-#if ELECTRY_MEASURED_MODERN_CABINET
-    // Both fixed-size convolver histories are allocated in prepare(). Copy
-    // their contents, preserving separate ownership and doing no allocation.
-    *modernCabinet = *source.modernCabinet;
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -2094,45 +1740,6 @@ void ElectryFx::prepareGainBank(GainBank& bank, int stages)
 
     designFilters(bank);
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-    // The capture file is peak-normalised, so its raw gain has no physical
-    // relationship to the circuit feeding it. Match the shipping cabinet at
-    // 1 kHz before changing only measured phase and spectral shape; this also
-    // keeps the downstream compressor from turning a cabinet comparison into
-    // a level comparison.
-    const auto& modern = bank.gain_[0].amplifiers[
-        ampModelIndex(AmpModel::ModernHighGain)];
-    const double omega = 2.0 * pi * 1000.0
-                       / static_cast<double>(bank.oversampledRate_);
-    const double cosine = std::cos(omega);
-    const double sine = std::sin(omega);
-    const double cosine2 = std::cos(2.0 * omega);
-    const double sine2 = std::sin(2.0 * omega);
-    double referenceMagnitude = 1.0;
-    for (const auto& section : modern.cabinet)
-    {
-        const double numeratorReal = section.b0 + section.b1 * cosine
-                                   + section.b2 * cosine2;
-        const double numeratorImaginary = -section.b1 * sine
-                                        - section.b2 * sine2;
-        const double denominatorReal = 1.0 + section.a1 * cosine
-                                     + section.a2 * cosine2;
-        const double denominatorImaginary = -section.a1 * sine
-                                          - section.a2 * sine2;
-        referenceMagnitude *= std::hypot(numeratorReal,
-                                         numeratorImaginary)
-                            / std::max(std::hypot(denominatorReal,
-                                                  denominatorImaginary),
-                                       1.0e-18);
-    }
-    if (bank.modernCabinetKernel_ == nullptr)
-        bank.modernCabinetKernel_ = std::make_unique<CabinetKernel>();
-    for (auto& channel : bank.gain_)
-        if (channel.modernCabinet == nullptr)
-            channel.modernCabinet = std::make_unique<CabinetConvolver>();
-    bank.modernCabinetKernel_->prepare(
-        bank.oversampledRate_, static_cast<float>(referenceMagnitude));
-#endif
 
 }
 
@@ -3231,10 +2838,8 @@ float ElectryFx::ampStage(GainBank& bank, AmpChannel& channel, AmpModel model,
         stage = channel.transformerHighpass.process(stage);
         stage = transformerCore(channel.flux, stage, bank.fluxCoefficient_[index]);
 
-#if ! ELECTRY_MEASURED_MODERN_CABINET
         for (auto& section : channel.cabinet)
             stage = section.process(stage);
-#endif
         return stage * ampMakeup_[index];
     }
 
@@ -3357,10 +2962,6 @@ void ElectryFx::updateAmpModelSelection(GainBank& bank) noexcept
                 if (! channel.amplifiers[index].wasActive)
                     continue;
                 channel.amplifiers[index].reset();
-#if ELECTRY_MEASURED_MODERN_CABINET
-                if (index == ampModelIndex(AmpModel::ModernHighGain))
-                    channel.modernCabinet->reset();
-#endif
             }
         }
     }
@@ -3378,11 +2979,6 @@ float ElectryFx::blendedAmpStage(GainBank& bank, GainChannel& channel,
         amplifier.wasActive = true;
         float output = ampStage(
             bank, amplifier, static_cast<AmpModel>(soleAmpModel_), input);
-#if ELECTRY_MEASURED_MODERN_CABINET
-        if (soleAmpModel_ == ampModelIndex(AmpModel::ModernHighGain))
-            output = channel.modernCabinet->process(
-                output, *bank.modernCabinetKernel_);
-#endif
         return output;
     }
 
@@ -3397,11 +2993,6 @@ float ElectryFx::blendedAmpStage(GainBank& bank, GainChannel& channel,
         amplifier.wasActive = true;
         float modelOutput = ampStage(
             bank, amplifier, static_cast<AmpModel>(index), input);
-#if ELECTRY_MEASURED_MODERN_CABINET
-        if (index == ampModelIndex(AmpModel::ModernHighGain))
-            modelOutput = channel.modernCabinet->process(
-                modelOutput, *bank.modernCabinetKernel_);
-#endif
         output += weight * modelOutput;
         weightSum += weight;
     }

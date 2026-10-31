@@ -624,6 +624,9 @@ absent and shipping remains the co-located law.
 
 ### Historical CC0 Modern-cabinet audit
 
+The candidate below, its CMake option and the vendored IR prefix were removed
+on 2026-10-31; the audit is kept as a record.
+
 [Jester Dyne's Brutal IR Pack](https://www.jester-dyne-productions.com/brutal-ir-pack/)
 supplies a lawful real 4x12 reference: its bundled handbook dedicates the pack
 under [CC0](https://creativecommons.org/publicdomain/zero/1.0/). The audited

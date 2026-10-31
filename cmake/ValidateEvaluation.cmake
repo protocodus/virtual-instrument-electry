@@ -269,8 +269,7 @@ foreach(metal_feature IN ITEMS
         modal_dispersion_fit
         positioned_fret_collision
         measured_pickup_flux
-        passive_repick_spring
-        measured_modern_cabinet)
+        passive_repick_spring)
     string(JSON metal_feature_type TYPE "${metal_manifest}"
         build_features ${metal_feature})
     string(JSON metal_feature_value GET "${metal_manifest}"

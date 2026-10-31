@@ -52,8 +52,6 @@ option(ELECTRY_MEASURED_BODY_RESPONSE
     "Use the shipping matched-material modal body response" ON)
 option(ELECTRY_DECOUPLED_PICK_RELEASE
     "Use the shipping force-decoupled plectrum release response" ON)
-option(ELECTRY_MEASURED_MODERN_CABINET
-    "Build the default-off measured-IR Modern cabinet candidate" OFF)
 option(ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     "Build the default-off fitted order-2 lowest-string loss correction" OFF)
 option(ELECTRY_ENERGY_ATTACK_PITCH
@@ -91,7 +89,6 @@ set(ELECTRY_DSP_HEADERS
     Source/DSP/ElectryEngine.h
     Source/DSP/ElectryFx.h
     Source/DSP/ElectryPerformer.h
-    Source/DSP/ModernCabinetIR.h
     Source/DSP/ElectryVisuals.h)
 
 add_library(ElectryDSP STATIC
@@ -143,11 +140,6 @@ target_compile_definitions(ElectryDSP PUBLIC
     ELECTRY_BUTTERWORTH_LOSS_SHELF=$<BOOL:${ELECTRY_BUTTERWORTH_LOSS_SHELF}>
     ELECTRY_INTRINSIC_LOSS_FRESH=$<BOOL:${ELECTRY_INTRINSIC_LOSS_FRESH}>
     ELECTRY_INTRINSIC_LOSS_LOWPASS=$<BOOL:${ELECTRY_INTRINSIC_LOSS_LOWPASS}>)
-
-if(ELECTRY_MEASURED_MODERN_CABINET)
-    target_compile_definitions(ElectryDSP PUBLIC
-        ELECTRY_MEASURED_MODERN_CABINET=1)
-endif()
 
 if(ELECTRY_MEASURED_BODY_RESPONSE)
     target_compile_definitions(ElectryDSP PUBLIC
@@ -556,7 +548,6 @@ if(BUILD_TESTING)
                          -DELECTRY_EXPECT_POSITIONED_FRET_COLLISION=${ELECTRY_POSITIONED_FRET_COLLISION}
                          -DELECTRY_EXPECT_MEASURED_PICKUP_FLUX=${ELECTRY_MEASURED_PICKUP_FLUX}
                          -DELECTRY_EXPECT_PASSIVE_REPICK_SPRING=${ELECTRY_PASSIVE_REPICK_SPRING}
-                         -DELECTRY_EXPECT_MEASURED_MODERN_CABINET=${ELECTRY_MEASURED_MODERN_CABINET}
                          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ValidateEvaluation.cmake)
         set_tests_properties(Electry.RenderEvaluation PROPERTIES TIMEOUT 60)
     endif()

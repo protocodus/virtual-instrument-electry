@@ -1,8 +1,5 @@
 #include "DSP/ElectryEngine.h"
 #include "DSP/ElectryFx.h"
-#if ELECTRY_MEASURED_MODERN_CABINET
-#include "DSP/ModernCabinetIR.h"
-#endif
 
 #include <algorithm>
 #include <array>
@@ -116,15 +113,6 @@ struct ElectryFxTestAccess
             ? 0u : static_cast<std::size_t>(fx.oversampling());
     }
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-    static std::array<const void*, 4> cabinetStatePointers(const ElectryFx& fx) noexcept
-    {
-        return {fx.gainBanks_[0].gain_[0].modernCabinet.get(),
-                fx.gainBanks_[0].gain_[1].modernCabinet.get(),
-                fx.gainBanks_[1].gain_[0].modernCabinet.get(),
-                fx.gainBanks_[1].gain_[1].modernCabinet.get()};
-    }
-#endif
 
     static std::array<float, 2> compressorState(const ElectryFx& fx) noexcept
     {
@@ -371,13 +359,7 @@ struct ElectryFxTestAccess
                 {
                     return amplifierAtRest(amplifier);
                 });
-#if ELECTRY_MEASURED_MODERN_CABINET
-            return ordinaryStateIsClear
-                && (channel.modernCabinet == nullptr
-                    || channel.modernCabinet->atRest());
-#else
             return ordinaryStateIsClear;
-#endif
         });
     }
 
@@ -388,126 +370,10 @@ struct ElectryFxTestAccess
         {
             const bool ordinaryStateIsClear = amplifierAtRest(
                 channel.amplifiers[index]);
-#if ELECTRY_MEASURED_MODERN_CABINET
-            return ordinaryStateIsClear
-                && (index != static_cast<std::size_t>(
-                        AmpModel::ModernHighGain)
-                    || channel.modernCabinet == nullptr
-                    || channel.modernCabinet->atRest());
-#else
             return ordinaryStateIsClear;
-#endif
         });
     }
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-    static double cabinetInternalRate(const ElectryFx& fx) noexcept
-    {
-        return selectedBank(fx).oversampledRate_;
-    }
-
-    static int cabinetTapCount(const ElectryFx& fx) noexcept
-    {
-        return selectedBank(fx).modernCabinetKernel_->tapCount;
-    }
-
-    static int cabinetLongPartitionCount(const ElectryFx& fx) noexcept
-    {
-        return selectedBank(fx).modernCabinetKernel_->longPartitionCount;
-    }
-
-    static float cabinetNormalisationGain(const ElectryFx& fx) noexcept
-    {
-        return selectedBank(fx).modernCabinetKernel_->normalisationGain;
-    }
-
-    static double shippingModernCabinetMagnitude(
-        const ElectryFx& fx, double frequency) noexcept
-    {
-        const auto& cabinet = selectedBank(fx).gain_[0].amplifiers[
-            static_cast<std::size_t>(AmpModel::ModernHighGain)].cabinet;
-        const double omega = 2.0 * 3.14159265358979323846 * frequency
-                           / selectedBank(fx).oversampledRate_;
-        const std::complex<double> delay = std::polar(1.0, -omega);
-        const auto delay2 = delay * delay;
-        double magnitude = 1.0;
-        for (const auto& section : cabinet)
-        {
-            const std::complex<double> numerator = section.b0
-                + section.b1 * delay + section.b2 * delay2;
-            const std::complex<double> denominator = 1.0
-                + section.a1 * delay + section.a2 * delay2;
-            magnitude *= std::abs(numerator / denominator);
-        }
-        return magnitude;
-    }
-
-    static std::vector<float> cabinetImpulse(const ElectryFx& fx)
-    {
-        const auto& kernel = *selectedBank(fx).modernCabinetKernel_;
-        return { kernel.impulse.begin(),
-                 kernel.impulse.begin() + kernel.tapCount };
-    }
-
-    static std::vector<float> cabinetConvolve(
-        const ElectryFx& fx, const std::vector<float>& input,
-        std::size_t outputCount)
-    {
-        auto convolver = std::make_unique<ElectryFx::CabinetConvolver>();
-        std::vector<float> output(outputCount, 0.0f);
-        for (std::size_t index = 0; index < outputCount; ++index)
-        {
-            const float sample = index < input.size() ? input[index] : 0.0f;
-            output[index] = convolver->process(
-                sample, *selectedBank(fx).modernCabinetKernel_);
-        }
-        return output;
-    }
-
-    static bool cabinetResetClears(const ElectryFx& fx,
-                                   int prefixLength) noexcept
-    {
-        auto convolver = std::make_unique<ElectryFx::CabinetConvolver>();
-        for (int index = 0; index < prefixLength; ++index)
-        {
-            const float input = index == 0 ? 1.0f
-                : static_cast<float>((index * 29) % 101 - 50) / 113.0f;
-            static_cast<void>(convolver->process(
-                input, *selectedBank(fx).modernCabinetKernel_));
-        }
-        convolver->reset();
-        if (! convolver->atRest())
-            return false;
-        for (int index = 0; index < 1025; ++index)
-            if (convolver->process(0.0f, *selectedBank(fx).modernCabinetKernel_) != 0.0f)
-                return false;
-        convolver->reset();
-        return convolver->process(1.0f, *selectedBank(fx).modernCabinetKernel_)
-            == selectedBank(fx).modernCabinetKernel_->impulse[0];
-    }
-
-    static double cabinetStereoLeak(const ElectryFx& fx,
-                                    bool impulseOnLeft) noexcept
-    {
-        auto left = std::make_unique<ElectryFx::CabinetConvolver>();
-        auto right = std::make_unique<ElectryFx::CabinetConvolver>();
-        double leak = 0.0;
-        const int length = selectedBank(fx).modernCabinetKernel_->tapCount + 512;
-        for (int index = 0; index < length; ++index)
-        {
-            const float impulse = index == 0 ? 1.0f : 0.0f;
-            const float leftOutput = left->process(
-                impulseOnLeft ? impulse : 0.0f,
-                *selectedBank(fx).modernCabinetKernel_);
-            const float rightOutput = right->process(
-                impulseOnLeft ? 0.0f : impulse,
-                *selectedBank(fx).modernCabinetKernel_);
-            leak = std::max(leak, std::abs(static_cast<double>(
-                impulseOnLeft ? rightOutput : leftOutput)));
-        }
-        return leak;
-    }
-#endif
 
     static std::array<double, 7> toneStackCoefficients(
         const ElectryFx& fx, AmpModel model) noexcept
@@ -691,22 +557,6 @@ bool allFinite(const std::vector<float>& buffer)
                        [] (float value) { return std::isfinite(value); });
 }
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-double firMagnitude(const std::vector<float>& impulse,
-                    double rate, double frequency)
-{
-    std::complex<double> response {};
-    for (std::size_t index = 0; index < impulse.size(); ++index)
-    {
-        const double phase = -2.0 * pi * frequency
-                           * static_cast<double>(index) / rate;
-        response += static_cast<double>(impulse[index])
-                  * std::polar(1.0, phase);
-    }
-    return std::abs(response);
-}
-
-#endif
 
 // A sine whose period does not divide the analysis length by a small integer,
 // so every folded intermodulation product lands between the harmonics instead
@@ -1253,10 +1103,8 @@ void testRapidPalmBodyDirection()
     // Loose one-sided rails: only a material regression toward a darker or
     // more periodic chug should fail. They are not fits to the confounded real
     // reference and intentionally leave room for evidence-led model work.
-#if ! ELECTRY_MEASURED_MODERN_CABINET
     expect(preStop[0] > 0.06,
            "the rapid Palm string body before note-off became materially darker");
-#endif
     expect(complete[1] < 0.97,
            "the rapid Palm body became materially more periodic");
 }
@@ -2471,254 +2319,6 @@ void testGainStageAliasing()
     }
 }
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-void testMeasuredModernCabinet()
-{
-    using namespace electry::assets;
-    expect(sizeof(ElectryFx) < 65536,
-           "measured-cabinet buffers returned to the audio-object stack");
-    expect(modernCabinetIrSourceSampleRate == 48000
-               && modernCabinetIrSourceBitDepth == 24
-               && modernCabinetIrSourceFrameCount == 57420
-               && modernCabinetIrPeakSample == 7
-               && modernCabinetIrSampleCount == 1024,
-           "the measured-cabinet source identity changed");
-    expect(modernCabinetIrPcm24Fnv1a64 == 0x8b8027ea461742a1ULL,
-           "the measured-cabinet packed PCM integrity guard changed");
-
-    std::vector<float> sourceImpulse(modernCabinetIrSampleCount);
-    for (std::size_t index = 0; index < sourceImpulse.size(); ++index)
-        sourceImpulse[index] = static_cast<float>(
-            static_cast<double>(modernCabinetIrPcm24[index]) / 8388608.0);
-
-    struct RateCase
-    {
-        double hostRate;
-        double internalRate;
-        int tapCount;
-        int longPartitions;
-    };
-    const std::array<RateCase, 4> rates {{
-        { 8000.0, 64000.0, 1366, 2 },
-        { 44100.0, 352800.0, 7527, 14 },
-        { 48000.0, 384000.0, 8192, 15 },
-        { 384000.0, 384000.0, 8192, 15 },
-    }};
-    static constexpr std::array<double, 7> responseFrequencies {
-        80.0, 110.0, 470.0, 3100.0, 8000.0, 12000.0, 18000.0
-    };
-
-    double worstResamplingErrorDb = 0.0;
-    double worstResamplingRate = 0.0;
-    double worstResamplingFrequency = 0.0;
-    double worstNormalisedMagnitudeError = 0.0;
-    const double sourceMagnitude1k = firMagnitude(
-        sourceImpulse, modernCabinetIrSourceSampleRate, 1000.0);
-    for (const auto& rateCase : rates)
-    {
-        auto fx = std::make_unique<ElectryFx>();
-        fx->prepare(rateCase.hostRate);
-        FxParameters highQuality;
-        highQuality.oversampling = FxOversampling::High;
-        fx->setParameters(highQuality);
-        fx->reset();
-        const double internalRate = FxAccess::cabinetInternalRate(*fx);
-        const auto impulse = FxAccess::cabinetImpulse(*fx);
-        expect(internalRate == rateCase.internalRate,
-               "the cabinet was prepared at the wrong internal rate");
-        expect(FxAccess::cabinetTapCount(*fx) == rateCase.tapCount,
-               "the cabinet resampler produced the wrong tap count");
-        expect(FxAccess::cabinetLongPartitionCount(*fx)
-                   == rateCase.longPartitions,
-               "the cabinet prepared the wrong number of long partitions");
-        expect(std::isfinite(FxAccess::cabinetNormalisationGain(*fx))
-                   && FxAccess::cabinetNormalisationGain(*fx) > 0.0f,
-               "the cabinet calibration gain is invalid");
-
-        const double expectedFirst = static_cast<double>(
-            modernCabinetIrPcm24[0]) / 8388608.0
-            * modernCabinetIrSourceSampleRate / internalRate
-            * FxAccess::cabinetNormalisationGain(*fx);
-        expect(std::abs(static_cast<double>(impulse.front()) - expectedFirst)
-                   < 2.0e-9,
-               "the cabinet resampler moved or rescaled source sample zero");
-
-        const auto peak = std::max_element(
-            impulse.begin(), impulse.end(), [] (float first, float second)
-            {
-                return std::abs(first) < std::abs(second);
-            });
-        const int peakIndex = static_cast<int>(peak - impulse.begin());
-        const int expectedPeak = static_cast<int>(std::lround(
-            modernCabinetIrPeakSample * internalRate
-            / modernCabinetIrSourceSampleRate));
-        expect(std::abs(peakIndex - expectedPeak) <= 2,
-               "the cabinet resampler moved the physical IR peak");
-
-        const double prepared1k = firMagnitude(
-            impulse, internalRate, 1000.0);
-        const double reference1k = FxAccess::shippingModernCabinetMagnitude(
-            *fx, 1000.0);
-        expect(std::abs(prepared1k - reference1k)
-                   / std::max(reference1k, 1.0e-12) < 2.0e-6,
-               "the measured cabinet is not level-matched at 1 kHz");
-
-        for (const double frequency : responseFrequencies)
-        {
-            // A diagnostic 8 kHz host still prepares the nonlinear path at
-            // 64 kHz, but frequencies above its 4 kHz output Nyquist cannot
-            // reach a listener and are not a meaningful resampler contract.
-            if (frequency >= 0.45 * rateCase.hostRate)
-                continue;
-            const double sourceRelative = firMagnitude(
-                sourceImpulse, modernCabinetIrSourceSampleRate, frequency)
-                / sourceMagnitude1k;
-            const double preparedRelative = firMagnitude(
-                impulse, internalRate, frequency) / prepared1k;
-            worstNormalisedMagnitudeError = std::max(
-                worstNormalisedMagnitudeError,
-                std::abs(preparedRelative - sourceRelative));
-            // Relative decibels become unstable in the IR's deep stop-band
-            // nulls, so pin those by absolute normalised magnitude below and
-            // reserve the tight dB comparison for useful cabinet output.
-            if (sourceRelative < 0.01)
-                continue;
-            const double delta = 20.0 * std::log10(
-                std::max(preparedRelative, 1.0e-30)
-                / std::max(sourceRelative, 1.0e-30));
-            if (std::abs(delta) > worstResamplingErrorDb)
-            {
-                worstResamplingErrorDb = std::abs(delta);
-                worstResamplingRate = rateCase.hostRate;
-                worstResamplingFrequency = frequency;
-            }
-        }
-    }
-    std::cout << "Measured-cabinet worst preparation response error: "
-              << worstResamplingErrorDb << " dB at "
-              << worstResamplingFrequency << " Hz / "
-              << worstResamplingRate << " Hz host\n";
-    std::cout << "Measured-cabinet worst normalised magnitude error: "
-              << worstNormalisedMagnitudeError << " ("
-              << 20.0 * std::log10(std::max(
-                    worstNormalisedMagnitudeError, 1.0e-30))
-              << " dB)\n";
-    expect(worstResamplingErrorDb < 0.12,
-           "cabinet preparation changed the source response by over 0.12 dB");
-    expect(worstNormalisedMagnitudeError < 0.001,
-           "cabinet preparation introduced over -60 dB normalised error");
-
-    auto fx = std::make_unique<ElectryFx>();
-    fx->prepare(sampleRate);
-    FxParameters highQuality;
-    highQuality.oversampling = FxOversampling::High;
-    fx->setParameters(highQuality);
-    fx->reset();
-    const auto impulse = FxAccess::cabinetImpulse(*fx);
-    const std::vector<float> delta { 1.0f };
-    const auto deltaOutput = FxAccess::cabinetConvolve(
-        *fx, delta, impulse.size() + 1024);
-    double maximumImpulseError = 0.0;
-    for (std::size_t index = 0; index < impulse.size(); ++index)
-        maximumImpulseError = std::max(maximumImpulseError, std::abs(
-            static_cast<double>(deltaOutput[index] - impulse[index])));
-    double tailPeak = 0.0;
-    for (std::size_t index = impulse.size(); index < deltaOutput.size(); ++index)
-        tailPeak = std::max(tailPeak,
-                            std::abs(static_cast<double>(deltaOutput[index])));
-    expect(deltaOutput.front() == impulse.front(),
-           "the cabinet delayed its non-zero first coefficient");
-    expect(maximumImpulseError < 2.0e-6,
-           "partitioned cabinet impulse output differs from its prepared FIR");
-    expect(tailPeak < 2.0e-7,
-           "the cabinet emitted a numerical tail after its final coefficient");
-
-    constexpr std::size_t inputLength = 777;
-    std::vector<float> input(inputLength);
-    for (std::size_t index = 0; index < input.size(); ++index)
-        input[index] = static_cast<float>(
-            0.17 * std::sin(0.071 * static_cast<double>(index))
-            + 0.003 * (static_cast<int>((index * 37) % 101) - 50));
-    const std::size_t convolutionLength = input.size() + impulse.size() - 1;
-    const auto partitioned = FxAccess::cabinetConvolve(
-        *fx, input, convolutionLength + 513);
-    double maximumConvolutionError = 0.0;
-    for (std::size_t outputIndex = 0;
-         outputIndex < convolutionLength; ++outputIndex)
-    {
-        const std::size_t firstInput = outputIndex >= impulse.size() - 1
-            ? outputIndex - (impulse.size() - 1) : 0;
-        const std::size_t lastInput = std::min(outputIndex, input.size() - 1);
-        double reference = 0.0;
-        for (std::size_t inputIndex = firstInput;
-             inputIndex <= lastInput; ++inputIndex)
-            reference += static_cast<double>(input[inputIndex])
-                       * impulse[outputIndex - inputIndex];
-        maximumConvolutionError = std::max(
-            maximumConvolutionError,
-            std::abs(static_cast<double>(partitioned[outputIndex])
-                     - reference));
-    }
-    double flushedPeak = 0.0;
-    for (std::size_t index = convolutionLength;
-         index < partitioned.size(); ++index)
-        flushedPeak = std::max(flushedPeak,
-                               std::abs(static_cast<double>(partitioned[index])));
-    std::cout << "Measured-cabinet impulse/direct errors: "
-              << maximumImpulseError << '/' << maximumConvolutionError
-              << ", flushed tail " << flushedPeak << '\n';
-    expect(maximumConvolutionError < 1.0e-5,
-           "partitioned cabinet differs from direct convolution");
-    expect(flushedPeak < 2.0e-7,
-           "partitioned cabinet did not flush to numerical silence");
-
-    for (const int boundary : { 63, 64, 511, 512, 513 })
-        expect(FxAccess::cabinetResetClears(*fx, boundary),
-               "cabinet reset left state at a partition boundary");
-    expect(FxAccess::cabinetStereoLeak(*fx, true) == 0.0
-               && FxAccess::cabinetStereoLeak(*fx, false) == 0.0,
-           "shared cabinet kernels caused stereo state leakage");
-
-    FxParameters parameters;
-    parameters.amp = 1.0f;
-    parameters.ampModel = AmpModel::ModernHighGain;
-    fx->setParameters(parameters);
-    fx->reset();
-    constexpr int timingBlockSize = 7;
-    constexpr int timingSamples = 12000;
-    std::array<float, timingBlockSize> left {};
-    std::array<float, timingBlockSize> right {};
-    const auto render = [&] (int sampleCount)
-    {
-        int rendered = 0;
-        while (rendered < sampleCount)
-        {
-            const int count = std::min(timingBlockSize,
-                                       sampleCount - rendered);
-            for (int index = 0; index < count; ++index)
-            {
-                const float sample = static_cast<float>(0.18 * std::sin(
-                    2.0 * pi * 173.0 * (rendered + index) / sampleRate));
-                left[static_cast<std::size_t>(index)] = sample;
-                right[static_cast<std::size_t>(index)] = sample;
-            }
-            fx->process(left.data(), right.data(), count);
-            rendered += count;
-        }
-    };
-    render(2048);
-    const auto start = std::chrono::steady_clock::now();
-    render(timingSamples);
-    const double elapsed = std::chrono::duration<double>(
-        std::chrono::steady_clock::now() - start).count();
-    const double realtimeRatio = elapsed
-        / (static_cast<double>(timingSamples) / sampleRate);
-    std::cout << "Measured-cabinet full-path 7-sample-block CPU ratio: "
-              << realtimeRatio << "x realtime\n";
-    expect(realtimeRatio < 4.0,
-           "the measured cabinet missed its conservative real-time CPU gate");
-}
-#endif
 
 void testCabinetVoicing()
 {
@@ -2744,13 +2344,9 @@ void testCabinetVoicing()
     // octave above five kilohertz. The previous one-pole model had none of it.
     expect(low - reference < -6.0,
            "the cabinet passes too much below the box resonance");
-#if ! ELECTRY_MEASURED_MODERN_CABINET
     expect(thump - reference > 1.0, "the cabinet has no low-mid thump");
-#endif
     expect(honk - reference < -1.0, "the cabinet's boxy region is not scooped");
-#if ! ELECTRY_MEASURED_MODERN_CABINET
     expect(presence - reference > 1.5, "the cabinet has no presence peak");
-#endif
     expect(top - reference < -12.0,
            "the cabinet does not roll off above the speaker's range");
     expect(beyond - reference < -25.0,
@@ -2764,14 +2360,9 @@ void testCabinetVoicing()
         presence - reference, top - reference, beyond - reference };
     const std::array<double, 6> golden {
         -14.4410, 1.10749, -6.52522, 3.22390, -21.9261, -38.9643 };
-#if ! ELECTRY_MEASURED_MODERN_CABINET
     for (std::size_t index = 0; index < measured.size(); ++index)
         expect(std::abs(measured[index] - golden[index]) < 0.03,
                "the Modern amplifier's shipping response fingerprint changed");
-#else
-    static_cast<void>(measured);
-    static_cast<void>(golden);
-#endif
 }
 
 void testToneStackCircuits()
@@ -2839,9 +2430,6 @@ void testAmpModelVoices()
                 frequencies[band], 1.0f, models[model]) - reference;
             std::cout << ' ' << frequencies[band] << " Hz "
                       << response[model][band] << " dB";
-#if ELECTRY_MEASURED_MODERN_CABINET
-            if (models[model] != AmpModel::ModernHighGain)
-#endif
                 expect(std::abs(response[model][band]
                                 - goldenResponse[model][band]) < 0.08,
                        std::string(names[model])
@@ -2946,13 +2534,8 @@ void testAmpModelDynamics()
            "the British model is not cleaner than the Modern model");
     const auto [quietMinimum, quietMaximum] = std::minmax_element(
         quietGains.begin(), quietGains.end());
-#if ! ELECTRY_MEASURED_MODERN_CABINET
     expect(*quietMaximum - *quietMinimum < 5.0,
            "amp selection changes ordinary small-signal level by over 5 dB");
-#else
-    static_cast<void>(quietMinimum);
-    static_cast<void>(quietMaximum);
-#endif
 }
 
 void testAmpModelSwitchingAndBlockInvariance()
@@ -3835,12 +3418,6 @@ void testIdenticalGainChannelReuse()
         reused.prepare(rate);
         independent.prepare(rate);
         reset();
-#if ELECTRY_MEASURED_MODERN_CABINET
-        const auto cabinetPointers = FxAccess::cabinetStatePointers(reused);
-        expect(std::all_of(cabinetPointers.begin(), cabinetPointers.end(),
-                           [] (const auto* pointer) { return pointer != nullptr; }),
-               "the mono-reuse fixture did not prepare every cabinet state");
-#endif
         int clock = 0;
         const auto render = [&] (int count, Input kind)
         {
@@ -3974,10 +3551,6 @@ void testIdenticalGainChannelReuse()
         reset();
         render(257, Input::nonFinite);
         render(1031, Input::mono);
-#if ELECTRY_MEASURED_MODERN_CABINET
-        expect(FxAccess::cabinetStatePointers(reused) == cabinetPointers,
-               "materializing right cabinet history replaced its prepared allocation");
-#endif
         reused.prepare(rate);
         independent.prepare(rate);
         render(257, Input::mono);
@@ -4323,9 +3896,6 @@ int main()
     testPhaseInverterScalarMath();
     testMeasuredPowerTubes();
     testGainStageAliasing();
-#if ELECTRY_MEASURED_MODERN_CABINET
-    testMeasuredModernCabinet();
-#endif
     testCabinetVoicing();
     testToneStackCircuits();
     testAmpModelVoices();

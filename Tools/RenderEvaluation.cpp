@@ -818,8 +818,6 @@ bool writeMetalManifest(const std::filesystem::path& path,
         << (ELECTRY_MEASURED_PICKUP_FLUX ? "true" : "false")
         << ", \"passive_repick_spring\": "
         << (ELECTRY_PASSIVE_REPICK_SPRING ? "true" : "false")
-        << ", \"measured_modern_cabinet\": "
-        << (ELECTRY_MEASURED_MODERN_CABINET ? "true" : "false")
         << "},\n"
         << "  \"audio_format\": {\"container\": \"WAVE\", "
            "\"encoding\": \"IEEE_FLOAT\", \"bits_per_sample\": 32, "

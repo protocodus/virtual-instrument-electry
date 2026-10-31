@@ -1063,10 +1063,8 @@ speaker/cabinet path; it is not an EQ preset after one shared distortion curve.
   three end in a fourth-order loudspeaker roll-off inside the oversampled domain
   before decimation. These are parametric response models—not cabinet impulse
   responses, individual speaker solves, microphones or room captures. The
-  default-off `ELECTRY_MEASURED_MODERN_CABINET` CMake option replaces only the
-  Modern cabinet filters with the vendored, phase-preserved CC0 impulse prefix
-  for controlled comparison; it is not the shipping path pending blind
-  listening.
+  measured-IR comparison build was removed on 2026-10-31, so the repository
+  holds no impulse response.
 - **Level and topology.** Each gain stage divides its own small-signal gain
   back out, so reaching for a drive control is a change of tone rather than a
   jump in level; a saturating stage still ends up a few decibels louder than

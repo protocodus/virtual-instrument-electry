@@ -436,7 +436,9 @@ In the sealed measured-cabinet comparison the user reported: “prefer A.” The
 hidden mapping was A = the shipping six-biquad cabinet and B = the measured-IR
 candidate. Decision: retain the shipping cabinet and leave the measured-IR
 candidate disabled. Do not spend the next sound-design pass recalibrating or
-promoting the rejected candidate. This is a by-ear selection.
+promoting the rejected candidate. This is a by-ear selection. The candidate,
+its option and its vendored IR prefix were removed on 2026-10-31, at the
+owner's request that the repository hold no recordings.
 
 One informal by-ear observation is now recorded: the user described the
 finite-contact Palm renders as “squishy” and short of body. It is product

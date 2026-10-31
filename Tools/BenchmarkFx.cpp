@@ -286,8 +286,9 @@ std::array<std::uint32_t, 8> referenceHeader(int rate, std::size_t frames,
              static_cast<std::uint32_t>(frames),
              static_cast<std::uint32_t>(blockSize),
              static_cast<std::uint32_t>(scenario),
-             ELECTRY_MEASURED_MODERN_CABINET
-                 | (oversampling == electry::FxOversampling::Standard ? 2u : 0u), inputMode == "stereo" ? 2u : inputMode == "mono" ? 3u : inputMode == "switching" ? 4u : inputMode == "guitar" ? 5u : 6u };
+             // Bit 0 marked the retired measured-cabinet build; kept clear so
+             // earlier reference headers still compare.
+             0u | (oversampling == electry::FxOversampling::Standard ? 2u : 0u), inputMode == "stereo" ? 2u : inputMode == "mono" ? 3u : inputMode == "switching" ? 4u : inputMode == "guitar" ? 5u : 6u };
 }
 
 void writeReference(const std::filesystem::path& path, const Audio& audio,

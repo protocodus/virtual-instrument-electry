@@ -6,9 +6,6 @@
 #include <memory>
 #include <vector>
 
-#ifndef ELECTRY_MEASURED_MODERN_CABINET
-#define ELECTRY_MEASURED_MODERN_CABINET 0
-#endif
 
 namespace electry
 {
@@ -249,93 +246,6 @@ private:
         }
     };
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-    struct FftComplex
-    {
-        float real { 0.0f };
-        float imaginary { 0.0f };
-    };
-
-    template <std::size_t Size>
-    struct FftPlan
-    {
-        static_assert(Size >= 2 && (Size & (Size - 1)) == 0,
-                      "FFT size must be a power of two");
-        std::array<FftComplex, Size / 2> roots {};
-        std::array<std::uint16_t, Size> reversed {};
-
-        void prepare() noexcept;
-        void transform(std::array<FftComplex, Size>& data,
-                       bool inverse) const noexcept;
-    };
-
-    template <int BlockSize, int MaximumPartitions>
-    struct CabinetPartitionTier
-    {
-        static constexpr int fftSize = 2 * BlockSize;
-        using Spectrum = std::array<FftComplex,
-                                    static_cast<std::size_t>(fftSize)>;
-
-        std::array<Spectrum,
-                   static_cast<std::size_t>(MaximumPartitions)> history {};
-        std::array<float, static_cast<std::size_t>(BlockSize)> input {};
-        std::array<float, static_cast<std::size_t>(BlockSize)> output {};
-        std::array<float, static_cast<std::size_t>(BlockSize)> overlap {};
-        Spectrum scratch {};
-        int position { 0 };
-        int writePartition { 0 };
-
-        void reset() noexcept;
-        [[nodiscard]] float process(
-            float sample,
-            const std::array<Spectrum,
-                             static_cast<std::size_t>(MaximumPartitions)>& kernels,
-            int activePartitions,
-            const FftPlan<static_cast<std::size_t>(fftSize)>& plan) noexcept;
-        [[nodiscard]] bool atRest() const noexcept;
-    };
-
-    struct CabinetKernel
-    {
-        static constexpr int directTapCount = 64;
-        static constexpr int mediumBlockSize = 64;
-        static constexpr int mediumPartitionCount = 7;
-        static constexpr int longStartTap = 512;
-        static constexpr int longBlockSize = 512;
-        static constexpr int maximumLongPartitions = 15;
-        static constexpr int maximumTapCount = 8192;
-
-        using MediumTier = CabinetPartitionTier<mediumBlockSize,
-                                                 mediumPartitionCount>;
-        using LongTier = CabinetPartitionTier<longBlockSize,
-                                               maximumLongPartitions>;
-
-        std::array<float, maximumTapCount> impulse {};
-        std::array<MediumTier::Spectrum, mediumPartitionCount> medium {};
-        std::array<LongTier::Spectrum, maximumLongPartitions> longTail {};
-        FftPlan<2 * mediumBlockSize> mediumPlan {};
-        FftPlan<2 * longBlockSize> longPlan {};
-        int tapCount { 0 };
-        int longPartitionCount { 0 };
-        float normalisationGain { 1.0f };
-
-        void prepare(float internalSampleRate,
-                     float referenceMagnitude) noexcept;
-    };
-
-    struct CabinetConvolver
-    {
-        std::array<float, CabinetKernel::directTapCount> directHistory {};
-        CabinetKernel::MediumTier medium {};
-        CabinetKernel::LongTier longTail {};
-        int directWriteIndex { 0 };
-
-        void reset() noexcept;
-        [[nodiscard]] float process(float input,
-                                    const CabinetKernel& kernel) noexcept;
-        [[nodiscard]] bool atRest() const noexcept;
-    };
-#endif
 
     // A modulation-free multi-tap ambience. Three allpass diffusers feed two
     // damped comb resonators per channel, and the channel pair uses
@@ -435,9 +345,6 @@ private:
         bool pedalWasActive { false };
 
         std::array<AmpChannel, 3> amplifiers {};
-#if ELECTRY_MEASURED_MODERN_CABINET
-        std::unique_ptr<CabinetConvolver> modernCabinet {};
-#endif
         bool ampWasActive { false };
 
         void resetPedal() noexcept;
@@ -478,9 +385,6 @@ private:
         bool gainChannelsEqual_ { true };
         bool rightGainStateStale_ { false };
 
-#if ELECTRY_MEASURED_MODERN_CABINET
-        std::unique_ptr<CabinetKernel> modernCabinetKernel_ {};
-#endif
     };
     std::array<GainBank, 2> gainBanks_ {};
     float oversamplingHighMix_ { 0.0f };
