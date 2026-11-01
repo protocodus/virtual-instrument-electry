@@ -800,6 +800,19 @@ private:
         float dipFullDepthDb { 0.0f };
     };
 
+    // The last handDipCoefficients() result for one loop's dip, keyed on its
+    // exact inputs. The control-rate depth push and the pitch compensation
+    // that follows it on the same tick ask for the same section, and a
+    // material dip's depth is fixed for the note; a hit returns the stored
+    // coefficients, so it is the same arithmetic as solving again.
+    struct DipCoefficientMemo
+    {
+        float depth { 0.0f };
+        HandLossShape shape {};
+        double b0 { 1.0 }, b1 { 0.0 }, b2 { 0.0 }, a1 { 0.0 }, a2 { 0.0 };
+        bool valid { false };
+    };
+
     struct ModalResonator
     {
         // Low structural modes can run at 384 kHz, where float coefficient
@@ -827,7 +840,10 @@ private:
     // to this linear-phase halfband FIR before one host-rate sample is read.
     struct HalfbandDecimator
     {
-        std::array<float, decimatorHistorySize> history {};
+        // Each sample is stored twice, decimatorHistorySize apart, so the
+        // 63-tap window is always one contiguous run: output() reads it at
+        // fixed offsets instead of wrapping all 31 indices every host sample.
+        std::array<float, 2 * decimatorHistorySize> history {};
         int writeIndex { 0 };
 
         void reset() noexcept
@@ -1007,6 +1023,7 @@ private:
         DipBiquad materialLossDip {};
         HandLossShape materialLossShape {};
         float materialLossDepth { 0.0f };
+        DipCoefficientMemo materialLossMemo {};
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
         // Default-off empirical correction for the lowest physical string. It
         // reuses the same passive, minimum-phase section as the bridge hand,
@@ -1049,6 +1066,7 @@ private:
         DipBiquad handDip {};
         HandLossShape handLossShape {};
         float handLossDepth { 0.0f };
+        DipCoefficientMemo handLossMemo {};
         float handLossSolvedDepth { 0.0f };
         float handEnvelope { 0.0f };
         float handEnvelopePeak { 0.0f };
@@ -1111,8 +1129,15 @@ private:
             // Split the delay before subtracting the integer ring cursor.
             // Subtracting in float rounds its fraction differently as the
             // cursor travels, modulating even a stationary string's pitch.
-            const float ceiling = std::ceil(delaySamples);
-            const int index = writeIndex - static_cast<int>(ceiling);
+            // The clamp holds the delay in [4, delayLineSize - 8], positive
+            // and exactly representable, where truncation is floor(): one
+            // compare makes it ceil() exactly, without std::ceil's rounding
+            // sequence (a libm call in the Rack's -fno-builtin build).
+            const int whole = static_cast<int>(delaySamples);
+            const int ceilingSamples = whole
+                + (static_cast<float>(whole) < delaySamples ? 1 : 0);
+            const float ceiling = static_cast<float>(ceilingSamples);
+            const int index = writeIndex - ceilingSamples;
             const float t = ceiling - delaySamples;
             constexpr int mask = delayLineSize - 1;
             const float y0 = line[static_cast<std::size_t>((index - 1) & mask)];
@@ -1765,6 +1790,14 @@ private:
     static void handLossResponse(float depth, const HandLossShape& shape,
                                  float omega, float& magnitude,
                                  float& phase) noexcept;
+    static void handLossResponse(float depth, const HandLossShape& shape,
+                                 float omega, float& magnitude,
+                                 float& phase,
+                                 DipCoefficientMemo& memo) noexcept;
+    static void memoisedDipCoefficients(float depth, const HandLossShape& shape,
+                                        DipCoefficientMemo& memo,
+                                        double& b0, double& b1, double& b2,
+                                        double& a1, double& a2) noexcept;
     // The dip's biquad coefficients for a given depth. Shared by the solve, the
     // phase compensation and the per-voice setup for the same reason as above.
     static void handDipCoefficients(float depth, const HandLossShape& shape,
@@ -1971,6 +2004,9 @@ private:
     double hostSampleRate_ { 48000.0 };
     double sampleRate_ { 48000.0 };
     float inverseSampleRate_ { 1.0f / 48000.0f };
+    // The stopping hand's 125 us release-average half-width in whole internal
+    // samples, rounded once in prepare() rather than per read.
+    float releaseSpreadSamples_ { 6.0f };
     int oversamplingFactor_ { 1 };
     bool prepared_ { false };
     PickStyle pickStyle_ { PickStyle::Down };

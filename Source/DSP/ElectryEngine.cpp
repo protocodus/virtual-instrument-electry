@@ -494,6 +494,7 @@ void ElectryEngine::ModalResonator::configure(float frequencyHz, float q,
 void ElectryEngine::HalfbandDecimator::push(float input) noexcept
 {
     history[static_cast<std::size_t>(writeIndex)] = input;
+    history[static_cast<std::size_t>(writeIndex + decimatorHistorySize)] = input;
     writeIndex = (writeIndex + 1) & (decimatorHistorySize - 1);
 }
 
@@ -524,18 +525,21 @@ float ElectryEngine::HalfbandDecimator::output() const noexcept
     };
     static constexpr float centreTap = 0.500000294415f;
     static constexpr int historyMask = decimatorHistorySize - 1;
+    static_assert(decimatorHistorySize >= 63,
+                  "the mirrored window must hold the 63-tap span");
 
-    // writeIndex points one slot past the newest internal sample.
+    // writeIndex points one slot past the newest internal sample. Its second
+    // copy sits decimatorHistorySize later, so window[-k] is the sample k
+    // steps older for every k in [0, 62], without wrapping.
     const int newest = (writeIndex - 1) & historyMask;
-    float sum = centreTap
-              * history[static_cast<std::size_t>((newest - 31) & historyMask)];
+    const float* window = history.data() + newest + decimatorHistorySize;
+    float sum = centreTap * window[-31];
     for (int pair = 1; pair < static_cast<int>(sideTaps.size()); ++pair)
     {
         const int nearOffset = 2 * pair;
         const int farOffset = 62 - nearOffset;
         sum += sideTaps[static_cast<std::size_t>(pair)]
-             * (history[static_cast<std::size_t>((newest - nearOffset) & historyMask)]
-                + history[static_cast<std::size_t>((newest - farOffset) & historyMask)]);
+             * (window[-nearOffset] + window[-farOffset]);
     }
     return sum;
 }
@@ -1500,17 +1504,11 @@ void ElectryEngine::handDipCoefficients(float depth, const HandLossShape& shape,
 // Magnitude and phase of what the hand puts in the loop. Used by the decay
 // solve, the tuning compensation and the per-voice setup, so none of the three
 // can disagree about what is actually in the loop.
-void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
-                                     float omega, float& magnitude,
-                                     float& phase) noexcept
+namespace
 {
-    magnitude = 1.0f;
-    phase = 0.0f;
-    if (depth <= 0.0f)
-        return;
-
-    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
+void dipSectionResponse(double b0, double b1, double b2, double a1, double a2,
+                        float omega, float& magnitude, float& phase) noexcept
+{
     if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
         return;
 
@@ -1535,13 +1533,71 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
     magnitude *= (float) std::sqrt((nr * nr + ni * ni) / dn);
     phase += (float) (std::atan2(ni, nr) - std::atan2(di, dr));
 }
+} // namespace
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     float omega, float& magnitude,
+                                     float& phase) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
+    dipSectionResponse(b0, b1, b2, a1, a2, omega, magnitude, phase);
+}
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     float omega, float& magnitude,
+                                     float& phase,
+                                     DipCoefficientMemo& memo) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+    memoisedDipCoefficients(depth, shape, memo, b0, b1, b2, a1, a2);
+    dipSectionResponse(b0, b1, b2, a1, a2, omega, magnitude, phase);
+}
+
+void ElectryEngine::memoisedDipCoefficients(float depth,
+                                            const HandLossShape& shape,
+                                            DipCoefficientMemo& memo,
+                                            double& b0, double& b1, double& b2,
+                                            double& a1, double& a2) noexcept
+{
+    // Equal floats are the same input to handDipCoefficients(): the only
+    // values == does not distinguish, +0 and -0, take its identical early
+    // return or max(q, 0.05) path, and a NaN never matches.
+    if (! (memo.valid && memo.depth == depth
+           && memo.shape.dipOmega == shape.dipOmega
+           && memo.shape.dipQ == shape.dipQ
+           && memo.shape.dipFullDepthDb == shape.dipFullDepthDb))
+    {
+        handDipCoefficients(depth, shape, memo.b0, memo.b1, memo.b2,
+                            memo.a1, memo.a2);
+        memo.depth = depth;
+        memo.shape = shape;
+        memo.valid = true;
+    }
+    b0 = memo.b0;
+    b1 = memo.b1;
+    b2 = memo.b2;
+    a1 = memo.a1;
+    a2 = memo.a2;
+}
 
 // One place that pushes a depth into both bands, so the note-on solve and the
 // per-control-period modulation of the dynamic models cannot diverge.
 void ElectryEngine::applyDipDepth(PolarisationLoop& loop, float depth) noexcept
 {
     double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-    handDipCoefficients(depth, loop.handLossShape, b0, b1, b2, a1, a2);
+    memoisedDipCoefficients(depth, loop.handLossShape, loop.handLossMemo,
+                            b0, b1, b2, a1, a2);
     loop.handDip.b0 = b0; loop.handDip.b1 = b1; loop.handDip.b2 = b2;
     loop.handDip.a1 = a1; loop.handDip.a2 = a2;
     const bool active = b1 != 0.0 || b2 != 0.0 || a1 != 0.0 || a2 != 0.0;
@@ -1658,6 +1714,7 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     oversamplingFactor_ = hostSampleRate_ <= 96000.0 ? 2 : 1;
     sampleRate_ = hostSampleRate_ * static_cast<double>(oversamplingFactor_);
     inverseSampleRate_ = static_cast<float>(1.0 / sampleRate_);
+    releaseSpreadSamples_ = std::round(0.000125f * static_cast<float>(sampleRate_));
 
     // 14 ms continuous-parameter smoothing and a 4 ms pickup selector fade,
     // both advanced at the control tick.
@@ -4007,11 +4064,13 @@ void ElectryEngine::configureBassMaterialLoss(
     materialShape.dipFullDepthDb = 1.0f;
     float hand0 = 1.0f, handMiddle = 1.0f, handHigh = 1.0f, unused = 0.0f;
     handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omega0, hand0, unused);
+                     omega0, hand0, unused, loop.handLossMemo);
     handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omegaMiddle, handMiddle, unused);
+                     omegaMiddle, handMiddle, unused, loop.handLossMemo);
     handLossResponse(loop.handLossDepth, loop.handLossShape,
-                     omegaHigh, handHigh, unused);
+                     omegaHigh, handHigh, unused, loop.handLossMemo);
+    // Each bisection depth below is evaluated at three frequencies.
+    DipCoefficientMemo trialMemo {};
     const float fixed0 = loop.loopGain
         * onePoleMagnitude(loop.loopDampingCoefficient, omega0) * hand0;
     const float fixedHigh = loop.loopGain
@@ -4027,9 +4086,12 @@ void ElectryEngine::configureBassMaterialLoss(
                          float& middleMagnitude)
     {
         float material0 = 1.0f, materialMiddle = 1.0f, materialHigh = 1.0f;
-        handLossResponse(depth, materialShape, omega0, material0, unused);
-        handLossResponse(depth, materialShape, omegaMiddle, materialMiddle, unused);
-        handLossResponse(depth, materialShape, omegaHigh, materialHigh, unused);
+        handLossResponse(depth, materialShape, omega0, material0, unused,
+                         trialMemo);
+        handLossResponse(depth, materialShape, omegaMiddle, materialMiddle,
+                         unused, trialMemo);
+        handLossResponse(depth, materialShape, omegaHigh, materialHigh, unused,
+                         trialMemo);
         const float ratio = fixedHigh / fixed0
                           * hand0 * material0 / (handHigh * materialHigh);
         if (ratio > 1.0f)
@@ -4058,10 +4120,10 @@ void ElectryEngine::configureBassMaterialLoss(
     }
     loop.materialLossDepth = lowDepth;
     loop.materialLossShape = materialShape;
-    handDipCoefficients(lowDepth, materialShape,
-                       loop.materialLossDip.b0, loop.materialLossDip.b1,
-                       loop.materialLossDip.b2, loop.materialLossDip.a1,
-                       loop.materialLossDip.a2);
+    memoisedDipCoefficients(lowDepth, materialShape, loop.materialLossMemo,
+                            loop.materialLossDip.b0, loop.materialLossDip.b1,
+                            loop.materialLossDip.b2, loop.materialLossDip.a1,
+                            loop.materialLossDip.a2);
 }
 
 void ElectryEngine::configureVoiceDispersion(
@@ -4654,16 +4716,17 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
     const float dispersionOmega = omega;
     const float dispersionPeriod = period;
 #endif
-    const auto dampingPhaseDelay = [&] (const PolarisationLoop& loop,
+    const auto dampingPhaseDelay = [&] (PolarisationLoop& loop,
                                          float phaseOmega)
     {
         float dipMagnitude = 1.0f;
         float dipPhase = 0.0f;
         handLossResponse(loop.handLossDepth, loop.handLossShape, phaseOmega,
-                         dipMagnitude, dipPhase);
+                         dipMagnitude, dipPhase, loop.handLossMemo);
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
         handLossResponse(loop.materialLossDepth, loop.materialLossShape,
-                         phaseOmega, materialMagnitude, materialPhase);
+                         phaseOmega, materialMagnitude, materialPhase,
+                         loop.materialLossMemo);
         const float dipDelay = phaseOmega > 1.0e-9f
             ? -(dipPhase + materialPhase) / phaseOmega : 0.0f;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
@@ -4799,7 +4862,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
 
         // Compensate every loop filter's phase delay at the fundamental so
         // the sounding pitch matches the target frequency.
-        const auto loopPhaseDelay = [&] (const PolarisationLoop& loop)
+        const auto loopPhaseDelay = [&] (PolarisationLoop& loop)
         {
             // The loss band is in the loop, so its phase is part of the
             // sounding period; without this the mute drags the string flat by
@@ -8605,7 +8668,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                 // guarded span; a release during handoff cannot replace the
                 // source's spectrum abruptly with destination-only samples.
                 const float width = std::min(
-                    std::round(0.000125f * static_cast<float>(sampleRate_)),
+                    releaseSpreadSamples_,
                     scalarFloor(std::max(0.0f, std::min(boundaryDelay - 4.0f,
                         static_cast<float>(delayLineSize - 8) - boundaryDelay))));
                 const float spread = 0.5f * boundary + 0.25f * (
