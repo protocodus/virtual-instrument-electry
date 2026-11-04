@@ -1,0 +1,264 @@
+// The guitar from strings to jack: that each switch position hears its own
+// coils where they sit on the strings, that rendering does not depend on the
+// host's block size, that silent strings drop out and come back cleanly, and
+// that the controls can move under a sounding chord.
+#include "DSP/StratEngine.h"
+
+#include <cmath>
+#include <complex>
+#include <cstdio>
+#include <memory>
+#include <vector>
+
+namespace
+{
+using electry::StratCircuit;
+using electry::StratEngine;
+using electry::StratString;
+using Position = StratCircuit::Position;
+
+int failures = 0;
+
+void check(bool condition, const char* what)
+{
+    if (!condition)
+    {
+        ++failures;
+        std::printf("FAIL: %s\n", what);
+    }
+}
+
+constexpr double pi = 3.14159265358979323846;
+constexpr double rate = 48000.0;
+
+std::unique_ptr<StratEngine> makeEngine(Position position)
+{
+    auto engine = std::make_unique<StratEngine>();
+    engine->prepare(rate);
+    StratCircuit::Controls controls;
+    controls.position = position;
+    engine->setControls(controls);
+    return engine;
+}
+
+std::vector<float> render(StratEngine& engine, double seconds)
+{
+    std::vector<float> out(static_cast<size_t>(seconds * rate));
+    engine.process(out.data(), static_cast<int>(out.size()));
+    return out;
+}
+
+double level(const std::vector<float>& x, double startSeconds, double lengthSeconds,
+             double f)
+{
+    const int start = static_cast<int>(startSeconds * rate);
+    const int length = static_cast<int>(lengthSeconds * rate);
+    std::complex<double> sum = 0.0;
+    for (int i = 0; i < length; ++i)
+    {
+        const double window = 0.5 - 0.5 * std::cos(2.0 * pi * (i + 0.5) / length);
+        sum += static_cast<double>(x[static_cast<size_t>(start + i)]) * window
+            * std::polar(1.0, -2.0 * pi * f * (start + i) / rate);
+    }
+    return 20.0 * std::log10(std::abs(sum) + 1e-30);
+}
+
+void testCoilPlacement()
+{
+    // The open low E plucked at L/5. The neck coil sits at L/4 and so hears
+    // no 4th harmonic; the middle and bridge coils do.
+    const auto& spec = StratString::construction(0);
+    const auto partial = [&](int n) {
+        return n * spec.openHz
+            * std::sqrt((1.0 + spec.stiffness * n * n) / (1.0 + spec.stiffness));
+    };
+    for (Position position : {Position::neck, Position::middle, Position::bridge})
+    {
+        auto engine = makeEngine(position);
+        engine->pluck(0, 1.5, StratString::scaleMetres / 5.0, 0.0002);
+        const auto y = render(*engine, 0.6);
+        const double around = 0.5 * (level(y, 0.05, 0.5, partial(3))
+                                     + level(y, 0.05, 0.5, partial(6)));
+        const double fourth = level(y, 0.05, 0.5, partial(4));
+        if (position == Position::neck)
+            check(fourth < around - 30.0, "the neck coil at L/4 hears no 4th harmonic");
+        else
+            check(fourth > around - 15.0, "the middle and bridge coils hear the 4th harmonic");
+    }
+}
+
+void testCoilPositions()
+{
+    // A coil at x hears harmonic n in proportion to sin(n pi x / L), so the
+    // octave over the fundamental reads 2 cos(pi x / L) higher in each
+    // position: everything else in the path is common to all three, so the
+    // differences between positions place the coils.
+    const auto& spec = StratString::construction(0);
+    const auto partial = [&](int n) {
+        return n * spec.openHz
+            * std::sqrt((1.0 + spec.stiffness * n * n) / (1.0 + spec.stiffness));
+    };
+    const auto octaveOverFundamental = [&](Position position) {
+        auto engine = makeEngine(position);
+        engine->pluck(0, 1.5, 0.13, 0.0002);
+        const auto y = render(*engine, 0.6);
+        return level(y, 0.05, 0.5, partial(2)) - level(y, 0.05, 0.5, partial(1));
+    };
+    const auto expected = [&](int coil) {
+        return 20.0 * std::log10(2.0 * std::cos(pi * StratEngine::coilMetres(coil, 0)
+                                                / StratString::scaleMetres));
+    };
+    const double neck = octaveOverFundamental(Position::neck);
+    const double middle = octaveOverFundamental(Position::middle);
+    const double bridge = octaveOverFundamental(Position::bridge);
+    std::printf("octave over fundamental, middle less neck %.3f dB (coils say "
+                "%.3f), bridge less middle %.3f dB (%.3f)\n",
+                middle - neck, expected(1) - expected(0), bridge - middle,
+                expected(2) - expected(1));
+    check(std::abs((middle - neck) - (expected(1) - expected(0))) < 0.05,
+          "the middle position hears the middle coil");
+    check(std::abs((bridge - middle) - (expected(2) - expected(1))) < 0.05,
+          "the bridge position hears the bridge coil where it slants under the low E");
+}
+
+// Renders the same performance with the host splitting it into blocks of
+// `block` samples; events land at the same absolute samples every time.
+std::vector<float> performance(int block)
+{
+    auto engine = makeEngine(Position::middleNeck);
+    const int length = static_cast<int>(1.5 * rate);
+    std::vector<float> out(static_cast<size_t>(length));
+    const int events[] = {0, 3001, 5000, 9000, 20011, length};
+    int done = 0;
+    for (int e = 0; e + 1 < 6; ++e)
+    {
+        switch (e)
+        {
+            case 0:
+                for (int s = 0; s < 6; ++s)
+                    engine->pluck(s, 1.0 + 0.1 * s, 0.13, 0.0002);
+                break;
+            case 1: engine->setFret(2, 5.0); engine->pluck(2, 1.2, 0.11, 0.0003); break;
+            case 2: engine->setDamper(0, 0, 0.02, 0.5); break;
+            case 3: engine->setFret(4, 3.0, true); break;
+            case 4: engine->setTension(5, 1.1); break;
+        }
+        // Continuous gestures are restated each control period, as a
+        // performer does; here a slide on string 4 that lasts to the end.
+        while (done < events[e + 1])
+        {
+            int n = events[e + 1] - done;
+            n = n < block ? n : block;
+            const int toControl = StratEngine::controlPeriod
+                - done % StratEngine::controlPeriod;
+            n = n < toControl ? n : toControl;
+            if (e >= 3 && done % StratEngine::controlPeriod == 0)
+                engine->setFret(4, 3.0 + 4.0 * done / length, true);
+            engine->process(out.data() + done, n);
+            done += n;
+        }
+    }
+    return out;
+}
+
+void testBlockPartition()
+{
+    const auto reference = performance(1);
+    bool same = true;
+    for (int block : {7, 64, 256, 4096})
+        same = same && performance(block) == reference;
+    check(same, "any block size gives the same bits");
+}
+
+void testQuietStrings()
+{
+    auto engine = makeEngine(Position::neck);
+    engine->setDamper(5, 0, 0.02, 2.0);
+    engine->pluck(5, 1.5, 0.13, 0.0002);
+    check(engine->isSounding(5), "a plucked string sounds");
+    std::vector<float> y(static_cast<size_t>(rate));
+    int seconds = 0;
+    while (engine->isSounding(5) && seconds < 30)
+    {
+        engine->process(y.data(), static_cast<int>(y.size()));
+        ++seconds;
+    }
+    check(!engine->isSounding(5), "a damped string falls silent");
+    check(!engine->isSounding(0), "an unplayed string is silent");
+
+    // Played again, it sounds as a fresh string would: what was left is
+    // 200 dB down.
+    engine->setDamper(5, 0, 0.02, 0.0);
+    engine->pluck(5, 1.5, 0.13, 0.0002);
+    const auto again = render(*engine, 0.3);
+    auto fresh = makeEngine(Position::neck);
+    fresh->pluck(5, 1.5, 0.13, 0.0002);
+    const auto first = render(*fresh, 0.3);
+    double difference = 0.0, energy = 0.0;
+    for (size_t i = 0; i < first.size(); ++i)
+    {
+        difference += (again[i] - first[i]) * (again[i] - first[i]);
+        energy += first[i] * first[i];
+    }
+    check(difference < 1e-12 * energy, "a string played after silence sounds like new");
+}
+
+void testMovingControls()
+{
+    auto engine = makeEngine(Position::neck);
+    const int frets[6] = {0, 2, 2, 1, 0, 0};
+    for (int s = 0; s < 6; ++s)
+    {
+        engine->setFret(s, frets[s]);
+        engine->pluck(s, 2.0, 0.13, 0.0002);
+    }
+    unsigned seed = 7u;
+    const auto next = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return (seed >> 8) * (1.0 / 16777216.0);
+    };
+    std::vector<float> block(64);
+    bool finite = true;
+    double peak = 0.0;
+    for (int i = 0; i < static_cast<int>(2.0 * rate) / 64; ++i)
+    {
+        StratCircuit::Controls controls = engine->controls();
+        controls.volume = next();
+        controls.toneNeck = next();
+        controls.toneMiddle = next();
+        if (i % 50 == 0)
+            controls.position = static_cast<Position>(static_cast<int>(next() * 5.0) % 5);
+        engine->setControls(controls);
+        engine->process(block.data(), 64);
+        for (float v : block)
+        {
+            finite = finite && std::isfinite(v);
+            peak = std::abs(v) > peak ? std::abs(v) : peak;
+        }
+    }
+    check(finite, "switch and knob moves under a chord stay finite");
+    // The same chord at Volume 10 peaks under 4 V at the 1 V per m/s
+    // convention; moving controls cannot make a passive network exceed it
+    // by more than its resonance.
+    check(peak < 10.0, "switch and knob moves under a chord stay bounded");
+}
+
+void testDeterminism()
+{
+    check(performance(256) == performance(256), "the same performance gives the same bits");
+}
+
+} // namespace
+
+int main()
+{
+    testCoilPlacement();
+    testCoilPositions();
+    testBlockPartition();
+    testQuietStrings();
+    testMovingControls();
+    testDeterminism();
+    if (failures == 0)
+        std::printf("StratEngine: all checks passed\n");
+    return failures == 0 ? 0 : 1;
+}

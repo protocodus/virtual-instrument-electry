@@ -66,6 +66,11 @@ public:
 
     // One sample; writes the string velocity (m/s) under each tap.
     void process(std::array<float, tapCount>& tapVelocity) noexcept;
+    // A release or its high-passed tail is still driving the string.
+    bool isDriven() const noexcept
+    {
+        return releasePosition < releaseLength || blockedForce != 0.0;
+    }
 
     // Waveguide characteristic impedance sqrt(T mu) at the current tension.
     double impedance() const noexcept { return characteristicImpedance; }
