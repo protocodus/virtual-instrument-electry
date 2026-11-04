@@ -1,0 +1,404 @@
+// The Stratocaster string against the physics it claims. Pitches are checked
+// against equal temperament from A4 = 440 Hz, partials against the stiff
+// string's f_n = n f sqrt(1 + B n^2), decays against the construction table,
+// and the pick, pickup and damper positions against the nodes a point on an
+// ideal string has: a pluck or a pickup at 1/k of the length neither excites
+// nor hears harmonic k.
+#include "DSP/StratString.h"
+
+#include <cmath>
+#include <complex>
+#include <cstdio>
+#include <memory>
+#include <vector>
+
+namespace
+{
+using electry::StratString;
+
+int failures = 0;
+
+void check(bool condition, const char* what)
+{
+    if (!condition)
+    {
+        ++failures;
+        std::printf("FAIL: %s\n", what);
+    }
+}
+
+constexpr double pi = 3.14159265358979323846;
+constexpr double neckMetres = 0.162;   // L/4 from the bridge
+constexpr double bridgeMetres = 0.041;
+constexpr double pickMetres = 0.13;
+
+std::unique_ptr<StratString> makeString(double rate, int index, double fret)
+{
+    auto string = std::make_unique<StratString>();
+    string->prepare(rate, index);
+    string->setTaps({neckMetres, 0.098, bridgeMetres});
+    string->setTuning(fret, 1.0);
+    return string;
+}
+
+// Velocity under each tap for `seconds`, from tap `tap`.
+std::vector<float> run(StratString& string, double rate, double seconds, int tap)
+{
+    std::vector<float> out(static_cast<size_t>(seconds * rate));
+    std::array<float, StratString::tapCount> taps {};
+    for (float& sample : out)
+    {
+        string.process(taps);
+        sample = taps[static_cast<size_t>(tap)];
+    }
+    return out;
+}
+
+// Hann-windowed DTFT magnitude of x[start, start + length) at f.
+double magnitude(const std::vector<float>& x, double rate, double startSeconds,
+                 double lengthSeconds, double f)
+{
+    const int start = static_cast<int>(startSeconds * rate);
+    const int length = static_cast<int>(lengthSeconds * rate);
+    std::complex<double> sum = 0.0;
+    const std::complex<double> step = std::polar(1.0, -2.0 * pi * f / rate);
+    std::complex<double> phasor = std::polar(1.0, -2.0 * pi * f * start / rate);
+    for (int i = 0; i < length; ++i)
+    {
+        const double window = 0.5 - 0.5 * std::cos(2.0 * pi * (i + 0.5) / length);
+        sum += static_cast<double>(x[static_cast<size_t>(start + i)]) * window * phasor;
+        phasor *= step;
+    }
+    return std::abs(sum);
+}
+
+double decibels(double value) { return 20.0 * std::log10(value + 1e-30); }
+
+// The spectral peak within `span` Hz of `guess`, by golden-section search.
+double peakFrequency(const std::vector<float>& x, double rate, double guess,
+                     double span)
+{
+    double low = guess - span, high = guess + span;
+    for (int i = 0; i < 32; ++i)
+    {
+        const double a = low + 0.382 * (high - low);
+        const double b = low + 0.618 * (high - low);
+        if (magnitude(x, rate, 0.2, 0.5, a) < magnitude(x, rate, 0.2, 0.5, b))
+            low = a;
+        else
+            high = b;
+    }
+    return 0.5 * (low + high);
+}
+
+double cents(double measured, double expected)
+{
+    return 1200.0 * std::log2(measured / expected);
+}
+
+// MIDI notes of standard tuning, low E to high E.
+constexpr int openNotes[StratString::stringCount] = {40, 45, 50, 55, 59, 64};
+
+double equalTempered(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
+
+void testTuningAndStiffness(double rate)
+{
+    double worstFundamental = 0.0, worstPartial = 0.0;
+    for (int s = 0; s < StratString::stringCount; ++s)
+        for (int fret : {0, 5, 12, 19, 21})
+        {
+            auto string = makeString(rate, s, fret);
+            string->pluck(1.5, pickMetres, 0.0002);
+            const auto y = run(*string, rate, 0.7, 0);
+            const double f0 = equalTempered(openNotes[s] + fret);
+            const double measured = peakFrequency(y, rate, f0, 2.0);
+            const double error = std::abs(cents(measured, f0));
+            worstFundamental = error > worstFundamental ? error : worstFundamental;
+
+            // B grows with the inverse square of the speaking length.
+            const double b = StratString::construction(s).stiffness
+                * std::pow(2.0, fret / 6.0);
+            for (int n = 2; n <= 15; ++n)
+            {
+                const double fn = n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+                if (fn > 4000.0)
+                    break;
+                // The neck tap sits at L/4 of the open string only.
+                if (fret == 0 && n % 4 == 0)
+                    continue;
+                // The pick at L/5 leaves harmonic 5 and 10 too weak to place.
+                if (fret == 0 && n % 5 == 0)
+                    continue;
+                const double partial = peakFrequency(y, rate, fn, 3.0);
+                const double e = std::abs(cents(partial, fn));
+                worstPartial = e > worstPartial ? e : worstPartial;
+            }
+        }
+    std::printf("%.0f Hz: fundamentals within %.3f cents, partials within "
+                "%.2f cents\n",
+                rate, worstFundamental, worstPartial);
+    check(worstFundamental < 0.5, "every fret is in tune");
+    // Four identical first-order allpass sections cannot follow the stiffest
+    // string across the band: the low E from fret 11 up keeps some low
+    // partials 5 to 7.4 cents sharp of the stiff string (fret 18, partial 3:
+    // 16.6 against 9.2 cents over harmonic), at a least-squares and at a
+    // minimax fit alike; the other five strings stay within 2.8 cents. That
+    // is under the 1 % (17 cents) listeners need to hear one low partial
+    // mistuned (Moore, Peters and Glasberg, JASA 77, 1985).
+    check(worstPartial < 8.0, "partials follow the stiff string");
+}
+
+void testDecay()
+{
+    const double rate = 48000.0;
+    double worst = 0.0;
+    for (int s = 0; s < StratString::stringCount; ++s)
+    {
+        const auto& spec = StratString::construction(s);
+        auto string = makeString(rate, s, 0);
+        string->pluck(1.5, pickMetres, 0.0002);
+        const auto y = run(*string, rate, 2.4, 2);
+        const double b = spec.stiffness;
+        for (int n : {1, 8})
+        {
+            const double fn = n * spec.openHz * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+            const double early = magnitude(y, rate, 0.3, 0.5, fn);
+            const double late = magnitude(y, rate, 1.8, 0.5, fn);
+            const double t60 = 60.0 * 1.5 / (decibels(early) - decibels(late));
+            const double want = n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic;
+            const double error = std::abs(t60 / want - 1.0);
+            worst = error > worst ? error : worst;
+        }
+    }
+    std::printf("open-string T60s within %.1f %% of the table\n", 100.0 * worst);
+    check(worst < 0.1, "open strings decay as the table says");
+}
+
+void testNodes()
+{
+    const double rate = 48000.0;
+    for (int s : {0, 5})
+    {
+        const double f0 = StratString::construction(s).openHz;
+        const double b = StratString::construction(s).stiffness;
+        const auto partial = [&](int n) {
+            return n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+        };
+        auto string = makeString(rate, s, 0);
+        string->pluck(1.5, StratString::scaleMetres / 5.0, 0.00005);
+        std::vector<float> neck, bridge;
+        std::array<float, StratString::tapCount> taps {};
+        for (int i = 0; i < static_cast<int>(0.6 * rate); ++i)
+        {
+            string->process(taps);
+            neck.push_back(taps[0]);
+            bridge.push_back(taps[2]);
+        }
+        const auto level = [&](const std::vector<float>& x, int n) {
+            return decibels(magnitude(x, rate, 0.05, 0.5, partial(n)));
+        };
+        const double around5 = 0.5 * (level(bridge, 4) + level(bridge, 6));
+        check(level(bridge, 5) < around5 - 30.0,
+              "a pluck at L/5 leaves harmonic 5 out");
+        const double around4 = 0.5 * (level(neck, 3) + level(neck, 6));
+        check(level(neck, 4) < around4 - 30.0,
+              "a pickup at L/4 does not hear harmonic 4");
+    }
+}
+
+void testTouchHarmonic()
+{
+    // A finger resting at the 12th fret, lightly enough to let the string
+    // ring on either side of it, is a node for the even harmonics only.
+    const double rate = 48000.0;
+    auto string = makeString(rate, 0, 0);
+    string->pluck(1.5, pickMetres, 0.0002);
+    string->setDamper(1, StratString::scaleMetres / 2.0, 50.0);
+    const auto y = run(*string, rate, 1.2, 2);
+    const double f0 = StratString::construction(0).openHz;
+    const double b = StratString::construction(0).stiffness;
+    const auto level = [&](int n) {
+        return decibels(magnitude(y, rate, 0.6, 0.5,
+                                  n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b))));
+    };
+    check(level(1) < level(2) - 40.0 && level(3) < level(2) - 40.0,
+          "a touch at the 12th fret leaves the octave harmonic");
+}
+
+// Expected decay rate of the fundamental from a dashpot alone: the complex
+// root k near pi/L of Z sin(kL) + jR sin(k x) sin(k (L - x)) = 0, the ideal
+// string fixed at both ends with the dashpot's force jump at x. The amplitude
+// falls as exp(-Im(k) c t).
+double dashpotDecayPerSecond(double impedance, double resistance, double x,
+                             double length, double waveSpeed)
+{
+    using Complex = std::complex<double>;
+    const Complex j(0.0, 1.0);
+    Complex k = pi / length;
+    for (int i = 0; i < 40; ++i)
+    {
+        const Complex f = impedance * std::sin(k * length)
+            + j * resistance * std::sin(k * x) * std::sin(k * (length - x));
+        const Complex df = impedance * length * std::cos(k * length)
+            + j * resistance
+                * (x * std::cos(k * x) * std::sin(k * (length - x))
+                   + (length - x) * std::sin(k * x) * std::cos(k * (length - x)));
+        k -= f / df;
+    }
+    return k.imag() * waveSpeed;
+}
+
+void testPalm()
+{
+    // A dashpot near the bridge, on a sample point so its position is exact.
+    const double rate = 48000.0;
+    const auto& spec = StratString::construction(0);
+    const double waveSpeed = 2.0 * StratString::scaleMetres * spec.openHz;
+    const double x = 7.0 * waveSpeed / rate;
+    const auto decayDbPerSecond = [&](double resistance) {
+        auto string = makeString(rate, 0, 0);
+        string->setDamper(0, x, resistance);
+        string->pluck(1.5, pickMetres, 0.0002);
+        const auto y = run(*string, rate, 2.4, 2);
+        return (decibels(magnitude(y, rate, 0.3, 0.5, spec.openHz))
+                - decibels(magnitude(y, rate, 1.8, 0.5, spec.openHz)))
+            / 1.5;
+    };
+    for (double resistance : {0.1, 0.3, 1.0})
+    {
+        const double extra = decayDbPerSecond(resistance) - decayDbPerSecond(0.0);
+        const double want = 20.0 / std::log(10.0)
+            * dashpotDecayPerSecond(spec.kilogramsPerMetre * waveSpeed, resistance,
+                                    x, StratString::scaleMetres, waveSpeed);
+        std::printf("dashpot %.1f kg/s at %.1f mm: %.3f dB/s, string theory "
+                    "%.3f dB/s\n",
+                    resistance, 1000.0 * x, extra, want);
+        check(std::abs(extra / want - 1.0) < 0.01,
+              "a dashpot on the string damps it as the string equation says");
+    }
+}
+
+double peakAbs(const std::vector<float>& x)
+{
+    double peak = 0.0;
+    for (float v : x)
+        peak = std::abs(v) > peak ? std::abs(v) : peak;
+    return peak;
+}
+
+void testBendAndGlide()
+{
+    const double rate = 48000.0;
+    for (int s : {0, 3, 5})
+    {
+        // A whole-tone bend: tension up by 2^(4/12).
+        auto string = makeString(rate, s, 7);
+        string->pluck(1.5, pickMetres, 0.0002);
+        std::array<float, StratString::tapCount> taps {};
+        const double ratio = std::pow(2.0, 4.0 / 12.0);
+        for (int i = 0; i < 4800; ++i)
+        {
+            if (i % StratString::controlPeriod == 0)
+                string->setTuning(7, 1.0 + (ratio - 1.0) * i / 4800.0);
+            string->process(taps);
+        }
+        string->setTuning(7, ratio);
+        const auto bent = run(*string, rate, 0.7, 2);
+        const double want = equalTempered(openNotes[s] + 9);
+        check(std::abs(cents(peakFrequency(bent, rate, want, 3.0), want)) < 0.5,
+              "a whole-tone bend lands a whole tone up");
+
+        // A slide from the 2nd to the 9th fret over a quarter second.
+        string = makeString(rate, s, 2);
+        string->pluck(1.5, pickMetres, 0.0002);
+        double before = 0.0;
+        std::vector<float> slid;
+        for (int i = 0; i < 12000; ++i)
+        {
+            if (i % StratString::controlPeriod == 0)
+                string->setTuning(2.0 + 7.0 * i / 12000.0, 1.0, true);
+            string->process(taps);
+            if (i < 2400)
+                before = std::abs(taps[2]) > before ? std::abs(taps[2]) : before;
+            slid.push_back(taps[2]);
+        }
+        string->setTuning(9.0, 1.0, true);
+        const auto after = run(*string, rate, 0.7, 2);
+        check(std::abs(cents(peakFrequency(after, rate, want, 3.0), want)) < 0.5,
+              "a slide to the 9th fret is in tune there");
+        check(peakAbs(slid) < 1.5 * before, "a slide adds no energy");
+    }
+}
+
+void testFretJumpsStayBounded()
+{
+    const double rate = 44100.0;
+    unsigned seed = 2024u;
+    const auto next = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return (seed >> 8) * (1.0 / 16777216.0);
+    };
+    bool finite = true;
+    double peak = 0.0;
+    for (int s = 0; s < StratString::stringCount; ++s)
+    {
+        auto string = makeString(rate, s, 0);
+        std::array<float, StratString::tapCount> taps {};
+        double fret = 0.0, tension = 1.0;
+        for (int i = 0; i < static_cast<int>(6.0 * rate); ++i)
+        {
+            if (i % StratString::controlPeriod == 0)
+            {
+                const double r = next();
+                if (r < 0.02)
+                    fret = std::floor(next() * 22.0);
+                if (r > 0.97)
+                    tension = 0.5 + next() * 0.9;
+                string->setTuning(fret, tension, r < 0.01);
+                if (r > 0.995)
+                    string->pluck(1.5, 0.05 + next() * 0.15, 0.0002);
+                if (r > 0.4 && r < 0.402)
+                    string->setDamper(0, 0.01 + next() * 0.05, next() * 2.0);
+            }
+            string->process(taps);
+            for (float v : taps)
+            {
+                finite = finite && std::isfinite(v);
+                peak = std::abs(v) > peak ? std::abs(v) : peak;
+            }
+        }
+    }
+    check(finite, "frets, bends and plucks keep the string finite");
+    // A 1.5 N release sends at most about 3 m/s on the thinnest string, and
+    // overlapping plucks add; 40 m/s rules out runaway.
+    check(peak < 40.0, "frets, bends and plucks keep the string bounded");
+}
+
+void testDeterminism()
+{
+    const auto render = [] {
+        auto string = makeString(48000.0, 2, 3);
+        string->pluck(1.2, pickMetres, 0.0003);
+        return run(*string, 48000.0, 0.5, 1);
+    };
+    check(render() == render(), "the same input gives the same bits");
+}
+
+} // namespace
+
+int main()
+{
+    testTuningAndStiffness(44100.0);
+    testTuningAndStiffness(48000.0);
+    testTuningAndStiffness(96000.0);
+    testDecay();
+    testNodes();
+    testTouchHarmonic();
+    testPalm();
+    testBendAndGlide();
+    testFretJumpsStayBounded();
+    testDeterminism();
+    if (failures == 0)
+        std::printf("StratString: all checks passed\n");
+    return failures == 0 ? 0 : 1;
+}
