@@ -1,5 +1,6 @@
 #pragma once
 
+#include "StratBridge.h"
 #include "StratCircuit.h"
 #include "StratString.h"
 
@@ -8,8 +9,8 @@
 namespace electry
 {
 
-// The guitar from the strings to the jack: six strings, the three single
-// coils reading them, and the passive circuit. It plays what it is told,
+// The guitar from the strings to the jack: six strings on the floating
+// tremolo, the three single coils reading them, and the passive circuit. It plays what it is told,
 // string by string; MIDI, fingering and articulations belong to the
 // performer. Large (the string rails): construct it on the heap.
 class StratEngine
@@ -30,11 +31,15 @@ public:
     const StratCircuit::Controls& controls() const noexcept { return circuit.controls(); }
 
     // A fret change without glide stops the string there at once, so a pluck
-    // in the same sample sounds the new note. A glide, and the tension
-    // (finger bends, the tremolo), follow at the next control period; call
-    // them at least that often for a smooth gesture.
+    // in the same sample sounds the new note. A glide, the arm and finger
+    // bends follow at the next control period; restate them at least that
+    // often for a smooth gesture.
     void setFret(int stringIndex, double fret, bool glide = false) noexcept;
-    void setTension(int stringIndex, double tensionRatio) noexcept;
+    // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge).
+    void setArm(double position) noexcept;
+    // A finger bend to `pitchRatio` over the string's unbent pitch.
+    void setBend(int stringIndex, double pitchRatio) noexcept;
+    const StratBridge& bridge() const noexcept { return tremolo; }
     void setDamper(int stringIndex, int damper, double metresFromBridge,
                    double kilogramsPerSecond) noexcept;
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
@@ -50,7 +55,6 @@ private:
     struct Pending
     {
         double fret = 0.0;
-        double tension = 1.0;
         bool glide = false;
         bool changed = false;
     };
@@ -61,6 +65,8 @@ private:
     std::array<int, stringCount> quietSamples {};
     std::array<int, stringCount> quietLimit {};
     std::array<float, stringCount> coupling {};
+    StratBridge tremolo;
+    bool bridgeMoved = false;
     StratCircuit circuit;
     int phase = 0;
 };

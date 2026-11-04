@@ -84,6 +84,7 @@ set(ELECTRY_DSP_SOURCES
     Source/DSP/ElectryFx.cpp
     Source/DSP/ElectryPerformer.cpp
     Source/DSP/ElectryVisuals.cpp
+    Source/DSP/StratBridge.cpp
     Source/DSP/StratCircuit.cpp
     Source/DSP/StratEngine.cpp
     Source/DSP/StratString.cpp)
@@ -93,6 +94,7 @@ set(ELECTRY_DSP_HEADERS
     Source/DSP/ElectryFx.h
     Source/DSP/ElectryPerformer.h
     Source/DSP/ElectryVisuals.h
+    Source/DSP/StratBridge.h
     Source/DSP/StratCircuit.h
     Source/DSP/StratEngine.h
     Source/DSP/StratString.h)
@@ -171,6 +173,7 @@ if(NOT MSVC)
         Source/DSP/ElectryEngine.cpp
         Source/DSP/ElectryFx.cpp
         Source/DSP/ElectryPerformer.cpp
+        Source/DSP/StratBridge.cpp
         Source/DSP/StratCircuit.cpp
         Source/DSP/StratEngine.cpp
         Source/DSP/StratString.cpp)
@@ -217,6 +220,10 @@ if(BUILD_TESTING)
     add_executable(ElectryStratEngineTests Tests/StratEngineTests.cpp)
     target_link_libraries(ElectryStratEngineTests PRIVATE ElectryDSP)
     add_test(NAME Electry.StratEngine COMMAND ElectryStratEngineTests)
+
+    add_executable(ElectryStratBridgeTests Tests/StratBridgeTests.cpp)
+    target_link_libraries(ElectryStratBridgeTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.StratBridge COMMAND ElectryStratBridgeTests)
 endif()
 
 if(ELECTRY_BUILD_FUZZER)

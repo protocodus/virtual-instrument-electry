@@ -88,6 +88,8 @@ void StratEngine::prepare(double sampleRate) noexcept
             4.0 * sampleRate / StratString::construction(s).openHz);
         pending[static_cast<size_t>(s)] = Pending {};
     }
+    tremolo = StratBridge {};
+    bridgeMoved = false;
     circuit.prepare(sampleRate);
     reset();
 }
@@ -120,16 +122,20 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
         p.changed = true;
         return;
     }
-    strings[static_cast<size_t>(stringIndex)].setTuning(fret, p.tension);
+    strings[static_cast<size_t>(stringIndex)].setTuning(
+        fret, tremolo.tensionRatio(stringIndex));
 }
 
-void StratEngine::setTension(int stringIndex, double tensionRatio) noexcept
+void StratEngine::setArm(double position) noexcept
 {
-    if (stringIndex < 0 || stringIndex >= stringCount)
-        return;
-    Pending& p = pending[static_cast<size_t>(stringIndex)];
-    p.tension = tensionRatio;
-    p.changed = true;
+    tremolo.setArm(position);
+    bridgeMoved = true;
+}
+
+void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
+{
+    tremolo.setBend(stringIndex, pitchRatio);
+    bridgeMoved = true;
 }
 
 void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge,
@@ -169,12 +175,14 @@ void StratEngine::applyPending() noexcept
     for (int s = 0; s < stringCount; ++s)
     {
         Pending& p = pending[static_cast<size_t>(s)];
-        if (!p.changed)
+        if (!p.changed && !bridgeMoved)
             continue;
-        strings[static_cast<size_t>(s)].setTuning(p.fret, p.tension, p.glide);
+        strings[static_cast<size_t>(s)].setTuning(p.fret, tremolo.tensionRatio(s),
+                                                  p.glide);
         p.changed = false;
         p.glide = false;
     }
+    bridgeMoved = false;
 }
 
 void StratEngine::process(float* jackVolts, int samples) noexcept

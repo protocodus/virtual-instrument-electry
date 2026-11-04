@@ -141,7 +141,7 @@ std::vector<float> performance(int block)
             case 1: engine->setFret(2, 5.0); engine->pluck(2, 1.2, 0.11, 0.0003); break;
             case 2: engine->setDamper(0, 0, 0.02, 0.5); break;
             case 3: engine->setFret(4, 3.0, true); break;
-            case 4: engine->setTension(5, 1.1); break;
+            case 4: engine->setBend(5, 1.06); engine->setArm(-0.2); break;
         }
         // Continuous gestures are restated each control period, as a
         // performer does; here a slide on string 4 that lasts to the end.
@@ -243,6 +243,26 @@ void testMovingControls()
     check(peak < 10.0, "switch and knob moves under a chord stay bounded");
 }
 
+void testTremoloRetunes()
+{
+    // The arm and a bend reach every string within one control period.
+    auto engine = makeEngine(Position::neck);
+    engine->setFret(3, 7.0);
+    engine->setArm(0.7);
+    engine->setBend(3, std::pow(2.0, 2.0 / 12.0));
+    std::vector<float> y(StratEngine::controlPeriod);
+    engine->process(y.data(), static_cast<int>(y.size()));
+    bool tuned = true;
+    for (int s = 0; s < 6; ++s)
+    {
+        const double fret = s == 3 ? 7.0 : 0.0;
+        const double want = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0)
+            * std::sqrt(engine->bridge().tensionRatio(s));
+        tuned = tuned && std::abs(engine->fundamentalHz(s) / want - 1.0) < 1e-12;
+    }
+    check(tuned, "the arm and a bend retune every string through the bridge");
+}
+
 void testDeterminism()
 {
     check(performance(256) == performance(256), "the same performance gives the same bits");
@@ -257,6 +277,7 @@ int main()
     testBlockPartition();
     testQuietStrings();
     testMovingControls();
+    testTremoloRetunes();
     testDeterminism();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
