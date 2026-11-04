@@ -87,6 +87,7 @@ set(ELECTRY_DSP_SOURCES
     Source/DSP/StratBridge.cpp
     Source/DSP/StratCircuit.cpp
     Source/DSP/StratEngine.cpp
+    Source/DSP/StratPerformer.cpp
     Source/DSP/StratString.cpp)
 set(ELECTRY_DSP_HEADERS
     Source/DSP/DspMath.h
@@ -97,6 +98,7 @@ set(ELECTRY_DSP_HEADERS
     Source/DSP/StratBridge.h
     Source/DSP/StratCircuit.h
     Source/DSP/StratEngine.h
+    Source/DSP/StratPerformer.h
     Source/DSP/StratString.h)
 
 add_library(ElectryDSP STATIC
@@ -176,6 +178,7 @@ if(NOT MSVC)
         Source/DSP/StratBridge.cpp
         Source/DSP/StratCircuit.cpp
         Source/DSP/StratEngine.cpp
+        Source/DSP/StratPerformer.cpp
         Source/DSP/StratString.cpp)
     target_include_directories(ElectryDSPCxx17
         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
@@ -224,6 +227,10 @@ if(BUILD_TESTING)
     add_executable(ElectryStratBridgeTests Tests/StratBridgeTests.cpp)
     target_link_libraries(ElectryStratBridgeTests PRIVATE ElectryDSP)
     add_test(NAME Electry.StratBridge COMMAND ElectryStratBridgeTests)
+
+    add_executable(ElectryStratPerformerTests Tests/StratPerformerTests.cpp)
+    target_link_libraries(ElectryStratPerformerTests PRIVATE ElectryDSP)
+    add_test(NAME Electry.StratPerformer COMMAND ElectryStratPerformerTests)
 endif()
 
 if(ELECTRY_BUILD_FUZZER)
