@@ -4,6 +4,29 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-05 — keep the strings' second plane of swing (B)
+
+Decided: whether each Strat string swings along the top as well as toward
+the poles, the in-plane swing reflecting as a string 0.66 mm shorter and
+heard by the pickup at 0.2 of the other, so every partial beats as a pair
+a fraction of a hertz apart. Both numbers, fitted to the recorded Strat's
+partial envelopes, sit beside the code in `Source/DSP/StratString.cpp` and
+`Source/DSP/StratEngine.cpp`.
+
+- A: the branch before the change (03185be).
+- B: the branch with it (11175ce).
+
+Material: the owner's tab benchmark (Sweet Home Alabama intro, verse and
+chorus with its mutes, kept out of the repository), neck pickup, 48 kHz,
+whole-file RMS matched to −20 dBFS (A −22.6 dB, B −23.7 dB). The difference
+between them is 17.4 dB under the signal, mostly in ringing notes and
+chords. The two numbers were settled by measurement; the pair was a preview
+of them.
+
+**The owner chose B by ear**, and asked for the model to keep being compared
+to the recordings. It confirms keeping the second plane as measured. It does
+not license moving the shortening or the heard share by ear.
+
 ## 2026-11-05 — keep the single coil's flux law (B)
 
 Decided: whether the Strat engine's coils read the string through the flux
