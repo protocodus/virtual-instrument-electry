@@ -48,11 +48,10 @@ public:
         double t60EighthHarmonic;
         double highHz;
         double t60High;
-        // A band of extra loss on the open string, peaking at bandPeak dB/s
-        // at bandHz with quality factor bandQ (StratString.cpp); 0 for none.
-        double bandHz;
-        double bandPeak;
-        double bandQ;
+        // A wound string's wraps: their own loss on the open string at
+        // wrapHz, dB/s, on top of the rest (StratString.cpp); 0 for a plain
+        // string.
+        double wrapLoss;
         // Wrapped strings lose their upper partials faster than solid ones.
         bool wound;
     };
@@ -94,6 +93,9 @@ public:
     // push; a rigid pick reaches 0.79 but its sharp first touch leaves 4-8 kHz
     // 5-14 dB too bright. 600-1000 N/m score within 0.01 of the best.
     static constexpr double contactStiffness = 800.0;
+
+    // Where a wound string's wraps loss is stated.
+    static constexpr double wrapHz = 2800.0;
 
     // The swing along the top reflects as if the string were this much
     // shorter than its swing toward the poles (StratString.cpp has the
@@ -159,11 +161,7 @@ private:
         std::array<float, railSize> left {};
         float lossInput = 0.0f;
         float lossState = 0.0f;
-        // The loss band's bandpass: its last two inputs and outputs.
-        float bandIn1 = 0.0f;
-        float bandIn2 = 0.0f;
-        float bandOut1 = 0.0f;
-        float bandOut2 = 0.0f;
+        float wrapState = 0.0f;
         std::array<float, dispersionSections> allpassState {};
         LoopTap loopTap;
         double loopTapPosition = -1.0;
@@ -240,13 +238,9 @@ private:
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;
-    // The band: 1 - bandDepth BP(z), BP a bandpass of unit peak gain at
-    // bandHz, (b, 0, -b) / (1, a1, a2).
-    float bandDepth = 0.0f;
-    float bandB0 = 0.0f;
-    float bandA1 = 0.0f;
-    float bandA2 = 0.0f;
-    std::complex<double> bandResponse(double omega) const noexcept;
+    // The wraps: a one-pole lowpass (1 - p) / (1 - p z^-1), unity at DC.
+    float wrapPole = 0.0f;
+    std::complex<double> wrapResponse(double omega) const noexcept;
     // The neck's admittance as a bilinear biquad (b, 0, -b) / (1, a1, a2),
     // b per kg/s of the string's impedance.
     double neckNumerator = 0.0;
