@@ -164,17 +164,53 @@ void testTuningAndStiffness(double rate)
     check(worstPartial < 8.0, "partials follow the stiff string");
 }
 
-// The loss band as the table states it, dB/s, analog.
-double bandLoss(const StratString::Construction& spec, double hz)
+// The wraps' lowpass as the table states it: the one pole that loses
+// wrapLoss at wrapHz on the open string, dB/s at hz.
+double wrapLoss(const StratString::Construction& spec, double rate, double hz)
 {
-    if (spec.bandPeak <= 0.0)
+    if (spec.wrapLoss <= 0.0)
         return 0.0;
-    const double detune = hz / spec.bandHz - spec.bandHz / hz;
-    return spec.bandPeak / (1.0 + spec.bandQ * spec.bandQ * detune * detune);
+    const double atWrap = std::sin(pi * StratString::wrapHz / rate);
+    const double k = (std::pow(10.0, spec.wrapLoss / spec.openHz / 10.0) - 1.0) / (4.0 * atWrap * atWrap);
+    const double p = ((2.0 * k + 1.0) - std::sqrt(4.0 * k + 1.0)) / (2.0 * k);
+    const double at = std::sin(pi * hz / rate);
+    return 10.0 * std::log10(1.0 + 4.0 * p * at * at / ((1.0 - p) * (1.0 - p))) * spec.openHz;
 }
 
-// The table's decays at the fundamental and the eighth harmonic, with the
-// loss band on top; at the top, where the band is part of the measurement.
+// The strongest partial n in [first, last] and its decay, dB/s, read over
+// about 30 dB of its fall from 50 ms. The pick and the tap leave some
+// partials 70 dB down, and the dispersion is fitted under 4 kHz, so each is
+// found where it sounds.
+struct TopRead
+{
+    double hz;
+    int n;
+    double fall;
+};
+template <typename PartialHz>
+TopRead readTop(const std::vector<float>& y, double rate, double f0, PartialHz partialHz,
+                int first, int last, double expected)
+{
+    TopRead best {0.0, first, 0.0};
+    double bestEarly = 0.0;
+    for (int n = first; n <= last; ++n)
+    {
+        const double fn = peakFrequency(y, rate, 0.05, 0.1, partialHz(n), 0.3 * f0);
+        const double early = magnitude(y, rate, 0.05, 0.1, fn);
+        if (early > bestEarly)
+        {
+            bestEarly = early;
+            best.hz = fn;
+            best.n = n;
+        }
+    }
+    const double span = std::min(0.6, 30.0 / expected);
+    best.fall = (decibels(bestEarly) - decibels(magnitude(y, rate, 0.05 + span, 0.1, best.hz))) / span;
+    return best;
+}
+
+// The table's decays at the fundamental, the eighth harmonic and the top,
+// with the wraps on top.
 void testDecay()
 {
     const double rate = 48000.0;
@@ -193,33 +229,22 @@ void testDecay()
             const double late = magnitude(y, rate, 1.8, 0.5, partialHz(n));
             const double t60 = 60.0 * 1.5 / (decibels(early) - decibels(late));
             const double want = 60.0
-                / (60.0 / (n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic) + bandLoss(spec, partialHz(n)));
+                / (60.0 / (n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic) + wrapLoss(spec, rate, partialHz(n)));
             const double error = std::abs(t60 / want - 1.0);
             worst = error > worst ? error : worst;
         }
-        // The top: the strongest of the four partials under highHz, since the
-        // pick and the tap leave some up there 70 dB down. The dispersion is fitted
-        // under 4 kHz, so it is found where it sounds; it falls 50 dB/s or
-        // more, so it is read over 0.6 s before it sinks into the float's
-        // floor. It may sit a few hundred hertz off the design point and the
-        // fret-end interpolator adds its own few dB/s there (StratString.h),
-        // so it is held to 4 dB/s of the table.
+        // The top of a plain string: the strongest of the four partials
+        // under highHz. It may sit a few hundred hertz off the design point
+        // and the fret-end interpolator adds its own few dB/s there
+        // (StratString.h), so it is held to 4 dB/s of the table. A wound
+        // string's top is its wraps' (testWraps).
+        if (spec.wrapLoss > 0.0)
+            continue;
         int high = 1;
         while (partialHz(high + 1) < spec.highHz)
             ++high;
-        double topHz = 0.0, topEarly = 0.0;
-        for (int n = high - 3; n <= high; ++n)
-        {
-            const double fn = peakFrequency(y, rate, 0.1, 0.2, partialHz(n), 0.3 * spec.openHz);
-            const double early = magnitude(y, rate, 0.1, 0.2, fn);
-            if (early > topEarly)
-            {
-                topEarly = early;
-                topHz = fn;
-            }
-        }
-        const double topRate = (decibels(topEarly) - decibels(magnitude(y, rate, 0.7, 0.2, topHz))) / 0.6;
-        const double topError = std::abs(topRate - 60.0 / spec.t60High);
+        const TopRead top = readTop(y, rate, spec.openHz, partialHz, high - 3, high, 60.0 / spec.t60High);
+        const double topError = std::abs(top.fall - 60.0 / spec.t60High);
         worstTop = topError > worstTop ? topError : worstTop;
     }
     std::printf("open-string T60s within %.1f %% of the table at the fundamental and eighth harmonic, "
@@ -228,47 +253,42 @@ void testDecay()
     check(worstTop < 4.0, "the open strings' top decays as the table says");
 }
 
-// The band of loss on the wound strings and the G: the strongest partial
-// within two of bandHz loses the band on top of a first-order loss, whose
-// decibels move one way across frequency and so lie between the eighth
-// harmonic's and the top's, less the band there.
-void testLossBand()
+// The wraps on a wound string: the strongest partial within two of wrapHz
+// loses the wraps' share on top of a first-order loss, whose decibels move
+// one way across frequency and so lie between the eighth harmonic's and the
+// top's. Those are losses a trip, at the fundamental's trip rate; up there a
+// stiff string's partials sit further apart, their trip is shorter, and they
+// lose more each second, by up to the ideal stiff string's spacing over the
+// fundamental.
+void testWraps()
 {
     const double rate = 48000.0;
     double worst = 0.0;
     for (int s = 0; s < StratString::stringCount; ++s)
     {
         const auto& spec = StratString::construction(s);
-        if (spec.bandPeak <= 0.0)
+        if (spec.wrapLoss <= 0.0)
             continue;
         auto string = makeString(rate, s, 0);
         string->pluck(lightNewtons, pickMetres, 0.0002);
-        const auto y = run(*string, rate, 1.0, 2);
+        const auto y = run(*string, rate, 0.8, 2);
         const double b = spec.stiffness;
         auto partialHz = [&](int n) { return n * spec.openHz * std::sqrt((1.0 + b * n * n) / (1.0 + b)); };
-        const int centre = static_cast<int>(std::lround(spec.bandHz / partialHz(1)));
-        double bestHz = 0.0, bestEarly = 0.0;
-        for (int n = centre - 2; n <= centre + 2; ++n)
-        {
-            const double fn = peakFrequency(y, rate, 0.1, 0.2, partialHz(n), 0.3 * spec.openHz);
-            const double early = magnitude(y, rate, 0.1, 0.2, fn);
-            if (early > bestEarly)
-            {
-                bestEarly = early;
-                bestHz = fn;
-            }
-        }
-        const double rateNow = (decibels(bestEarly) - decibels(magnitude(y, rate, 0.7, 0.2, bestHz))) / 0.6;
-        const double band = bandLoss(spec, bestHz);
-        const double rest = rateNow - band;
-        const double low = 60.0 / spec.t60EighthHarmonic, high = 60.0 / spec.t60High - bandLoss(spec, spec.highHz);
-        const double outside = rest < low ? low - rest : (rest > high ? rest - high : 0.0);
-        std::printf("string %d at %.0f Hz: %.1f dB/s, of it the band %.1f, the rest %.1f between %.1f and %.1f\n",
-                    s, bestHz, rateNow, band, rest, low, high);
+        const int centre = static_cast<int>(std::lround(StratString::wrapHz / partialHz(1)));
+        const double low = 60.0 / spec.t60EighthHarmonic, high = 60.0 / spec.t60High;
+        const TopRead read = readTop(y, rate, spec.openHz, partialHz, centre - 2, centre + 2,
+                                     high + wrapLoss(spec, rate, StratString::wrapHz));
+        const double wraps = wrapLoss(spec, rate, read.hz);
+        const double bn = b * read.n * read.n;
+        const double spread = (std::sqrt(1.0 + bn) + bn / std::sqrt(1.0 + bn)) / std::sqrt(1.0 + b);
+        const double least = wraps + low, most = (wraps + high) * spread;
+        const double outside = read.fall < least ? least - read.fall : (read.fall > most ? read.fall - most : 0.0);
+        std::printf("string %d at %.0f Hz: %.1f dB/s, the wraps %.1f a trip, between %.1f and %.1f\n",
+                    s, read.hz, read.fall, wraps, least, most);
         worst = outside > worst ? outside : worst;
     }
     // The fret-end interpolator adds its own few dB/s (testDecay).
-    check(worst < 4.0, "the strings lose their band");
+    check(worst < 4.0, "the wound strings lose their top to the wraps");
 }
 
 // The two planes of the swing: the one along the top reflects as a string
@@ -766,7 +786,7 @@ int main()
     testTuningAndStiffness(48000.0);
     testTuningAndStiffness(96000.0);
     testDecay();
-    testLossBand();
+    testWraps();
     testSecondPlane();
     testNeck();
     testPerSecondLoss();
