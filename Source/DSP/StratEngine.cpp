@@ -139,12 +139,12 @@ void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
 }
 
 void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge,
-                            double kilogramsPerSecond) noexcept
+                            double kilogramsPerSecond, double widthMetres) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     strings[static_cast<size_t>(stringIndex)].setDamper(damper, metresFromBridge,
-                                                        kilogramsPerSecond);
+                                                        kilogramsPerSecond, widthMetres);
 }
 
 void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromBridge,

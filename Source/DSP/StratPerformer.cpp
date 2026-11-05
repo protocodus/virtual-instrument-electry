@@ -65,9 +65,18 @@ constexpr double palmMetres = 0.020;
 constexpr double palmRestPerSecond = 12.7;
 constexpr double palmPressedResistance = 2.0;
 
-// A dead note's fingertip. Voiced: it resists about twice the low E's
-// impedance, absorbing most of each passing wave.
-constexpr double fingerResistance = 1.5;
+// A finger lying on the string without pressing it, fitted to the 72 dead
+// notes of the same Stratocaster (frets 3, 8 and 14 on every string; decay of
+// each octave band 250 Hz to 4 kHz over the first 80 ms). A point cannot
+// stop the string fast enough: at its best resistance the 2 and 4 kHz bands
+// still ring 4 to 6 times too long (median of the 18 cases), an error of
+// 5.9 dB in decay rate (mean of each case's RMS over the bands). Spread along
+// 25 mm of string, 2 kg/s in all, it fits within 2.0 dB and the early tilt of
+// the spectra within a few dB, with the same 2 kg/s on every string; 20 to
+// 40 mm and 1.5 to 3 kg/s score within 0.4 dB of that. It is the palm's
+// heaviest press: flesh pressed on a string.
+constexpr double fingerResistance = 2.0;
+constexpr double fingerWidth = 0.025;
 
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
 // splits the string into two halves whose motion turns back into the
@@ -257,7 +266,7 @@ void StratPerformer::release(int s) noexcept
 {
     StringState& st = strings[static_cast<size_t>(s)];
     // The fretting finger lets go of the fret but stays on the string.
-    guitar->setDamper(s, 1, fingerMetres(st.fret), fingerResistance);
+    guitar->setDamper(s, 1, fingerMetres(st.fret), fingerResistance, fingerWidth);
     if (st.fret > 0.0)
         guitar->setFret(s, 0.0);
     guitar->setBend(s, 1.0);
@@ -559,6 +568,7 @@ void StratPerformer::startStroke() noexcept
         e.force = sign * velocityForce(notes[i].velocity);
         e.touchMetres = dead ? fingerMetres(fret) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
+        e.touchWidth = dead ? fingerWidth : 0.0;
         schedule(e);
 
         StringState& st = strings[static_cast<size_t>(s)];
@@ -585,7 +595,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         guitar->setDamper(s, 1, 0.0, 0.0);
         return;
     }
-    guitar->setDamper(s, 1, e.touchMetres, e.touchResistance);
+    guitar->setDamper(s, 1, e.touchMetres, e.touchResistance, e.touchWidth);
     guitar->setFret(s, e.fret);
     guitar->setBend(s, strings[static_cast<size_t>(s)].bend);
     const double force = std::abs(e.force);

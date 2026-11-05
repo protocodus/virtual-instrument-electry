@@ -41,7 +41,7 @@ public:
     void setBend(int stringIndex, double pitchRatio) noexcept;
     const StratBridge& bridge() const noexcept { return tremolo; }
     void setDamper(int stringIndex, int damper, double metresFromBridge,
-                   double kilogramsPerSecond) noexcept;
+                   double kilogramsPerSecond, double widthMetres = 0.0) noexcept;
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                double releaseSeconds, double strokeMetresPerSecond = 0.0) noexcept;

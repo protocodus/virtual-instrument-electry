@@ -109,6 +109,7 @@ private:
         double force = 0.0;
         double touchMetres = 0.0;
         double touchResistance = 0.0;
+        double touchWidth = 0.0;
     };
 
     struct Pending

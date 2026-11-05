@@ -368,13 +368,14 @@ void StratString::setTaps(const std::array<double, tapCount>& metresFromBridge) 
     }
 }
 
-void StratString::setDamper(int damper, double metresFromBridge,
-                            double kilogramsPerSecond) noexcept
+void StratString::setDamper(int damper, double metresFromBridge, double kilogramsPerSecond,
+                            double widthMetres) noexcept
 {
     if (damper < 0 || damper >= damperCount)
         return;
     dampers[static_cast<size_t>(damper)].metres = metresFromBridge;
     dampers[static_cast<size_t>(damper)].resistance = kilogramsPerSecond;
+    dampers[static_cast<size_t>(damper)].width = widthMetres;
     placeDampers();
 }
 
@@ -384,6 +385,17 @@ void StratString::placeDampers() noexcept
     for (Damper& d : dampers)
     {
         const double at = clamp(positionSamples(d.metres), 1.0, lastUsablePosition());
+        const int last = static_cast<int>(lastUsablePosition());
+        d.count = std::clamp(static_cast<int>(std::lround(positionSamples(d.width))), 1, last);
+        if (d.count > 1)
+        {
+            // A contact: its resistance shared among the points it covers.
+            d.position = std::clamp(static_cast<int>(std::lround(at - 0.5 * (d.count - 1))), 1,
+                                    last - d.count + 1);
+            const double r = d.resistance / (z * d.count);
+            d.absorption = static_cast<float>(r / (2.0 + r));
+            continue;
+        }
         d.position = static_cast<int>(std::lround(at));
         // On its sample point the dashpot gets the resistance that loses as
         // much each period at the second partial as R would at its true
@@ -594,11 +606,14 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
     {
         if (d.absorption == 0.0f)
             continue;
-        float& r = right[static_cast<size_t>((write - d.position) & railMask)];
-        float& l = left[static_cast<size_t>((write + leftOffset + d.position) & railMask)];
-        const float v = d.absorption * (r + l);
-        r -= v;
-        l -= v;
+        for (int k = d.position; k < d.position + d.count; ++k)
+        {
+            float& r = right[static_cast<size_t>((write - k) & railMask)];
+            float& l = left[static_cast<size_t>((write + leftOffset + k) & railMask)];
+            const float v = d.absorption * (r + l);
+            r -= v;
+            l -= v;
+        }
     }
 
     for (int k = 0; k < tapCount; ++k)

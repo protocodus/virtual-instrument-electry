@@ -54,11 +54,12 @@ public:
 
     void setTaps(const std::array<double, tapCount>& metresFromBridge) noexcept;
 
-    // A point damper on the string (palm, a touching finger). Resistance in
-    // kg/s; 0 lifts it.
+    // A damper on the string (palm, a touching finger): a point, or a
+    // contact spread evenly along a width of string centred there.
+    // Resistance in kg/s, in all; 0 lifts it.
     static constexpr int damperCount = 2;
-    void setDamper(int damper, double metresFromBridge,
-                   double kilogramsPerSecond) noexcept;
+    void setDamper(int damper, double metresFromBridge, double kilogramsPerSecond,
+                   double widthMetres = 0.0) noexcept;
 
     // Plucks the string: the force at which it slips off the pick (its sign
     // the stroke's direction), the pick's distance from the bridge and the
@@ -169,8 +170,10 @@ private:
     {
         double metres = 0.0;
         double resistance = 0.0;
-        int position = 0;
-        float absorption = 0.0f;
+        double width = 0.0;
+        int position = 0; // the first sample point it covers
+        int count = 1;
+        float absorption = 0.0f; // at each point
     };
     std::array<Damper, damperCount> dampers {};
 

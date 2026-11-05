@@ -329,6 +329,63 @@ void testPalm()
     check(pressed > 365.0 && pressed < 540.0, "a full palm damps as the recorded heaviest mutes");
 }
 
+// Decay of the octave band around `hz`, dB/s, over the first 80 ms after
+// the band's loudest 10 ms frame (Hann frames 5 ms apart, the band's DFT bins
+// summed), until it first falls 30 dB below that.
+double bandDecay(const std::vector<float>& x, double hz)
+{
+    const double length = 0.010, hop = 0.005;
+    std::vector<double> frames;
+    for (double start = 0.0; start + length <= x.size() / rate; start += hop)
+    {
+        double sum = 0.0;
+        for (double f = std::ceil(hz / std::sqrt(2.0) * length) / length; f < hz * std::sqrt(2.0);
+             f += 1.0 / length)
+            sum += std::pow(10.0, level(x, start, length, f) / 10.0);
+        frames.push_back(10.0 * std::log10(sum + 1e-30));
+    }
+    size_t peak = 0;
+    for (size_t i = 0; i < frames.size(); ++i)
+        peak = frames[i] > frames[peak] ? i : peak;
+    double st = 0.0, sy = 0.0, stt = 0.0, sty = 0.0;
+    int n = 0;
+    for (size_t i = peak; i < frames.size() && i <= peak + 16 && frames[i] > frames[peak] - 30.0;
+         ++i, ++n)
+    {
+        const double t = hop * static_cast<double>(i - peak);
+        st += t;
+        sy += frames[i];
+        stt += t * t;
+        sty += t * frames[i];
+    }
+    return n < 3 ? 0.0 : -(n * sty - st * sy) / (n * stt - st * st);
+}
+
+void testDeadNotes()
+{
+    // The recorded Strat's dead notes at frets 3, 8 and 14 lost their 2 kHz
+    // octave at 830 to 2360 dB/s and their 4 kHz octave at 980 to 2540.
+    // The performer picks the string, so a note is played once.
+    double slowest2 = 1e9, slowest4 = 1e9;
+    for (int note = openNote[0] + 3; note <= openNote[5] + 14; note += 2)
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 26, 1);
+        p->noteOn(0, note, 100);
+        const auto y = render(*p, 0.15);
+        int s = 0;
+        for (int k = 0; k < 6; ++k)
+            s = p->stringNote(k) == note ? k : s;
+        const double two = bandDecay(y, 2000.0), four = bandDecay(y, 4000.0);
+        std::printf("dead note %d, string %d fret %d: 2 kHz %.0f dB/s, 4 kHz %.0f dB/s\n", note,
+                    s, note - openNote[s], two, four);
+        slowest2 = two < slowest2 ? two : slowest2;
+        slowest4 = four < slowest4 ? four : slowest4;
+    }
+    check(slowest2 > 0.8 * 830.0 && slowest4 > 0.8 * 980.0,
+          "a dead note's top dies as fast as the recorded dead notes'");
+}
+
 void testArmAndBends()
 {
     auto p = makePerformer();
@@ -419,6 +476,7 @@ int main()
     testLegatoAndSlide();
     testHarmonics();
     testPalm();
+    testDeadNotes();
     testArmAndBends();
     testBlockPartition();
     if (failures == 0)

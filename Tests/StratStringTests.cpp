@@ -251,35 +251,46 @@ double dashpotDecayPerSecond(double impedance, double resistance, double x,
 
 void testPalm()
 {
-    // A dashpot near the bridge, on a sample point and between two.
     const double rate = 48000.0;
     const auto& spec = StratString::construction(0);
     const double waveSpeed = 2.0 * StratString::scaleMetres * spec.openHz;
-    for (double samples : {7.0, 7.4})
-    {
-    const double x = samples * waveSpeed / rate;
-    const auto decayDbPerSecond = [&](double resistance) {
+    const double impedance = spec.kilogramsPerMetre * waveSpeed, sample = waveSpeed / rate;
+    const auto decayDbPerSecond = [&](double x, double resistance, double width) {
         auto string = makeString(rate, 0, 0);
-        string->setDamper(0, x, resistance);
+        string->setDamper(0, x, resistance, width);
         string->pluck(1.5, pickMetres, 0.0002);
         const auto y = run(*string, rate, 2.4, 2);
         return (decibels(magnitude(y, rate, 0.3, 0.5, spec.openHz))
                 - decibels(magnitude(y, rate, 1.8, 0.5, spec.openHz)))
             / 1.5;
     };
-    for (double resistance : {0.1, 0.3, 1.0})
-    {
-        const double extra = decayDbPerSecond(resistance) - decayDbPerSecond(0.0);
-        const double want = 20.0 / std::log(10.0)
-            * dashpotDecayPerSecond(spec.kilogramsPerMetre * waveSpeed, resistance,
-                                    x, StratString::scaleMetres, waveSpeed);
-        std::printf("dashpot %.1f kg/s at %.1f mm: %.3f dB/s, string theory "
-                    "%.3f dB/s\n",
-                    resistance, 1000.0 * x, extra, want);
-        check(std::abs(extra / want - 1.0) < 0.01,
-              "a dashpot on the string damps it as the string equation says");
-    }
-    }
+    const double undamped = decayDbPerSecond(0.0, 0.0, 0.0);
+    // A dashpot near the bridge, on a sample point and between two.
+    for (double samples : {7.0, 7.4})
+        for (double resistance : {0.1, 0.3, 1.0})
+        {
+            const double x = samples * sample;
+            const double extra = decayDbPerSecond(x, resistance, 0.0) - undamped;
+            const double want = 20.0 / std::log(10.0)
+                * dashpotDecayPerSecond(impedance, resistance, x, StratString::scaleMetres,
+                                        waveSpeed);
+            std::printf("dashpot %.1f kg/s at %.1f mm: %.3f dB/s, string theory %.3f dB/s\n",
+                        resistance, 1000.0 * x, extra, want);
+            check(std::abs(extra / want - 1.0) < 0.01,
+                  "a dashpot on the string damps it as the string equation says");
+        }
+    // A light contact nine samples wide damps as its nine points would, each
+    // with a ninth of its resistance.
+    const double resistance = 0.3;
+    double want = 0.0;
+    for (int k = 16; k <= 24; ++k)
+        want += 20.0 / std::log(10.0)
+            * dashpotDecayPerSecond(impedance, resistance / 9.0, k * sample,
+                                    StratString::scaleMetres, waveSpeed);
+    const double extra = decayDbPerSecond(20.0 * sample, resistance, 9.0 * sample) - undamped;
+    std::printf("contact %.1f kg/s over %.1f mm: %.3f dB/s, its points %.3f dB/s\n", resistance,
+                9000.0 * sample, extra, want);
+    check(std::abs(extra / want - 1.0) < 0.01, "a contact damps as the points it covers");
 }
 
 double peakAbs(const std::vector<float>& x)
