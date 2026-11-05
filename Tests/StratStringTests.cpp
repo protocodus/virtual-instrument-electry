@@ -167,7 +167,7 @@ void testTuningAndStiffness(double rate)
 void testDecay()
 {
     const double rate = 48000.0;
-    double worst = 0.0;
+    double worst = 0.0, worstTop = 0.0;
     for (int s = 0; s < StratString::stringCount; ++s)
     {
         const auto& spec = StratString::construction(s);
@@ -175,19 +175,45 @@ void testDecay()
         string->pluck(lightNewtons, pickMetres, 0.0002);
         const auto y = run(*string, rate, 2.4, 2);
         const double b = spec.stiffness;
+        auto partialHz = [&](int n) { return n * spec.openHz * std::sqrt((1.0 + b * n * n) / (1.0 + b)); };
         for (int n : {1, 8})
         {
-            const double fn = n * spec.openHz * std::sqrt((1.0 + b * n * n) / (1.0 + b));
-            const double early = magnitude(y, rate, 0.3, 0.5, fn);
-            const double late = magnitude(y, rate, 1.8, 0.5, fn);
+            const double early = magnitude(y, rate, 0.3, 0.5, partialHz(n));
+            const double late = magnitude(y, rate, 1.8, 0.5, partialHz(n));
             const double t60 = 60.0 * 1.5 / (decibels(early) - decibels(late));
             const double want = n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic;
             const double error = std::abs(t60 / want - 1.0);
             worst = error > worst ? error : worst;
         }
+        // The top: the strongest of the four partials under highHz, since the
+        // pick and the tap leave some up there 70 dB down. The dispersion is fitted
+        // under 4 kHz, so it is found where it sounds; it falls 50 dB/s or
+        // more, so it is read over 0.6 s before it sinks into the float's
+        // floor. It may sit a few hundred hertz off the design point and the
+        // fret-end interpolator adds its own few dB/s there (StratString.h),
+        // so it is held to 4 dB/s of the table.
+        int high = 1;
+        while (partialHz(high + 1) < spec.highHz)
+            ++high;
+        double topHz = 0.0, topEarly = 0.0;
+        for (int n = high - 3; n <= high; ++n)
+        {
+            const double fn = peakFrequency(y, rate, 0.1, 0.2, partialHz(n), 0.3 * spec.openHz);
+            const double early = magnitude(y, rate, 0.1, 0.2, fn);
+            if (early > topEarly)
+            {
+                topEarly = early;
+                topHz = fn;
+            }
+        }
+        const double topRate = (decibels(topEarly) - decibels(magnitude(y, rate, 0.7, 0.2, topHz))) / 0.6;
+        const double topError = std::abs(topRate - 60.0 / spec.t60High);
+        worstTop = topError > worstTop ? topError : worstTop;
     }
-    std::printf("open-string T60s within %.1f %% of the table\n", 100.0 * worst);
+    std::printf("open-string T60s within %.1f %% of the table at the fundamental and eighth harmonic, "
+                "the top within %.1f dB/s\n", 100.0 * worst, worstTop);
     check(worst < 0.1, "open strings decay as the table says");
+    check(worstTop < 4.0, "the open strings' top decays as the table says");
 }
 
 // The two planes of the swing: the one along the top reflects as a string
