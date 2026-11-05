@@ -164,6 +164,17 @@ void testTuningAndStiffness(double rate)
     check(worstPartial < 8.0, "partials follow the stiff string");
 }
 
+// The loss band as the table states it, dB/s, analog.
+double bandLoss(const StratString::Construction& spec, double hz)
+{
+    if (spec.bandPeak <= 0.0)
+        return 0.0;
+    const double detune = hz / spec.bandHz - spec.bandHz / hz;
+    return spec.bandPeak / (1.0 + spec.bandQ * spec.bandQ * detune * detune);
+}
+
+// The table's decays at the fundamental and the eighth harmonic, with the
+// loss band on top; at the top, where the band is part of the measurement.
 void testDecay()
 {
     const double rate = 48000.0;
@@ -181,7 +192,8 @@ void testDecay()
             const double early = magnitude(y, rate, 0.3, 0.5, partialHz(n));
             const double late = magnitude(y, rate, 1.8, 0.5, partialHz(n));
             const double t60 = 60.0 * 1.5 / (decibels(early) - decibels(late));
-            const double want = n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic;
+            const double want = 60.0
+                / (60.0 / (n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic) + bandLoss(spec, partialHz(n)));
             const double error = std::abs(t60 / want - 1.0);
             worst = error > worst ? error : worst;
         }
@@ -214,6 +226,49 @@ void testDecay()
                 "the top within %.1f dB/s\n", 100.0 * worst, worstTop);
     check(worst < 0.1, "open strings decay as the table says");
     check(worstTop < 4.0, "the open strings' top decays as the table says");
+}
+
+// The band of loss on the wound strings and the G: the strongest partial
+// within two of bandHz loses the band on top of a first-order loss, whose
+// decibels move one way across frequency and so lie between the eighth
+// harmonic's and the top's, less the band there.
+void testLossBand()
+{
+    const double rate = 48000.0;
+    double worst = 0.0;
+    for (int s = 0; s < StratString::stringCount; ++s)
+    {
+        const auto& spec = StratString::construction(s);
+        if (spec.bandPeak <= 0.0)
+            continue;
+        auto string = makeString(rate, s, 0);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
+        const auto y = run(*string, rate, 1.0, 2);
+        const double b = spec.stiffness;
+        auto partialHz = [&](int n) { return n * spec.openHz * std::sqrt((1.0 + b * n * n) / (1.0 + b)); };
+        const int centre = static_cast<int>(std::lround(spec.bandHz / partialHz(1)));
+        double bestHz = 0.0, bestEarly = 0.0;
+        for (int n = centre - 2; n <= centre + 2; ++n)
+        {
+            const double fn = peakFrequency(y, rate, 0.1, 0.2, partialHz(n), 0.3 * spec.openHz);
+            const double early = magnitude(y, rate, 0.1, 0.2, fn);
+            if (early > bestEarly)
+            {
+                bestEarly = early;
+                bestHz = fn;
+            }
+        }
+        const double rateNow = (decibels(bestEarly) - decibels(magnitude(y, rate, 0.7, 0.2, bestHz))) / 0.6;
+        const double band = bandLoss(spec, bestHz);
+        const double rest = rateNow - band;
+        const double low = 60.0 / spec.t60EighthHarmonic, high = 60.0 / spec.t60High - bandLoss(spec, spec.highHz);
+        const double outside = rest < low ? low - rest : (rest > high ? rest - high : 0.0);
+        std::printf("string %d at %.0f Hz: %.1f dB/s, of it the band %.1f, the rest %.1f between %.1f and %.1f\n",
+                    s, bestHz, rateNow, band, rest, low, high);
+        worst = outside > worst ? outside : worst;
+    }
+    // The fret-end interpolator adds its own few dB/s (testDecay).
+    check(worst < 4.0, "the strings lose their band");
 }
 
 // The two planes of the swing: the one along the top reflects as a string
@@ -711,6 +766,7 @@ int main()
     testTuningAndStiffness(48000.0);
     testTuningAndStiffness(96000.0);
     testDecay();
+    testLossBand();
     testSecondPlane();
     testNeck();
     testPerSecondLoss();
