@@ -22,7 +22,7 @@ public:
 
     // Coil centre under a string, metres from that string's saddle.
     static double coilMetres(int coil, int stringIndex) noexcept;
-    // Induced volts per m/s of the string under a coil.
+    // Induced volts per m/s of the string under a coil, for a small swing.
     static double coilCoupling(int stringIndex) noexcept;
 
     void prepare(double sampleRate) noexcept;
@@ -65,7 +65,16 @@ private:
     std::array<Pending, stringCount> pending {};
     std::array<int, stringCount> quietSamples {};
     std::array<int, stringCount> quietLimit {};
-    std::array<float, stringCount> coupling {};
+    // The coil reads velocity times the flux law's slope at the string's
+    // distance from the poles: steel[s] times fluxTable at that distance in
+    // table steps, which is the gap less the swing across the coil.
+    static constexpr int fluxTableSize = 257;
+    std::array<float, fluxTableSize> fluxTable {};
+    std::array<float, stringCount> steel {};
+    std::array<float, stringCount> gapSteps {};
+    std::array<std::array<float, coilCount>, stringCount> swing {};
+    float swingLeak = 1.0f;
+    float swingSteps = 0.0f; // table steps per (m/s) sample of swing
     StratBridge tremolo;
     bool bridgeMoved = false;
     StratCircuit circuit;

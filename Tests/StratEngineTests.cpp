@@ -1,7 +1,8 @@
 // The guitar from strings to jack: that each switch position hears its own
-// coils where they sit on the strings, that rendering does not depend on the
-// host's block size, that silent strings drop out and come back cleanly, and
-// that the controls can move under a sounding chord.
+// coils where they sit on the strings, that a hard swing reads through the
+// coils' flux law, that rendering does not depend on the host's block size,
+// that silent strings drop out and come back cleanly, and that the controls
+// can move under a sounding chord.
 #include "DSP/StratEngine.h"
 
 #include <cmath>
@@ -63,6 +64,11 @@ double level(const std::vector<float>& x, double startSeconds, double lengthSeco
     return 20.0 * std::log10(std::abs(sum) + 1e-30);
 }
 
+// Light enough that the coils read the string linearly: at an ordinary
+// stroke the flux law fills the neck coil's notches to 14 to 25 dB under
+// the partials around them (testFluxLaw), which hides where the coils sit.
+constexpr double lightNewtons = 0.05;
+
 void testCoilPlacement()
 {
     // The open low E plucked at L/5. The neck coil sits at L/4 and so hears
@@ -75,7 +81,7 @@ void testCoilPlacement()
     for (Position position : {Position::neck, Position::middle, Position::bridge})
     {
         auto engine = makeEngine(position);
-        engine->pluck(0, 1.5, StratString::scaleMetres / 5.0, 0.0002);
+        engine->pluck(0, lightNewtons, StratString::scaleMetres / 5.0, 0.0002);
         const auto y = render(*engine, 0.6);
         const double around = 0.5 * (level(y, 0.05, 0.5, partial(3))
                                      + level(y, 0.05, 0.5, partial(6)));
@@ -100,7 +106,7 @@ void testCoilPositions()
     };
     const auto octaveOverFundamental = [&](Position position) {
         auto engine = makeEngine(position);
-        engine->pluck(0, 1.5, 0.13, 0.0002);
+        engine->pluck(0, lightNewtons, 0.13, 0.0002);
         const auto y = render(*engine, 0.6);
         return level(y, 0.05, 0.5, partial(2)) - level(y, 0.05, 0.5, partial(1));
     };
@@ -119,6 +125,56 @@ void testCoilPositions()
           "the middle position hears the middle coil");
     check(std::abs((bridge - middle) - (expected(2) - expected(1))) < 0.05,
           "the bridge position hears the bridge coil where it slants under the low E");
+}
+
+// The low E stopped at the 12th fret and plucked with `newtons`: the neck
+// coil sits halfway along it, so a linear coil hears no 2nd partial.
+// Returns the 2nd against the mean of the fundamental and the 3rd, over 20
+// to 170 ms. As a stroke it releases as StratPerformer's ordinary stroke
+// does; otherwise in the same time whatever the force, so the string's own
+// response is linear in it.
+double twelfthFretOctave(double newtons, bool stroke)
+{
+    auto engine = makeEngine(Position::neck);
+    engine->setFret(0, 12.0);
+    const auto& spec = StratString::construction(0);
+    const double impedance = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
+    const double force = std::abs(newtons);
+    if (stroke)
+        engine->pluck(0, newtons, 0.13, impedance * 0.00041 / force + 123e-6,
+                      1.5 * force / (2.0 * impedance));
+    else
+        engine->pluck(0, newtons, 0.13, 0.0002);
+    const auto y = render(*engine, 0.2);
+    const double f0 = engine->fundamentalHz(0);
+    const auto partial = [&](int n) {
+        const double b = spec.stiffness * 4.0; // stiffness grows as 1/L^2
+        return n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+    };
+    // The 2nd partial's own peak is a few hundredths of a hertz from 2 f0:
+    // the window is 150 ms, its main lobe 13 Hz wide.
+    return level(y, 0.02, 0.15, partial(2))
+        - 0.5 * (level(y, 0.02, 0.15, partial(1)) + level(y, 0.02, 0.15, partial(3)));
+}
+
+void testFluxLaw()
+{
+    const double light = twelfthFretOctave(lightNewtons, false);
+    const double half = twelfthFretOctave(1.25, false);
+    const double full = twelfthFretOctave(2.5, false);
+    const double ordinary = twelfthFretOctave(2.5, true);
+    const double up = twelfthFretOctave(-2.5, true);
+    std::printf("12th-fret 2nd partial at the neck coil: %.1f dB light, %.1f at "
+                "1.25 N, %.1f at 2.5 N; %.1f an ordinary stroke, %.1f upstroke\n",
+                light, half, full, ordinary, up);
+    check(light < -28.0, "a light pluck leaves the neck coil's notch empty");
+    check(full - half > 5.0 && full - half < 7.0, "the fill grows as the swing squared");
+    // The recorded Strat (IDMT-SMT-Guitar, neck pickup) has it 17 dB under
+    // on its six 12th-fret notes, 12 to 22, and 15 on this one: StratEngine's
+    // acrossShare.
+    check(ordinary > -21.0 && ordinary < -13.0,
+          "an ordinary stroke fills it as far as the recorded Strat's");
+    check(std::abs(up - ordinary) < 2.0, "an upstroke fills it as much");
 }
 
 // Renders the same performance with the host splitting it into blocks of
@@ -299,6 +355,7 @@ int main()
 {
     testCoilPlacement();
     testCoilPositions();
+    testFluxLaw();
     testBlockPartition();
     testQuietStrings();
     testMovingControls();
