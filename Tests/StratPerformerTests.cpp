@@ -279,17 +279,54 @@ void testHarmonics()
 
 void testPalm()
 {
-    const auto sustainDb = [](bool palm) {
-        auto p = makePerformer();
-        if (palm)
-            p->noteOn(0, 25, 1);
-        p->noteOn(0, 40, 100);
-        const auto y = render(*p, 0.6);
-        return 10.0 * std::log10(energy(y, 0.4, 0.2) / energy(y, 0.0, 0.05));
+    // What the palm adds to a partial, dB/s between two windows, at a pressure.
+    const auto addedDecay = [](int note, int partial, double pressure, double from, double to,
+                               double window) {
+        double decay[2] {};
+        for (int palm = 0; palm < 2; ++palm)
+        {
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.palmMute = pressure;
+            p->setControls(controls);
+            if (palm == 1)
+                p->noteOn(0, 25, 1);
+            p->noteOn(0, note, 100);
+            const auto y = render(*p, to + window);
+            int s = 0;
+            for (int k = 0; k < 6; ++k)
+                s = p->stringNote(k) == note ? k : s;
+            const double b = StratString::construction(s).stiffness
+                * std::pow(2.0, p->stringFret(s) / 6.0);
+            const double f = partial * p->engine().fundamentalHz(s)
+                * std::sqrt((1.0 + b * partial * partial) / (1.0 + b));
+            decay[palm] = (level(y, from, window, f) - level(y, to, window, f)) / (to - from);
+        }
+        return decay[1] - decay[0];
     };
-    const double open = sustainDb(false), muted = sustainDb(true);
-    std::printf("open low E keeps %.1f dB at 0.4 s, palm-muted %.1f dB\n", open, muted);
-    check(muted < open - 10.0, "the palm shortens the note");
+    // The recorded Strat's lightest rest damps every string alike.
+    double lightest = 1e9, heaviest = 0.0;
+    for (int s = 0; s < 6; ++s)
+    {
+        const double added = addedDecay(openNote[s], 3, 0.0, 0.2, 1.1, 0.1);
+        std::printf("lightest palm on open string %d adds %.1f dB/s to partial 3\n", s, added);
+        lightest = added < lightest ? added : lightest;
+        heaviest = added > heaviest ? added : heaviest;
+    }
+    check(lightest > 0.0 && heaviest < 1.1 * lightest, "a light palm damps every string alike");
+    const double light = addedDecay(40, 1, 0.0, 0.2, 1.1, 0.1),
+                 middle = addedDecay(40, 1, 0.5, 0.2, 1.1, 0.1),
+                 heavy = addedDecay(40, 1, 1.0, 0.2, 1.1, 0.1);
+    std::printf("palm on the low E's fundamental: %.1f, %.1f, %.1f dB/s at 0, 0.5, 1\n", light,
+                middle, heavy);
+    check(light < middle && middle < heavy, "a harder palm damps more");
+    // Its heaviest mutes took the high E's fundamental at fret 5 down at 405
+    // and 490 dB/s more than an open-handed note. (This replaces a check that
+    // the default palm took 10 dB off the low E by 0.4 s, set for the voiced
+    // palm the fit found 3 to 12 times too heavy.)
+    const double pressed = addedDecay(69, 1, 1.0, 0.03, 0.08, 0.02);
+    std::printf("full palm on the high E's fret 5: %.0f dB/s\n", pressed);
+    check(pressed > 365.0 && pressed < 540.0, "a full palm damps as the recorded heaviest mutes");
 }
 
 void testArmAndBends()

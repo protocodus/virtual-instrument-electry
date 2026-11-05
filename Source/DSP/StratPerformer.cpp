@@ -47,12 +47,26 @@ constexpr double heavyThickness = 1.0e-3;
 // the reference, from 3.
 constexpr double pushRatio = 1.5;
 
-// The hands as dampers on the string. Voiced until phase 2 fits them to the
-// Clean El. Guitar library's palm mutes and dead notes: the palm rests 20 mm
-// in front of the saddles, and a touching fingertip resists about twice the
-// low E's impedance, absorbing most of each passing wave.
+// The palm, fitted to the palm mutes of IDMT-SMT-Guitar's Stratocaster
+// (dataset 2: five increasingly heavy mutes at fret 5 on every string, each
+// against the same string's unmuted fret-5 note, per-partial decay). A point
+// dashpot 20 mm in front of the saddle, working in parallel with the short
+// stretch behind it, fits all thirty mutes within 1.8 dB per partial (15 to
+// 25 mm within 0.05 dB of that): light, it damps partials as n^2; pressed
+// harder than that stretch is stiff, every partial loses the same share each
+// period. The lightest rest adds the same decay on every string, R = 12.7/s
+// times the string's mass per metre (all six within 30%); the heaviest press
+// is the same flesh on every string, 1.7 to 2.2 kg/s on the four whose
+// partials last long enough to measure. Pressure blends the two
+// geometrically; the player's three middle mutes sat between 0.1 and 0.9 of
+// the way, and the blend at 0, 0.15, 0.45, 0.75 and 1 reproduces the thirty
+// in this waveguide within 1.6 dB median per partial.
 constexpr double palmMetres = 0.020;
-constexpr double palmResistance = 4.0;
+constexpr double palmRestPerSecond = 12.7;
+constexpr double palmPressedResistance = 2.0;
+
+// A dead note's fingertip. Voiced: it resists about twice the low E's
+// impedance, absorbing most of each passing wave.
 constexpr double fingerResistance = 1.5;
 
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
@@ -183,7 +197,12 @@ void StratPerformer::applyPalm() noexcept
 {
     const bool on = latched == Articulation::palmMute;
     for (int s = 0; s < StratEngine::stringCount; ++s)
-        guitar->setDamper(s, 0, palmMetres, on ? current.palmMute * palmResistance : 0.0);
+    {
+        const double rest = palmRestPerSecond * StratString::construction(s).kilogramsPerMetre;
+        const double resistance
+            = rest * std::pow(palmPressedResistance / rest, current.palmMute);
+        guitar->setDamper(s, 0, palmMetres, on ? resistance : 0.0);
+    }
 }
 
 void StratPerformer::noteOn(int channel, int note, int velocity) noexcept

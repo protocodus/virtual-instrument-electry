@@ -1,5 +1,6 @@
 #include "StratString.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace electry
@@ -379,15 +380,39 @@ void StratString::setDamper(int damper, double metresFromBridge,
 
 void StratString::placeDampers() noexcept
 {
+    const double z = characteristicImpedance;
     for (Damper& d : dampers)
     {
-        d.position = static_cast<int>(std::lround(
-            clamp(positionSamples(d.metres), 1.0, lastUsablePosition())));
+        const double at = clamp(positionSamples(d.metres), 1.0, lastUsablePosition());
+        d.position = static_cast<int>(std::lround(at));
+        // On its sample point the dashpot gets the resistance that loses as
+        // much each period at the second partial as R would at its true
+        // place. A palm 20 mm from the saddle is two samples along a high E at
+        // 48 kHz, and rounding alone moves it 2 mm and changes what a light
+        // palm damps by a fifth. Near the saddle the dashpot and the short
+        // stretch behind it (a spring, Z cot kd) load the string in parallel,
+        // and a wave keeps |(Z - ZL) / (Z + ZL)|^2 of its energy. A dashpot
+        // lighter than that stretch is stiff loses as R (kd)^2, so the
+        // correction holds at every partial; a heavier one depends far less on
+        // where it is and is left as it is. Beyond a quarter of the string the
+        // stretch is no spring, and a sample is a small share of the distance.
+        double r = d.resistance / z;
+        const double kd = 2.0 * pi * 2.0 * fundamental / sampleRate;
+        const double spring = 1.0 / std::tan(kd * at), rounded = 1.0 / std::tan(kd * d.position);
+        if (r > 0.0 && kd * std::max(at, static_cast<double>(d.position)) < 0.5 * pi
+            && r * r < 1.0 + spring * spring)
+        {
+            // loss r'^2 + (2 loss - 4) r' + loss (1 + rounded^2) = 0, its
+            // lighter root; past the most a dashpot there can absorb, that.
+            const double loss = 4.0 * r / ((1.0 + r) * (1.0 + r) + spring * spring);
+            const double b = 4.0 - 2.0 * loss;
+            const double disc = b * b - 4.0 * loss * loss * (1.0 + rounded * rounded);
+            r = disc <= 0.0 ? std::sqrt(1.0 + rounded * rounded)
+                            : (b - std::sqrt(disc)) / (2.0 * loss);
+        }
         // A dashpot of resistance R on a string of impedance Z passes
         // 2Z / (2Z + R) of the local velocity and absorbs the rest.
-        d.absorption = d.resistance > 0.0
-            ? static_cast<float>(d.resistance / (2.0 * characteristicImpedance + d.resistance))
-            : 0.0f;
+        d.absorption = r > 0.0 ? static_cast<float>(r / (2.0 + r)) : 0.0f;
     }
 }
 

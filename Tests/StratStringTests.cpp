@@ -251,11 +251,13 @@ double dashpotDecayPerSecond(double impedance, double resistance, double x,
 
 void testPalm()
 {
-    // A dashpot near the bridge, on a sample point so its position is exact.
+    // A dashpot near the bridge, on a sample point and between two.
     const double rate = 48000.0;
     const auto& spec = StratString::construction(0);
     const double waveSpeed = 2.0 * StratString::scaleMetres * spec.openHz;
-    const double x = 7.0 * waveSpeed / rate;
+    for (double samples : {7.0, 7.4})
+    {
+    const double x = samples * waveSpeed / rate;
     const auto decayDbPerSecond = [&](double resistance) {
         auto string = makeString(rate, 0, 0);
         string->setDamper(0, x, resistance);
@@ -276,6 +278,7 @@ void testPalm()
                     resistance, 1000.0 * x, extra, want);
         check(std::abs(extra / want - 1.0) < 0.01,
               "a dashpot on the string damps it as the string equation says");
+    }
     }
 }
 
