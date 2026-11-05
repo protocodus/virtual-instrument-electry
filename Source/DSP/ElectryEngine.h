@@ -1761,6 +1761,9 @@ private:
                                         float halfAngleSine) noexcept;
     static float solveOnePoleDamping(float magnitudeRatio, float omega0,
                                      float omegaHigh) noexcept;
+    // The same solve from sin(omega0 / 2) and sin(omegaHigh / 2).
+    static float solveOnePoleDampingAtSines(float magnitudeRatio, float sine0,
+                                            float sineHigh) noexcept;
     // A pair of decay targets is not always realisable: the one-pole's own
     // loss at the fundamental has to be paid for out of the loop gain, and
     // that gain cannot exceed one. This solves the pair, and where it does not

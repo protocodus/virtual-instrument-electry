@@ -1062,9 +1062,15 @@ float ElectryEngine::solveOnePoleDamping(float magnitudeRatio, float omega0,
     // to below 4e-6, well inside what the decay targets are known to.
     // The two sines do not depend on the coefficient: taking them once instead
     // of in every halving gives the same magnitudes for 2 sinf calls, not 36.
+    return solveOnePoleDampingAtSines(magnitudeRatio, std::sin(0.5f * omega0),
+                                      std::sin(0.5f * omegaHigh));
+}
+
+float ElectryEngine::solveOnePoleDampingAtSines(float magnitudeRatio,
+                                                float sine0,
+                                                float sineHigh) noexcept
+{
     const float target = clampf(magnitudeRatio, 1.0e-4f, 1.0f);
-    const float sineHigh = std::sin(0.5f * omegaHigh);
-    const float sine0 = std::sin(0.5f * omega0);
     float low = 0.0f;
     float high = 0.9995f;
     for (int i = 0; i < 18; ++i)
@@ -1111,15 +1117,18 @@ void ElectryEngine::solveLoopLoss(float t60Fundamental, float t60High,
                               / std::max(sampleRate, 1.0f);
     const float t60Low = std::max(t60Fundamental, 1.0e-3f);
     const float gainAtF0 = std::pow(10.0f, decayExponent / t60Low);
+    // Up to twenty candidates share these two sines.
+    const float sine0 = std::sin(0.5f * omega0);
+    const float sineHigh = std::sin(0.5f * omegaHigh);
 
     const auto solveFor = [&] (float target, float& coefficient, float& gain)
     {
         const float gainAtHigh = std::pow(10.0f, decayExponent
                                                  / std::max(target, 1.0e-4f));
-        coefficient = solveOnePoleDamping(gainAtHigh
-                                              / std::max(gainAtF0, 1.0e-6f),
-                                          omega0, omegaHigh);
-        gain = gainAtF0 / std::max(onePoleMagnitude(coefficient, omega0),
+        coefficient = solveOnePoleDampingAtSines(gainAtHigh
+                                                     / std::max(gainAtF0, 1.0e-6f),
+                                                 sine0, sineHigh);
+        gain = gainAtF0 / std::max(onePoleMagnitudeAtSine(coefficient, sine0),
                                    1.0e-6f);
         return gain <= gainCeiling;
     };
@@ -1516,32 +1525,66 @@ void ElectryEngine::handDipCoefficients(float depth, const HandLossShape& shape,
 // can disagree about what is actually in the loop.
 namespace
 {
+// z = e^{j omega} and its square, the only trigonometry a dip response needs.
+// Evaluated in double for the same cancellation reason the section itself runs
+// in double: the solve divides this magnitude out of its targets, so an error
+// here becomes an error in the fitted decay. The second harmonic is the double
+// angle of the first rather than a second pair of std::cos/std::sin calls -
+// configureVoicePitch() reaches this once per control tick per polarisation
+// for every voice whose pitch is still moving (an active bend or vibrato), so
+// this runs continuously rather than only at note-on.
+struct DipAngle
+{
+    double cosine, sine, cosine2, sine2;
+};
+
+DipAngle dipAngle(float omega) noexcept
+{
+    const double dw = omega;
+    const double dcw = std::cos(dw), dsw = std::sin(dw);
+    return { dcw, dsw, 2.0 * dcw * dcw - 1.0, 2.0 * dsw * dcw };
+}
+
+struct DipFrequencyResponse
+{
+    double nr, ni, dr, di, dn;
+};
+
+// False where the section is the identity or its denominator vanishes; the
+// caller then leaves magnitude and phase untouched.
+bool dipFrequencyResponse(double b0, double b1, double b2, double a1, double a2,
+                          const DipAngle& angle,
+                          DipFrequencyResponse& response) noexcept
+{
+    if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
+        return false;
+    const double dcw = angle.cosine, dsw = angle.sine;
+    const double c2 = angle.cosine2, s2 = angle.sine2;
+    response.nr = b0 + b1 * dcw + b2 * c2;
+    response.ni = -(b1 * dsw + b2 * s2);
+    response.dr = 1.0 + a1 * dcw + a2 * c2;
+    response.di = -(a1 * dsw + a2 * s2);
+    response.dn = response.dr * response.dr + response.di * response.di;
+    return ! (response.dn < 1.0e-20);
+}
+
+void dipSectionMagnitude(double b0, double b1, double b2, double a1, double a2,
+                         const DipAngle& angle, float& magnitude) noexcept
+{
+    DipFrequencyResponse r {};
+    if (! dipFrequencyResponse(b0, b1, b2, a1, a2, angle, r))
+        return;
+    magnitude *= (float) std::sqrt((r.nr * r.nr + r.ni * r.ni) / r.dn);
+}
+
 void dipSectionResponse(double b0, double b1, double b2, double a1, double a2,
                         float omega, float& magnitude, float& phase) noexcept
 {
-    if (b1 == 0.0 && b2 == 0.0 && a1 == 0.0 && a2 == 0.0)
+    DipFrequencyResponse r {};
+    if (! dipFrequencyResponse(b0, b1, b2, a1, a2, dipAngle(omega), r))
         return;
-
-    // Evaluated at z = e^{j omega}, in double for the same cancellation reason
-    // the section itself runs in double: the solve divides this magnitude out of
-    // its targets, so an error here becomes an error in the fitted decay. The
-    // second harmonic is the double angle of the first rather than a second
-    // pair of std::cos/std::sin calls - configureVoicePitch() reaches this once
-    // per control tick per polarisation for every voice whose pitch is still
-    // moving (an active bend or vibrato), so this runs continuously rather
-    // than only at note-on.
-    const double dw = omega;
-    const double dcw = std::cos(dw), dsw = std::sin(dw);
-    const double c2 = 2.0 * dcw * dcw - 1.0, s2 = 2.0 * dsw * dcw;
-    const double nr = b0 + b1 * dcw + b2 * c2;
-    const double ni = -(b1 * dsw + b2 * s2);
-    const double dr = 1.0 + a1 * dcw + a2 * c2;
-    const double di = -(a1 * dsw + a2 * s2);
-    const double dn = dr * dr + di * di;
-    if (dn < 1.0e-20)
-        return;
-    magnitude *= (float) std::sqrt((nr * nr + ni * ni) / dn);
-    phase += (float) (std::atan2(ni, nr) - std::atan2(di, dr));
+    magnitude *= (float) std::sqrt((r.nr * r.nr + r.ni * r.ni) / r.dn);
+    phase += (float) (std::atan2(r.ni, r.nr) - std::atan2(r.di, r.dr));
 }
 } // namespace
 
@@ -3931,12 +3974,25 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
         // configured. The predicate is monotonic in depth - a deeper shelf makes
         // both limits harder - so the outer bisection is as reliable as the
         // inner one.
+        // Every candidate depth is evaluated at the same two frequencies:
+        // their trigonometry is taken once, and only the dip's magnitude is
+        // needed, so its phase is never computed. The values are the ones
+        // handLossResponse() and solveOnePoleDamping() give.
+        const DipAngle angle0 = dipAngle(omega0);
+        const DipAngle angleHigh = dipAngle(omegaHigh);
+        const float sine0 = std::sin(0.5f * omega0);
+        const float sineHigh = std::sin(0.5f * omegaHigh);
         const auto solveFor = [&] (float depth, float& coefficientOut,
                                    float& gainOut, float& dipAtF0Out)
         {
-            float atF0 = 1.0f, atHigh = 1.0f, unused = 0.0f;
-            handLossResponse(depth, shape, omega0, atF0, unused);
-            handLossResponse(depth, shape, omegaHigh, atHigh, unused);
+            float atF0 = 1.0f, atHigh = 1.0f;
+            if (depth > 0.0f)
+            {
+                double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+                handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
+                dipSectionMagnitude(b0, b1, b2, a1, a2, angle0, atF0);
+                dipSectionMagnitude(b0, b1, b2, a1, a2, angleHigh, atHigh);
+            }
             atF0 = clampf(atF0, 1.0e-3f, 1.0f);
             atHigh = clampf(atHigh, 1.0e-3f, 1.0f);
             // The shelf must not be what makes the remainder unsolvable. The
@@ -3950,10 +4006,10 @@ void ElectryEngine::configureVoiceDamping(Voice& voice,
             const float rawTarget = ratio / (atHigh / atF0);
             if (depth > 0.0f && rawTarget > 0.98f)
                 return false;
-            coefficientOut = solveOnePoleDamping(rawTarget, omega0, omegaHigh);
+            coefficientOut = solveOnePoleDampingAtSines(rawTarget, sine0, sineHigh);
             dipAtF0Out = atF0;
             gainOut = gainAtF0
-                / std::max(onePoleMagnitude(coefficientOut, omega0) * atF0,
+                / std::max(onePoleMagnitudeAtSine(coefficientOut, sine0) * atF0,
                            1.0e-6f);
             return gainOut <= 0.99999f;
         };
@@ -4079,14 +4135,23 @@ void ElectryEngine::configureBassMaterialLoss(
                      omegaMiddle, handMiddle, unused, loop.handLossMemo);
     handLossResponse(loop.handLossDepth, loop.handLossShape,
                      omegaHigh, handHigh, unused, loop.handLossMemo);
-    // Each bisection depth below is evaluated at three frequencies.
-    DipCoefficientMemo trialMemo {};
+    // Each bisection depth below is evaluated at the same three frequencies,
+    // so their trigonometry is taken once here; the fit needs only magnitudes,
+    // so it skips the phase's atan2 pair. Every value is the one
+    // onePoleMagnitude(), solveOnePoleDamping() and handLossResponse() give.
+    const float sine0 = std::sin(0.5f * omega0);
+    const float sineMiddle = std::sin(0.5f * omegaMiddle);
+    const float sineHigh = std::sin(0.5f * omegaHigh);
+    const DipAngle angle0 = dipAngle(omega0);
+    const DipAngle angleMiddle = dipAngle(omegaMiddle);
+    const DipAngle angleHigh = dipAngle(omegaHigh);
     const float fixed0 = loop.loopGain
-        * onePoleMagnitude(loop.loopDampingCoefficient, omega0) * hand0;
+        * onePoleMagnitudeAtSine(loop.loopDampingCoefficient, sine0) * hand0;
     const float fixedHigh = loop.loopGain
-        * onePoleMagnitude(loop.loopDampingCoefficient, omegaHigh) * handHigh;
+        * onePoleMagnitudeAtSine(loop.loopDampingCoefficient, sineHigh) * handHigh;
     const float currentMiddle = loop.loopGain
-        * onePoleMagnitude(loop.loopDampingCoefficient, omegaMiddle) * handMiddle;
+        * onePoleMagnitudeAtSine(loop.loopDampingCoefficient, sineMiddle)
+        * handMiddle;
     const float wantedMiddle = currentMiddle
         * std::pow(10.0f, -extraRate / (20.0f * f0));
     // Divide both passive sections out of the original anchors, then solve
@@ -4096,19 +4161,21 @@ void ElectryEngine::configureBassMaterialLoss(
                          float& middleMagnitude)
     {
         float material0 = 1.0f, materialMiddle = 1.0f, materialHigh = 1.0f;
-        handLossResponse(depth, materialShape, omega0, material0, unused,
-                         trialMemo);
-        handLossResponse(depth, materialShape, omegaMiddle, materialMiddle,
-                         unused, trialMemo);
-        handLossResponse(depth, materialShape, omegaHigh, materialHigh, unused,
-                         trialMemo);
+        if (depth > 0.0f)
+        {
+            double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+            handDipCoefficients(depth, materialShape, b0, b1, b2, a1, a2);
+            dipSectionMagnitude(b0, b1, b2, a1, a2, angle0, material0);
+            dipSectionMagnitude(b0, b1, b2, a1, a2, angleMiddle, materialMiddle);
+            dipSectionMagnitude(b0, b1, b2, a1, a2, angleHigh, materialHigh);
+        }
         const float ratio = fixedHigh / fixed0
                           * hand0 * material0 / (handHigh * materialHigh);
         if (ratio > 1.0f)
             return false;
-        coefficient = solveOnePoleDamping(ratio, omega0, omegaHigh);
-        gain = fixed0 / (onePoleMagnitude(coefficient, omega0) * hand0 * material0);
-        middleMagnitude = gain * onePoleMagnitude(coefficient, omegaMiddle)
+        coefficient = solveOnePoleDampingAtSines(ratio, sine0, sineHigh);
+        gain = fixed0 / (onePoleMagnitudeAtSine(coefficient, sine0) * hand0 * material0);
+        middleMagnitude = gain * onePoleMagnitudeAtSine(coefficient, sineMiddle)
                         * handMiddle * materialMiddle;
         return gain <= 0.99999f;
     };
