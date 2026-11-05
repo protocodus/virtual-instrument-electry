@@ -90,6 +90,10 @@ public:
     // shorter than its swing toward the poles (StratString.cpp has the
     // measurement).
     static const double inPlaneShortening;
+    // The share of an open string's loss that goes per second rather than
+    // per round trip, wound and plain (StratString.cpp).
+    static const double woundPerSecondShare;
+    static const double plainPerSecondShare;
     // The neck under the fret yields toward the poles in one resonance: its
     // frequency, Q and conductance at the peak, s/kg (StratString.cpp).
     static const double neckHz;
@@ -215,6 +219,10 @@ private:
     int recountCountdown = 0;
     void measureStretch() noexcept;
 
+    // The loop filter through the open string's measured losses, with the
+    // per-second share scaled to the current trip's time.
+    void designLoss(double share) noexcept;
+    double designedLossShare = -1.0;
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;

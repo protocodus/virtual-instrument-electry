@@ -311,6 +311,41 @@ void testNeck()
     check(worst < 0.05, "the fret yields as the string equation says");
 }
 
+// A share of each string's loss goes per second rather than per round trip,
+// so an octave up the neck a partial loses 2 - a times what the open
+// string's partial at the same frequency loses, not twice: open partial 10
+// against partial 5 at fret 12, less what the yielding fret takes per trip.
+void testPerSecondLoss()
+{
+    const double rate = 48000.0;
+    double worst = 0.0;
+    for (int s : {0, 2, 3, 5})
+    {
+        const auto& spec = StratString::construction(s);
+        const double a = spec.wound ? StratString::woundPerSecondShare : StratString::plainPerSecondShare;
+        double decay[2] {}, f = 0.0;
+        for (int fret : {0, 12})
+        {
+            auto string = makeString(rate, s, fret);
+            // 90 mm keeps both notes clear of a pick node at this partial.
+            string->pluck(lightNewtons, 0.09, 0.0002);
+            const auto y = run(*string, rate, 2.4, 2);
+            const double f0 = equalTempered(openNotes[s] + fret);
+            const int n = fret == 0 ? 10 : 5;
+            const double b = spec.stiffness * std::pow(2.0, fret / 6.0);
+            const double fn = peakFrequency(y, rate, n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b)), 3.0);
+            f = fn;
+            const double lost = decibels(magnitude(y, rate, 0.3, 0.5, fn)) - decibels(magnitude(y, rate, 1.8, 0.5, fn));
+            decay[fret == 0 ? 0 : 1] = lost / 1.5 - neckLoss(string->impedance(), fn, f0, 1.0);
+        }
+        const double ratio = decay[1] / decay[0];
+        const double e = std::abs(ratio / (2.0 - a) - 1.0);
+        std::printf("string %d at %.0f Hz: fret 12 loses %.2f times the open string, want %.2f\n", s, f, ratio, 2.0 - a);
+        worst = e > worst ? e : worst;
+    }
+    check(worst < 0.05, "a fretted note loses the per-second share for as long as its trip");
+}
+
 void testNodes()
 {
     const double rate = 48000.0;
@@ -652,6 +687,7 @@ int main()
     testDecay();
     testSecondPlane();
     testNeck();
+    testPerSecondLoss();
     testNodes();
     testTouchHarmonic();
     testPalm();
