@@ -4,6 +4,28 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-05 — keep the single coil's flux law (B)
+
+Decided: whether the Strat engine's coils read the string through the flux
+law of a measured SSL-5 single coil at the string's distance from the poles
+at each instant, instead of at its resting gap, with 0.15 of the swing
+crossing the coil. The law and the share, fitted to the recorded Strat's
+partials where a linear neck coil is deaf, sit beside the code in
+`Source/DSP/StratEngine.cpp`.
+
+- A: the branch before the change (c91e14e).
+- B: the branch with it (c410d65).
+
+Material: new hard picking for the purpose (open low E, A and D rung out, a
+single-note riff, open-E strums down and up, four notes at the 12th fret),
+neck pickup, 48 kHz, whole-file RMS matched to −20 dBFS (both −21.3 dB). The
+difference between them is 21.6 dB under the signal, mostly in the attacks.
+The share was settled by measurement; the pair was a preview of it.
+
+**The owner chose B by ear.** It confirms keeping the flux law as measured.
+It does not license moving the share by ear: a different share needs a
+better measurement of how much of a stroke crosses the coil.
+
 ## 2026-11-05 — keep the Strat rebuild's measured attack and top (B)
 
 Decided: whether the 2.0 Stratocaster engine keeps one pass of attack and
