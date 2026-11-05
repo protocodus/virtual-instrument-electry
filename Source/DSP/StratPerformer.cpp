@@ -18,16 +18,34 @@ constexpr double scale = StratString::scaleMetres;
 constexpr double fullForce = 4.0;
 constexpr double lightestShare = 0.05;
 
-// The string leaves the pick at its kink velocity F / Z after travelling a
-// grip depth d the stroke does not change and the tip's own recoil F / k,
-// so the release takes Z (d / F + 1 / k). A 0.73 mm celluloid medium is
-// near 6 kN/m at the tip; a tip bends as a cantilever, stiffness growing
-// with the cube of its thickness, from 0.46 mm (thin) to 1.0 mm (heavy).
-constexpr double gripDepth = 0.0002;
+// The string leaves the pick in two stages: it slides across the tip's grip
+// depth d at its kink velocity F / Z, taking Z d / F, and the tip then springs
+// clear in a quarter of its own period, (pi/2) sqrt(m / k). A Strat recorded
+// direct (IDMT-SMT-Guitar dataset 1, neck pickup, 78 picked notes) fixes both
+// from its 2 to 5 kHz in the first 50 ms, within 2.5 dB on the wound strings
+// and 4 dB on the plain ones: d = 0.41 mm, and 123 us for the tip, a 0.73 mm
+// celluloid medium of about 6 kN/m moving 37 mg. That assumes the
+// recording's ordinary stroke is 2.5 N, velocity 76 here. Release in the
+// string's time alone (Z / k for the tip) left the wound strings 5 to 8 dB
+// and the plain 2 to 7 dB too bright above 3 kHz. A tip's stiffness grows with
+// the cube of its thickness and its mass in proportion, so a thicker pick
+// springs clear sooner.
+constexpr double gripDepth = 0.00041;
 constexpr double mediumStiffness = 6000.0;
+constexpr double mediumTipKilograms = 37e-6;
 constexpr double mediumThickness = 0.73e-3;
 constexpr double thinThickness = 0.46e-3;
 constexpr double heavyThickness = 1.0e-3;
+
+// Before it slips, the pick drives the string at the hand's speed through
+// the grip (StratString::contactStiffness). At one force on all six strings,
+// IDMT's push wants that speed in proportion to each string's own release
+// speed F / 2Z, at 1.5 times it (1.4 to 1.7 score within 0.015); a single
+// hand speed for all six, 2.5 to 6 m/s, correlates 0.74 to 0.80 against
+// 0.835. With the push the release law above still holds 2 to 5 kHz within
+// 2.5 dB on every string, and the partials under 500 Hz come within 1.6 dB of
+// the reference, from 3.
+constexpr double pushRatio = 1.5;
 
 // The hands as dampers on the string. Voiced until phase 2 fits them to the
 // Clean El. Guitar library's palm mutes and dead notes: the palm rests 20 mm
@@ -157,7 +175,8 @@ double StratPerformer::releaseSeconds(int s, double force) const noexcept
     const double thickness = thinThickness + (heavyThickness - thinThickness) * current.pick;
     const double ratio = thickness / mediumThickness;
     const double stiffness = mediumStiffness * ratio * ratio * ratio;
-    return impedance(s) * (gripDepth / force + 1.0 / stiffness);
+    const double tip = 0.5 * pi * std::sqrt(mediumTipKilograms * ratio / stiffness);
+    return impedance(s) * gripDepth / force + tip;
 }
 
 void StratPerformer::applyPalm() noexcept
@@ -551,7 +570,8 @@ void StratPerformer::runEvent(const Event& e) noexcept
     guitar->setFret(s, e.fret);
     guitar->setBend(s, strings[static_cast<size_t>(s)].bend);
     const double force = std::abs(e.force);
-    guitar->pluck(s, e.force, current.pickMetres, releaseSeconds(s, force));
+    guitar->pluck(s, e.force, current.pickMetres, releaseSeconds(s, force),
+                  pushRatio * force / (2.0 * impedance(s)));
     const StringState& st = strings[static_cast<size_t>(s)];
     if (!st.keyDown && !st.sustained && st.note >= 0)
         release(s);

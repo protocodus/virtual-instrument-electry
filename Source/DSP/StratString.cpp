@@ -18,9 +18,12 @@ constexpr double pi = 3.14159265358979323846;
 // Stiffness: the plain strings follow B = pi^3 E d^4 / (64 T L^2) with
 // E = 207 GPa; the '62 reference measures 1.2e-4 on its open G and 1.6e-5 on
 // its open high E against these 1.13e-4 and 1.38e-5. The wound strings bend
-// on their cores: the open low E is the reference's measured 1.5e-4 (a
-// 0.0185 in steel core), and A and D take the same core-to-gauge ratio, an
-// estimate until phase 2 fits them.
+// on their cores, measured on the '62's soft and medium layers: the open low
+// E 1.5e-4 (a 0.0185 in steel core), the A 7.1e-5 from its D-flat 3 at fret
+// 4 (1.12e-4 and 1.14e-4) and the D 6.2e-5 from its E3 at fret 2 (7.7e-5 and
+// 8.0e-5); no other string can play those notes with that stiffness. A
+// Strat recorded direct (IDMT-SMT-Guitar) gives 9.4e-5 and 5.9e-5 from all
+// thirteen frets of its own set.
 //
 // Decay: the reference's open E2, G3 and E4 (three velocity layers each,
 // medians); A, D and B are interpolated between them until phase 2 fits every
@@ -28,12 +31,12 @@ constexpr double pi = 3.14159265358979323846;
 // trip, so a fretted note loses the same per reflection and decays faster in
 // proportion to its pitch, as the reference's fretted notes do.
 constexpr StratString::Construction strings[StratString::stringCount] = {
-    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5},  // E2 .046w
-    {110.000000, 4.27948e-3, 5.04e-5, 24.5, 10.0},  // A2 .036w
-    {146.832384, 2.26278e-3, 1.45e-5, 24.0, 8.5},   // D3 .026w
-    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0},  // G3 .017
-    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5},   // B3 .013
-    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0},   // E4 .010
+    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, true},   // E2 .046w
+    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, true},    // A2 .036w
+    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, true},     // D3 .026w
+    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, false},  // G3 .017
+    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, false},   // B3 .013
+    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, false},   // E4 .010
 };
 
 double clamp(double value, double low, double high) noexcept
@@ -58,11 +61,10 @@ double StratString::allpassPhaseDelay(double omega, double a) noexcept
     return -phase / omega;
 }
 
-double StratString::lossPhaseDelay(double omega, double pole) noexcept
+double StratString::lossPhaseDelay(double omega, double zero, double pole) noexcept
 {
-    // g (1 + a) / (1 + a z^-1)
     const double s = std::sin(omega), c = std::cos(omega);
-    return -std::atan2(pole * s, 1.0 + pole * c) / omega;
+    return (std::atan2(zero * s, 1.0 + zero * c) - std::atan2(pole * s, 1.0 + pole * c)) / omega;
 }
 
 StratString::Tap StratString::tapAt(double position) noexcept
@@ -79,30 +81,114 @@ StratString::Tap StratString::tapAt(double position) noexcept
     return tap;
 }
 
+StratString::LoopTap StratString::loopTapAt(double position) noexcept
+{
+    // Seventh-order Lagrange over base..base+7, the read point inside the
+    // middle interval: weight k is the product of (t - m) / (k - m), m != k.
+    LoopTap tap;
+    tap.base = static_cast<int>(std::floor(position)) - 3;
+    const double t = position - tap.base;
+    double before[8], after[8];
+    before[0] = after[7] = 1.0;
+    for (int k = 1; k < 8; ++k)
+    {
+        before[k] = before[k - 1] * (t - (k - 1));
+        after[7 - k] = after[8 - k] * (t - (8 - k));
+    }
+    constexpr double denominator[8] = {-5040.0, 720.0, -240.0, 144.0, -144.0, 240.0, -720.0, 5040.0};
+    for (int k = 0; k < 8; ++k)
+        tap.weight[k] = static_cast<float>(before[k] * after[k] / denominator[k]);
+    return tap;
+}
+
 void StratString::prepare(double rate, int stringIndex) noexcept
 {
     sampleRate = rate;
     spec = &construction(stringIndex);
 
     // The open string's loss per round trip at its fundamental and eighth
-    // harmonic, met by a one-pole lowpass (Valimaki et al., "Physical
-    // modeling of plucked string instruments with application to real-time
-    // sound synthesis", JAES 44(5), 1996).
+    // harmonic. A wound string's rises steeply above them, the wraps rubbing
+    // on the core, and a one-pole lowpass follows it (Valimaki et al.,
+    // "Physical modeling of plucked string instruments with application to
+    // real-time sound synthesis", JAES 44(5), 1996): the '62's D string at
+    // fret 2 loses 38, 50 and 66 dB/s at 3.2, 3.5 and 4.0 kHz, the one-pole
+    // 40, 52 and 61. Solid steel loses a constant share of each cycle, so its
+    // decay rate grows in proportion to frequency, and a one-pole loses its
+    // top far too fast: at 6 kHz the high E and B lose 25 to 35 dB/s in both
+    // the '62 and a Strat recorded direct (IDMT-SMT-Guitar, neck pickup),
+    // where the one-pole gives 58 and 70 and the straight line through the two
+    // points 31 and 29. Plain strings take a pole-zero filter through the two
+    // points and that line at 8 kHz.
     const double period = 1.0 / spec->openHz;
-    const double g1 = std::pow(10.0, -3.0 * period / spec->t60Fundamental);
-    const double g8 = std::pow(10.0, -3.0 * period / spec->t60EighthHarmonic);
+    const double d1 = -60.0 / spec->t60Fundamental;
+    const double d8 = -60.0 / spec->t60EighthHarmonic;
+    const auto perTrip = [&](double decibelsPerSecond) {
+        return std::pow(10.0, decibelsPerSecond * period / 20.0);
+    };
+    const double g1 = perTrip(d1), g8 = perTrip(d8);
     const double w1 = 2.0 * pi * spec->openHz / sampleRate;
     const double w8 = 8.0 * w1;
-    const double r = (g8 / g1) * (g8 / g1);
-    double pole = 0.0;
-    if (r < 1.0)
+    double gain = g1, zero = 0.0, pole = 0.0;
+    if (spec->wound)
     {
-        const double beta = (std::cos(w1) - r * std::cos(w8)) / (1.0 - r);
-        pole = -beta + std::sqrt(beta * beta - 1.0);
+        const double r = (g8 / g1) * (g8 / g1);
+        if (r < 1.0)
+        {
+            const double beta = (std::cos(w1) - r * std::cos(w8)) / (1.0 - r);
+            pole = -beta + std::sqrt(beta * beta - 1.0);
+        }
+        gain = g1 * std::sqrt(1.0 + 2.0 * pole * std::cos(w1) + pole * pole);
     }
+    else
+    {
+        // |H|^2 (1 + a^2 + 2a cos w) = k^2 (1 + b^2) + 2 k^2 b cos w at the
+        // three points is linear in P = 1 + a^2, Q = 2a and S = 2 k^2 b once
+        // k^2 (1 + b^2) is set to 1; the roots inside the unit circle follow.
+        constexpr double highHz = 8000.0;
+        const double dh = d1 + (d8 - d1) * (highHz - spec->openHz) / (7.0 * spec->openHz);
+        const double c[3] = {std::cos(w1), std::cos(w8), std::cos(2.0 * pi * highHz / sampleRate)};
+        const double g[3] = {g1 * g1, g8 * g8, perTrip(dh) * perTrip(dh)};
+        double m[3][4];
+        for (int i = 0; i < 3; ++i)
+        {
+            m[i][0] = g[i];
+            m[i][1] = g[i] * c[i];
+            m[i][2] = -c[i];
+            m[i][3] = 1.0;
+        }
+        for (int col = 0; col < 3; ++col)
+        {
+            int best = col;
+            for (int row = col + 1; row < 3; ++row)
+                if (std::abs(m[row][col]) > std::abs(m[best][col]))
+                    best = row;
+            for (int k = 0; k < 4; ++k)
+            {
+                const double t = m[col][k];
+                m[col][k] = m[best][k];
+                m[best][k] = t;
+            }
+            for (int row = 0; row < 3; ++row)
+                if (row != col)
+                {
+                    const double f = m[row][col] / m[col][col];
+                    for (int k = col; k < 4; ++k)
+                        m[row][k] -= f * m[col][k];
+                }
+        }
+        const double p = m[0][3] / m[0][0], q = m[1][3] / m[1][1], s = m[2][3] / m[2][2];
+        const auto root = [](double ratio) {
+            // x from ratio = 2x / (1 + x^2), |x| < 1.
+            return ratio == 0.0 ? 0.0 : (1.0 - std::sqrt(1.0 - ratio * ratio)) / ratio;
+        };
+        pole = root(q / p);
+        const double scale = (1.0 + pole * pole) / p;
+        zero = root(s);
+        gain = std::sqrt(scale / (1.0 + zero * zero));
+    }
+    lossGain = static_cast<float>(gain);
+    lossZero = static_cast<float>(zero);
     lossPole = static_cast<float>(pole);
-    lossGain = static_cast<float>(
-        g1 * std::sqrt(1.0 + 2.0 * pole * std::cos(w1) + pole * pole) / (1.0 + pole));
 
     // 5 Hz, an octave under the lowest note the tremolo can dive to.
     blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
@@ -117,11 +203,13 @@ void StratString::reset() noexcept
 {
     right.fill(0.0f);
     left.fill(0.0f);
-    lossState = 0.0f;
+    lossInput = lossState = 0.0f;
     allpassState.fill(0.0f);
     force = forceStart = forceEnd = 0.0;
     releaseLength = releasePosition = 0;
+    stickRemaining = 0;
     forceHeld = blockedForce = 0.0;
+    injected.fill(0.0f);
 }
 
 void StratString::designDispersion(double stiffnessNow, double f0) noexcept
@@ -136,9 +224,9 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
     upper = upper > 15 ? 15 : upper;
     const double ideal = f0 / std::sqrt(1.0 + stiffnessNow);
     const double w1 = 2.0 * pi * f0 / sampleRate;
-    const double pole = lossPole;
+    const double zero = lossZero, pole = lossPole;
     const auto error = [&](double a) {
-        const double base = sampleRate / f0 - lossPhaseDelay(w1, pole)
+        const double base = sampleRate / f0 - lossPhaseDelay(w1, zero, pole)
             - dispersionSections * allpassPhaseDelay(w1, a);
         double sum = 0.0;
         for (int n = 2; n <= upper; ++n)
@@ -147,7 +235,7 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
             if (fn > 0.45 * sampleRate)
                 break;
             const double wn = 2.0 * pi * fn / sampleRate;
-            const double loop = base + lossPhaseDelay(wn, pole)
+            const double loop = base + lossPhaseDelay(wn, zero, pole)
                 + dispersionSections * allpassPhaseDelay(wn, a);
             // A loop delay off by d samples puts partial n off by d/loop of
             // its frequency.
@@ -204,7 +292,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
         designDispersion(stiffnessNow, fundamental);
 
     const double w0 = 2.0 * pi * fundamental / sampleRate;
-    const double filterDelay = lossPhaseDelay(w0, lossPole)
+    const double filterDelay = lossPhaseDelay(w0, lossZero, lossPole)
         + dispersionSections * allpassPhaseDelay(w0, allpassCoefficient);
     double total = sampleRate / fundamental - filterDelay;
     total = clamp(total, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
@@ -226,8 +314,8 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
             const double oldRead = loopDelay - leftLength;
             const double newRead = total - halfWhole;
             if (newRead > oldRead)
-                clearRight(static_cast<int>(oldRead) + 3,
-                           static_cast<int>(newRead) + 3);
+                clearRight(static_cast<int>(oldRead) + 5,
+                           static_cast<int>(newRead) + 5);
         }
         leftLength = leftTarget = halfWhole;
         loopDelay = loopDelayTarget = total;
@@ -268,6 +356,15 @@ void StratString::setTaps(const std::array<double, tapCount>& metresFromBridge) 
             clamp(positionSamples(tapMetres[static_cast<size_t>(k)]), 1.0,
                   lastUsablePosition()));
     pick = tapAt(clamp(positionSamples(pickMetres), 1.0, lastUsablePosition()));
+    // An injection m samples old sits m samples on along both rails, where the
+    // pick's read weighs it by the weights' correlation at lag m.
+    for (int m = 1; m <= 3; ++m)
+    {
+        double sum = 0.0;
+        for (int j = m; j < 4; ++j)
+            sum += pick.weight[j] * pick.weight[j - m];
+        pickOverlap[static_cast<size_t>(m - 1)] = sum;
+    }
 }
 
 void StratString::setDamper(int damper, double metresFromBridge,
@@ -307,19 +404,49 @@ void StratString::clearRight(int fromPosition, int toPosition) noexcept
 }
 
 void StratString::pluck(double forceNewtons, double metresFromBridge,
-                        double releaseSeconds) noexcept
+                        double releaseSeconds, double strokeMetresPerSecond) noexcept
 {
-    // The release is the force falling from F to 0 at the pick; relative to
-    // the deflected rest it is a step of -F, which a point on a string meets
-    // with impedance 2Z, sending -F / 2Z both ways. A release still running
-    // completes first.
+    // A release or a contact still running completes first.
     force = forceEnd;
-    forceStart = force;
-    forceEnd = force - forceNewtons;
-    releaseLength = static_cast<int>(releaseSeconds * sampleRate) + 1;
-    releasePosition = 0;
+    stickRemaining = 0;
     pickMetres = metresFromBridge;
     pick = tapAt(clamp(positionSamples(pickMetres), 1.0, lastUsablePosition()));
+    // An injection m samples old sits m samples on along both rails, where the
+    // pick's read weighs it by the weights' correlation at lag m.
+    for (int m = 1; m <= 3; ++m)
+    {
+        double sum = 0.0;
+        for (int j = m; j < 4; ++j)
+            sum += pick.weight[j] * pick.weight[j - m];
+        pickOverlap[static_cast<size_t>(m - 1)] = sum;
+    }
+    if (strokeMetresPerSecond > 0.0 && forceNewtons != 0.0)
+    {
+        // At most 30 ms, should the string run from the pick.
+        stickRemaining = static_cast<int>(0.030 * sampleRate) + 1;
+        contact = 0.0;
+        stickSpeed = forceNewtons > 0.0 ? strokeMetresPerSecond : -strokeMetresPerSecond;
+        stickLimit = forceNewtons;
+        stickBase = force;
+        stickRelease = releaseSeconds;
+        forceStart = forceEnd = force;
+        releasePosition = releaseLength = 0;
+        return;
+    }
+    // Held at the force from the start: relative to that deflected rest the
+    // release is a step of -F, which a point on a string meets with
+    // impedance 2Z, sending -F / 2Z both ways.
+    startRelease(force, force - forceNewtons, releaseSeconds);
+}
+
+void StratString::startRelease(double from, double to, double seconds) noexcept
+{
+    forceStart = from;
+    forceEnd = to;
+    const double samples = seconds * sampleRate;
+    releaseLength = samples > 1.0 ? static_cast<int>(std::ceil(samples)) : 1;
+    releaseRate = samples > 1.0 ? 1.0 / samples : 1.0;
+    releasePosition = 0;
 }
 
 float StratString::readRight(const Tap& tap) const noexcept
@@ -329,6 +456,15 @@ float StratString::readRight(const Tap& tap) const noexcept
          + tap.weight[1] * right[static_cast<size_t>((index - 1) & railMask)]
          + tap.weight[2] * right[static_cast<size_t>((index - 2) & railMask)]
          + tap.weight[3] * right[static_cast<size_t>((index - 3) & railMask)];
+}
+
+float StratString::readRight(const LoopTap& tap) const noexcept
+{
+    const int index = write - tap.base;
+    float sum = 0.0f;
+    for (int k = 0; k < 8; ++k)
+        sum += tap.weight[k] * right[static_cast<size_t>((index - k) & railMask)];
+    return sum;
 }
 
 float StratString::readLeft(const Tap& tap) const noexcept
@@ -358,8 +494,15 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
         skipped = leftLength++;
     else if (leftLength > leftTarget)
         --leftLength;
-    const float atFret = readRight(tapAt(loopDelay - leftLength));
-    lossState = lossGain * (1.0f + lossPole) * atFret - lossPole * lossState;
+    const double readAt = loopDelay - leftLength;
+    if (readAt != loopTapPosition)
+    {
+        loopTapPosition = readAt;
+        loopTap = loopTapAt(readAt);
+    }
+    const float atFret = readRight(loopTap);
+    lossState = lossGain * (atFret + lossZero * lossInput) - lossPole * lossState;
+    lossInput = atFret;
     float y = lossState;
     const float a = allpassCoefficient;
     for (float& state : allpassState)
@@ -372,20 +515,47 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
     if (skipped >= 0)
         left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = -y;
 
-    if (releasePosition < releaseLength)
+    if (stickRemaining > 0)
+    {
+        // The pick pushes its point of the string at the stroke's speed less
+        // what the arriving waves already give it. The pick's read spans its
+        // own last three injections; take them out.
+        const double arriving = readRight(pick) + readLeft(pick)
+            - 2.0 * (pickOverlap[0] * injected[0] + pickOverlap[1] * injected[1]
+                     + pickOverlap[2] * injected[2]);
+        // The hand reaches the string through a spring, its grip and the
+        // pick's bend: f' = k (v - arriving - f / 2Z), stepped implicitly.
+        // The string takes f less what the DC blocker below holds back, so
+        // the spring is told how far the string really moved.
+        const double g = contactStiffness / sampleRate;
+        const double twoZ = 2.0 * characteristicImpedance;
+        const double heldBack = forceHeld - blockCoefficient * blockedForce - stickBase;
+        contact = (contact + g * (stickSpeed - arriving + heldBack / twoZ)) / (1.0 + g / twoZ);
+        if (contact * stickLimit < 0.0)
+            contact = 0.0; // the string is moving ahead of the pick
+        force = stickBase + contact;
+        if (std::abs(contact) >= std::abs(stickLimit) || --stickRemaining == 0)
+        {
+            stickRemaining = 0;
+            force = stickBase + (std::abs(contact) >= std::abs(stickLimit) ? stickLimit : contact);
+            startRelease(force, stickBase, stickRelease);
+        }
+    }
+    else if (releasePosition < releaseLength)
     {
         ++releasePosition;
-        const double u = static_cast<double>(releasePosition) / releaseLength;
+        const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);
         force = forceStart + (forceEnd - forceStart) * (0.5 - 0.5 * std::cos(pi * u));
     }
     // One-pole DC blocker on the force.
     blockedForce = force - forceHeld + blockCoefficient * blockedForce;
     forceHeld = force;
-    if (blockedForce != 0.0)
+    if (std::abs(blockedForce) < 1e-9)
+        blockedForce = 0.0;
+    const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
+    injected = {v, injected[0], injected[1]};
+    if (v != 0.0f)
     {
-        if (std::abs(blockedForce) < 1e-9)
-            blockedForce = 0.0;
-        const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
         const int r = write - pick.base;
         const int l = write + leftOffset + pick.base;
         for (int j = 0; j < 4; ++j)

@@ -42,8 +42,9 @@ public:
     const StratBridge& bridge() const noexcept { return tremolo; }
     void setDamper(int stringIndex, int damper, double metresFromBridge,
                    double kilogramsPerSecond) noexcept;
+    // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
-               double releaseSeconds) noexcept;
+               double releaseSeconds, double strokeMetresPerSecond = 0.0) noexcept;
 
     double fundamentalHz(int stringIndex) const noexcept;
     bool isSounding(int stringIndex) const noexcept;

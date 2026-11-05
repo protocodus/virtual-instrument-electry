@@ -148,12 +148,12 @@ void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge
 }
 
 void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromBridge,
-                        double releaseSeconds) noexcept
+                        double releaseSeconds, double strokeMetresPerSecond) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     strings[static_cast<size_t>(stringIndex)].pluck(forceNewtons, metresFromBridge,
-                                                    releaseSeconds);
+                                                    releaseSeconds, strokeMetresPerSecond);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 

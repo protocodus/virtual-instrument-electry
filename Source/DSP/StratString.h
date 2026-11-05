@@ -37,6 +37,8 @@ public:
         // Open-string decay of the fundamental and the eighth harmonic.
         double t60Fundamental;
         double t60EighthHarmonic;
+        // Wrapped strings lose their upper partials faster than solid ones.
+        bool wound;
     };
     static const Construction& construction(int stringIndex) noexcept;
 
@@ -58,18 +60,30 @@ public:
     void setDamper(int damper, double metresFromBridge,
                    double kilogramsPerSecond) noexcept;
 
-    // Releases the string from the pick: the force the pick held it with,
-    // the pick's distance from the bridge, and the time the release takes
-    // (the pick's stiffness). Adds to whatever is already sounding.
-    void pluck(double forceNewtons, double metresFromBridge,
-               double releaseSeconds) noexcept;
+    // Plucks the string: the force at which it slips off the pick (its sign
+    // the stroke's direction), the pick's distance from the bridge and the
+    // time the release takes. With a stroke speed the hand first drives the
+    // pick into the string at that speed, through the give of its grip, until
+    // the string pushes back with the slip force; without one the string
+    // starts held at that force, as a fingertip leaves it. Adds to whatever
+    // is already sounding.
+    void pluck(double forceNewtons, double metresFromBridge, double releaseSeconds,
+               double strokeMetresPerSecond = 0.0) noexcept;
+    // The spring between the hand and the string: fitted with the stroke
+    // speed (StratPerformer's pushRatio) to the push IDMT-SMT-Guitar's Strat
+    // neck DI shows before every pick release, a ~1 ms ramp to ~0.7 of the
+    // following peak. Over +-3 ms of the release edge, 18 notes (each string,
+    // frets 0/5/10) correlate 0.835 with the reference against 0.62 without a
+    // push; a rigid pick reaches 0.79 but its sharp first touch leaves 4-8 kHz
+    // 5-14 dB too bright. 600-1000 N/m score within 0.01 of the best.
+    static constexpr double contactStiffness = 800.0;
 
     // One sample; writes the string velocity (m/s) under each tap.
     void process(std::array<float, tapCount>& tapVelocity) noexcept;
     // A release or its high-passed tail is still driving the string.
     bool isDriven() const noexcept
     {
-        return releasePosition < releaseLength || blockedForce != 0.0;
+        return stickRemaining > 0 || releasePosition < releaseLength || blockedForce != 0.0;
     }
 
     // Waveguide characteristic impedance sqrt(T mu) at the current tension.
@@ -79,7 +93,8 @@ public:
     // stiffness, exposed for the tuning check.
     static constexpr int dispersionSections = 4;
     static double allpassPhaseDelay(double omega, double coefficient) noexcept;
-    static double lossPhaseDelay(double omega, double pole) noexcept;
+    // The loss filter k (1 + zero z^-1) / (1 + pole z^-1).
+    static double lossPhaseDelay(double omega, double zero, double pole) noexcept;
 
 private:
     static constexpr int railSize = 8192;
@@ -93,10 +108,21 @@ private:
         float weight[4] {0.0f, 1.0f, 0.0f, 0.0f};
     };
     static Tap tapAt(double position) noexcept;
+    // The fret end reads once per round trip, so its interpolator's top-end
+    // loss adds to the string's on every trip: seventh order keeps it under
+    // 4 dB/s on the high E at 8 kHz (third order loses 75, more than the
+    // string's own 37).
+    struct LoopTap
+    {
+        int base = 3;
+        float weight[8] {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    };
+    static LoopTap loopTapAt(double position) noexcept;
 
     void designDispersion(double stiffnessNow, double f0) noexcept;
     double positionSamples(double metres) const noexcept;
     float readRight(const Tap& tap) const noexcept;
+    float readRight(const LoopTap& tap) const noexcept;
     float readLeft(const Tap& tap) const noexcept;
     void clearLeft(int fromPosition, int toPosition) noexcept;
     void clearRight(int fromPosition, int toPosition) noexcept;
@@ -124,8 +150,13 @@ private:
     int rampRemaining = 0;
     bool tuned = false;
 
+    LoopTap loopTap;
+    double loopTapPosition = -1.0;
+
     float lossGain = 1.0f;
+    float lossZero = 0.0f;
     float lossPole = 0.0f;
+    float lossInput = 0.0f;
     float lossState = 0.0f;
     double designedStiffness = -1.0;
     float allpassCoefficient = 0.0f;
@@ -153,6 +184,18 @@ private:
     double forceEnd = 0.0;
     int releaseLength = 0;
     int releasePosition = 0;
+    double releaseRate = 1.0;
+    // While the pick carries the string: its speed, the force the string
+    // slips at, the force before the contact, and the release to follow.
+    int stickRemaining = 0;
+    double contact = 0.0;
+    double stickSpeed = 0.0;
+    double stickLimit = 0.0;
+    double stickBase = 0.0;
+    double stickRelease = 0.0;
+    void startRelease(double from, double to, double seconds) noexcept;
+    std::array<double, 3> pickOverlap {};
+    std::array<float, 3> injected {};
     double forceHeld = 0.0;
     double blockedForce = 0.0;
     double blockCoefficient = 0.0;

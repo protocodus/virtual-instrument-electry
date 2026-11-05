@@ -6,6 +6,7 @@
 // nor hears harmonic k.
 #include "DSP/StratString.h"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -374,6 +375,64 @@ void testFretJumpsStayBounded()
     check(peak < 40.0, "frets, bends and plucks keep the string bounded");
 }
 
+void testPickContact()
+{
+    // Until its reflections return, the string meets the pick as 2Z, so the
+    // hand driving it at V through the grip's spring k moves the pick point at
+    // V (1 - exp(-t / tau)), tau = 2Z / k. The force's 5 Hz DC blocker
+    // (tau_b) leaks a little of it: V tau' / tau (1 - exp(-t / tau')) with
+    // 1 / tau' = 1 / tau + 1 / tau_b. The neck tap hears that once the wave
+    // has crossed to it. A slip force far above the push keeps it held.
+    const double rate = 48000.0, speed = 1.0;
+    auto string = makeString(rate, 0, 0.0);
+    const double tau = 2.0 * string->impedance() / StratString::contactStiffness;
+    const double leaky = 1.0 / (1.0 / tau + 2.0 * pi * 5.0);
+    const double waveSpeed = 2.0 * StratString::scaleMetres * StratString::construction(0).openHz;
+    const double travel = (neckMetres - pickMetres) / waveSpeed;
+    const double returns = 2.0 * pickMetres / waveSpeed + travel;
+    string->pluck(100.0, pickMetres, 0.0002, speed);
+    const std::vector<float> held = run(*string, rate, returns, 0);
+    double worst = 0.0;
+    for (int i = static_cast<int>((travel + 0.0002) * rate); i < static_cast<int>(held.size()); ++i)
+    {
+        const double t = (i + 1) / rate - travel;
+        const double want = speed * leaky / tau * (1.0 - std::exp(-t / leaky));
+        worst = std::max(worst, std::abs(held[static_cast<size_t>(i)] - want));
+    }
+    check(worst < 0.005 * speed, "the pick drives the string through its grip");
+
+    // The pick lets go once the string pushes back with the slip force, and
+    // the string then sounds as a pluck of that force does: within 3 dB over
+    // 20 to 60 ms, for a slow stroke and one as fast as the performer's, on
+    // the heaviest and the lightest string. The push comes first and has the
+    // stroke's sign.
+    const auto rms = [rate](const std::vector<float>& x) {
+        double sum = 0.0;
+        for (size_t i = static_cast<size_t>(0.02 * rate); i < x.size(); ++i)
+            sum += static_cast<double>(x[i]) * x[i];
+        return std::sqrt(sum / (x.size() - static_cast<size_t>(0.02 * rate)));
+    };
+    for (int s : {0, 5})
+    {
+        auto plain = makeString(rate, s, 0.0);
+        plain->pluck(2.5, pickMetres, 0.0002);
+        const double reference = rms(run(*plain, rate, 0.06, 0));
+        for (double stroke : {0.5, 1.5 * 2.5 / (2.0 * plain->impedance())})
+        {
+            auto pushed = makeString(rate, s, 0.0);
+            pushed->pluck(2.5, pickMetres, 0.0002, stroke);
+            const std::vector<float> out = run(*pushed, rate, 0.06, 0);
+            // A tenth of the stroke's speed clears the interpolators' ripple.
+            const auto first = std::find_if(out.begin(), out.end(), [stroke](float v) {
+                return std::abs(v) > 0.1 * stroke;
+            });
+            check(first != out.end() && *first > 0.0f, "the push has the stroke's sign");
+            check(std::abs(decibels(rms(out) / reference)) < 3.0,
+                  "after the push the string sounds as plucked at the slip force");
+        }
+    }
+}
+
 void testDeterminism()
 {
     const auto render = [] {
@@ -397,6 +456,7 @@ int main()
     testPalm();
     testBendAndGlide();
     testFretJumpsStayBounded();
+    testPickContact();
     testDeterminism();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");
