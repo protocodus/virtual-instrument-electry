@@ -1780,12 +1780,43 @@ private:
     // clampf/lerp/smoothStep live in DspMath.h now, shared with ElectryFx and
     // ElectryVisuals; unqualified calls in this class's member functions still
     // resolve to them via the enclosing electry namespace.
+    // One loop frequency's sine and cosine, taken once so that every loop
+    // filter's phase there can share them: in float for the first-order
+    // sections, in double for the dips and the shelf. A string's tuning
+    // compensation reads up to eight filters' phases at one frequency.
+    struct LoopAngle
+    {
+        float omega { 0.0f };
+        float sine { 0.0f }, cosine { 1.0f };
+        double wideSine { 0.0 }, wideCosine { 1.0 };
+
+        // Float terms only, for a caller that reads first-order phases alone.
+        static LoopAngle narrow(float omega) noexcept
+        {
+            LoopAngle angle;
+            angle.omega = omega;
+            angle.sine = std::sin(omega);
+            angle.cosine = std::cos(omega);
+            return angle;
+        }
+        static LoopAngle at(float omega) noexcept
+        {
+            LoopAngle angle = narrow(omega);
+            angle.wideSine = std::sin(static_cast<double>(omega));
+            angle.wideCosine = std::cos(static_cast<double>(omega));
+            return angle;
+        }
+    };
     static float onePolePhaseDelay(float coefficient, float omega) noexcept;
+    static float onePolePhaseDelay(float coefficient,
+                                   const LoopAngle& angle) noexcept;
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
     static void configureLoopLossShelf(PolarisationLoop &loop, float omega0,
                                        float omegaHigh, float intrinsicPole,
                                        float intrinsicGain) noexcept;
     static float loopLossPhaseDelay(const LoopFilterBank &loop, float omega) noexcept;
+    static float loopLossPhaseDelay(const LoopFilterBank &loop,
+                                    const LoopAngle& angle) noexcept;
 #endif
     // Magnitude of the loop's one-pole loss filter, and the coefficient whose
     // magnitude ratio between the fundamental and the high reference matches a
@@ -1835,6 +1866,13 @@ private:
                                  float omega, float& magnitude,
                                  float& phase,
                                  DipCoefficientMemo& memo) noexcept;
+    static void handLossResponse(float depth, const HandLossShape& shape,
+                                 const LoopAngle& angle, float& magnitude,
+                                 float& phase) noexcept;
+    static void handLossResponse(float depth, const HandLossShape& shape,
+                                 const LoopAngle& angle, float& magnitude,
+                                 float& phase,
+                                 DipCoefficientMemo& memo) noexcept;
     static void memoisedDipCoefficients(float depth, const HandLossShape& shape,
                                         DipCoefficientMemo& memo,
                                         double& b0, double& b1, double& b2,
@@ -1846,6 +1884,8 @@ private:
                                     double& a1, double& a2) noexcept;
     static void applyDipDepth(PolarisationLoop& loop, float depth) noexcept;
     static float allpassPhaseDelay(float coefficient, float omega) noexcept;
+    static float allpassPhaseDelay(float coefficient,
+                                   const LoopAngle& angle) noexcept;
     // Convert a touch's sounding-length fraction to the live delay coordinate
     // of one polarisation. `compensatedPeriod` is the cached full period minus
     // that loop's filter phase. Adding the phase back to currentDelay keeps the

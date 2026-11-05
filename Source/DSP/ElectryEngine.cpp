@@ -1020,9 +1020,16 @@ float ElectryEngine::measuredPickupTransfer(float displacement,
 
 float ElectryEngine::onePolePhaseDelay(float coefficient, float omega) noexcept
 {
+    return onePolePhaseDelay(coefficient, LoopAngle::narrow(omega));
+}
+
+float ElectryEngine::onePolePhaseDelay(float coefficient,
+                                       const LoopAngle& at) noexcept
+{
     // H(z) = (1 - a) / (1 - a z^-1)
-    const float angle = -std::atan2(coefficient * std::sin(omega),
-                                    1.0f - coefficient * std::cos(omega));
+    const float omega = at.omega;
+    const float angle = -std::atan2(coefficient * at.sine,
+                                    1.0f - coefficient * at.cosine);
     return omega > 1.0e-9f ? -angle / omega : coefficient / (1.0f - coefficient);
 }
 
@@ -1417,8 +1424,19 @@ float ElectryEngine::loopLossPhaseDelay(const LoopFilterBank &loop,
         return onePolePhaseDelay(loop.loopDampingCoefficient, omega);
     if (!(omega > 0.0f))
         return 0.0f;
-    const double cosine = std::cos(static_cast<double>(omega));
-    const double sine = std::sin(static_cast<double>(omega));
+    return loopLossPhaseDelay(loop, LoopAngle::at(omega));
+}
+
+float ElectryEngine::loopLossPhaseDelay(const LoopFilterBank &loop,
+                                        const LoopAngle& angle) noexcept
+{
+    const float omega = angle.omega;
+    if (!loop.lossShelfActive)
+        return onePolePhaseDelay(loop.loopDampingCoefficient, angle);
+    if (!(omega > 0.0f))
+        return 0.0f;
+    const double cosine = angle.wideCosine;
+    const double sine = angle.wideSine;
     const double cosine2 = cosine * cosine - sine * sine;
     const double sine2 = 2.0 * sine * cosine;
     const auto &shelf = loop.lossShelf;
@@ -1430,7 +1448,7 @@ float ElectryEngine::loopLossPhaseDelay(const LoopFilterBank &loop,
     const double dr = 1.0 + shelf.a1 * cosine + shelf.a2 * cosine2;
     const double di = -shelf.a1 * sine - shelf.a2 * sine2;
     const double shelfPhase = std::atan2(ni * dr - nr * di, nr * dr + ni * di);
-    return onePolePhaseDelay(loop.loopDampingCoefficient, omega) +
+    return onePolePhaseDelay(loop.loopDampingCoefficient, angle) +
            static_cast<float>(-shelfPhase / omega);
 }
 #endif
@@ -1538,11 +1556,15 @@ struct DipAngle
     double cosine, sine, cosine2, sine2;
 };
 
+DipAngle dipAngle(double dcw, double dsw) noexcept
+{
+    return { dcw, dsw, 2.0 * dcw * dcw - 1.0, 2.0 * dsw * dcw };
+}
+
 DipAngle dipAngle(float omega) noexcept
 {
     const double dw = omega;
-    const double dcw = std::cos(dw), dsw = std::sin(dw);
-    return { dcw, dsw, 2.0 * dcw * dcw - 1.0, 2.0 * dsw * dcw };
+    return dipAngle(std::cos(dw), std::sin(dw));
 }
 
 struct DipFrequencyResponse
@@ -1578,10 +1600,11 @@ void dipSectionMagnitude(double b0, double b1, double b2, double a1, double a2,
 }
 
 void dipSectionResponse(double b0, double b1, double b2, double a1, double a2,
-                        float omega, float& magnitude, float& phase) noexcept
+                        const DipAngle& angle, float& magnitude,
+                        float& phase) noexcept
 {
     DipFrequencyResponse r {};
-    if (! dipFrequencyResponse(b0, b1, b2, a1, a2, dipAngle(omega), r))
+    if (! dipFrequencyResponse(b0, b1, b2, a1, a2, angle, r))
         return;
     magnitude *= (float) std::sqrt((r.nr * r.nr + r.ni * r.ni) / r.dn);
     phase += (float) (std::atan2(r.ni, r.nr) - std::atan2(r.di, r.dr));
@@ -1599,7 +1622,23 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
 
     double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
     handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
-    dipSectionResponse(b0, b1, b2, a1, a2, omega, magnitude, phase);
+    dipSectionResponse(b0, b1, b2, a1, a2, dipAngle(omega), magnitude, phase);
+}
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     const LoopAngle& angle, float& magnitude,
+                                     float& phase) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+    handDipCoefficients(depth, shape, b0, b1, b2, a1, a2);
+    dipSectionResponse(b0, b1, b2, a1, a2,
+                       dipAngle(angle.wideCosine, angle.wideSine),
+                       magnitude, phase);
 }
 
 void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
@@ -1614,7 +1653,24 @@ void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
 
     double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
     memoisedDipCoefficients(depth, shape, memo, b0, b1, b2, a1, a2);
-    dipSectionResponse(b0, b1, b2, a1, a2, omega, magnitude, phase);
+    dipSectionResponse(b0, b1, b2, a1, a2, dipAngle(omega), magnitude, phase);
+}
+
+void ElectryEngine::handLossResponse(float depth, const HandLossShape& shape,
+                                     const LoopAngle& angle, float& magnitude,
+                                     float& phase,
+                                     DipCoefficientMemo& memo) noexcept
+{
+    magnitude = 1.0f;
+    phase = 0.0f;
+    if (depth <= 0.0f)
+        return;
+
+    double b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+    memoisedDipCoefficients(depth, shape, memo, b0, b1, b2, a1, a2);
+    dipSectionResponse(b0, b1, b2, a1, a2,
+                       dipAngle(angle.wideCosine, angle.wideSine),
+                       magnitude, phase);
 }
 
 void ElectryEngine::memoisedDipCoefficients(float depth,
@@ -1663,11 +1719,17 @@ void ElectryEngine::applyDipDepth(PolarisationLoop& loop, float depth) noexcept
 
 float ElectryEngine::allpassPhaseDelay(float coefficient, float omega) noexcept
 {
+    return allpassPhaseDelay(coefficient, LoopAngle::narrow(omega));
+}
+
+float ElectryEngine::allpassPhaseDelay(float coefficient,
+                                       const LoopAngle& at) noexcept
+{
     // H(z) = (c + z^-1) / (1 + c z^-1)
-    const float numeratorAngle = std::atan2(-std::sin(omega),
-                                            coefficient + std::cos(omega));
-    const float denominatorAngle = std::atan2(-coefficient * std::sin(omega),
-                                              1.0f + coefficient * std::cos(omega));
+    const float omega = at.omega;
+    const float numeratorAngle = std::atan2(-at.sine, coefficient + at.cosine);
+    const float denominatorAngle = std::atan2(-coefficient * at.sine,
+                                              1.0f + coefficient * at.cosine);
     const float angle = numeratorAngle - denominatorAngle;
     if (omega <= 1.0e-9f)
         return (1.0f - coefficient) / (1.0f + coefficient);
@@ -4794,15 +4856,16 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
     const float dispersionPeriod = period;
 #endif
     const auto dampingPhaseDelay = [&] (PolarisationLoop& loop,
-                                         float phaseOmega)
+                                         const LoopAngle& angle)
     {
+        const float phaseOmega = angle.omega;
         float dipMagnitude = 1.0f;
         float dipPhase = 0.0f;
-        handLossResponse(loop.handLossDepth, loop.handLossShape, phaseOmega,
+        handLossResponse(loop.handLossDepth, loop.handLossShape, angle,
                          dipMagnitude, dipPhase, loop.handLossMemo);
         float materialMagnitude = 1.0f, materialPhase = 0.0f;
         handLossResponse(loop.materialLossDepth, loop.materialLossShape,
-                         phaseOmega, materialMagnitude, materialPhase,
+                         angle, materialMagnitude, materialPhase,
                          loop.materialLossMemo);
         const float dipDelay = phaseOmega > 1.0e-9f
             ? -(dipPhase + materialPhase) / phaseOmega : 0.0f;
@@ -4816,17 +4879,17 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
             ? -fittedPhase / phaseOmega : 0.0f;
         return
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-            loopLossPhaseDelay(loop, phaseOmega)
+            loopLossPhaseDelay(loop, angle)
 #else
-            onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+            onePolePhaseDelay(loop.loopDampingCoefficient, angle)
 #endif
             + fittedDelay + dipDelay;
 #else
         return
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-            loopLossPhaseDelay(loop, phaseOmega)
+            loopLossPhaseDelay(loop, angle)
 #else
-            onePolePhaseDelay(loop.loopDampingCoefficient, phaseOmega)
+            onePolePhaseDelay(loop.loopDampingCoefficient, angle)
 #endif
             + dipDelay;
 #endif
@@ -4852,12 +4915,12 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
     if (preserveDampingPeriod)
     {
         const float previousPeriod = voice.lastCompensatedPeriod;
-        const float previousOmega = twoPi / previousPeriod;
+        const LoopAngle previousAngle = LoopAngle::at(twoPi / previousPeriod);
         const float previousDispersionPhaseDelay =
             4.0f * allpassPhaseDelay(
-                voice.vertical.dispersionLowCoefficient, previousOmega)
+                voice.vertical.dispersionLowCoefficient, previousAngle)
             + 4.0f * allpassPhaseDelay(
-                voice.vertical.dispersionHighCoefficient, previousOmega);
+                voice.vertical.dispersionHighCoefficient, previousAngle);
         const float previousVerticalDampingPhase = previousPeriod
             - voice.compensatedPeriodVertical
             - previousDispersionPhaseDelay;
@@ -4865,9 +4928,9 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
             - voice.compensatedPeriodHorizontal
             - previousDispersionPhaseDelay;
         verticalDampingDelayTranslation = previousVerticalDampingPhase
-            - dampingPhaseDelay(voice.vertical, previousOmega);
+            - dampingPhaseDelay(voice.vertical, previousAngle);
         horizontalDampingDelayTranslation = previousHorizontalDampingPhase
-            - dampingPhaseDelay(voice.horizontal, previousOmega);
+            - dampingPhaseDelay(voice.horizontal, previousAngle);
     }
 
     const bool preserveDispersionPeriod = fitMoved && ! forceDelayJump;
@@ -4921,10 +4984,11 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
         // recompensation. Kept as two separate terms, summed in the same
         // order as before, rather than one pre-added total, so the result is
         // bit-identical to the previous per-loop expression.
+        const LoopAngle angle = LoopAngle::at(omega);
         const float dispersionLowPhaseDelay =
-            allpassPhaseDelay(voice.vertical.dispersionLowCoefficient, omega);
+            allpassPhaseDelay(voice.vertical.dispersionLowCoefficient, angle);
         const float dispersionHighPhaseDelay =
-            allpassPhaseDelay(voice.vertical.dispersionHighCoefficient, omega);
+            allpassPhaseDelay(voice.vertical.dispersionHighCoefficient, angle);
         if (preserveDispersionPeriod)
         {
             // The delay line and loop filters form one sounding period. A
@@ -4945,7 +5009,7 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
             // sounding period; without this the mute drags the string flat by
             // up to 13 cents on the low E. ("Shelf" here until the band
             // replaced it - the figure was re-measured for the band.)
-            return dampingPhaseDelay(loop, omega)
+            return dampingPhaseDelay(loop, angle)
                  + 4.0f * dispersionLowPhaseDelay
                  + 4.0f * dispersionHighPhaseDelay;
         };
@@ -5287,6 +5351,7 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     const float f0 = openFrequency * waveSpeedRatio;
     const float period = sampleRate / f0;
     const float omega = twoPi * f0 * inverseSampleRate_;
+    const LoopAngle angle = LoopAngle::at(omega);
     auto& loop = voice.vertical;
     // The coupled open string is the same stiff steel as its played-open
     // counterpart. Keep the expensive two-band fit on the same six-cent
@@ -5303,25 +5368,25 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     {
         float magnitude = 1.0f, phase = 0.0f;
         handLossResponse(loop.materialLossDepth, loop.materialLossShape,
-                         omega, magnitude, phase);
+                         angle, magnitude, phase);
         return -phase / omega;
     };
     if (voice.sympatheticReady)
     {
         previousDampingPhaseDelay =
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-            loopLossPhaseDelay(loop, omega)
+            loopLossPhaseDelay(loop, angle)
 #else
-            onePolePhaseDelay(loop.loopDampingCoefficient, omega)
+            onePolePhaseDelay(loop.loopDampingCoefficient, angle)
 #endif
             + materialPhaseDelay();
         if (fitMoved)
         {
             previousDispersionPhaseDelay =
                 4.0f * allpassPhaseDelay(
-                loop.dispersionLowCoefficient, omega)
+                loop.dispersionLowCoefficient, angle)
                 + 4.0f * allpassPhaseDelay(
-                    loop.dispersionHighCoefficient, omega);
+                    loop.dispersionHighCoefficient, angle);
         }
     }
 
@@ -5438,14 +5503,14 @@ void ElectryEngine::configureSympatheticString(Voice& voice) noexcept
     loop.fittedLossDipActive = false;
 #endif
     const float dispersionPhaseDelay =
-        4.0f * allpassPhaseDelay(loop.dispersionLowCoefficient, omega)
+        4.0f * allpassPhaseDelay(loop.dispersionLowCoefficient, angle)
         + 4.0f * allpassPhaseDelay(
-            loop.dispersionHighCoefficient, omega);
+            loop.dispersionHighCoefficient, angle);
     const float dampingPhaseDelay =
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-        loopLossPhaseDelay(loop, omega)
+        loopLossPhaseDelay(loop, angle)
 #else
-        onePolePhaseDelay(loop.loopDampingCoefficient, omega)
+        onePolePhaseDelay(loop.loopDampingCoefficient, angle)
 #endif
         + materialPhaseDelay();
     const float loopPhaseDelay = dampingPhaseDelay + dispersionPhaseDelay;
@@ -5778,19 +5843,20 @@ float ElectryEngine::refretBankPhaseDelay(const LoopFilterBank& bank,
                                            float physicalPeriod) noexcept
 {
     const float omega = twoPi / std::max(physicalPeriod, 1.0f);
+    const LoopAngle angle = LoopAngle::at(omega);
     float magnitude = 1.0f, handPhase = 0.0f, materialPhase = 0.0f;
     handLossResponse(bank.handLossDepth, bank.handLossShape,
-                     omega, magnitude, handPhase);
+                     angle, magnitude, handPhase);
     handLossResponse(bank.materialLossDepth, bank.materialLossShape,
-                     omega, magnitude, materialPhase);
+                     angle, magnitude, materialPhase);
     float phase =
 #if ELECTRY_BUTTERWORTH_LOSS_SHELF
-        loopLossPhaseDelay(bank, omega)
+        loopLossPhaseDelay(bank, angle)
 #else
-        onePolePhaseDelay(bank.loopDampingCoefficient, omega)
+        onePolePhaseDelay(bank.loopDampingCoefficient, angle)
 #endif
-        + 4.0f * allpassPhaseDelay(bank.dispersionLowCoefficient, omega)
-        + 4.0f * allpassPhaseDelay(bank.dispersionHighCoefficient, omega)
+        + 4.0f * allpassPhaseDelay(bank.dispersionLowCoefficient, angle)
+        + 4.0f * allpassPhaseDelay(bank.dispersionHighCoefficient, angle)
         - (handPhase + materialPhase) / omega;
 #if ELECTRY_LOW_STRING_LOSS_CORRECTION_ORDER2
     float fittedPhase = 0.0f;
