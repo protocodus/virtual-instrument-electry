@@ -996,8 +996,9 @@ private:
 
     // The third-order Lagrange weights of one loop read, split from the read
     // itself so that a delay holding still between samples - an idle coupled
-    // string, whose delay moves only while the wheel does - reuses them
-    // instead of rebuilding them from a clamp, a floor and eight products.
+    // string, whose delay moves only while the wheel does, or a played string
+    // once its delay smoother has settled - reuses them instead of rebuilding
+    // them from a clamp, a floor and eight products.
     struct FractionalReadWeights
     {
         // The requested delay these weights were solved for. No read is ever
@@ -1158,6 +1159,8 @@ private:
         float currentDelay { 100.0f };
         float targetDelay { 100.0f };
         float delayRetention { 0.98f };
+        // The last weights of the loop's main boundary read (zero offset).
+        FractionalReadWeights boundaryRead {};
         RefretFilterEndpoint refretSource {};
         RefretFilterEndpoint refretFrozenDestination {};
 
@@ -1650,7 +1653,6 @@ private:
         // every decay time in the instrument instead of coupling anything.
         float busContribution { 0.0f };
         float sympatheticEnergy { 0.0f };
-        FractionalReadWeights sympatheticRead {};
 
         // A light finger or thumb resting on the string, at
         // `touchFraction` of its sounding length. Mode n's displacement there

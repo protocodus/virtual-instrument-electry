@@ -8803,7 +8803,11 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
                                         float endpointPeriod = 0.0f)
         {
             const float boundaryDelay = loop.currentDelay + delayOffset;
-            float boundary = loop.readFractional(boundaryDelay);
+            // Only the main read (no offset) holds one delay long enough to
+            // reuse its weights; a refret's endpoint reads would thrash them.
+            float boundary = delayOffset == 0.0f
+                ? loop.readWeighted(loop.boundaryRead.at(boundaryDelay))
+                : loop.readFractional(boundaryDelay);
             if (voice.releaseSpectralDepth > 0.0f)
             {
                 // Apply the same symmetric stopping-hand average separately
@@ -9607,8 +9611,7 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
         voice.sympatheticReady = true;
     }
 
-    float sample = loop.readWeighted(
-        voice.sympatheticRead.at(loop.currentDelay));
+    float sample = loop.readWeighted(loop.boundaryRead.at(loop.currentDelay));
     sample = loop.dispersion1.process(sample, loop.dispersionLowCoefficient);
     sample = loop.dispersion2.process(sample, loop.dispersionLowCoefficient);
     sample = loop.dispersion3.process(sample, loop.dispersionLowCoefficient);
