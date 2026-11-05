@@ -72,6 +72,22 @@ double clamp(double value, double low, double high) noexcept
 // follows.
 const double StratString::inPlaneShortening = 0.00066;
 
+// Not all of a string's loss goes at its ends. A round trip loses the
+// terminations' share whatever its length, but the wire's own friction and
+// the air's act for as long as the trip takes, which a fret or a bend
+// shortens. The Strat recorded direct (IDMT-SMT-Guitar, neck pickup) shows
+// both: across frets 0 to 12, each partial's decay grows with the fretted
+// pitch r = 2^(fret/12) as d = D (a + (1 - a) r), with D free for each
+// string and third-octave band (93 bands, 1529 partials 250 Hz to 9 kHz,
+// least absolute log error). The wound strings put a = 0.64 per second
+// (0.46 to 0.72, 90 % over bands resampled), their wraps rubbing on the
+// core along the whole length; the plain strings 0.36 (0.30 to 0.46). Every
+// octave from 250 Hz to 11 kHz alone gives 0.35 to 0.62. The open strings
+// keep their table; a fretted note loses that share of each trip in
+// proportion to the trip's time.
+const double StratString::woundPerSecondShare = 0.64;
+const double StratString::plainPerSecondShare = 0.36;
+
 // The neck is not rigid under the fret. Fleischer and Zwicker measured a
 // Stratocaster's ("Dead Spots", Beitraege zur Vibro- und Psychoakustik 1/96,
 // Fig. 44): driven at the fret, square to the fretboard, it yields far more
@@ -164,6 +180,54 @@ void StratString::prepare(double rate, int stringIndex) noexcept
     sampleRate = rate;
     spec = &construction(stringIndex);
 
+    designedLossShare = -1.0;
+
+    // The neck's admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2), G its
+    // conductance at the peak, through the bilinear transform warped to w.
+    {
+        const double w = 2.0 * pi * neckHz;
+        const double c = w / std::tan(w / (2.0 * sampleRate));
+        const double bandwidth = w / neckQ;
+        const double a0 = c * c + bandwidth * c + w * w;
+        neckNumerator = neckConductance * bandwidth * c / a0;
+        neckA1 = static_cast<float>((2.0 * w * w - 2.0 * c * c) / a0);
+        neckA2 = static_cast<float>((c * c - bandwidth * c + w * w) / a0);
+    }
+
+    // 5 Hz, an octave under the lowest note the tremolo can dive to.
+    blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
+
+    tuned = false;
+    designedStiffness = -1.0;
+    reset();
+    setTuning(0.0, 1.0);
+}
+
+void StratString::reset() noexcept
+{
+    for (Plane* plane : {&poles, &top})
+    {
+        plane->right.fill(0.0f);
+        plane->left.fill(0.0f);
+        plane->lossInput = plane->lossState = 0.0f;
+        plane->allpassState.fill(0.0f);
+        plane->neckForce1 = plane->neckForce2 = 0.0f;
+        plane->neckVelocity1 = plane->neckVelocity2 = 0.0f;
+    }
+    force = forceStart = forceEnd = 0.0;
+    releaseLength = releasePosition = 0;
+    stickRemaining = 0;
+    forceHeld = blockedForce = 0.0;
+    injected.fill(0.0f);
+    stretch = stretchStep = 0.0;
+    stretchCountdown = 0;
+    historySum = historySquares = 0.0;
+    historyLength = recountCountdown = 0;
+}
+
+void StratString::designLoss(double share) noexcept
+{
+    designedLossShare = share;
     // The open string's loss per round trip at its fundamental and eighth
     // harmonic. A wound string's rises steeply above them, the wraps rubbing
     // on the core, and a one-pole lowpass follows it (Valimaki et al.,
@@ -181,7 +245,7 @@ void StratString::prepare(double rate, int stringIndex) noexcept
     const double d1 = -60.0 / spec->t60Fundamental;
     const double d8 = -60.0 / spec->t60EighthHarmonic;
     const auto perTrip = [&](double decibelsPerSecond) {
-        return std::pow(10.0, decibelsPerSecond * period / 20.0);
+        return std::pow(10.0, decibelsPerSecond * share * period / 20.0);
     };
     const double g1 = perTrip(d1), g8 = perTrip(d8);
     const double w1 = 2.0 * pi * spec->openHz / sampleRate;
@@ -247,48 +311,6 @@ void StratString::prepare(double rate, int stringIndex) noexcept
     lossGain = static_cast<float>(gain);
     lossZero = static_cast<float>(zero);
     lossPole = static_cast<float>(pole);
-
-    // The neck's admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2), G its
-    // conductance at the peak, through the bilinear transform warped to w.
-    {
-        const double w = 2.0 * pi * neckHz;
-        const double c = w / std::tan(w / (2.0 * sampleRate));
-        const double bandwidth = w / neckQ;
-        const double a0 = c * c + bandwidth * c + w * w;
-        neckNumerator = neckConductance * bandwidth * c / a0;
-        neckA1 = static_cast<float>((2.0 * w * w - 2.0 * c * c) / a0);
-        neckA2 = static_cast<float>((c * c - bandwidth * c + w * w) / a0);
-    }
-
-    // 5 Hz, an octave under the lowest note the tremolo can dive to.
-    blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
-
-    tuned = false;
-    designedStiffness = -1.0;
-    reset();
-    setTuning(0.0, 1.0);
-}
-
-void StratString::reset() noexcept
-{
-    for (Plane* plane : {&poles, &top})
-    {
-        plane->right.fill(0.0f);
-        plane->left.fill(0.0f);
-        plane->lossInput = plane->lossState = 0.0f;
-        plane->allpassState.fill(0.0f);
-        plane->neckForce1 = plane->neckForce2 = 0.0f;
-        plane->neckVelocity1 = plane->neckVelocity2 = 0.0f;
-    }
-    force = forceStart = forceEnd = 0.0;
-    releaseLength = releasePosition = 0;
-    stickRemaining = 0;
-    forceHeld = blockedForce = 0.0;
-    injected.fill(0.0f);
-    stretch = stretchStep = 0.0;
-    stretchCountdown = 0;
-    historySum = historySquares = 0.0;
-    historyLength = recountCountdown = 0;
 }
 
 void StratString::designDispersion(double stiffnessNow, double f0) noexcept
@@ -380,6 +402,13 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
         stretchSamplesPerJoule = stretchStiffness / (4.0 * speaking * tensionNow * tensionNow)
             * sampleRate / fundamental;
     }
+
+    // A round trip of a shorter or tighter string takes less time, so it
+    // loses less of the share that goes per second (StratString.cpp).
+    const double perSecond = spec->wound ? woundPerSecondShare : plainPerSecondShare;
+    const double share = perSecond * spec->openHz / fundamental + 1.0 - perSecond;
+    if (designedLossShare < 0.0 || std::abs(share - designedLossShare) > 1e-3)
+        designLoss(share);
 
     // B grows as the speaking length squared shrinks and falls with tension.
     const double stiffnessNow = spec->stiffness * std::pow(2.0, fret / 6.0) / tensionRatio;
