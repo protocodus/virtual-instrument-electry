@@ -4,6 +4,30 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-05 — keep the Strat rebuild's measured attack and top (B)
+
+Decided: whether the 2.0 Stratocaster engine keeps one pass of attack and
+tonal-balance changes, each fitted to recorded Strat DI (IDMT-SMT-Guitar
+dataset 1, neck pickup) and the owner's '62 Reissue library: plain strings'
+pole-zero loss, the seventh-order fret-end read, A and D stiffness, the
+two-stage pick release and the pick's compliant push before it slips. The
+numbers behind each sit beside the code in `Source/DSP/StratString.*` and
+`Source/DSP/StratPerformer.cpp`.
+
+- A: the branch before the pass (4828fa6).
+- B: the branch after it (094a05c).
+
+Material: the owner's Sweet Home Alabama-style intro, verse and chorus
+benchmark (kept out of the repository), middle and neck pickups, 48 kHz,
+whole-file RMS matched to −20 dBFS (A −20.5 dB, B −21.0 dB). B against A:
+2–4 dB less under 160 Hz, about 2 dB more at 250–800 Hz, 3–5 dB less above
+5 kHz. This was a labelled before/after, not a blind test.
+
+**The owner chose B by ear.** It confirms keeping the pass as measured. It
+does not license moving any of its constants by ear, and it leaves open the
+measured 6–8 kHz gap (the reference 11–15 dB brighter early, possibly pick
+noise) and the pick speed the push needs on the light strings.
+
 ## 2026-10-20 — key-up tails no longer reserve their strings (B)
 
 Decided: whether a single note may re-fret a string whose previous note has
