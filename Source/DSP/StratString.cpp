@@ -34,13 +34,35 @@ constexpr double steelModulus = 207e9;
 // trip at those two partials and at one high frequency (StratString::
 // designLoss), and a fretted note keeps the share of it that goes per round
 // trip (woundPerSecondShare).
+//
+// Band: the wound strings and the G lose one band of partials fast, at a
+// frequency each string keeps on every fret. On the Strat recorded direct
+// (IDMT-SMT-Guitar, neck pickup, frets 0 to 12, 230 to 260 partials a
+// string, read over 0.1 to 1.6 s) a band bandPeak / (1 + Q^2 (f/fc - fc/f)^2)
+// added to the open string's loss, taking the same per-second share, peaks
+// at 47, 27, 23 and 25 dB/s at 1430, 1900, 2070 and 4010 Hz on the low E,
+// A, D and G (90 % intervals over the notes: 36-53, 23-33, 20-25, 17-32 dB/s
+// and 1320-1480, 1720-1990, 1960-2260, 3750-4200 Hz), and cuts the mean
+// error of those strings' partial decays from 27, 20, 24 and 12 dB/s to 15,
+// 12, 18 and 10; the B and high E take none. The '62 reference's open low E
+// and G carry the same bumps, 17 dB/s over this filter's line near 1.6-2
+// kHz and a rise to 24 dB/s at 5 kHz that falls to 9 by 8 kHz. Each band sits near the
+// string's first longitudinal resonance, sqrt(EA / mu) over twice the scale
+// with EA from the core the stiffness implies (1770, 1910, 2500 Hz; 3960 Hz
+// for any plain steel string), where a transverse partial can hand its
+// energy to the stretching wave; that is a reading, not a model of it.
+// The band adds to the '62's fundamental and eighth harmonic, whose own band
+// is a third as tall: 5.5, 7.3 and 9.3 dB/s at the wound strings' eighth
+// harmonics, toward the IDMT Strat's 15-23, 12-17 and 14-20 there. The top
+// point, read on the IDMT Strat, already holds the band's tail.
+
 constexpr StratString::Construction strings[StratString::stringCount] = {
-    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, 4000.0, 4.0, true},   // E2 .046w
-    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, 4000.0, 3.0, true},    // A2 .036w
-    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, 4000.0, 2.14, true},     // D3 .026w
-    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, 8000.0, 1.07, false},  // G3 .017
-    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, 8000.0, 1.82, false},   // B3 .013
-    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, 8000.0, 2.22, false},   // E4 .010
+    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, 4000.0, 4.0, 1430.0, 47.0, 1.6, true},  // E2 .046w
+    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, 4000.0, 3.0, 1900.0, 27.0, 1.0, true},   // A2 .036w
+    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, 4000.0, 2.14, 2070.0, 23.0, 1.0, true},   // D3 .026w
+    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, 8000.0, 1.07, 4010.0, 25.0, 6.4, false}, // G3 .017
+    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, 8000.0, 1.82, 0.0, 0.0, 1.0, false},     // B3 .013
+    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, 8000.0, 2.22, 0.0, 0.0, 1.0, false},     // E4 .010
 };
 
 double clamp(double value, double low, double high) noexcept
@@ -136,6 +158,13 @@ double StratString::lossPhaseDelay(double omega, double zero, double pole) noexc
     return (std::atan2(zero * s, 1.0 + zero * c) - std::atan2(pole * s, 1.0 + pole * c)) / omega;
 }
 
+std::complex<double> StratString::bandResponse(double omega) const noexcept
+{
+    const std::complex<double> z1 = std::polar(1.0, -omega), z2 = z1 * z1;
+    const double b0 = bandB0, a1 = bandA1, a2 = bandA2;
+    return 1.0 - static_cast<double>(bandDepth) * b0 * (1.0 - z2) / (1.0 + a1 * z1 + a2 * z2);
+}
+
 StratString::Tap StratString::tapAt(double position) noexcept
 {
     // Third-order Lagrange over the four samples at base..base+3, with the
@@ -182,6 +211,14 @@ void StratString::prepare(double rate, int stringIndex) noexcept
     spec = &construction(stringIndex);
 
     designedLossShare = -1.0;
+    if (spec->bandPeak > 0.0)
+    {
+        const double w = 2.0 * pi * spec->bandHz / sampleRate;
+        const double alpha = std::sin(w) / (2.0 * spec->bandQ);
+        bandB0 = static_cast<float>(alpha / (1.0 + alpha));
+        bandA1 = static_cast<float>(-2.0 * std::cos(w) / (1.0 + alpha));
+        bandA2 = static_cast<float>((1.0 - alpha) / (1.0 + alpha));
+    }
 
     // The neck's admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2), G its
     // conductance at the peak, through the bilinear transform warped to w.
@@ -211,6 +248,7 @@ void StratString::reset() noexcept
         plane->right.fill(0.0f);
         plane->left.fill(0.0f);
         plane->lossInput = plane->lossState = 0.0f;
+        plane->bandIn1 = plane->bandIn2 = plane->bandOut1 = plane->bandOut2 = 0.0f;
         plane->allpassState.fill(0.0f);
         plane->neckForce1 = plane->neckForce2 = 0.0f;
         plane->neckVelocity1 = plane->neckVelocity2 = 0.0f;
@@ -248,6 +286,7 @@ void StratString::designLoss(double share) noexcept
     // to 51 on the D at 4 kHz. They take a level between those at 4 kHz, 15,
     // 20 and 28, and keep it above.
     const double period = 1.0 / spec->openHz;
+    bandDepth = static_cast<float>(1.0 - std::pow(10.0, -spec->bandPeak * share * period / 20.0));
     const double d1 = -60.0 / spec->t60Fundamental;
     const double d8 = -60.0 / spec->t60EighthHarmonic;
     const double dh = -60.0 / spec->t60High;
@@ -258,9 +297,16 @@ void StratString::designLoss(double share) noexcept
     // |H|^2 (1 + a^2 + 2a cos w) = k^2 (1 + b^2) + 2 k^2 b cos w at the
     // three points is linear in P = 1 + a^2, Q = 2a and S = 2 k^2 b once
     // k^2 (1 + b^2) is set to 1; the roots inside the unit circle follow.
-    const double c[3] = {std::cos(w1), std::cos(8.0 * w1),
-                         std::cos(2.0 * pi * std::min(spec->highHz, 0.45 * sampleRate) / sampleRate)};
-    const double g[3] = {perTrip(d1) * perTrip(d1), perTrip(d8) * perTrip(d8), perTrip(dh) * perTrip(dh)};
+    const double w[3] = {w1, 8.0 * w1, 2.0 * pi * std::min(spec->highHz, 0.45 * sampleRate) / sampleRate};
+    const double d[3] = {d1, d8, dh};
+    double c[3], g[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        c[i] = std::cos(w[i]);
+        g[i] = perTrip(d[i]) * perTrip(d[i]);
+    }
+    // The band's tail is in the top point's measurement already.
+    g[2] /= std::norm(bandResponse(w[2]));
     double m[3][4];
     for (int i = 0; i < 3; ++i)
     {
@@ -292,8 +338,8 @@ void StratString::designLoss(double share) noexcept
     const double p = m[0][3] / m[0][0], q = m[1][3] / m[1][1], s = m[2][3] / m[2][2];
     const auto root = [](double ratio) {
         // x from ratio = 2x / (1 + x^2), |x| < 1. Every string reaches at
-        // most 0.9992 (the low E at 192 kHz, a fifth of its open pitch); a
-        // tuning past that is held just inside the circle.
+        // most 0.9994 over shares 0.2 to 4 (the low E at 192 kHz); a tuning
+        // past that is held just inside the circle.
         ratio = clamp(ratio, -0.9999, 0.9999);
         return ratio == 0.0 ? 0.0 : (1.0 - std::sqrt(1.0 - ratio * ratio)) / ratio;
     };
@@ -320,7 +366,7 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
     const double w1 = 2.0 * pi * f0 / sampleRate;
     const double zero = lossZero, pole = lossPole;
     const auto error = [&](double a) {
-        const double base = sampleRate / f0 - lossPhaseDelay(w1, zero, pole)
+        const double base = sampleRate / f0 - lossPhaseDelay(w1, zero, pole) + std::arg(bandResponse(w1)) / w1
             - dispersionSections * allpassPhaseDelay(w1, a);
         double sum = 0.0;
         for (int n = 2; n <= upper; ++n)
@@ -329,7 +375,7 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
             if (fn > 0.45 * sampleRate)
                 break;
             const double wn = 2.0 * pi * fn / sampleRate;
-            const double loop = base + lossPhaseDelay(wn, zero, pole)
+            const double loop = base + lossPhaseDelay(wn, zero, pole) - std::arg(bandResponse(wn)) / wn
                 + dispersionSections * allpassPhaseDelay(wn, a);
             // A loop delay off by d samples puts partial n off by d/loop of
             // its frequency.
@@ -411,7 +457,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
 
     const double w0 = 2.0 * pi * fundamental / sampleRate;
     neckDelay = neckPhaseDelay(w0);
-    const double filterDelay = lossPhaseDelay(w0, lossZero, lossPole)
+    const double filterDelay = lossPhaseDelay(w0, lossZero, lossPole) - std::arg(bandResponse(w0)) / w0
         + dispersionSections * allpassPhaseDelay(w0, allpassCoefficient) + neckDelay;
     double total = sampleRate / fundamental - filterDelay;
     total = clamp(total, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
@@ -708,6 +754,15 @@ void StratString::reflectAtFret(Plane& plane, double readAt, int skipped, float 
     plane.lossState = lossGain * (atFret + lossZero * plane.lossInput) - lossPole * plane.lossState;
     plane.lossInput = atFret;
     float y = plane.lossState;
+    if (bandDepth != 0.0f)
+    {
+        const float band = bandB0 * (y - plane.bandIn2) - bandA1 * plane.bandOut1 - bandA2 * plane.bandOut2;
+        plane.bandIn2 = plane.bandIn1;
+        plane.bandIn1 = y;
+        plane.bandOut2 = plane.bandOut1;
+        plane.bandOut1 = band;
+        y -= bandDepth * band;
+    }
     const float a = allpassCoefficient;
     for (float& state : plane.allpassState)
     {

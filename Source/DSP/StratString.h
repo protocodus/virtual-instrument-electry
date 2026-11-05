@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <complex>
 
 namespace electry
 {
@@ -47,6 +48,11 @@ public:
         double t60EighthHarmonic;
         double highHz;
         double t60High;
+        // A band of extra loss on the open string, peaking at bandPeak dB/s
+        // at bandHz with quality factor bandQ (StratString.cpp); 0 for none.
+        double bandHz;
+        double bandPeak;
+        double bandQ;
         // Wrapped strings lose their upper partials faster than solid ones.
         bool wound;
     };
@@ -153,6 +159,11 @@ private:
         std::array<float, railSize> left {};
         float lossInput = 0.0f;
         float lossState = 0.0f;
+        // The loss band's bandpass: its last two inputs and outputs.
+        float bandIn1 = 0.0f;
+        float bandIn2 = 0.0f;
+        float bandOut1 = 0.0f;
+        float bandOut2 = 0.0f;
         std::array<float, dispersionSections> allpassState {};
         LoopTap loopTap;
         double loopTapPosition = -1.0;
@@ -229,6 +240,13 @@ private:
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;
+    // The band: 1 - bandDepth BP(z), BP a bandpass of unit peak gain at
+    // bandHz, (b, 0, -b) / (1, a1, a2).
+    float bandDepth = 0.0f;
+    float bandB0 = 0.0f;
+    float bandA1 = 0.0f;
+    float bandA2 = 0.0f;
+    std::complex<double> bandResponse(double omega) const noexcept;
     // The neck's admittance as a bilinear biquad (b, 0, -b) / (1, a1, a2),
     // b per kg/s of the string's impedance.
     double neckNumerator = 0.0;
