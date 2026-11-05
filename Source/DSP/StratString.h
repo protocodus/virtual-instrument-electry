@@ -16,6 +16,12 @@ namespace electry
 // Positions on both rails count samples of travel from the bridge at the
 // string's current wave speed, so a pickup's comb stays at the same harmonic
 // numbers through a bend, as it does on the guitar.
+//
+// The string swings in two planes: toward the poles and along the top. Each
+// has its own pair of rails. The pick, the palm and a fret act on both, and
+// their ends differ only by the in-plane speaking length (inPlaneShortening),
+// so each partial is a pair a fraction of a hertz apart that the pickup hears
+// beating (StratEngine reads both).
 class StratString
 {
 public:
@@ -79,8 +85,15 @@ public:
     // 5-14 dB too bright. 600-1000 N/m score within 0.01 of the best.
     static constexpr double contactStiffness = 800.0;
 
-    // One sample; writes the string velocity (m/s) under each tap.
-    void process(std::array<float, tapCount>& tapVelocity) noexcept;
+    // The swing along the top reflects as if the string were this much
+    // shorter than its swing toward the poles (StratString.cpp has the
+    // measurement).
+    static const double inPlaneShortening;
+
+    // One sample; writes the string's velocity (m/s) under each tap, toward
+    // the poles and along the top.
+    void process(std::array<float, tapCount>& towardPoles,
+                 std::array<float, tapCount>& alongTop) noexcept;
     // A release or its high-passed tail is still driving the string.
     bool isDriven() const noexcept
     {
@@ -120,19 +133,38 @@ private:
     };
     static LoopTap loopTapAt(double position) noexcept;
 
+    // One plane of the swing: its rails and its fret end's filter states.
+    struct Plane
+    {
+        std::array<float, railSize> right {};
+        std::array<float, railSize> left {};
+        float lossInput = 0.0f;
+        float lossState = 0.0f;
+        std::array<float, dispersionSections> allpassState {};
+        LoopTap loopTap;
+        double loopTapPosition = -1.0;
+    };
+    // Reads the right rail at the fret, through the loss and the dispersion,
+    // and writes the reflection onto the left rail.
+    void reflectAtFret(Plane& plane, double readAt, int skipped) noexcept;
+
     void designDispersion(double stiffnessNow, double f0) noexcept;
     double positionSamples(double metres) const noexcept;
-    float readRight(const Tap& tap) const noexcept;
-    float readRight(const LoopTap& tap) const noexcept;
-    float readLeft(const Tap& tap) const noexcept;
+    float readRight(const Plane& plane, const Tap& tap) const noexcept;
+    float readRight(const Plane& plane, const LoopTap& tap) const noexcept;
+    float readLeft(const Plane& plane, const Tap& tap) const noexcept;
     void clearLeft(int fromPosition, int toPosition) noexcept;
     void clearRight(int fromPosition, int toPosition) noexcept;
+    void inject(Plane& plane, float velocity) noexcept;
+    void damp(Plane& plane) noexcept;
 
     double sampleRate = 48000.0;
     const Construction* spec = nullptr;
 
-    std::array<float, railSize> right {};
-    std::array<float, railSize> left {};
+    // Toward the poles: the plane the pick's contact is solved in, the
+    // stretch measured on and the pickup's distance follows.
+    Plane poles;
+    Plane top;
     int write = 0;
 
     // Fret end.
@@ -150,9 +182,8 @@ private:
     double loopDelayStep = 0.0;
     int rampRemaining = 0;
     bool tuned = false;
-
-    LoopTap loopTap;
-    double loopTapPosition = -1.0;
+    // The in-plane loop's shortfall, samples.
+    double topShortfall = 0.0;
 
     // Tension modulation, the twang of a hard pluck: the swinging string
     // stretches and its tension rises with its energy, so the loop shortens by
@@ -173,11 +204,8 @@ private:
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;
-    float lossInput = 0.0f;
-    float lossState = 0.0f;
     double designedStiffness = -1.0;
     float allpassCoefficient = 0.0f;
-    std::array<float, dispersionSections> allpassState {};
 
     std::array<double, tapCount> tapMetres {};
     std::array<Tap, tapCount> taps {};

@@ -89,6 +89,23 @@ double steelCoupling(int stringIndex) noexcept
 // measured: a downstroke (positive force) leans toward the poles here.
 constexpr double acrossShare = 0.15;
 
+// What the coil hears of the string's swing along the top, against its swing
+// toward the poles, the stroke driving both alike (StratString): the pole
+// hears the string's drift sideways much less than its swing toward it (Pate
+// et al., JASA 135(5), 2014, on a P-90), and the stroke drives that drift
+// more. Fitted to the same Strat recorded direct (IDMT-SMT-Guitar, neck
+// pickup, all 78 notes rendered at the ordinary 2.5 N): over each note's first
+// 2 s its fundamental's level strays 0.47 dB (median) from a straight decay,
+// and where a pair of decaying components fits one of the first six
+// partials' envelopes 0.3 dB better than one (310 fits), the weaker is 0.23
+// of the stronger and 0.96 Hz off it (medians). 0.2 gives 0.44 dB, 0.20 and
+// 1.00 Hz; 0.1 gives 0.21 dB and 0.11, 0.3 0.69 dB and 0.30. Without it the
+// fundamental strays 0.01 dB. The recording's second partial strays less
+// than its fundamental (0.32 dB, 1.0 here), which one share cannot follow,
+// and its pairs start at their sum or their difference alike, where these
+// all start at the sum.
+constexpr float inPlaneHeard = 0.2f;
+
 // The flux law is tabulated over the string's distance from the poles,
 // 0 to 12.8 mm, finely enough that interpolating it errs by under 1e-4.
 constexpr double fluxStepMetres = 0.00005;
@@ -241,6 +258,7 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
     // its decay would otherwise reach.
     constexpr float quietVelocity = 1e-10f;
     std::array<float, StratString::tapCount> taps {};
+    std::array<float, StratString::tapCount> alongTop {};
     for (int i = 0; i < samples; ++i)
     {
         if (phase == 0)
@@ -253,12 +271,13 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
             const size_t k = static_cast<size_t>(s);
             if (quietSamples[k] >= quietLimit[k])
                 continue;
-            strings[k].process(taps);
+            strings[k].process(taps, alongTop);
             bool quiet = !strings[k].isDriven();
             for (int c = 0; c < coilCount; ++c)
             {
                 const float v = taps[static_cast<size_t>(c)];
-                quiet = quiet && scalarAbs(v) < quietVelocity;
+                const float u = alongTop[static_cast<size_t>(c)];
+                quiet = quiet && scalarAbs(v) < quietVelocity && scalarAbs(u) < quietVelocity;
                 float& y = swing[k][static_cast<size_t>(c)];
                 y = y * swingLeak + v;
                 // A string driven onto the poles reads as touching them,
@@ -269,7 +288,7 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
                 const float t = d - static_cast<float>(i);
                 const float slope = fluxTable[static_cast<size_t>(i)]
                     + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
-                emf[c] += steel[k] * slope * v;
+                emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
             }
             quietSamples[k] = quiet ? quietSamples[k] + 1 : 0;
         }

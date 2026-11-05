@@ -49,6 +49,29 @@ double clamp(double value, double low, double high) noexcept
 
 } // namespace
 
+// The pickup hears each partial as a pair beating a fraction of a hertz
+// apart, as Pate, Le Carrou and Fabre found on a solid body ("Predicting the
+// decay time of solid body electric guitar tones", JASA 135(5), 2014): the
+// string's two planes of swing reflect at slightly different frequencies, the
+// pickup hears mostly the one toward its poles, and an ordinary stroke drives
+// both. On a Strat recorded direct (IDMT-SMT-Guitar, neck pickup, all 78
+// notes, every string at frets 0 to 12), two decaying components fitted to
+// each of the first six partials' envelopes over 2 s (310 fits where a pair
+// beats one decay by 0.3 dB) sit 1e-3 to 1.7e-3 of their frequency apart,
+// the split rising with the fret as a shortfall of fixed length does: 0.59,
+// 0.62, 0.63, 0.62 and 0.53 mm at frets 0-2, 3-5, 6-8, 9-11 and 12. On
+// the first two partials, where the model's own pickup comb and flux law add
+// no ripple to blur the fit, 78 fits give 0.66 mm (0.43 to 0.97). The '62's
+// long notes put the same partials' pairs 9e-4 of their frequency apart.
+// The heard plane is the longer one, the saddle and the fret giving more
+// toward the poles than along the top (Smith, "Physical Audio Signal
+// Processing", on yielding terminations), and the '62's notes slide sharp
+// as the other takes over. Their losses are left alike: on the first two
+// partials the fitted pairs' weaker partner decays at 0.6 of the stronger's
+// rate on the direct Strat (median) and 1.2 on the '62, which no one ratio
+// follows.
+const double StratString::inPlaneShortening = 0.00066;
+
 const StratString::Construction& StratString::construction(int stringIndex) noexcept
 {
     return strings[stringIndex < 0 ? 0
@@ -210,10 +233,13 @@ void StratString::prepare(double rate, int stringIndex) noexcept
 
 void StratString::reset() noexcept
 {
-    right.fill(0.0f);
-    left.fill(0.0f);
-    lossInput = lossState = 0.0f;
-    allpassState.fill(0.0f);
+    for (Plane* plane : {&poles, &top})
+    {
+        plane->right.fill(0.0f);
+        plane->left.fill(0.0f);
+        plane->lossInput = plane->lossState = 0.0f;
+        plane->allpassState.fill(0.0f);
+    }
     force = forceStart = forceEnd = 0.0;
     releaseLength = releasePosition = 0;
     stickRemaining = 0;
@@ -297,6 +323,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     const double waveSpeed = 2.0 * scaleMetres * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
     characteristicImpedance = spec->kilogramsPerMetre * waveSpeed;
+    topShortfall = 2.0 * inPlaneShortening * samplesPerMetre;
 
     // A string swinging with energy E is stretched along its speaking length
     // L, on average by E / T of slope squared, so its tension rises by
@@ -472,7 +499,8 @@ void StratString::measureStretch() noexcept
     const int period = std::min(static_cast<int>(std::lround(sampleRate / fundamental - stretch)),
                                 railSize - leftLength - 2 * leftOffset);
     const auto arrival = [this](int age) {
-        return static_cast<double>(left[static_cast<size_t>((write + leftOffset - age) & railMask)]);
+        return static_cast<double>(
+            poles.left[static_cast<size_t>((write + leftOffset - age) & railMask)]);
     };
     if (recountCountdown-- == 0)
     {
@@ -502,14 +530,16 @@ void StratString::measureStretch() noexcept
 
 void StratString::clearLeft(int fromPosition, int toPosition) noexcept
 {
-    for (int s = fromPosition + 1; s <= toPosition; ++s)
-        left[static_cast<size_t>((write + leftOffset + s) & railMask)] = 0.0f;
+    for (Plane* plane : {&poles, &top})
+        for (int s = fromPosition + 1; s <= toPosition; ++s)
+            plane->left[static_cast<size_t>((write + leftOffset + s) & railMask)] = 0.0f;
 }
 
 void StratString::clearRight(int fromPosition, int toPosition) noexcept
 {
-    for (int s = fromPosition + 1; s <= toPosition; ++s)
-        right[static_cast<size_t>((write - s) & railMask)] = 0.0f;
+    for (Plane* plane : {&poles, &top})
+        for (int s = fromPosition + 1; s <= toPosition; ++s)
+            plane->right[static_cast<size_t>((write - s) & railMask)] = 0.0f;
 }
 
 void StratString::pluck(double forceNewtons, double metresFromBridge,
@@ -561,48 +591,101 @@ void StratString::startRelease(double from, double to, double seconds) noexcept
     releasePosition = 0;
 }
 
-float StratString::readRight(const Tap& tap) const noexcept
+float StratString::readRight(const Plane& plane, const Tap& tap) const noexcept
 {
     const int index = write - tap.base;
-    return tap.weight[0] * right[static_cast<size_t>(index & railMask)]
-         + tap.weight[1] * right[static_cast<size_t>((index - 1) & railMask)]
-         + tap.weight[2] * right[static_cast<size_t>((index - 2) & railMask)]
-         + tap.weight[3] * right[static_cast<size_t>((index - 3) & railMask)];
+    return tap.weight[0] * plane.right[static_cast<size_t>(index & railMask)]
+         + tap.weight[1] * plane.right[static_cast<size_t>((index - 1) & railMask)]
+         + tap.weight[2] * plane.right[static_cast<size_t>((index - 2) & railMask)]
+         + tap.weight[3] * plane.right[static_cast<size_t>((index - 3) & railMask)];
 }
 
-float StratString::readRight(const LoopTap& tap) const noexcept
+float StratString::readRight(const Plane& plane, const LoopTap& tap) const noexcept
 {
     const int index = write - tap.base;
     float sum = 0.0f;
     for (int k = 0; k < 8; ++k)
-        sum += tap.weight[k] * right[static_cast<size_t>((index - k) & railMask)];
+        sum += tap.weight[k] * plane.right[static_cast<size_t>((index - k) & railMask)];
     return sum;
 }
 
-float StratString::readLeft(const Tap& tap) const noexcept
+float StratString::readLeft(const Plane& plane, const Tap& tap) const noexcept
 {
     const int index = write + leftOffset + tap.base;
-    return tap.weight[0] * left[static_cast<size_t>(index & railMask)]
-         + tap.weight[1] * left[static_cast<size_t>((index + 1) & railMask)]
-         + tap.weight[2] * left[static_cast<size_t>((index + 2) & railMask)]
-         + tap.weight[3] * left[static_cast<size_t>((index + 3) & railMask)];
+    return tap.weight[0] * plane.left[static_cast<size_t>(index & railMask)]
+         + tap.weight[1] * plane.left[static_cast<size_t>((index + 1) & railMask)]
+         + tap.weight[2] * plane.left[static_cast<size_t>((index + 2) & railMask)]
+         + tap.weight[3] * plane.left[static_cast<size_t>((index + 3) & railMask)];
 }
 
-void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
+void StratString::reflectAtFret(Plane& plane, double readAt, int skipped) noexcept
+{
+    if (readAt != plane.loopTapPosition)
+    {
+        plane.loopTapPosition = readAt;
+        plane.loopTap = loopTapAt(readAt);
+    }
+    const float atFret = readRight(plane, plane.loopTap);
+    plane.lossState = lossGain * (atFret + lossZero * plane.lossInput) - lossPole * plane.lossState;
+    plane.lossInput = atFret;
+    float y = plane.lossState;
+    const float a = allpassCoefficient;
+    for (float& state : plane.allpassState)
+    {
+        const float w = y - a * state;
+        y = a * w + state;
+        state = w;
+    }
+    plane.left[static_cast<size_t>((write + leftOffset + leftLength) & railMask)] = -y;
+    if (skipped >= 0)
+        plane.left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = -y;
+}
+
+void StratString::inject(Plane& plane, float v) noexcept
+{
+    const int r = write - pick.base;
+    const int l = write + leftOffset + pick.base;
+    for (int j = 0; j < 4; ++j)
+    {
+        plane.right[static_cast<size_t>((r - j) & railMask)] += pick.weight[j] * v;
+        plane.left[static_cast<size_t>((l + j) & railMask)] += pick.weight[j] * v;
+    }
+}
+
+void StratString::damp(Plane& plane) noexcept
+{
+    for (const Damper& d : dampers)
+    {
+        if (d.absorption == 0.0f)
+            continue;
+        for (int k = d.position; k < d.position + d.count; ++k)
+        {
+            float& r = plane.right[static_cast<size_t>((write - k) & railMask)];
+            float& l = plane.left[static_cast<size_t>((write + leftOffset + k) & railMask)];
+            const float v = d.absorption * (r + l);
+            r -= v;
+            l -= v;
+        }
+    }
+}
+
+void StratString::process(std::array<float, tapCount>& towardPoles,
+                          std::array<float, tapCount>& alongTop) noexcept
 {
     // The window of arrivals at the bridge moves on a sample: one a sample
     // old is final, as nothing behind the bridge is written.
     {
-        const float in = left[static_cast<size_t>((write + leftOffset - 1) & railMask)];
+        const float in = poles.left[static_cast<size_t>((write + leftOffset - 1) & railMask)];
         const float out
-            = left[static_cast<size_t>((write + leftOffset - 1 - historyLength) & railMask)];
+            = poles.left[static_cast<size_t>((write + leftOffset - 1 - historyLength) & railMask)];
         historySum += static_cast<double>(in) - out;
         historySquares += static_cast<double>(in) * in - static_cast<double>(out) * out;
     }
 
     // Bridge: a rigid saddle reflects the arriving wave inverted.
-    const float arriving = left[static_cast<size_t>((write + leftOffset) & railMask)];
-    right[static_cast<size_t>(write & railMask)] = -arriving;
+    for (Plane* plane : {&poles, &top})
+        plane->right[static_cast<size_t>(write & railMask)]
+            = -plane->left[static_cast<size_t>((write + leftOffset) & railMask)];
 
     // Fret end.
     if (rampRemaining > 0)
@@ -619,33 +702,17 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
     if (stretchCountdown-- == 0)
         measureStretch();
     stretch += stretchStep;
+    // Both planes share the string's tension, and so its stretch.
     const double readAt = loopDelay - stretch - leftLength;
-    if (readAt != loopTapPosition)
-    {
-        loopTapPosition = readAt;
-        loopTap = loopTapAt(readAt);
-    }
-    const float atFret = readRight(loopTap);
-    lossState = lossGain * (atFret + lossZero * lossInput) - lossPole * lossState;
-    lossInput = atFret;
-    float y = lossState;
-    const float a = allpassCoefficient;
-    for (float& state : allpassState)
-    {
-        const float w = y - a * state;
-        y = a * w + state;
-        state = w;
-    }
-    left[static_cast<size_t>((write + leftOffset + leftLength) & railMask)] = -y;
-    if (skipped >= 0)
-        left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = -y;
+    reflectAtFret(poles, readAt, skipped);
+    reflectAtFret(top, readAt - topShortfall, skipped);
 
     if (stickRemaining > 0)
     {
         // The pick pushes its point of the string at the stroke's speed less
         // what the arriving waves already give it. The pick's read spans its
         // own last three injections; take them out.
-        const double arriving = readRight(pick) + readLeft(pick)
+        const double arriving = readRight(poles, pick) + readLeft(poles, pick)
             - 2.0 * (pickOverlap[0] * injected[0] + pickOverlap[1] * injected[1]
                      + pickOverlap[2] * injected[2]);
         // The hand reaches the string through a spring, its grip and the
@@ -679,34 +746,23 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
         blockedForce = 0.0;
     const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
     injected = {v, injected[0], injected[1]};
+    // The stroke drives both planes alike; StratEngine weighs what the
+    // pickup hears of each.
     if (v != 0.0f)
     {
-        const int r = write - pick.base;
-        const int l = write + leftOffset + pick.base;
-        for (int j = 0; j < 4; ++j)
-        {
-            right[static_cast<size_t>((r - j) & railMask)] += pick.weight[j] * v;
-            left[static_cast<size_t>((l + j) & railMask)] += pick.weight[j] * v;
-        }
+        inject(poles, v);
+        inject(top, v);
     }
 
-    for (const Damper& d : dampers)
-    {
-        if (d.absorption == 0.0f)
-            continue;
-        for (int k = d.position; k < d.position + d.count; ++k)
-        {
-            float& r = right[static_cast<size_t>((write - k) & railMask)];
-            float& l = left[static_cast<size_t>((write + leftOffset + k) & railMask)];
-            const float v = d.absorption * (r + l);
-            r -= v;
-            l -= v;
-        }
-    }
+    damp(poles);
+    damp(top);
 
     for (int k = 0; k < tapCount; ++k)
-        tapVelocity[static_cast<size_t>(k)] = readRight(taps[static_cast<size_t>(k)])
-            + readLeft(taps[static_cast<size_t>(k)]);
+    {
+        const Tap& tap = taps[static_cast<size_t>(k)];
+        towardPoles[static_cast<size_t>(k)] = readRight(poles, tap) + readLeft(poles, tap);
+        alongTop[static_cast<size_t>(k)] = readRight(top, tap) + readLeft(top, tap);
+    }
 
     write = (write + 1) & railMask;
 }

@@ -53,9 +53,10 @@ std::vector<float> run(StratString& string, double rate, double seconds, int tap
 {
     std::vector<float> out(static_cast<size_t>(seconds * rate));
     std::array<float, StratString::tapCount> taps {};
+    std::array<float, StratString::tapCount> alongTop {};
     for (float& sample : out)
     {
-        string.process(taps);
+        string.process(taps, alongTop);
         sample = taps[static_cast<size_t>(tap)];
     }
     return out;
@@ -189,6 +190,54 @@ void testDecay()
     check(worst < 0.1, "open strings decay as the table says");
 }
 
+// The two planes of the swing: the one along the top reflects as a string
+// inPlaneShortening shorter, so every partial of it sits that share of the
+// speaking length sharp, and it loses what the other loses each trip.
+void testSecondPlane()
+{
+    const double rate = 48000.0;
+    double worstSplit = 0.0, worstDecay = 0.0;
+    for (int s : {0, 3, 5})
+        for (int fret : {0, 7, 12})
+        {
+            auto string = makeString(rate, s, fret);
+            string->pluck(lightNewtons, pickMetres, 0.0002);
+            std::vector<float> poles, top;
+            std::array<float, StratString::tapCount> taps {};
+            std::array<float, StratString::tapCount> alongTop {};
+            for (int i = 0; i < static_cast<int>(2.4 * rate); ++i)
+            {
+                string->process(taps, alongTop);
+                poles.push_back(taps[2]);
+                top.push_back(alongTop[2]);
+            }
+            const double speaking = StratString::scaleMetres * std::pow(2.0, -fret / 12.0);
+            const double want = StratString::inPlaneShortening / speaking;
+            const double f0 = equalTempered(openNotes[s] + fret);
+            const double b = StratString::construction(s).stiffness * std::pow(2.0, fret / 6.0);
+            for (int n : {1, 3})
+            {
+                const double fn = n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+                const double fp = peakFrequency(poles, rate, 0.2, 2.0, fn, 3.0);
+                // Searched about where it should be: 4 Hz up at the 12th
+                // fret's third partial on the high E.
+                const double ft = peakFrequency(top, rate, 0.2, 2.0, fp * (1.0 + want), 1.0);
+                const double error = std::abs((ft / fp - 1.0) / want - 1.0);
+                worstSplit = error > worstSplit ? error : worstSplit;
+                const double lostPoles = decibels(magnitude(poles, rate, 0.3, 0.5, fp))
+                    - decibels(magnitude(poles, rate, 1.8, 0.5, fp));
+                const double lostTop = decibels(magnitude(top, rate, 0.3, 0.5, ft))
+                    - decibels(magnitude(top, rate, 1.8, 0.5, ft));
+                const double d = std::abs(lostTop / lostPoles - 1.0);
+                worstDecay = d > worstDecay ? d : worstDecay;
+            }
+        }
+    std::printf("the in-plane swing: split within %.1f %% of its shortfall, decay within "
+                "%.1f %%\n", 100.0 * worstSplit, 100.0 * worstDecay);
+    check(worstSplit < 0.05, "the swing along the top sits sharp by its shortfall");
+    check(worstDecay < 0.02, "the swing along the top decays as the other does");
+}
+
 void testNodes()
 {
     const double rate = 48000.0;
@@ -203,9 +252,10 @@ void testNodes()
         string->pluck(lightNewtons, StratString::scaleMetres / 5.0, 0.00005);
         std::vector<float> neck, bridge;
         std::array<float, StratString::tapCount> taps {};
+        std::array<float, StratString::tapCount> alongTop {};
         for (int i = 0; i < static_cast<int>(0.6 * rate); ++i)
         {
-            string->process(taps);
+            string->process(taps, alongTop);
             neck.push_back(taps[0]);
             bridge.push_back(taps[2]);
         }
@@ -369,12 +419,13 @@ void testBendAndGlide()
         auto string = makeString(rate, s, 7);
         string->pluck(lightNewtons, pickMetres, 0.0002);
         std::array<float, StratString::tapCount> taps {};
+        std::array<float, StratString::tapCount> alongTop {};
         const double ratio = std::pow(2.0, 4.0 / 12.0);
         for (int i = 0; i < 4800; ++i)
         {
             if (i % StratString::controlPeriod == 0)
                 string->setTuning(7, 1.0 + (ratio - 1.0) * i / 4800.0);
-            string->process(taps);
+            string->process(taps, alongTop);
         }
         string->setTuning(7, ratio);
         const auto bent = run(*string, rate, 0.7, 2);
@@ -391,7 +442,7 @@ void testBendAndGlide()
         {
             if (i % StratString::controlPeriod == 0)
                 string->setTuning(2.0 + 7.0 * i / 12000.0, 1.0, true);
-            string->process(taps);
+            string->process(taps, alongTop);
             if (i < 2400)
                 before = std::abs(taps[2]) > before ? std::abs(taps[2]) : before;
             slid.push_back(taps[2]);
@@ -418,6 +469,7 @@ void testFretJumpsStayBounded()
     {
         auto string = makeString(rate, s, 0);
         std::array<float, StratString::tapCount> taps {};
+        std::array<float, StratString::tapCount> alongTop {};
         double fret = 0.0, tension = 1.0;
         for (int i = 0; i < static_cast<int>(6.0 * rate); ++i)
         {
@@ -434,12 +486,13 @@ void testFretJumpsStayBounded()
                 if (r > 0.4 && r < 0.402)
                     string->setDamper(0, 0.01 + next() * 0.05, next() * 2.0);
             }
-            string->process(taps);
-            for (float v : taps)
-            {
-                finite = finite && std::isfinite(v);
-                peak = std::abs(v) > peak ? std::abs(v) : peak;
-            }
+            string->process(taps, alongTop);
+            for (int k = 0; k < StratString::tapCount; ++k)
+                for (float v : {taps[static_cast<size_t>(k)], alongTop[static_cast<size_t>(k)]})
+                {
+                    finite = finite && std::isfinite(v);
+                    peak = std::abs(v) > peak ? std::abs(v) : peak;
+                }
         }
     }
     check(finite, "frets, bends and plucks keep the string finite");
@@ -524,6 +577,7 @@ int main()
     testTuningAndStiffness(48000.0);
     testTuningAndStiffness(96000.0);
     testDecay();
+    testSecondPlane();
     testNodes();
     testTouchHarmonic();
     testPalm();
