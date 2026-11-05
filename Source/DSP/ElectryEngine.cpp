@@ -9541,7 +9541,8 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
         voice.sympatheticReady = true;
     }
 
-    float sample = loop.readFractional(loop.currentDelay);
+    float sample = loop.readWeighted(
+        voice.sympatheticRead.at(loop.currentDelay));
     sample = loop.dispersion1.process(sample, loop.dispersionLowCoefficient);
     sample = loop.dispersion2.process(sample, loop.dispersionLowCoefficient);
     sample = loop.dispersion3.process(sample, loop.dispersionLowCoefficient);

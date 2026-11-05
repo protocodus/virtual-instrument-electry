@@ -994,6 +994,55 @@ private:
         void setDelay(float delaySamples) noexcept;
     };
 
+    // The third-order Lagrange weights of one loop read, split from the read
+    // itself so that a delay holding still between samples - an idle coupled
+    // string, whose delay moves only while the wheel does - reuses them
+    // instead of rebuilding them from a clamp, a floor and eight products.
+    struct FractionalReadWeights
+    {
+        // The requested delay these weights were solved for. No read is ever
+        // requested at a negative delay, so the default always solves.
+        float delay { -1.0f };
+        int ceiling { 0 };
+        float w0 { 0.0f }, w1 { 0.0f }, w2 { 0.0f }, w3 { 0.0f };
+
+        void solve(float delaySamples) noexcept
+        {
+            delay = delaySamples;
+            constexpr float maximumDelay = static_cast<float>(delayLineSize - 8);
+            delaySamples = delaySamples < 4.0f
+                ? 4.0f
+                : (delaySamples > maximumDelay ? maximumDelay : delaySamples);
+            // Split the delay before subtracting the integer ring cursor.
+            // Subtracting in float rounds its fraction differently as the
+            // cursor travels, modulating even a stationary string's pitch.
+            // The clamp holds the delay in [4, delayLineSize - 8], positive
+            // and exactly representable, where truncation is floor(): one
+            // compare makes it ceil() exactly, without std::ceil's rounding
+            // sequence (a libm call in the Rack's -fno-builtin build).
+            const int whole = static_cast<int>(delaySamples);
+            ceiling = whole + (static_cast<float>(whole) < delaySamples ? 1 : 0);
+            const float t = static_cast<float>(ceiling) - delaySamples;
+            // Factored to share the three bracket terms, with y1..y2 as the
+            // unit interval.
+            const float tMinus1 = t - 1.0f;
+            const float tMinus2 = t - 2.0f;
+            const float tPlus1 = t + 1.0f;
+            w0 = -t * tMinus1 * tMinus2;
+            w1 = tPlus1 * tMinus1 * tMinus2;
+            w2 = tPlus1 * t * tMinus2;
+            w3 = tPlus1 * t * tMinus1;
+        }
+
+        const FractionalReadWeights& at(float delaySamples) noexcept
+        {
+            // Equal floats solve to equal weights; a NaN never matches.
+            if (! (delaySamples == delay))
+                solve(delaySamples);
+            return *this;
+        }
+    };
+
     // A fixed-size feedback filter bank, deliberately excluding ring storage.
     // Retaining it lets a refret start with the actually sounding raw tap and
     // filter state while its destination topology warms independently.
@@ -1122,37 +1171,23 @@ private:
         // costing a call each time.
         [[nodiscard]] float readFractional(float delaySamples) const noexcept
         {
-            constexpr float maximumDelay = static_cast<float>(delayLineSize - 8);
-            delaySamples = delaySamples < 4.0f
-                ? 4.0f
-                : (delaySamples > maximumDelay ? maximumDelay : delaySamples);
-            // Split the delay before subtracting the integer ring cursor.
-            // Subtracting in float rounds its fraction differently as the
-            // cursor travels, modulating even a stationary string's pitch.
-            // The clamp holds the delay in [4, delayLineSize - 8], positive
-            // and exactly representable, where truncation is floor(): one
-            // compare makes it ceil() exactly, without std::ceil's rounding
-            // sequence (a libm call in the Rack's -fno-builtin build).
-            const int whole = static_cast<int>(delaySamples);
-            const int ceilingSamples = whole
-                + (static_cast<float>(whole) < delaySamples ? 1 : 0);
-            const float ceiling = static_cast<float>(ceilingSamples);
-            const int index = writeIndex - ceilingSamples;
-            const float t = ceiling - delaySamples;
+            FractionalReadWeights weights;
+            weights.solve(delaySamples);
+            return readWeighted(weights);
+        }
+
+        // Third-order Lagrange interpolation from weights already solved.
+        [[nodiscard]] float readWeighted(
+            const FractionalReadWeights& weights) const noexcept
+        {
+            const int index = writeIndex - weights.ceiling;
             constexpr int mask = delayLineSize - 1;
             const float y0 = line[static_cast<std::size_t>((index - 1) & mask)];
             const float y1 = line[static_cast<std::size_t>(index & mask)];
             const float y2 = line[static_cast<std::size_t>((index + 1) & mask)];
             const float y3 = line[static_cast<std::size_t>((index + 2) & mask)];
-            // Third-order Lagrange interpolation with y1..y2 as the unit
-            // interval, factored to share the three bracket terms.
-            const float tMinus1 = t - 1.0f;
-            const float tMinus2 = t - 2.0f;
-            const float tPlus1 = t + 1.0f;
-            return (y0 * (-t * tMinus1 * tMinus2)
-                    + y3 * (tPlus1 * t * tMinus1)) * (1.0f / 6.0f)
-                 + (y1 * (tPlus1 * tMinus1 * tMinus2)
-                    - y2 * (tPlus1 * t * tMinus2)) * 0.5f;
+            return (y0 * weights.w0 + y3 * weights.w3) * (1.0f / 6.0f)
+                 + (y1 * weights.w1 - y2 * weights.w2) * 0.5f;
         }
 
         // The same third-order Lagrange read as above with its weights already
@@ -1615,6 +1650,7 @@ private:
         // every decay time in the instrument instead of coupling anything.
         float busContribution { 0.0f };
         float sympatheticEnergy { 0.0f };
+        FractionalReadWeights sympatheticRead {};
 
         // A light finger or thumb resting on the string, at
         // `touchFraction` of its sounding length. Mode n's displacement there
