@@ -1757,6 +1757,8 @@ private:
     // and the bridge-coupled strings' run through these, so the two cannot
     // disagree about what a string's frequency-dependent loss is.
     static float onePoleMagnitude(float coefficient, float omega) noexcept;
+    static float onePoleMagnitudeAtSine(float coefficient,
+                                        float halfAngleSine) noexcept;
     static float solveOnePoleDamping(float magnitudeRatio, float omega0,
                                      float omegaHigh) noexcept;
     // A pair of decay targets is not always realisable: the one-pole's own

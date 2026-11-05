@@ -1042,7 +1042,12 @@ float ElectryEngine::onePoleMagnitude(float coefficient, float omega) noexcept
     // amount at every host rate, which is exactly the rate dependence the loop
     // filters are solved to avoid. Both terms of this form are non-negative and
     // computed from small quantities, so nothing cancels.
-    const float halfAngleSine = std::sin(0.5f * omega);
+    return onePoleMagnitudeAtSine(coefficient, std::sin(0.5f * omega));
+}
+
+float ElectryEngine::onePoleMagnitudeAtSine(float coefficient,
+                                            float halfAngleSine) noexcept
+{
     const float gap = 1.0f - coefficient;
     const float denominator = gap * gap
                             + 4.0f * coefficient * halfAngleSine * halfAngleSine;
@@ -1055,13 +1060,18 @@ float ElectryEngine::solveOnePoleDamping(float magnitudeRatio, float omega0,
     // The ratio falls monotonically with the coefficient, so bisection is
     // reliable without a derivative. Eighteen halvings resolve the coefficient
     // to below 4e-6, well inside what the decay targets are known to.
+    // The two sines do not depend on the coefficient: taking them once instead
+    // of in every halving gives the same magnitudes for 2 sinf calls, not 36.
     const float target = clampf(magnitudeRatio, 1.0e-4f, 1.0f);
+    const float sineHigh = std::sin(0.5f * omegaHigh);
+    const float sine0 = std::sin(0.5f * omega0);
     float low = 0.0f;
     float high = 0.9995f;
     for (int i = 0; i < 18; ++i)
     {
         const float mid = 0.5f * (low + high);
-        if (onePoleMagnitude(mid, omegaHigh) / onePoleMagnitude(mid, omega0)
+        if (onePoleMagnitudeAtSine(mid, sineHigh)
+                / onePoleMagnitudeAtSine(mid, sine0)
             > target)
             low = mid;
         else
