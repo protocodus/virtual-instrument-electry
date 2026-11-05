@@ -41,9 +41,12 @@ public:
         // Inharmonicity B of the open string at standard tension:
         // f_n = n f sqrt(1 + B n^2).
         double stiffness;
-        // Open-string decay of the fundamental and the eighth harmonic.
+        // Open-string decay of the fundamental, the eighth harmonic and
+        // one high frequency.
         double t60Fundamental;
         double t60EighthHarmonic;
+        double highHz;
+        double t60High;
         // Wrapped strings lose their upper partials faster than solid ones.
         bool wound;
     };

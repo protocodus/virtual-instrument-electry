@@ -31,15 +31,16 @@ constexpr double steelModulus = 207e9;
 // Decay: the reference's open E2, G3 and E4 (three velocity layers each,
 // medians); A, D and B are interpolated between them until phase 2 fits every
 // string and fret. The loop filter holds the open string's loss per round
-// trip, so a fretted note loses the same per reflection and decays faster in
-// proportion to its pitch, as the reference's fretted notes do.
+// trip at those two partials and at one high frequency (StratString::
+// designLoss), and a fretted note keeps the share of it that goes per round
+// trip (woundPerSecondShare).
 constexpr StratString::Construction strings[StratString::stringCount] = {
-    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, true},   // E2 .046w
-    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, true},    // A2 .036w
-    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, true},     // D3 .026w
-    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, false},  // G3 .017
-    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, false},   // B3 .013
-    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, false},   // E4 .010
+    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, 4000.0, 4.0, true},   // E2 .046w
+    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, 4000.0, 3.0, true},    // A2 .036w
+    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, 4000.0, 2.14, true},     // D3 .026w
+    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, 8000.0, 1.07, false},  // G3 .017
+    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, 8000.0, 1.82, false},   // B3 .013
+    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, 8000.0, 2.22, false},   // E4 .010
 };
 
 double clamp(double value, double low, double high) noexcept
@@ -228,86 +229,78 @@ void StratString::reset() noexcept
 void StratString::designLoss(double share) noexcept
 {
     designedLossShare = share;
-    // The open string's loss per round trip at its fundamental and eighth
-    // harmonic. A wound string's rises steeply above them, the wraps rubbing
-    // on the core, and a one-pole lowpass follows it (Valimaki et al.,
-    // "Physical modeling of plucked string instruments with application to
-    // real-time sound synthesis", JAES 44(5), 1996): the '62's D string at
-    // fret 2 loses 38, 50 and 66 dB/s at 3.2, 3.5 and 4.0 kHz, the one-pole
-    // 40, 52 and 61. Solid steel loses a constant share of each cycle, so its
-    // decay rate grows in proportion to frequency, and a one-pole loses its
-    // top far too fast: at 6 kHz the high E and B lose 25 to 35 dB/s in both
-    // the '62 and a Strat recorded direct (IDMT-SMT-Guitar, neck pickup),
-    // where the one-pole gives 58 and 70 and the straight line through the two
-    // points 31 and 29. Plain strings take a pole-zero filter through the two
-    // points and that line at 8 kHz.
+    // The open string's loss per round trip at its fundamental, its eighth
+    // harmonic and one high frequency, through a pole-zero filter. A one-pole
+    // lowpass through the first two (Valimaki et al., "Physical modeling of
+    // plucked string instruments with application to real-time sound
+    // synthesis", JAES 44(5), 1996) and a straight line in frequency both
+    // keep steepening above them; a real string's top flattens. Read over a
+    // note's first 1.8 s on the Strat recorded direct (IDMT-SMT-Guitar, neck
+    // pickup, frets 0 to 12, each partial taken back to the open string by
+    // its per-second share), the plain strings lose 56, 33 and 27 dB/s at
+    // 8 kHz on the G, B and high E (27 to 74 partials each), where the line
+    // lost 43, 40 and 42; the '62 reference's open high E 20 to 24. The
+    // wound strings peak near 2 kHz and fall above it, which no first-order
+    // filter follows from these two partials: the low E loses 19 at 2.5 kHz
+    // and 10 at 3.2 kHz (the '62: 22 and 10, 8 at 4 kHz), the A 35, 15 and
+    // 12 at 2.5, 3.2 and 4 kHz, the D 41, 24 and 28, where the one-pole lost
+    // 49 and 72 on the low E at 2.5 and 3.2 kHz and 48 to 69 on the A and 46
+    // to 51 on the D at 4 kHz. They take a level between those at 4 kHz, 15,
+    // 20 and 28, and keep it above.
     const double period = 1.0 / spec->openHz;
     const double d1 = -60.0 / spec->t60Fundamental;
     const double d8 = -60.0 / spec->t60EighthHarmonic;
+    const double dh = -60.0 / spec->t60High;
     const auto perTrip = [&](double decibelsPerSecond) {
         return std::pow(10.0, decibelsPerSecond * share * period / 20.0);
     };
-    const double g1 = perTrip(d1), g8 = perTrip(d8);
     const double w1 = 2.0 * pi * spec->openHz / sampleRate;
-    const double w8 = 8.0 * w1;
-    double gain = g1, zero = 0.0, pole = 0.0;
-    if (spec->wound)
+    // |H|^2 (1 + a^2 + 2a cos w) = k^2 (1 + b^2) + 2 k^2 b cos w at the
+    // three points is linear in P = 1 + a^2, Q = 2a and S = 2 k^2 b once
+    // k^2 (1 + b^2) is set to 1; the roots inside the unit circle follow.
+    const double c[3] = {std::cos(w1), std::cos(8.0 * w1),
+                         std::cos(2.0 * pi * std::min(spec->highHz, 0.45 * sampleRate) / sampleRate)};
+    const double g[3] = {perTrip(d1) * perTrip(d1), perTrip(d8) * perTrip(d8), perTrip(dh) * perTrip(dh)};
+    double m[3][4];
+    for (int i = 0; i < 3; ++i)
     {
-        const double r = (g8 / g1) * (g8 / g1);
-        if (r < 1.0)
-        {
-            const double beta = (std::cos(w1) - r * std::cos(w8)) / (1.0 - r);
-            pole = -beta + std::sqrt(beta * beta - 1.0);
-        }
-        gain = g1 * std::sqrt(1.0 + 2.0 * pole * std::cos(w1) + pole * pole);
+        m[i][0] = g[i];
+        m[i][1] = g[i] * c[i];
+        m[i][2] = -c[i];
+        m[i][3] = 1.0;
     }
-    else
+    for (int col = 0; col < 3; ++col)
     {
-        // |H|^2 (1 + a^2 + 2a cos w) = k^2 (1 + b^2) + 2 k^2 b cos w at the
-        // three points is linear in P = 1 + a^2, Q = 2a and S = 2 k^2 b once
-        // k^2 (1 + b^2) is set to 1; the roots inside the unit circle follow.
-        constexpr double highHz = 8000.0;
-        const double dh = d1 + (d8 - d1) * (highHz - spec->openHz) / (7.0 * spec->openHz);
-        const double c[3] = {std::cos(w1), std::cos(w8), std::cos(2.0 * pi * highHz / sampleRate)};
-        const double g[3] = {g1 * g1, g8 * g8, perTrip(dh) * perTrip(dh)};
-        double m[3][4];
-        for (int i = 0; i < 3; ++i)
+        int best = col;
+        for (int row = col + 1; row < 3; ++row)
+            if (std::abs(m[row][col]) > std::abs(m[best][col]))
+                best = row;
+        for (int k = 0; k < 4; ++k)
         {
-            m[i][0] = g[i];
-            m[i][1] = g[i] * c[i];
-            m[i][2] = -c[i];
-            m[i][3] = 1.0;
+            const double t = m[col][k];
+            m[col][k] = m[best][k];
+            m[best][k] = t;
         }
-        for (int col = 0; col < 3; ++col)
-        {
-            int best = col;
-            for (int row = col + 1; row < 3; ++row)
-                if (std::abs(m[row][col]) > std::abs(m[best][col]))
-                    best = row;
-            for (int k = 0; k < 4; ++k)
+        for (int row = 0; row < 3; ++row)
+            if (row != col)
             {
-                const double t = m[col][k];
-                m[col][k] = m[best][k];
-                m[best][k] = t;
+                const double f = m[row][col] / m[col][col];
+                for (int k = col; k < 4; ++k)
+                    m[row][k] -= f * m[col][k];
             }
-            for (int row = 0; row < 3; ++row)
-                if (row != col)
-                {
-                    const double f = m[row][col] / m[col][col];
-                    for (int k = col; k < 4; ++k)
-                        m[row][k] -= f * m[col][k];
-                }
-        }
-        const double p = m[0][3] / m[0][0], q = m[1][3] / m[1][1], s = m[2][3] / m[2][2];
-        const auto root = [](double ratio) {
-            // x from ratio = 2x / (1 + x^2), |x| < 1.
-            return ratio == 0.0 ? 0.0 : (1.0 - std::sqrt(1.0 - ratio * ratio)) / ratio;
-        };
-        pole = root(q / p);
-        const double scale = (1.0 + pole * pole) / p;
-        zero = root(s);
-        gain = std::sqrt(scale / (1.0 + zero * zero));
     }
+    const double p = m[0][3] / m[0][0], q = m[1][3] / m[1][1], s = m[2][3] / m[2][2];
+    const auto root = [](double ratio) {
+        // x from ratio = 2x / (1 + x^2), |x| < 1. Every string reaches at
+        // most 0.9992 (the low E at 192 kHz, a fifth of its open pitch); a
+        // tuning past that is held just inside the circle.
+        ratio = clamp(ratio, -0.9999, 0.9999);
+        return ratio == 0.0 ? 0.0 : (1.0 - std::sqrt(1.0 - ratio * ratio)) / ratio;
+    };
+    const double pole = root(q / p);
+    const double scale = (1.0 + pole * pole) / p;
+    const double zero = root(s);
+    const double gain = std::sqrt(scale / (1.0 + zero * zero));
     lossGain = static_cast<float>(gain);
     lossZero = static_cast<float>(zero);
     lossPole = static_cast<float>(pole);
