@@ -8,6 +8,8 @@ namespace electry
 namespace
 {
 constexpr double pi = 3.14159265358979323846;
+// Young's modulus of the strings' steel.
+constexpr double steelModulus = 207e9;
 
 // Fender's standard 10-46 set (.010 .013 .017 .026w .036w .046w, nickel-
 // plated steel, the gauges of D'Addario EXL110). Masses are D'Addario's
@@ -85,20 +87,26 @@ StratString::Tap StratString::tapAt(double position) noexcept
 StratString::LoopTap StratString::loopTapAt(double position) noexcept
 {
     // Seventh-order Lagrange over base..base+7, the read point inside the
-    // middle interval: weight k is the product of (t - m) / (k - m), m != k.
+    // middle interval: weight k is the product of (t - m) / (k - m), m != k,
+    // the products before and after k built up from either end. Written out
+    // in float: the read point moves every sample while the string's stretch
+    // settles, and the weights are kept in float anyway. Positions are
+    // positive, so truncation is the floor.
     LoopTap tap;
-    tap.base = static_cast<int>(std::floor(position)) - 3;
-    const double t = position - tap.base;
-    double before[8], after[8];
-    before[0] = after[7] = 1.0;
-    for (int k = 1; k < 8; ++k)
-    {
-        before[k] = before[k - 1] * (t - (k - 1));
-        after[7 - k] = after[8 - k] * (t - (8 - k));
-    }
-    constexpr double denominator[8] = {-5040.0, 720.0, -240.0, 144.0, -144.0, 240.0, -720.0, 5040.0};
-    for (int k = 0; k < 8; ++k)
-        tap.weight[k] = static_cast<float>(before[k] * after[k] / denominator[k]);
+    tap.base = static_cast<int>(position) - 3;
+    const float t = static_cast<float>(position - tap.base);
+    const float b1 = t, b2 = b1 * (t - 1.0f), b3 = b2 * (t - 2.0f), b4 = b3 * (t - 3.0f),
+                b5 = b4 * (t - 4.0f), b6 = b5 * (t - 5.0f), b7 = b6 * (t - 6.0f);
+    const float a6 = t - 7.0f, a5 = a6 * (t - 6.0f), a4 = a5 * (t - 5.0f), a3 = a4 * (t - 4.0f),
+                a2 = a3 * (t - 3.0f), a1 = a2 * (t - 2.0f), a0 = a1 * (t - 1.0f);
+    tap.weight[0] = a0 * (-1.0f / 5040.0f);
+    tap.weight[1] = b1 * a1 * (1.0f / 720.0f);
+    tap.weight[2] = b2 * a2 * (-1.0f / 240.0f);
+    tap.weight[3] = b3 * a3 * (1.0f / 144.0f);
+    tap.weight[4] = b4 * a4 * (-1.0f / 144.0f);
+    tap.weight[5] = b5 * a5 * (1.0f / 240.0f);
+    tap.weight[6] = b6 * a6 * (-1.0f / 720.0f);
+    tap.weight[7] = b7 * (1.0f / 5040.0f);
     return tap;
 }
 
@@ -211,6 +219,10 @@ void StratString::reset() noexcept
     stickRemaining = 0;
     forceHeld = blockedForce = 0.0;
     injected.fill(0.0f);
+    stretch = stretchStep = 0.0;
+    stretchCountdown = 0;
+    historySum = historySquares = 0.0;
+    historyLength = recountCountdown = 0;
 }
 
 void StratString::designDispersion(double stiffnessNow, double f0) noexcept
@@ -285,6 +297,22 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     const double waveSpeed = 2.0 * scaleMetres * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
     characteristicImpedance = spec->kilogramsPerMetre * waveSpeed;
+
+    // A string swinging with energy E is stretched along its speaking length
+    // L, on average by E / T of slope squared, so its tension rises by
+    // EA E / (2 L T) and its pitch by EA E / (4 L T^2). EA is the steel's
+    // that bends it: B = pi^3 E d^4 / (64 T L^2) gives EA = 2 L sqrt(E T B
+    // / pi) at the open string's standard tension, 36 kN for the low E's core
+    // and 10 kN for the high E. The pitch rises; the loop shortens.
+    {
+        const double openTension = spec->kilogramsPerMetre * std::pow(2.0 * scaleMetres * spec->openHz, 2.0);
+        const double stretchStiffness
+            = 2.0 * scaleMetres * std::sqrt(steelModulus * openTension * spec->stiffness / pi);
+        const double tensionNow = spec->kilogramsPerMetre * waveSpeed * waveSpeed;
+        const double speaking = scaleMetres * std::pow(2.0, -fret / 12.0);
+        stretchSamplesPerJoule = stretchStiffness / (4.0 * speaking * tensionNow * tensionNow)
+            * sampleRate / fundamental;
+    }
 
     // B grows as the speaking length squared shrinks and falls with tension.
     const double stiffnessNow = spec->stiffness * std::pow(2.0, fret / 6.0) / tensionRatio;
@@ -428,6 +456,50 @@ void StratString::placeDampers() noexcept
     }
 }
 
+void StratString::measureStretch() noexcept
+{
+    stretchCountdown = controlPeriod - 1;
+    // Each sample of each rail holds Z v^2 / rate of the string's energy,
+    // and one period of what arrived at the bridge is all of it; the
+    // arrivals stay behind the bridge on the left rail, untouched since.
+    // (Summing the two rails instead misses what is inside the fret end's
+    // filters, dips once a period, and the loop, shortened in step, pumps the
+    // string louder.) The rails also hold the deflection the pick's held
+    // force sets up, which the force's DC blocker lets go over some 0.1 s:
+    // standing still, it arrives as a constant, the history's mean, and is no
+    // part of the swing. Counted, it would start a hard pick sharper by half
+    // again and more.
+    const int period = std::min(static_cast<int>(std::lround(sampleRate / fundamental - stretch)),
+                                railSize - leftLength - 2 * leftOffset);
+    const auto arrival = [this](int age) {
+        return static_cast<double>(left[static_cast<size_t>((write + leftOffset - age) & railMask)]);
+    };
+    if (recountCountdown-- == 0)
+    {
+        // Now and then from scratch, so the sums' rounding cannot build up.
+        recountCountdown = 63;
+        historySum = historySquares = 0.0;
+        historyLength = 0;
+    }
+    for (; historyLength < period; ++historyLength)
+    {
+        const double v = arrival(historyLength + 1);
+        historySum += v;
+        historySquares += v * v;
+    }
+    for (; historyLength > period; --historyLength)
+    {
+        const double v = arrival(historyLength);
+        historySum -= v;
+        historySquares -= v * v;
+    }
+    const double energy = characteristicImpedance / sampleRate
+        * std::max(0.0, historySquares - historySum * historySum / period);
+    // A semitone at most, far past any pick: the loop must stay inside its rails.
+    const double target = std::min(stretchSamplesPerJoule * energy, 0.06 * sampleRate / fundamental);
+    stretchStep = (target - stretch) / controlPeriod;
+}
+
 void StratString::clearLeft(int fromPosition, int toPosition) noexcept
 {
     for (int s = fromPosition + 1; s <= toPosition; ++s)
@@ -445,6 +517,9 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
 {
     // A release or a contact still running completes first.
     force = forceEnd;
+    // The stretch is measured on a grid counted from the latest pluck, so a
+    // string played again after silence sounds as a new one does.
+    stretchCountdown = recountCountdown = 0;
     stickRemaining = 0;
     pickMetres = metresFromBridge;
     pick = tapAt(clamp(positionSamples(pickMetres), 1.0, lastUsablePosition()));
@@ -515,6 +590,16 @@ float StratString::readLeft(const Tap& tap) const noexcept
 
 void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
 {
+    // The window of arrivals at the bridge moves on a sample: one a sample
+    // old is final, as nothing behind the bridge is written.
+    {
+        const float in = left[static_cast<size_t>((write + leftOffset - 1) & railMask)];
+        const float out
+            = left[static_cast<size_t>((write + leftOffset - 1 - historyLength) & railMask)];
+        historySum += static_cast<double>(in) - out;
+        historySquares += static_cast<double>(in) * in - static_cast<double>(out) * out;
+    }
+
     // Bridge: a rigid saddle reflects the arriving wave inverted.
     const float arriving = left[static_cast<size_t>((write + leftOffset) & railMask)];
     right[static_cast<size_t>(write & railMask)] = -arriving;
@@ -531,7 +616,10 @@ void StratString::process(std::array<float, tapCount>& tapVelocity) noexcept
         skipped = leftLength++;
     else if (leftLength > leftTarget)
         --leftLength;
-    const double readAt = loopDelay - leftLength;
+    if (stretchCountdown-- == 0)
+        measureStretch();
+    stretch += stretchStep;
+    const double readAt = loopDelay - stretch - leftLength;
     if (readAt != loopTapPosition)
     {
         loopTapPosition = readAt;

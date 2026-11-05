@@ -11,6 +11,7 @@
 #include <complex>
 #include <cstdio>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace
@@ -32,6 +33,11 @@ constexpr double pi = 3.14159265358979323846;
 constexpr double neckMetres = 0.162;   // L/4 from the bridge
 constexpr double bridgeMetres = 0.041;
 constexpr double pickMetres = 0.13;
+// The string's pitch rises with its energy (testTensionModulation), as the
+// square of the pluck force: 1.5 N starts the open low E 6 cents sharp.
+// Tuning, decay and node checks are of the small-amplitude string, plucked
+// where that rise is under a hundredth of a cent.
+constexpr double lightNewtons = 0.05;
 
 std::unique_ptr<StratString> makeString(double rate, int index, double fret)
 {
@@ -75,21 +81,29 @@ double magnitude(const std::vector<float>& x, double rate, double startSeconds,
 
 double decibels(double value) { return 20.0 * std::log10(value + 1e-30); }
 
-// The spectral peak within `span` Hz of `guess`, by golden-section search.
-double peakFrequency(const std::vector<float>& x, double rate, double guess,
-                     double span)
+// The spectral peak of x[start, start + length) within `span` Hz of
+// `guess`, by golden-section search.
+double peakFrequency(const std::vector<float>& x, double rate, double startSeconds,
+                     double lengthSeconds, double guess, double span)
 {
     double low = guess - span, high = guess + span;
     for (int i = 0; i < 32; ++i)
     {
         const double a = low + 0.382 * (high - low);
         const double b = low + 0.618 * (high - low);
-        if (magnitude(x, rate, 0.2, 0.5, a) < magnitude(x, rate, 0.2, 0.5, b))
+        if (magnitude(x, rate, startSeconds, lengthSeconds, a)
+            < magnitude(x, rate, startSeconds, lengthSeconds, b))
             low = a;
         else
             high = b;
     }
     return 0.5 * (low + high);
+}
+
+double peakFrequency(const std::vector<float>& x, double rate, double guess,
+                     double span)
+{
+    return peakFrequency(x, rate, 0.2, 0.5, guess, span);
 }
 
 double cents(double measured, double expected)
@@ -109,7 +123,7 @@ void testTuningAndStiffness(double rate)
         for (int fret : {0, 5, 12, 19, 21})
         {
             auto string = makeString(rate, s, fret);
-            string->pluck(1.5, pickMetres, 0.0002);
+            string->pluck(lightNewtons, pickMetres, 0.0002);
             const auto y = run(*string, rate, 0.7, 0);
             const double f0 = equalTempered(openNotes[s] + fret);
             const double measured = peakFrequency(y, rate, f0, 2.0);
@@ -157,7 +171,7 @@ void testDecay()
     {
         const auto& spec = StratString::construction(s);
         auto string = makeString(rate, s, 0);
-        string->pluck(1.5, pickMetres, 0.0002);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
         const auto y = run(*string, rate, 2.4, 2);
         const double b = spec.stiffness;
         for (int n : {1, 8})
@@ -186,7 +200,7 @@ void testNodes()
             return n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
         };
         auto string = makeString(rate, s, 0);
-        string->pluck(1.5, StratString::scaleMetres / 5.0, 0.00005);
+        string->pluck(lightNewtons, StratString::scaleMetres / 5.0, 0.00005);
         std::vector<float> neck, bridge;
         std::array<float, StratString::tapCount> taps {};
         for (int i = 0; i < static_cast<int>(0.6 * rate); ++i)
@@ -258,7 +272,7 @@ void testPalm()
     const auto decayDbPerSecond = [&](double x, double resistance, double width) {
         auto string = makeString(rate, 0, 0);
         string->setDamper(0, x, resistance, width);
-        string->pluck(1.5, pickMetres, 0.0002);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
         const auto y = run(*string, rate, 2.4, 2);
         return (decibels(magnitude(y, rate, 0.3, 0.5, spec.openHz))
                 - decibels(magnitude(y, rate, 1.8, 0.5, spec.openHz)))
@@ -293,6 +307,51 @@ void testPalm()
     check(std::abs(extra / want - 1.0) < 0.01, "a contact damps as the points it covers");
 }
 
+void testTensionModulation()
+{
+    // A swinging string is stretched: with energy E its tension rises by
+    // EA E / (2 L T) and its pitch by EA E / (4 L T^2), so a hard pluck
+    // starts sharp and settles as it decays (Legge and Fletcher, JASA 76,
+    // 1984). Here EA is the steel's 207 GPa over the area pi d^2 / 4 of a
+    // 0.010 in high E and of the low E's 0.0185 in core (its wrap carries no
+    // tension), and E the energy of the triangle a pluck of force F at x
+    // releases, F^2 x (L - x) / (2 T L), let go at once so all of it is in
+    // the string.
+    const double rate = 48000.0, x = pickMetres, length = StratString::scaleMetres;
+    const std::pair<int, double> strings[] = {{0, 0.0185}, {5, 0.010}};
+    for (const auto& [s, inches] : strings)
+    {
+        const auto& spec = StratString::construction(s);
+        const double tension = spec.kilogramsPerMetre * std::pow(2.0 * length * spec.openHz, 2.0);
+        const double diameter = inches * 0.0254;
+        const double stretchStiffness = 207e9 * pi * diameter * diameter / 4.0;
+        const auto sharpening = [&](double newtons, double startSeconds) {
+            const auto pitch = [&](double force) {
+                auto string = makeString(rate, s, 0);
+                string->pluck(force, x, 0.0);
+                const auto y = run(*string, rate, startSeconds + 0.1, 2);
+                return peakFrequency(y, rate, startSeconds, 0.1, spec.openHz, 3.0);
+            };
+            return cents(pitch(newtons), pitch(lightNewtons));
+        };
+        const auto theory = [&](double newtons) {
+            const double energy = newtons * newtons * x * (length - x) / (2.0 * tension * length);
+            return cents(1.0 + stretchStiffness * energy / (4.0 * length * tension * tension), 1.0);
+        };
+        const double hard = sharpening(2.0, 0.02), soft = sharpening(1.0, 0.02);
+        const double late = sharpening(2.0, 1.5);
+        std::printf("string %d at 2 N: %.2f cents sharp over 20-120 ms (theory %.2f at release), "
+                    "%.2f at 1 N, %.2f after 1.5 s\n",
+                    s, hard, theory(2.0), soft, late);
+        // By the window's middle the string has lost 5 to 12 % of its energy,
+        // the high E's upper partials fastest, so it is a little under.
+        check(hard < theory(2.0) && hard > 0.85 * theory(2.0),
+              "a hard pluck starts as sharp as its stretch says");
+        check(std::abs(hard / soft - 4.0) < 0.2, "the sharpening goes as the energy");
+        check(late < 0.5 * hard, "the pitch settles as the string decays");
+    }
+}
+
 double peakAbs(const std::vector<float>& x)
 {
     double peak = 0.0;
@@ -308,7 +367,7 @@ void testBendAndGlide()
     {
         // A whole-tone bend: tension up by 2^(4/12).
         auto string = makeString(rate, s, 7);
-        string->pluck(1.5, pickMetres, 0.0002);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
         std::array<float, StratString::tapCount> taps {};
         const double ratio = std::pow(2.0, 4.0 / 12.0);
         for (int i = 0; i < 4800; ++i)
@@ -325,7 +384,7 @@ void testBendAndGlide()
 
         // A slide from the 2nd to the 9th fret over a quarter second.
         string = makeString(rate, s, 2);
-        string->pluck(1.5, pickMetres, 0.0002);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
         double before = 0.0;
         std::vector<float> slid;
         for (int i = 0; i < 12000; ++i)
@@ -468,6 +527,7 @@ int main()
     testNodes();
     testTouchHarmonic();
     testPalm();
+    testTensionModulation();
     testBendAndGlide();
     testFretJumpsStayBounded();
     testPickContact();

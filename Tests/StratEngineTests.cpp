@@ -205,13 +205,22 @@ void testQuietStrings()
 
 void testMovingControls()
 {
-    auto engine = makeEngine(Position::neck);
     const int frets[6] = {0, 2, 2, 1, 0, 0};
-    for (int s = 0; s < 6; ++s)
-    {
-        engine->setFret(s, frets[s]);
-        engine->pluck(s, 2.0, 0.13, 0.0002);
-    }
+    const auto strum = [&frets](StratEngine& engine) {
+        for (int s = 0; s < 6; ++s)
+        {
+            engine.setFret(s, frets[s]);
+            engine.pluck(s, 2.0, 0.13, 0.0002);
+        }
+    };
+    auto still = makeEngine(Position::neck);
+    strum(*still);
+    double stillPeak = 0.0;
+    for (float v : render(*still, 2.0))
+        stillPeak = std::abs(v) > stillPeak ? std::abs(v) : stillPeak;
+
+    auto engine = makeEngine(Position::neck);
+    strum(*engine);
     unsigned seed = 7u;
     const auto next = [&seed] {
         seed = seed * 1664525u + 1013904223u;
@@ -237,10 +246,26 @@ void testMovingControls()
         }
     }
     check(finite, "switch and knob moves under a chord stay finite");
-    // The same chord at Volume 10 peaks under 4 V at the 1 V per m/s
-    // convention; moving controls cannot make a passive network exceed it
-    // by more than its resonance.
-    check(peak < 10.0, "switch and knob moves under a chord stay bounded");
+    // A Tone jumping off 0 between blocks lets go of the coil current its
+    // 0.1 uF was drawing, and the winding's and cable's 400 pF take it: a
+    // kick of I sqrt(L / C), I about the coil's EMF over its resistance at
+    // most, from two coils in parallel twice that into sqrt(L / 2C). The jack
+    // stays within 19 times the coils' EMF, which under this chord peaks with
+    // the chord at Volume 10 (5.1 against 5.0 V). Twelve seeds of these moves
+    // reach 2.4 times it; a real knob turns too slowly to kick at all. (A
+    // limit of 10 V once passed on this seed but not on others.)
+    const double kick = std::sqrt(2.0 * StratCircuit::coilHenries
+                                  / (StratCircuit::coilFarads + StratCircuit::cableFarads))
+        / StratCircuit::coilOhms;
+    std::printf("moving controls peak at %.2f V, the still chord at %.2f V\n", peak, stillPeak);
+    check(peak < kick * stillPeak, "switch and knob moves under a chord stay bounded");
+    // Once the hand leaves the controls the network settles under what the
+    // chord alone drives.
+    double settled = 0.0;
+    const auto after = render(*engine, 0.5);
+    for (size_t i = after.size() / 2; i < after.size(); ++i)
+        settled = std::abs(after[i]) > settled ? std::abs(after[i]) : settled;
+    check(settled < stillPeak, "after the moves the controls settle");
 }
 
 void testTremoloRetunes()

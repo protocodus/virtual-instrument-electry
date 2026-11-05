@@ -280,6 +280,10 @@ void testHarmonics()
 void testPalm()
 {
     // What the palm adds to a partial, dB/s between two windows, at a pressure.
+    // Played softly: a hard note starts sharp and settles (StratString's
+    // tension modulation), and its level at the partial's resting frequency
+    // would read low early; at velocity 100 the open G's third partial then
+    // seems to decay at 0.4 dB/s, against 3.4 at velocity 20.
     const auto addedDecay = [](int note, int partial, double pressure, double from, double to,
                                double window) {
         double decay[2] {};
@@ -291,7 +295,7 @@ void testPalm()
             p->setControls(controls);
             if (palm == 1)
                 p->noteOn(0, 25, 1);
-            p->noteOn(0, note, 100);
+            p->noteOn(0, note, 20);
             const auto y = render(*p, to + window);
             int s = 0;
             for (int k = 0; k < 6; ++k)

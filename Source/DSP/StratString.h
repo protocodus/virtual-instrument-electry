@@ -154,6 +154,22 @@ private:
     LoopTap loopTap;
     double loopTapPosition = -1.0;
 
+    // Tension modulation, the twang of a hard pluck: the swinging string
+    // stretches and its tension rises with its energy, so the loop shortens by
+    // stretchSamplesPerJoule times that energy, measured every control period
+    // and ramped between.
+    double stretchSamplesPerJoule = 0.0;
+    double stretch = 0.0;
+    double stretchStep = 0.0;
+    int stretchCountdown = 0;
+    // The last historyLength arrivals at the bridge, as running sums of the
+    // samples and of their squares, recounted every so often.
+    double historySum = 0.0;
+    double historySquares = 0.0;
+    int historyLength = 0;
+    int recountCountdown = 0;
+    void measureStretch() noexcept;
+
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;
