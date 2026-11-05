@@ -21,7 +21,8 @@ namespace electry
 // has its own pair of rails. The pick, the palm and a fret act on both, and
 // their ends differ only by the in-plane speaking length (inPlaneShortening),
 // so each partial is a pair a fraction of a hertz apart that the pickup hears
-// beating (StratEngine reads both).
+// beating (StratEngine reads both). Toward the poles the neck also yields
+// under the fret, in one resonance near 420 Hz (StratString.cpp).
 class StratString
 {
 public:
@@ -89,6 +90,11 @@ public:
     // shorter than its swing toward the poles (StratString.cpp has the
     // measurement).
     static const double inPlaneShortening;
+    // The neck under the fret yields toward the poles in one resonance: its
+    // frequency, Q and conductance at the peak, s/kg (StratString.cpp).
+    static const double neckHz;
+    static const double neckQ;
+    static const double neckConductance;
 
     // One sample; writes the string's velocity (m/s) under each tap, toward
     // the poles and along the top.
@@ -143,10 +149,18 @@ private:
         std::array<float, dispersionSections> allpassState {};
         LoopTap loopTap;
         double loopTapPosition = -1.0;
+        // The neck's resonance under the fret: the force it was driven with
+        // (over the string's impedance) and the velocity it moved at, the
+        // last two samples.
+        float neckForce1 = 0.0f;
+        float neckForce2 = 0.0f;
+        float neckVelocity1 = 0.0f;
+        float neckVelocity2 = 0.0f;
     };
     // Reads the right rail at the fret, through the loss and the dispersion,
-    // and writes the reflection onto the left rail.
-    void reflectAtFret(Plane& plane, double readAt, int skipped) noexcept;
+    // and writes the reflection onto the left rail; a nonzero neckGain lets
+    // the fret yield.
+    void reflectAtFret(Plane& plane, double readAt, int skipped, float neckGain) noexcept;
 
     void designDispersion(double stiffnessNow, double f0) noexcept;
     double positionSamples(double metres) const noexcept;
@@ -204,6 +218,16 @@ private:
     float lossGain = 1.0f;
     float lossZero = 0.0f;
     float lossPole = 0.0f;
+    // The neck's admittance as a bilinear biquad (b, 0, -b) / (1, a1, a2),
+    // b per kg/s of the string's impedance.
+    double neckNumerator = 0.0;
+    float neckA1 = 0.0f;
+    float neckA2 = 0.0f;
+    // The yielding fret's phase delay at the fundamental, samples: the loop
+    // takes it out so a fretted note stays in tune, and the plane along the
+    // top, whose fret does not yield, puts it back.
+    double neckDelay = 0.0;
+    double neckPhaseDelay(double omega) const noexcept;
     double designedStiffness = -1.0;
     float allpassCoefficient = 0.0f;
 

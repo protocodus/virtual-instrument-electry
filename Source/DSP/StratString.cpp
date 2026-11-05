@@ -72,6 +72,32 @@ double clamp(double value, double low, double high) noexcept
 // follows.
 const double StratString::inPlaneShortening = 0.00066;
 
+// The neck is not rigid under the fret. Fleischer and Zwicker measured a
+// Stratocaster's ("Dead Spots", Beitraege zur Vibro- und Psychoakustik 1/96,
+// Fig. 44): driven at the fret, square to the fretboard, it yields far more
+// than the bridge, and around 450 Hz in a chain of two peaks that leaves the
+// B string high up and the high E near fret 5 dead (their Fig. 22: the high
+// E at fret 6 and the B at 10, 466 and 440 Hz). The Strat recorded direct
+// (IDMT-SMT-Guitar, neck pickup) loses its partials at 400 to 500 Hz faster
+// than this string's loss gives, on every string (210 partials of its 78
+// notes, the first three of each, decay of the stronger of two fitted
+// components): one resonance of the neck at every fret, with a smooth
+// correction to each string's loss beside it, fits 423 Hz, Q 9.6 and 5.8e-3
+// s/kg at its peak. Fitted without a fifth of the notes, it halves the error
+// left on the others' partials at 380 to 520 Hz (mean 4.0 to 2.0 dB/s too
+// slow, the correction alone against both; median error 4.0 to 3.6 dB/s).
+// The '62 reference agrees where it can be read: the 466 Hz partial of its
+// B-flat 3 decays at 10 to 13 dB/s, the 394 Hz of its G 3 at 5.5 to 6.6.
+// Resampled by note the frequency holds (406 to 453 Hz) but Q and the peak
+// trade against each other (Q 10 to 40, 5.4e-3 to 3.4e-2 s/kg); this is the
+// broadest of them. Which frets are deadest differs from guitar to guitar
+// and no fit of a shape along the neck predicted the notes left out, so the
+// resonance is the same under every fret. Only the swing toward the poles,
+// the direction the neck was measured in, sees it.
+const double StratString::neckHz = 423.0;
+const double StratString::neckQ = 9.6;
+const double StratString::neckConductance = 5.8e-3;
+
 const StratString::Construction& StratString::construction(int stringIndex) noexcept
 {
     return strings[stringIndex < 0 ? 0
@@ -222,6 +248,18 @@ void StratString::prepare(double rate, int stringIndex) noexcept
     lossZero = static_cast<float>(zero);
     lossPole = static_cast<float>(pole);
 
+    // The neck's admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2), G its
+    // conductance at the peak, through the bilinear transform warped to w.
+    {
+        const double w = 2.0 * pi * neckHz;
+        const double c = w / std::tan(w / (2.0 * sampleRate));
+        const double bandwidth = w / neckQ;
+        const double a0 = c * c + bandwidth * c + w * w;
+        neckNumerator = neckConductance * bandwidth * c / a0;
+        neckA1 = static_cast<float>((2.0 * w * w - 2.0 * c * c) / a0);
+        neckA2 = static_cast<float>((c * c - bandwidth * c + w * w) / a0);
+    }
+
     // 5 Hz, an octave under the lowest note the tremolo can dive to.
     blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
 
@@ -239,6 +277,8 @@ void StratString::reset() noexcept
         plane->left.fill(0.0f);
         plane->lossInput = plane->lossState = 0.0f;
         plane->allpassState.fill(0.0f);
+        plane->neckForce1 = plane->neckForce2 = 0.0f;
+        plane->neckVelocity1 = plane->neckVelocity2 = 0.0f;
     }
     force = forceStart = forceEnd = 0.0;
     releaseLength = releasePosition = 0;
@@ -348,8 +388,9 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
         designDispersion(stiffnessNow, fundamental);
 
     const double w0 = 2.0 * pi * fundamental / sampleRate;
+    neckDelay = neckPhaseDelay(w0);
     const double filterDelay = lossPhaseDelay(w0, lossZero, lossPole)
-        + dispersionSections * allpassPhaseDelay(w0, allpassCoefficient);
+        + dispersionSections * allpassPhaseDelay(w0, allpassCoefficient) + neckDelay;
     double total = sampleRate / fundamental - filterDelay;
     total = clamp(total, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
     const double half = 0.5 * total;
@@ -618,7 +659,23 @@ float StratString::readLeft(const Plane& plane, const Tap& tap) const noexcept
          + tap.weight[3] * plane.left[static_cast<size_t>((index + 3) & railMask)];
 }
 
-void StratString::reflectAtFret(Plane& plane, double readAt, int skipped) noexcept
+double StratString::neckPhaseDelay(double omega) const noexcept
+{
+    // The fret's reflection (1 - ZY) / (1 + ZY), inverted, with Y the analog
+    // admittance at the frequency the bilinear transform maps omega to.
+    const double w = 2.0 * pi * neckHz;
+    const double c = w / std::tan(w / (2.0 * sampleRate));
+    const double bandwidth = w / neckQ;
+    const double at = c * std::tan(0.5 * omega);
+    // Y = G b j at / (w^2 - at^2 + j b at)
+    const double re = w * w - at * at, im = bandwidth * at;
+    const double scale = characteristicImpedance * neckConductance * bandwidth * at / (re * re + im * im);
+    const double zyRe = scale * im, zyIm = scale * re;
+    const double phase = std::atan2(-zyIm, 1.0 - zyRe) - std::atan2(zyIm, 1.0 + zyRe);
+    return -phase / omega;
+}
+
+void StratString::reflectAtFret(Plane& plane, double readAt, int skipped, float neckGain) noexcept
 {
     if (readAt != plane.loopTapPosition)
     {
@@ -636,9 +693,24 @@ void StratString::reflectAtFret(Plane& plane, double readAt, int skipped) noexce
         y = a * w + state;
         state = w;
     }
-    plane.left[static_cast<size_t>((write + leftOffset + leftLength) & railMask)] = -y;
+    float reflected = -y;
+    if (neckGain != 0.0f)
+    {
+        // The string pushes on the fret with Z (2y - v) while the neck under
+        // it moves at v, and the fret sends back v - y. The filter's direct
+        // term makes v answer the push it is part of; solved for v here.
+        const float v = (neckGain * (2.0f * y - plane.neckForce2) - neckA1 * plane.neckVelocity1
+                         - neckA2 * plane.neckVelocity2)
+            / (1.0f + neckGain);
+        plane.neckForce2 = plane.neckForce1;
+        plane.neckForce1 = 2.0f * y - v;
+        plane.neckVelocity2 = plane.neckVelocity1;
+        plane.neckVelocity1 = v;
+        reflected = v - y;
+    }
+    plane.left[static_cast<size_t>((write + leftOffset + leftLength) & railMask)] = reflected;
     if (skipped >= 0)
-        plane.left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = -y;
+        plane.left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = reflected;
 }
 
 void StratString::inject(Plane& plane, float v) noexcept
@@ -704,8 +776,8 @@ void StratString::process(std::array<float, tapCount>& towardPoles,
     stretch += stretchStep;
     // Both planes share the string's tension, and so its stretch.
     const double readAt = loopDelay - stretch - leftLength;
-    reflectAtFret(poles, readAt, skipped);
-    reflectAtFret(top, readAt - topShortfall, skipped);
+    reflectAtFret(poles, readAt, skipped, static_cast<float>(neckNumerator * characteristicImpedance));
+    reflectAtFret(top, readAt - topShortfall + neckDelay, skipped, 0.0f);
 
     if (stickRemaining > 0)
     {

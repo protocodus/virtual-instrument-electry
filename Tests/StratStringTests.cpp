@@ -193,6 +193,35 @@ void testDecay()
 // The two planes of the swing: the one along the top reflects as a string
 // inPlaneShortening shorter, so every partial of it sits that share of the
 // speaking length sharp, and it loses what the other loses each trip.
+// The fret seen by a partial at f on a string of impedance z: the neck under
+// it yields toward the poles, Y = G (w/Q) s / (s^2 + (w/Q) s + w^2) at
+// s = j 2 pi f, and the end reflects -(1 - zY) / (1 + zY). Returned without
+// the sign.
+std::complex<double> fretReflection(double z, double f)
+{
+    const double w = 2.0 * pi * StratString::neckHz;
+    const double band = w / StratString::neckQ;
+    const std::complex<double> s(0.0, 2.0 * pi * f);
+    const std::complex<double> y = StratString::neckConductance * band * s / (s * s + band * s + w * w);
+    return (1.0 - z * y) / (1.0 + z * y);
+}
+
+// The yielding fret's pull on partial f of a note at f0, as a fraction of its
+// frequency: the loop takes out the fret's phase delay at the fundamental, so
+// only the difference is left, once a round trip.
+double neckPull(double z, double f, double f0)
+{
+    const double residual = -std::arg(fretReflection(z, f)) / (2.0 * pi * f)
+        + std::arg(fretReflection(z, f0)) / (2.0 * pi * f0);
+    return 1.0 / (1.0 + residual * f0) - 1.0;
+}
+
+// What the yielding fret takes from partial f over the given seconds, dB.
+double neckLoss(double z, double f, double f0, double seconds)
+{
+    return -decibels(std::abs(fretReflection(z, f))) * f0 * seconds;
+}
+
 void testSecondPlane()
 {
     const double rate = 48000.0;
@@ -215,27 +244,71 @@ void testSecondPlane()
             const double want = StratString::inPlaneShortening / speaking;
             const double f0 = equalTempered(openNotes[s] + fret);
             const double b = StratString::construction(s).stiffness * std::pow(2.0, fret / 6.0);
+            const double z = string->impedance();
             for (int n : {1, 3})
             {
                 const double fn = n * f0 * std::sqrt((1.0 + b * n * n) / (1.0 + b));
                 const double fp = peakFrequency(poles, rate, 0.2, 2.0, fn, 3.0);
                 // Searched about where it should be: 4 Hz up at the 12th
-                // fret's third partial on the high E.
-                const double ft = peakFrequency(top, rate, 0.2, 2.0, fp * (1.0 + want), 1.0);
-                const double error = std::abs((ft / fp - 1.0) / want - 1.0);
+                // fret's third partial on the high E. The fret yields only
+                // under the swing toward the poles, which it pulls.
+                const double split = (1.0 + want) * (1.0 - neckPull(z, fn, f0)) - 1.0;
+                const double ft = peakFrequency(top, rate, 0.2, 2.0, fp * (1.0 + split), 1.0);
+                const double error = std::abs((ft / fp - 1.0) / split - 1.0);
                 worstSplit = error > worstSplit ? error : worstSplit;
                 const double lostPoles = decibels(magnitude(poles, rate, 0.3, 0.5, fp))
                     - decibels(magnitude(poles, rate, 1.8, 0.5, fp));
                 const double lostTop = decibels(magnitude(top, rate, 0.3, 0.5, ft))
                     - decibels(magnitude(top, rate, 1.8, 0.5, ft));
-                const double d = std::abs(lostTop / lostPoles - 1.0);
+                const double d = std::abs(lostTop / (lostPoles - neckLoss(z, fp, f0, 1.5)) - 1.0);
                 worstDecay = d > worstDecay ? d : worstDecay;
             }
         }
     std::printf("the in-plane swing: split within %.1f %% of its shortfall, decay within "
                 "%.1f %%\n", 100.0 * worstSplit, 100.0 * worstDecay);
     check(worstSplit < 0.05, "the swing along the top sits sharp by its shortfall");
-    check(worstDecay < 0.02, "the swing along the top decays as the other does");
+    check(worstDecay < 0.02, "the swing along the top decays as the other does, less the neck");
+}
+
+void testNeck()
+{
+    // Partials at the neck's resonance: what the poles' swing loses over
+    // the top's is what the string equation gives a fret that yields.
+    const double rate = 48000.0;
+    struct Case { int string, fret, n; };
+    double worst = 0.0, least = 1e9;
+    for (const Case c : {Case {5, 5, 1}, Case {4, 9, 1}, Case {2, 7, 2}, Case {0, 9, 3}})
+    {
+        auto string = makeString(rate, c.string, c.fret);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
+        std::vector<float> poles, top;
+        std::array<float, StratString::tapCount> taps {};
+        std::array<float, StratString::tapCount> alongTop {};
+        for (int i = 0; i < static_cast<int>(2.4 * rate); ++i)
+        {
+            string->process(taps, alongTop);
+            poles.push_back(taps[2]);
+            top.push_back(alongTop[2]);
+        }
+        const double f0 = equalTempered(openNotes[c.string] + c.fret);
+        const double b = StratString::construction(c.string).stiffness * std::pow(2.0, c.fret / 6.0);
+        const double fn = c.n * f0 * std::sqrt((1.0 + b * c.n * c.n) / (1.0 + b));
+        const double fp = peakFrequency(poles, rate, 0.2, 2.0, fn, 3.0);
+        const double ft = peakFrequency(top, rate, 0.2, 2.0, fn, 3.0);
+        const double extra = (decibels(magnitude(poles, rate, 0.3, 0.5, fp))
+                              - decibels(magnitude(poles, rate, 1.8, 0.5, fp)))
+            - (decibels(magnitude(top, rate, 0.3, 0.5, ft))
+               - decibels(magnitude(top, rate, 1.8, 0.5, ft)));
+        const double theory = neckLoss(string->impedance(), fp, f0, 1.5);
+        std::printf("neck: string %d fret %d partial %d at %.0f Hz loses %.2f dB/s more toward "
+                    "the poles, string theory %.2f\n",
+                    c.string, c.fret, c.n, fp, extra / 1.5, theory / 1.5);
+        const double e = std::abs(extra / theory - 1.0);
+        worst = e > worst ? e : worst;
+        least = theory < least ? theory : least;
+    }
+    check(least > 1.5 * 1.5, "the neck's resonance takes a dead note's sustain");
+    check(worst < 0.05, "the fret yields as the string equation says");
 }
 
 void testNodes()
@@ -578,6 +651,7 @@ int main()
     testTuningAndStiffness(96000.0);
     testDecay();
     testSecondPlane();
+    testNeck();
     testNodes();
     testTouchHarmonic();
     testPalm();
