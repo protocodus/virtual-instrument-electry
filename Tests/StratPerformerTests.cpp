@@ -339,6 +339,49 @@ void testRestingHand()
     check(std::abs(after - fresh) < 3.0, "the free strings ring again from the next stroke");
 }
 
+void testReleaseLift()
+{
+    // A released fretted note stops fast, even over a node of the open
+    // string the finger then lies on (StratPerformer.cpp, liftSeconds): the
+    // high E at the 12th and 7th frets, the low E at the 3rd.
+    // The finger lying beside the fret alone let them fall 14, 16 and 11 dB.
+    struct Case
+    {
+        int note, string;
+        double least;
+    };
+    for (const Case c : {Case {76, 5, 20.0}, Case {71, 5, 20.0}, Case {43, 0, 13.0}})
+    {
+        auto p = makePerformer();
+        p->noteOn(0, c.note, 90);
+        auto held = render(*p, 0.4);
+        check(p->stringNote(c.string) == c.note, "the note is on the string the test means");
+        p->noteOff(0, c.note);
+        auto after = render(*p, 0.2);
+        held.insert(held.end(), after.begin(), after.end());
+        // The steepest 20 ms fall of its 4 ms energy around the release.
+        double fall = 0.0;
+        for (double t = 0.39; t < 0.46; t += 0.001)
+            fall = std::max(fall, 10.0 * std::log10(energy(held, t, 0.004) / energy(held, t + 0.02, 0.004)));
+        std::printf("release of note %d: falls %.1f dB in 20 ms\n", c.note, fall);
+        check(fall > c.least, "a released fretted note stops");
+    }
+
+    // The same note again within the lift sounds on its fret and rings.
+    auto p = makePerformer();
+    p->noteOn(0, 76, 90);
+    render(*p, 0.3);
+    p->noteOff(0, 76);
+    render(*p, 0.005);
+    p->noteOn(0, 76, 90);
+    const auto again = render(*p, 0.6);
+    const double want = StratString::construction(5).openHz * std::pow(2.0, 12.0 / 12.0)
+        * std::sqrt(p->engine().bridge().tensionRatio(5));
+    check(std::abs(p->engine().fundamentalHz(5) / want - 1.0) < 1e-9
+              && level(again, 0.45, 0.1, 659.26) > level(again, 0.05, 0.1, 659.26) - 12.0,
+          "a note struck again as the finger lifts rings on its fret");
+}
+
 void testLegatoAndSlide()
 {
     // Hammer-on: the next note sounds on the same string without a pick.
@@ -747,6 +790,7 @@ int main()
     testDampAll();
     testReleaseAndPedal();
     testRestingHand();
+    testReleaseLift();
     testLegatoAndSlide();
     testHarmonics();
     testPinch();

@@ -109,6 +109,12 @@ public:
 
     void setTaps(const std::array<double, tapCount>& metresFromBridge) noexcept;
 
+    // The string lifted off its fret under the finger: the flesh, of this
+    // resistance in kg/s, ends it instead of the fret, which the neck then no
+    // longer feels, until the string is put back on a fret (0).
+    void setFingerEnd(double kilogramsPerSecond) noexcept;
+    bool onFret() const noexcept { return !lifted; }
+
     // A damper on the string (palm, a touching finger): a point, or a
     // contact spread evenly along a width of string centred there.
     // Resistance in kg/s, in all; 0 lifts it.
@@ -306,6 +312,10 @@ private:
     std::complex<double> wrapResponse(double omega) const noexcept;
     // The neck process() plays on.
     StratNeck ownNeck;
+    // Off the fret, the finger's end: the share of an arriving wave it
+    // sends back inverted, (R - Z) / (R + Z).
+    bool lifted = false;
+    float fingerEnd = 0.0f;
     // The yielding fret's phase delay at the fundamental, samples: the loop
     // takes it out so a fretted note stays in tune, and the plane along the
     // top, whose fret does not yield, puts it back.

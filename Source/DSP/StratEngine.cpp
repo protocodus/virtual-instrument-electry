@@ -276,6 +276,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     Pending& p = pending[static_cast<size_t>(stringIndex)];
+    strings[static_cast<size_t>(stringIndex)].setFingerEnd(0.0);
     p.fret = fret;
     const double press = fret > 0.0 ? fretPressMetres : 0.0;
     if (press != tremolo.pressMetres(stringIndex))
@@ -291,6 +292,12 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     }
     strings[static_cast<size_t>(stringIndex)].setTuning(
         fret, tremolo.tensionRatio(stringIndex));
+}
+
+void StratEngine::liftFromFret(int stringIndex, double kilogramsPerSecond) noexcept
+{
+    if (stringIndex >= 0 && stringIndex < stringCount)
+        strings[static_cast<size_t>(stringIndex)].setFingerEnd(kilogramsPerSecond);
 }
 
 void StratEngine::setArm(double position) noexcept
@@ -392,8 +399,12 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
             continue;
         any = true;
         const float z = static_cast<float>(strings[k].impedance());
-        push += 2.0f * z * strings[k].arrive();
-        load += z;
+        const float arriving = strings[k].arrive();
+        if (strings[k].onFret())
+        {
+            push += 2.0f * z * arriving;
+            load += z;
+        }
     }
     if (!any)
     {
