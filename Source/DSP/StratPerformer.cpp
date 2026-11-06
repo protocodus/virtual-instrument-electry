@@ -222,10 +222,23 @@ constexpr double slideBaseSeconds = 0.020;
 constexpr double slideSecondsPerFret = 0.030;
 constexpr double alternateWithinSeconds = 0.35;
 
-// Fretting-hand vibrato: a bend rocking up from the note, at a rate inside
-// the 5 to 7 Hz guitarists use, up to a quarter tone above it at full wheel.
+// Fretting-hand vibrato: a bend rocking up from the note and back, up to a
+// quarter tone above it at full wheel. On IDMT-SMT-Guitar's Stratocaster
+// (dataset 2, the 18 vibrato notes of 0.8 s or more at their own rate over
+// 3.5 Hz, from its licks and its vibrato takes on every string; pYIN at 1
+// cent, 2.7 ms hops) the hand rocks at 5.5 Hz (median), its swing up from
+// the note and back down even (each rise 0.50 of its cycle), 26 cents deep
+// (median), its troughs on the note; it starts from the note, its first peak
+// 68 ms later than half a cycle after the pick (median); and no two cycles
+// are alike: each lasts 9.5 % longer or shorter than the last (cycle to
+// cycle, drift removed) and swings 42 % deeper or shallower (median of each
+// note's spread). Those spreads include the tracker's own, so they bound
+// the hand's from above; they are taken whole.
 constexpr double vibratoHz = 5.5;
 constexpr double vibratoSemitones = 0.5;
+constexpr double vibratoDelaySeconds = 0.068;
+constexpr double vibratoPeriodScatter = 0.095;
+constexpr double vibratoDepthScatter = 0.40; // log SD of a 42 % spread
 
 // MPE's default member-channel bend range; a finger bends a string up only,
 // and four semitones is as far as a string goes under a finger.
@@ -252,6 +265,19 @@ double fingerMetres(double fret) noexcept
 double clamp(double value, double low, double high) noexcept
 {
     return value < low ? low : (value > high ? high : value);
+}
+
+// A standard normal draw from xorshift32 `state`, within 2.5 deviations.
+double normalDraw(std::uint32_t& state) noexcept
+{
+    const auto uniform = [&state] {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return (static_cast<double>(state) + 0.5) / 4294967296.0;
+    };
+    const double a = uniform(), b = uniform();
+    return clamp(std::sqrt(-2.0 * std::log(a)) * std::cos(2.0 * pi * b), -2.5, 2.5);
 }
 
 // Minimum jerk: where a hand moving from 0 to 1 over u in [0, 1] is, and its
@@ -301,6 +327,10 @@ void StratPerformer::reset() noexcept
     }
     channelBend.fill(0.0);
     vibratoDepth = vibratoPhase = 0.0;
+    vibratoCycleHz = vibratoHz;
+    vibratoCycleDepth = 1.0;
+    vibratoHold = 0;
+    wobble = wobbleSeed;
     pedal = false;
     damping = false;
     hand = 2.0;
@@ -625,16 +655,7 @@ bool StratPerformer::nextTiltOpposed() noexcept
 // a single note measures the controls.
 double StratPerformer::nextScatter() noexcept
 {
-    if (steadyStroke)
-        return 0.0;
-    const auto uniform = [this] {
-        scatter ^= scatter << 13;
-        scatter ^= scatter >> 17;
-        scatter ^= scatter << 5;
-        return (static_cast<double>(scatter) + 0.5) / 4294967296.0;
-    };
-    const double a = uniform(), b = uniform();
-    return clamp(std::sqrt(-2.0 * std::log(a)) * std::cos(2.0 * pi * b), -2.5, 2.5);
+    return steadyStroke ? 0.0 : normalDraw(scatter);
 }
 
 double StratPerformer::strokeForce(int velocity) noexcept
@@ -750,6 +771,8 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     if (latched == Articulation::legato)
     {
         guitar->setFret(s, fret);
+        if (fret > 0)
+            startVibrato();
         // A hammer-on strikes at the new fret, a pull-off flicks at the old.
         const double at = fingerMetres(fret > from ? fret : from);
         const double force = legatoShare * velocityForce(p.velocity);
@@ -1200,6 +1223,8 @@ void StratPerformer::runEvent(const Event& e) noexcept
     {
         liftRestingHand();
         guitar->setFret(s, e.fret);
+        if (e.fret > 0.0)
+            startVibrato();
         if (e.pinch)
         {
             const double node = pinchNode(fretMetres(e.fret), pickAt);
@@ -1222,12 +1247,32 @@ void StratPerformer::runEvent(const Event& e) noexcept
         release(s);
 }
 
+// A newly fretted note: the hand rocks from it afresh, after the pick.
+void StratPerformer::startVibrato() noexcept
+{
+    vibratoPhase = 0.0;
+    vibratoHold = static_cast<std::int64_t>(vibratoDelaySeconds * sampleRate);
+    vibratoCycleHz = vibratoHz * std::exp(-vibratoPeriodScatter * normalDraw(wobble));
+    vibratoCycleDepth = std::exp(vibratoDepthScatter * normalDraw(wobble));
+}
+
 void StratPerformer::controlUpdate() noexcept
 {
-    vibratoPhase += 2.0 * pi * vibratoHz * StratEngine::controlPeriod / sampleRate;
-    if (vibratoPhase > 2.0 * pi)
-        vibratoPhase -= 2.0 * pi;
-    const double rock = 0.5 - 0.5 * std::cos(vibratoPhase);
+    // Each cycle starts on the note, so a new cycle's rate and depth join
+    // the last without a step.
+    if (vibratoHold > 0)
+        vibratoHold -= StratEngine::controlPeriod;
+    else
+    {
+        vibratoPhase += 2.0 * pi * vibratoCycleHz * StratEngine::controlPeriod / sampleRate;
+        if (vibratoPhase > 2.0 * pi)
+        {
+            vibratoPhase -= 2.0 * pi;
+            vibratoCycleHz = vibratoHz * std::exp(-vibratoPeriodScatter * normalDraw(wobble));
+            vibratoCycleDepth = std::exp(vibratoDepthScatter * normalDraw(wobble));
+        }
+    }
+    const double rock = vibratoCycleDepth * (0.5 - 0.5 * std::cos(vibratoPhase));
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         StringState& st = strings[static_cast<size_t>(s)];

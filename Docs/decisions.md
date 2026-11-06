@@ -4,6 +4,29 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the fretting hand's vibrato starts from the note, and wavers (B)
+
+Decided: whether the Strat performer's mod-wheel vibrato, which rocked every
+string up from its note at a fixed 5.5 Hz on one running phase, should start
+each fretted note from the note 68 ms after the pick and draw each cycle's
+length and depth afresh, as IDMT-SMT-Guitar's Stratocaster's 18 long
+vibrato notes do (their spreads, measured with pYIN, sit beside the code in
+`Source/DSP/StratPerformer.cpp`). Rate, depth range and the up-from-the-note
+shape stay as they were: the recording confirms them.
+
+- A: the branch before the change (6652b6d).
+- B: the branch with it.
+
+Material: an original country-rock riff in the Sweet Home Alabama manner
+(D, C and G arpeggios, palm-muted verse, a lick with a held bend and vibrato,
+a ringing D with vibrato), middle and neck pickups, 48 kHz, whole-file RMS
+matched to −20 dBFS (both −15.3 dB); amped copies through Electry's clean
+amp beside them.
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses nothing beyond
+the measured spreads.
+
 ## 2026-11-06 — the finger's ticks and rubs with the lookahead (B)
 
 Decided: whether the Strat performer's optional 50 ms lookahead, which lets

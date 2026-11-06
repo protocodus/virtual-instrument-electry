@@ -218,6 +218,7 @@ private:
     double nextScatter() noexcept;
     double strokeForce(int velocity) noexcept;
     static constexpr std::uint32_t scatterSeed = 0x85EBCA6Bu;
+    static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
     void applyPalm() noexcept;
     void controlUpdate() noexcept;
 
@@ -233,6 +234,11 @@ private:
     std::array<double, 16> channelBend {};
     double vibratoDepth = 0.0;
     double vibratoPhase = 0.0;
+    double vibratoCycleHz = 0.0;   // this cycle's rate and depth
+    double vibratoCycleDepth = 1.0;
+    std::int64_t vibratoHold = 0;  // samples before the hand starts to rock
+    std::uint32_t wobble = wobbleSeed; // the rocking hand's scatter
+    void startVibrato() noexcept;
     bool pedal = false;
     double hand = 2.0;
     bool nextStrokeUp = false;
