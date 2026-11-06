@@ -96,28 +96,30 @@ double steelCoupling(int stringIndex) noexcept
 // How much of the string's swing crosses the coil. A pick moves the string
 // mostly along the body, which a pole under it hardly reads, so this share
 // of it moves toward the poles. It is fitted to the flux law's own mark on
-// a Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup, the
-// ordinary stroke taken as 2.5 N as StratPerformer's release fit takes it).
+// a Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup, at the
+// 1.4 N its pitch glide gives the ordinary stroke: StratPerformer).
 // The neck coil sits a quarter of the way along an open string and halfway
 // along one stopped at the 12th fret, so a linear coil leaves out the open
 // strings' 4th partial and the 12th-fret notes' 2nd; the recording has them
 // 21 dB under the 2nd partial and 17 dB under the fundamental and the 3rd,
-// on all six strings, where a linear coil leaves 42 and 30. 0.15 brings
+// on all six strings, where a linear coil leaves 42 and 30. 0.268 brings
 // each within 4 dB on average over its six notes, in the first 20 ms and
-// at 200 ms, and -0.3 dB over all four; 0.125 leaves them 1.7 dB short and
-// 0.175 1.0 dB over. A string swinging along the body over a round pole
-// also gives second-order flux, and it rests 1 to 2 mm above the set gap at
-// the low frets; the share stands for both. Which way a stroke leans is not
+// at 200 ms, and -0.3 dB over all four; 0.223 leaves them 1.7 dB short and
+// 0.31 1.0 dB over (the swing is the share times the stroke: this is 0.15
+// of a 2.5 N stroke, as first fitted). A string swinging along the body
+// over a round pole also gives second-order flux, and it rests 1 to 2 mm
+// above the set gap at the low frets; the share stands for both. Which way a stroke leans is not
 // measured: a downstroke (positive force) leans toward the poles here.
-constexpr double acrossShare = 0.15;
+constexpr double acrossShare = 0.268;
 
 // What the coil hears of the string's swing along the top, against its swing
 // toward the poles, the stroke driving both as hard (StratString): the pole
 // hears the string's drift sideways much less than its swing toward it (Pate
 // et al., JASA 135(5), 2014, on a P-90), and the stroke drives that drift
 // more. Fitted to the same Strat recorded direct (IDMT-SMT-Guitar, neck
-// pickup, all 78 notes rendered at the ordinary 2.5 N): over each note's first
-// 2 s its fundamental's level strays 0.47 dB (median) from a straight decay,
+// pickup, all 78 notes rendered at one stroke, which the beating does not
+// depend on): over each note's first 2 s its fundamental's level strays
+// 0.47 dB (median) from a straight decay,
 // and where a pair of decaying components fits one of the first six
 // partials' envelopes 0.3 dB better than one (310 fits), the weaker is 0.23
 // of the stronger and 0.96 Hz off it (medians). 0.2 gives 0.44 dB, 0.20 and
