@@ -102,15 +102,16 @@ double steelCoupling(int stringIndex) noexcept
 // along one stopped at the 12th fret, so a linear coil leaves out the open
 // strings' 4th partial and the 12th-fret notes' 2nd; the recording has them
 // 21 dB under the 2nd partial and 17 dB under the fundamental and the 3rd,
-// on all six strings, where a linear coil leaves 42 and 30. 0.268 brings
-// each within 4 dB on average over its six notes, in the first 20 ms and
-// at 200 ms, and -0.3 dB over all four; 0.223 leaves them 1.7 dB short and
-// 0.31 1.0 dB over (the swing is the share times the stroke: this is 0.15
-// of a 2.5 N stroke, as first fitted). A string swinging along the body
+// on all six strings, where a linear coil leaves 42 and 30. 0.5 brings each
+// within 1.1 dB on average over its six notes, in the first 40 ms and at
+// 200 ms, and +0.1 dB over all four; 0.4 leaves them 1.9 dB short. It was
+// 0.268 while the stroke pushed the string from nothing: with the share the
+// pick now holds at rest (StratPerformer) that leaves them 5.4 dB short.
+// A string swinging along the body
 // over a round pole also gives second-order flux, and it rests 1 to 2 mm
 // above the set gap at the low frets; the share stands for both. Which way a stroke leans is not
 // measured: a downstroke (positive force) leans toward the poles here.
-constexpr double acrossShare = 0.268;
+constexpr double acrossShare = 0.5;
 
 // What the coil hears of the string's swing along the top, against its swing
 // toward the poles, the stroke driving both as hard (StratString): the pole
@@ -315,13 +316,13 @@ void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge
 
 void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                         double releaseSeconds, double strokeMetresPerSecond,
-                        bool opposedPlanes) noexcept
+                        bool opposedPlanes, double heldShare) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     strings[static_cast<size_t>(stringIndex)].pluck(forceNewtons, metresFromBridge,
                                                     releaseSeconds, strokeMetresPerSecond,
-                                                    opposedPlanes);
+                                                    opposedPlanes, heldShare);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 

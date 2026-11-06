@@ -706,7 +706,7 @@ void StratString::clearRight(int fromPosition, int toPosition) noexcept
 
 void StratString::pluck(double forceNewtons, double metresFromBridge,
                         double releaseSeconds, double strokeMetresPerSecond,
-                        bool opposedPlanes) noexcept
+                        bool opposedPlanes, double heldShare) noexcept
 {
     // A release or a contact still running completes first.
     force = forceEnd;
@@ -730,10 +730,13 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
     {
         // At most 30 ms, should the string run from the pick.
         stickRemaining = static_cast<int>(0.030 * sampleRate) + 1;
-        contact = 0.0;
+        // The held share is a deflected rest, kept as the stroke without a
+        // push keeps its whole force: nothing is sent for it now, and the
+        // release lets it go with the rest.
+        contact = heldShare * forceNewtons;
         stickSpeed = forceNewtons > 0.0 ? strokeMetresPerSecond : -strokeMetresPerSecond;
         stickLimit = forceNewtons;
-        stickBase = force;
+        stickBase = force - contact;
         stickRelease = releaseSeconds;
         forceStart = forceEnd = force;
         releasePosition = releaseLength = 0;
@@ -1019,8 +1022,8 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         // fitted time (StratPerformer); the raised cosine, smooth at both
         // ends, then leaves 10 to 16 kHz 7 to 16 dB under the recording,
         // this one 1 to 6. Over 10 to 260 ms the recording's B and high E
-        // hold 16 kHz 63 to 65 dB under their strongest band, this law 65
-        // to 66, the raised cosine 79; the '62 reference and a clean
+        // hold 16 kHz 63 to 65 dB under their strongest band, this law 64
+        // to 65, the raised cosine 79; the '62 reference and a clean
         // electric library hold 71 to 79.
         ++releasePosition;
         const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);

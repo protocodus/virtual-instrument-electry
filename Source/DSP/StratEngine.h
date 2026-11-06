@@ -49,7 +49,7 @@ public:
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                double releaseSeconds, double strokeMetresPerSecond = 0.0,
-               bool opposedPlanes = false) noexcept;
+               bool opposedPlanes = false, double heldShare = 0.0) noexcept;
 
     double fundamentalHz(int stringIndex) const noexcept;
     // Moving under a pickup, from its own stroke or another's through the
