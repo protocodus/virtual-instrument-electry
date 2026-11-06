@@ -155,9 +155,22 @@ constexpr double liftSeconds = 0.015;
 
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
 // splits the string into two halves whose motion turns back into the
-// fundamental when the finger lifts (20 dB of it left, measured), while a
-// touch matched to the string's own impedance takes the waves passing it
-// and leaves the modes with a node there, 30 to 40 dB clear after 40 ms.
+// fundamental when the finger lifts (20 dB of it left, measured). The finger
+// rests on the node lightly and stays: on IDMT-SMT-Guitar's Stratocaster
+// (dataset 2, its natural harmonics at frets 4, 5, 7, 9 and 12 on every
+// string, 30 notes, read through the middle coil, whose comb its open notes
+// match best), the open fundamental over the sounding partial (50 ms windows
+// from the pick to 0.4 s, both floored at -55 dB) sits within a few dB of
+// it at first and falls to -45 to -55 dB over 60 to 100 ms, 200 ms at fret
+// 4. A dashpot of a quarter of the string's impedance held for 0.2 s follows
+// that within 7.0 dB (median over notes and windows), 0.2 to 0.35 of it for
+// 0.15 to 0.25 s within 7.5; one matched to the impedance and lifted after
+// 40 ms, which leaves the fourth and fifth partials' harmonics a fundamental
+// as loud as they are, within 12.3.
+constexpr double harmonicTouchShare = 0.25;
+constexpr double harmonicTouchSeconds = 0.2;
+// The pinch's thumb catches the string with the matched touch, lifted after
+// this, 30 to 40 dB clear of the modes without a node under it.
 constexpr double touchSeconds = 0.040;
 
 // A pinch harmonic: the thumb beside the pick catches the string as the pick
@@ -768,12 +781,25 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
 {
     // A natural harmonic, the lowest partial that gives the note, else the
     // octave harmonic over a fretted note, touched at half its length.
-    int string = -1, partial = 0;
-    double fret = 0.0;
-    for (int k = 2; k <= 6 && string < 0; ++k)
-        for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
+    // The lowest partial of string s that gives the note, 0 none.
+    const auto partialOn = [&](int s) {
+        for (int k = 2; k <= 6; ++k)
             if (!strings[static_cast<size_t>(s)].keyDown
                 && std::abs(openNote[s] + 12.0 * std::log2(k) - p.note) < 0.3)
+                return k;
+        return 0;
+    };
+    int string = -1, partial = 0;
+    double fret = 0.0;
+    // A string asked for, as a tab names it, plays it if it can.
+    if (p.string >= 0 && p.string < StratEngine::stringCount && partialOn(p.string) > 0)
+    {
+        string = p.string;
+        partial = partialOn(string);
+    }
+    for (int k = 2; k <= 6 && string < 0; ++k)
+        for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
+            if (partialOn(s) == k)
             {
                 string = s;
                 partial = k;
@@ -800,11 +826,11 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     e.force = force;
     // The node nearest the nut, where a player touches.
     e.touchMetres = fretMetres(fret) * (partial - 1) / partial;
-    e.touchResistance = impedance(string);
+    e.touchResistance = harmonicTouchShare * impedance(string);
     e.pickOffset = strokePick;
     schedule(e);
     Event lift;
-    lift.time = now + static_cast<std::int64_t>(touchSeconds * sampleRate);
+    lift.time = now + static_cast<std::int64_t>(harmonicTouchSeconds * sampleRate);
     lift.kind = EventKind::liftTouch;
     lift.string = string;
     schedule(lift);

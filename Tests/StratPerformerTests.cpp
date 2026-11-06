@@ -448,20 +448,25 @@ void testLegatoAndSlide()
 void testHarmonics()
 {
     // Natural harmonics on the low E (12th and 7th fret), the high E (12th)
-    // and the G (7th), and an octave harmonic over a fretted note.
-    for (int note : {52, 59, 76, 74, 85})
+    // and the G (7th), an octave harmonic over a fretted note, and on the
+    // strings a tab names: the A's 5th fret (the 4th partial; untabbed, the
+    // D's 7th takes it) and the D's 4th (the 5th partial).
+    const int tabbed[][2] = {{52, -1}, {59, -1}, {76, -1}, {74, -1}, {85, -1},
+                             {69, 1}, {78, 2}};
+    for (const auto& t : tabbed)
     {
+        const int note = t[0];
         auto p = makePerformer();
         p->noteOn(0, 29, 1);
-        p->noteOn(0, note, 110);
-        const auto y = render(*p, 0.8);
+        p->noteOn(0, note, 110, t[1]);
+        const auto y = render(*p, 1.0);
         int s = -1;
         for (int k = 0; k < 6; ++k)
             if (p->stringNote(k) == note)
                 s = k;
-        if (s < 0)
+        if (s < 0 || (t[1] >= 0 && s != t[1]))
         {
-            check(false, "a harmonic finds a string");
+            check(false, "a harmonic finds a string, the one a tab names");
             continue;
         }
         const double base = p->engine().fundamentalHz(s);
@@ -470,9 +475,9 @@ void testHarmonics()
         const double b = StratString::construction(s).stiffness
             * std::pow(2.0, p->stringFret(s) / 6.0);
         const double partial = k * base * std::sqrt((1.0 + b * k * k) / (1.0 + b));
-        // The touch lasts 40 ms; listen after it lifts.
-        const double harmonic = level(y, 0.2, 0.5, partial);
-        const double fundamental = level(y, 0.2, 0.5, base);
+        // The touch lasts 0.2 s; listen after it lifts.
+        const double harmonic = level(y, 0.3, 0.6, partial);
+        const double fundamental = level(y, 0.3, 0.6, base);
         check(std::abs(1200.0 * std::log2(partial / tempered)) < 20.0,
               "a harmonic is the note asked for");
         std::printf("harmonic %d on string %d: %.1f dB over the fundamental\n", note, s,
