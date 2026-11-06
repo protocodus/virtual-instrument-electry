@@ -138,14 +138,34 @@ const double StratString::plainPerSecondShare = 0.36;
 // of the open strings' partials that the note's own and the mains' do not
 // cover stand within 62 dB of the note's fundamental (the treble-side
 // strings of a fretted note almost never do, a fretting finger lying across
-// them). With the neck above under all six strings and nothing else changed,
-// the same partials of the model's free strings come out a median 11 dB
-// under the recording's (quartiles 18 and 3 dB under), and the notes' own
-// balance moves by no more than 0.3 dB early and 0.6 dB late, and their
+// them). With the resonance above under all six strings and nothing else
+// changed, the same partials of the model's free strings come out a median
+// 11 dB under the recording's (quartiles 18 and 3 dB under), and the notes'
+// own balance moves by no more than 0.3 dB early and 0.6 dB late, and their
 // partials' decay by 0.9 dB/s, on any string.
-const double StratString::neckHz = 423.0;
-const double StratString::neckQ = 9.6;
-const double StratString::neckConductance = 5.8e-3;
+//
+// The shortfall is low down. Of the 347 lines of the open strings' first
+// four partials that stand 10 dB over the noise around them, those at 60 to
+// 130, 130 to 200 and 200 to 280 Hz came out 22, 28 and 12 dB under the
+// recording's (band medians), those at 280 to 600 Hz within 3 dB. There,
+// under the resonance above, the neck sways in a second, broad mode, where
+// Fleischer and Zwicker's dead spots at 123 to 278 Hz lie (their Fig. 22).
+// Read on the notes' first six partials (401 decays, against this model with
+// a rigid neck), the one resonance leaves those under 160 Hz decaying
+// 2.8 dB/s too slowly on average; a second, fitted free beside it, lands at
+// 98 to 144 Hz, Q 1.3 to 5.7 and 3.0e-3 to 8.2e-3 s/kg (resampled by note,
+// 10 to 90 %). With the resonance above held, the decays fit within 1 % as
+// well anywhere from 110 Hz at Q 1.5 to 140 Hz at Q 4, so the sympathetic
+// lines, which that fit never saw, choose in that valley: at 130 Hz, Q 1.5
+// and 3.68e-3 s/kg the three bands stand +3.6, -13.1 and -1.3 dB from the
+// recording's (all 347 lines: median -7.7 to -1.1 dB), and those at 460 to
+// 600 Hz rise from +1.5 to +7.0 dB. Fitted without a fifth of the notes, the
+// two modes take the error left on the others' partials under 160 Hz from
+// 2.8 to 2.0 dB/s (median; on every partial, 3.06 to 2.93).
+const std::array<StratString::NeckMode, StratNeck::modeCount> StratString::neckModes {{
+    {423.0, 9.6, 5.8e-3},
+    {130.0, 1.5, 3.68e-3},
+}};
 
 const StratString::Construction& StratString::construction(int stringIndex) noexcept
 {
@@ -764,16 +784,21 @@ float StratString::readLeft(const Plane& plane, const Tap& tap) const noexcept
 
 double StratString::neckPhaseDelay(double omega) const noexcept
 {
-    // The fret's reflection (1 - ZY) / (1 + ZY), inverted, with Y the analog
-    // admittance at the frequency the bilinear transform maps omega to.
-    const double w = 2.0 * pi * neckHz;
-    const double c = w / std::tan(w / (2.0 * sampleRate));
-    const double bandwidth = w / neckQ;
-    const double at = c * std::tan(0.5 * omega);
-    // Y = G b j at / (w^2 - at^2 + j b at)
-    const double re = w * w - at * at, im = bandwidth * at;
-    const double scale = characteristicImpedance * neckConductance * bandwidth * at / (re * re + im * im);
-    const double zyRe = scale * im, zyIm = scale * re;
+    // The fret's reflection (1 - ZY) / (1 + ZY), inverted, with Y each mode's
+    // analog admittance at the frequency its bilinear transform maps omega to.
+    double zyRe = 0.0, zyIm = 0.0;
+    for (const NeckMode& mode : neckModes)
+    {
+        const double w = 2.0 * pi * mode.hz;
+        const double c = w / std::tan(w / (2.0 * sampleRate));
+        const double bandwidth = w / mode.q;
+        const double at = c * std::tan(0.5 * omega);
+        // Y = G b j at / (w^2 - at^2 + j b at)
+        const double re = w * w - at * at, im = bandwidth * at;
+        const double scale = characteristicImpedance * mode.conductance * bandwidth * at / (re * re + im * im);
+        zyRe += scale * im;
+        zyIm += scale * re;
+    }
     const double phase = std::atan2(-zyIm, 1.0 - zyRe) - std::atan2(zyIm, 1.0 + zyRe);
     return -phase / omega;
 }
@@ -858,31 +883,47 @@ void StratString::damp(Plane& plane) noexcept
 
 void StratNeck::prepare(double sampleRate) noexcept
 {
-    const double w = 2.0 * pi * StratString::neckHz;
-    const double c = w / std::tan(w / (2.0 * sampleRate));
-    const double bandwidth = w / StratString::neckQ;
-    const double a0 = c * c + bandwidth * c + w * w;
-    numerator = static_cast<float>(StratString::neckConductance * bandwidth * c / a0);
-    a1 = static_cast<float>((2.0 * w * w - 2.0 * c * c) / a0);
-    a2 = static_cast<float>((c * c - bandwidth * c + w * w) / a0);
+    numeratorSum = 0.0f;
+    for (size_t k = 0; k < modes.size(); ++k)
+    {
+        const StratString::NeckMode& mode = StratString::neckModes[k];
+        const double w = 2.0 * pi * mode.hz;
+        const double c = w / std::tan(w / (2.0 * sampleRate));
+        const double bandwidth = w / mode.q;
+        const double a0 = c * c + bandwidth * c + w * w;
+        modes[k].numerator = static_cast<float>(mode.conductance * bandwidth * c / a0);
+        modes[k].a1 = static_cast<float>((2.0 * w * w - 2.0 * c * c) / a0);
+        modes[k].a2 = static_cast<float>((c * c - bandwidth * c + w * w) / a0);
+        numeratorSum += modes[k].numerator;
+    }
     reset();
 }
 
 void StratNeck::reset() noexcept
 {
-    force1 = force2 = velocity1 = velocity2 = 0.0f;
+    for (Mode& mode : modes)
+        mode.velocity1 = mode.velocity2 = 0.0f;
+    force1 = force2 = velocity1 = 0.0f;
 }
 
 float StratNeck::move(float push, float load) noexcept
 {
-    // The strings push on it with push - load v while it moves at v; the
-    // filter's direct term makes v answer the push it is part of, so v is
-    // solved for here.
-    const float v = (numerator * (push - force2) - a1 * velocity1 - a2 * velocity2)
-        / (1.0f + numerator * load);
+    // The strings push on it with push - load v while it moves at v, the sum
+    // of its modes'; each mode's direct term makes v answer the push it is
+    // part of, so v is solved for here.
+    float rest = 0.0f;
+    for (const Mode& mode : modes)
+        rest -= mode.numerator * force2 + mode.a1 * mode.velocity1 + mode.a2 * mode.velocity2;
+    const float v = (numeratorSum * push + rest) / (1.0f + numeratorSum * load);
+    const float force = push - load * v;
+    for (Mode& mode : modes)
+    {
+        const float vk = mode.numerator * (force - force2) - mode.a1 * mode.velocity1 - mode.a2 * mode.velocity2;
+        mode.velocity2 = mode.velocity1;
+        mode.velocity1 = vk;
+    }
     force2 = force1;
-    force1 = push - load * v;
-    velocity2 = velocity1;
+    force1 = force;
     velocity1 = v;
     return v;
 }
