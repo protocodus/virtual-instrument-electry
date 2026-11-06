@@ -57,6 +57,8 @@ public:
     bool isSounding(int stringIndex) const noexcept;
     // A pick or a finger is driving it (StratString::isDriven).
     bool isDriven(int stringIndex) const noexcept;
+    // StratString::planesOpposed.
+    bool planesOpposed(int stringIndex) const noexcept;
 
     // Writes `samples` of the voltage at the jack.
     void process(float* jackVolts, int samples) noexcept;

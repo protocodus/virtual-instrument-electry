@@ -171,6 +171,8 @@ public:
     float arrive() noexcept;
     void leave(float neckVelocity, std::array<float, tapCount>& towardPoles,
                std::array<float, tapCount>& alongTop) noexcept;
+    // The latest stroke set the swing along the top against its own.
+    bool planesOpposed() const noexcept { return topDrive < 0.0f; }
     // A release or its high-passed tail is still driving the string.
     bool isDriven() const noexcept
     {

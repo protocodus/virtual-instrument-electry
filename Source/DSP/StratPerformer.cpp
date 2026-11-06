@@ -75,6 +75,22 @@ constexpr double heavyThickness = 1.0e-3;
 constexpr double heldShare = 0.5;
 constexpr double pushRatio = 2.0;
 
+// No two strokes are alike: the hand lands a little nearer the bridge or
+// further from it, and pushes a little harder or softer. On the Strat
+// recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup, 78 notes), the
+// pick position each note's partials give (their ratio to this model's over
+// 20 to 120 ms, against the comb sin(n pi p / L) and a smooth tilt; frets 0
+// to 8, where it is unambiguous) spreads 5.9 mm about each string's median
+// (robust SD pooled over the strings, 1.5 to 8.9 mm by string), and each
+// note's level below 1.2 kHz over 10 to 260 ms, against this model's at one
+// stroke from that place, 0.86 dB about a line over the frets (0.5 to 1.4 dB
+// by string): a force 10 % either way. Both include whatever else differs
+// from note to note, so they bound the hand's own scatter from above; they
+// are taken whole. The player picked the low E and A at medians of 91 and 93
+// mm from the bridge and the others at 116 to 122.
+constexpr double pickScatterMetres = 0.006;
+constexpr double forceScatter = 0.10;
+
 // The palm, fitted to the palm mutes of IDMT-SMT-Guitar's Stratocaster
 // (dataset 2: five increasingly heavy mutes at fret 5 on every string, each
 // against the same string's unmuted fret-5 note, per-partial decay). A point
@@ -219,6 +235,9 @@ void StratPerformer::reset() noexcept
     hand = 2.0;
     nextStrokeUp = false;
     tilt = tiltSeed;
+    scatter = scatterSeed;
+    strokePick = 0.0;
+    steadyStroke = true;
     lastStroke = -1000000;
     pendingCount = eventCount = 0;
     now = 0;
@@ -438,6 +457,28 @@ bool StratPerformer::nextTiltOpposed() noexcept
     return (tilt >> 31) != 0;
 }
 
+// A standard normal draw for the hand's scatter, within 2.5 deviations; the
+// first stroke after a reset lands exactly where the controls put the hand, so
+// a single note measures the controls.
+double StratPerformer::nextScatter() noexcept
+{
+    if (steadyStroke)
+        return 0.0;
+    const auto uniform = [this] {
+        scatter ^= scatter << 13;
+        scatter ^= scatter >> 17;
+        scatter ^= scatter << 5;
+        return (static_cast<double>(scatter) + 0.5) / 4294967296.0;
+    };
+    const double a = uniform(), b = uniform();
+    return clamp(std::sqrt(-2.0 * std::log(a)) * std::cos(2.0 * pi * b), -2.5, 2.5);
+}
+
+double StratPerformer::strokeForce(int velocity) noexcept
+{
+    return velocityForce(velocity) * std::exp(forceScatter * nextScatter());
+}
+
 void StratPerformer::pitchBend(int channel, double position) noexcept
 {
     channel &= 15;
@@ -578,6 +619,7 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     // The node nearest the nut, where a player touches.
     e.touchMetres = fretMetres(fret) * (partial - 1) / partial;
     e.touchResistance = impedance(string);
+    e.pickOffset = strokePick;
     schedule(e);
     Event lift;
     lift.time = now + static_cast<std::int64_t>(touchSeconds * sampleRate);
@@ -682,6 +724,8 @@ void StratPerformer::startStroke() noexcept
 
     const bool alternate = now - lastStroke
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
+    steadyStroke = lastStroke < 0;
+    strokePick = pickScatterMetres * nextScatter();
     const bool strokeUp = strokes == Stroke::up
         || (strokes == Stroke::alternate && alternate && nextStrokeUp);
     nextStrokeUp = !strokeUp;
@@ -696,7 +740,7 @@ void StratPerformer::startStroke() noexcept
         if ((latched == Articulation::legato || latched == Articulation::slide)
             && playOnSoundingString(p))
             continue;
-        if (latched == Articulation::harmonic && playHarmonic(p, sign * velocityForce(p.velocity)))
+        if (latched == Articulation::harmonic && playHarmonic(p, sign * strokeForce(p.velocity)))
             continue;
         if (count < 6 && p.note <= highestNote)
             notes[count++] = p;
@@ -730,11 +774,12 @@ void StratPerformer::startStroke() noexcept
         e.kind = EventKind::strike;
         e.string = s;
         e.fret = dead ? 0.0 : fret;
-        e.force = sign * velocityForce(notes[i].velocity);
+        e.force = sign * strokeForce(notes[i].velocity);
         e.touchMetres = dead ? fingerMetres(fret) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
         e.touchWidth = dead ? fingerWidth : 0.0;
         e.pinch = latched == Articulation::pinch;
+        e.pickOffset = strokePick;
         schedule(e);
 
         StringState& st = strings[static_cast<size_t>(s)];
@@ -763,7 +808,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
             guitar->setDamper(s, 1, 0.0, 0.0);
         return;
     }
-    double pickAt = current.pickMetres;
+    double pickAt = clamp(current.pickMetres + e.pickOffset, 0.025, 0.250);
     if (damping)
     {
         // A stroke under the damping hand, which stays.
