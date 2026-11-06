@@ -84,8 +84,9 @@ public:
     void setControls(const StratControls& controls) noexcept;
     const StratControls& controls() const noexcept { return current; }
 
-    // channel 0 to 15; velocity 1 to 127 (0 is a note-off).
-    void noteOn(int channel, int note, int velocity) noexcept;
+    // channel 0 to 15; velocity 1 to 127 (0 is a note-off); stringIndex,
+    // 0 the low E to 5, plays the note there if it can, as a tab says.
+    void noteOn(int channel, int note, int velocity, int stringIndex = -1) noexcept;
     void noteOff(int channel, int note) noexcept;
     // -1 to +1.
     void pitchBend(int channel, double position) noexcept;
@@ -176,6 +177,7 @@ private:
         int note = 0;
         int velocity = 0;
         double value = 0.0;
+        int string = -1;
         bool prepared = false;
     };
 
@@ -184,6 +186,7 @@ private:
         int note = 0;
         int channel = 0;
         int velocity = 0;
+        int string = -1;
     };
 
     double velocityForce(int velocity) const noexcept;
@@ -197,7 +200,7 @@ private:
     void schedule(const Event& e) noexcept;
     bool queue(const Midi& m) noexcept;
     void dispatch(const Midi& m) noexcept;
-    void playNoteOn(int channel, int note, int velocity) noexcept;
+    void playNoteOn(int channel, int note, int velocity, int stringIndex) noexcept;
     void playNoteOff(int channel, int note) noexcept;
     void playPitchBend(int channel, double position) noexcept;
     void playSustain(bool down) noexcept;

@@ -42,6 +42,11 @@ public:
     // How far a fretting finger stretches a string (StratEngine.cpp has the
     // measurement).
     static const double fretPressMetres;
+    // The string's height over a fret's crown, the action, at fret 1 to 21.
+    static double actionMetres(double fret) noexcept;
+    // How much longer the string is taken down onto that fret's crown than
+    // on its straight line from nut to saddle.
+    static double actionStretchMetres(double fret) noexcept;
     // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge).
     void setArm(double position) noexcept;
     // A finger bend to `pitchRatio` over the string's unbent pitch.

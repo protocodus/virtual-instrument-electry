@@ -267,9 +267,39 @@ void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
 // pattern: the low E 13 cents sharp, the G 11, the A 8, the B 7, the D and
 // high E 4, against medians of 16, 10, 6, 3, 6 and 1. The sessions alone fit
 // 21 and 32 um. It is the finger about 0.8 mm past the crown 10 mm behind
-// the fret. Above the 12th fret dataset 2 reads 3 to 9 cents sharper still,
-// the action rising; that is left out.
-const double StratEngine::fretPressMetres = 30.5e-6;
+// the fret.
+//
+// On top of it the string comes down from its straight line onto the crown
+// (actionStretchMetres): 3.6 um at the 1st fret, 8.5 at the 12th, 16.4 at
+// the 20th under Fender's vintage action. Its mean over frets 1-12, 5.2 um,
+// comes off the finger's share, so the fit above holds there. Above the
+// 12th fret dataset 2's fret runs read 4.8 cents sharper than the finger's
+// share alone gave (median against each string's open note, frets 13-20).
+const double StratEngine::fretPressMetres = 25.3e-6;
+
+// Fender's vintage setup leaves the strings 0.5 mm over the first fret and
+// 5/64 in over the 17th; between them, and on to the nut and the saddle,
+// the height grows along the string.
+double StratEngine::actionMetres(double fret) noexcept
+{
+    constexpr double atFirst = 0.0005, atSeventeenth = 5.0 / 64.0 * 0.0254;
+    const auto fromNut = [](double f) {
+        return StratString::scaleMetres * (1.0 - std::pow(2.0, -f / 12.0));
+    };
+    return atFirst + (atSeventeenth - atFirst) * (fromNut(fret) - fromNut(1.0))
+        / (fromNut(17.0) - fromNut(1.0));
+}
+
+double StratEngine::actionStretchMetres(double fret) noexcept
+{
+    if (fret <= 0.0)
+        return 0.0;
+    const double length = StratString::scaleMetres;
+    const double nut = actionMetres(0.0), saddle = actionMetres(1e9);
+    const double toFret = length * (1.0 - std::pow(2.0, -fret / 12.0));
+    return std::hypot(toFret, nut) + std::hypot(length - toFret, saddle)
+        - std::hypot(length, saddle - nut);
+}
 
 void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
 {
@@ -278,7 +308,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     Pending& p = pending[static_cast<size_t>(stringIndex)];
     strings[static_cast<size_t>(stringIndex)].setFingerEnd(0.0);
     p.fret = fret;
-    const double press = fret > 0.0 ? fretPressMetres : 0.0;
+    const double press = fret > 0.0 ? fretPressMetres + actionStretchMetres(fret) : 0.0;
     if (press != tremolo.pressMetres(stringIndex))
     {
         tremolo.setPress(stringIndex, press);

@@ -654,7 +654,8 @@ void testArmAndBends()
     reference.setArm(-0.5);
     for (int s = 0; s < 6; ++s)
         if (p->stringNote(s) >= 0 && p->stringFret(s) > 0)
-            reference.setPress(s, electry::StratEngine::fretPressMetres);
+            reference.setPress(s, electry::StratEngine::fretPressMetres
+                                      + electry::StratEngine::actionStretchMetres(p->stringFret(s)));
     check(bent >= 0
               && std::abs(p->engine().bridge().tensionRatio(bent)
                           / (std::pow(2.0, 4.0 / 12.0) * reference.tensionRatio(bent)) - 1.0)

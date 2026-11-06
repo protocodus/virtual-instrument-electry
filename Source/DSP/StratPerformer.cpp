@@ -179,13 +179,9 @@ constexpr double fingerReleaseSeconds = 0.002;
 // attack from the low E up (medians), its swing below 2 kHz 42, 42, 46,
 // 53, 46 and 50 dB under the note's peak.
 //
-// The finger takes the string down from its height over the fret onto
-// the fret; under it the string's end there moves with it and stops on the
-// fret at full speed, which is the tick. Fender's vintage setup leaves the
-// strings 0.5 mm over the first fret and 5/64 in over the 17th; between
-// them the height grows along the string.
-constexpr double heightAtFirstFret = 0.0005;
-constexpr double heightAtSeventeenth = 5.0 / 64.0 * 0.0254;
+// The finger takes the string down from its height over the fret
+// (StratEngine::actionMetres) onto the fret; under it the string's end there
+// moves with it and stops on the fret, which is the tick.
 constexpr double pressSeconds = 0.035;
 // A finger gliding along a string it rests on to the next fret, with the
 // flesh of a light touch; and one pressing a slide, lighter than a fretted
@@ -235,14 +231,6 @@ double clamp(double value, double low, double high) noexcept
 }
 
 // How far string s stands over `fret`, which the finger takes it down.
-double heightOverFret(int fret) noexcept
-{
-    const double fromNut = scale - fretMetres(fret);
-    const double first = scale - fretMetres(1), seventeenth = scale - fretMetres(17);
-    return heightAtFirstFret
-        + (heightAtSeventeenth - heightAtFirstFret) * (fromNut - first) / (seventeenth - first);
-}
-
 // Minimum jerk: where a hand moving from 0 to 1 over u in [0, 1] is, and its
 // speed over the mean.
 double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
@@ -388,7 +376,7 @@ void StratPerformer::dispatch(const Midi& m) noexcept
 {
     switch (m.kind)
     {
-    case MidiKind::noteOn: playNoteOn(m.channel, m.note, m.velocity); break;
+    case MidiKind::noteOn: playNoteOn(m.channel, m.note, m.velocity, m.string); break;
     case MidiKind::noteOff: playNoteOff(m.channel, m.note); break;
     case MidiKind::bend: playPitchBend(m.channel, m.value); break;
     case MidiKind::wheel: vibratoDepth = m.value; break;
@@ -396,7 +384,7 @@ void StratPerformer::dispatch(const Midi& m) noexcept
     }
 }
 
-void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
+void StratPerformer::noteOn(int channel, int note, int velocity, int stringIndex) noexcept
 {
     if (velocity <= 0)
     {
@@ -409,9 +397,10 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
     m.channel = channel & 15;
     m.note = note;
     m.velocity = velocity;
+    m.string = stringIndex;
     if (!queue(m))
     {
-        playNoteOn(channel, note, velocity);
+        playNoteOn(channel, note, velocity, stringIndex);
         return;
     }
     if (note >= lowestNote)
@@ -425,7 +414,7 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
     }
 }
 
-void StratPerformer::playNoteOn(int channel, int note, int velocity) noexcept
+void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringIndex) noexcept
 {
     if (note >= firstArticulationKey && note < firstArticulationKey + articulationCount)
     {
@@ -446,7 +435,7 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity) noexcept
     const int top = latched == Articulation::harmonic ? highestNote + 10 : highestNote;
     if (note < lowestNote || note > top || pendingCount >= maxPending)
         return;
-    pending[static_cast<size_t>(pendingCount++)] = {note, channel & 15, velocity};
+    pending[static_cast<size_t>(pendingCount++)] = {note, channel & 15, velocity, stringIndex};
 }
 
 void StratPerformer::noteOff(int channel, int note) noexcept
@@ -830,8 +819,14 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
     const int placed = count < StratEngine::stringCount ? count : StratEngine::stringCount;
     double best = 1e300;
     bool used[StratEngine::stringCount] {};
-    const auto noteCost = [&](int s, int fret, int note) {
+    const auto noteCost = [&](int s, int fret, const Pending& p) {
+        const int note = p.note;
         double c = held[static_cast<size_t>(s)] ? 20.0 : 0.0;
+        // A string asked for, if it can play the note, outweighs every
+        // preference of the hand's.
+        if (p.string >= 0 && p.string < StratEngine::stringCount && p.string != s
+            && note >= openNote[p.string] && note - openNote[p.string] <= frets)
+            c += 1000.0;
         // Where the hand has already gone for this note.
         if (strings[static_cast<size_t>(s)].prepared == note)
             c -= 10.0;
@@ -884,7 +879,7 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
                 continue;
             used[s] = true;
             trial[static_cast<size_t>(i)] = s;
-            self(self, i + 1, cost + noteCost(s, fret, notes[i].note));
+            self(self, i + 1, cost + noteCost(s, fret, notes[i]));
             used[s] = false;
         }
     };
@@ -1033,7 +1028,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
             else if (m.time == due && !m.prepared && m.note >= lowestNote && count < 6)
             {
                 m.prepared = true;
-                notes[count++] = {m.note, m.channel, m.velocity};
+                notes[count++] = {m.note, m.channel, m.velocity, m.string};
             }
         }
         else if (m.kind == MidiKind::noteOff)
@@ -1146,7 +1141,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
             st.shifting = false;
             // The fingertip leaves the speaking length for the fret.
             guitar->setDamper(s, 1, 0.0, 0.0);
-            guitar->press(s, e.fret, heightOverFret(static_cast<int>(e.fret)), pressSeconds);
+            guitar->press(s, e.fret, StratEngine::actionMetres(e.fret), pressSeconds);
             st.fret = e.fret;
             st.fretted = true;
             st.released = false;

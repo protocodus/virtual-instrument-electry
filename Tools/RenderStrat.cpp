@@ -3,7 +3,10 @@
 // is local material: write it outside the checkout.
 //
 //   RenderStrat [--rate HZ] [--pickup 1-5] [--pick METRES] [--lookahead]
-//               [--tail SECONDS] <in.mid> <out.wav>
+//               [--tab] [--tail SECONDS] <in.mid> <out.wav>
+//
+// --tab plays each note on the string its MIDI channel names, channel 1 the
+// low E to 6 the high E, as a transcription with string numbers asks.
 
 #include "../Source/DSP/StratPerformer.h"
 #include "PresetDemoRenderer.h"
@@ -46,7 +49,7 @@ int main(int argc, char** argv)
     int rate = 48000;
     int pickup = 5;
     double pick = -1.0, tail = 2.0;
-    bool lookahead = false;
+    bool lookahead = false, tab = false;
     std::vector<const char*> paths;
     for (int i = 1; i < argc; ++i)
     {
@@ -61,13 +64,15 @@ int main(int argc, char** argv)
             tail = std::atof(argv[++i]);
         else if (a == "--lookahead")
             lookahead = true;
+        else if (a == "--tab")
+            tab = true;
         else
             paths.push_back(argv[i]);
     }
     if (paths.size() != 2 || pickup < 1 || pickup > 5)
     {
         std::fprintf(stderr, "usage: RenderStrat [--rate HZ] [--pickup 1-5] [--pick METRES] "
-                             "[--lookahead] [--tail SECONDS] <in.mid> <out.wav>\n");
+                             "[--lookahead] [--tab] [--tail SECONDS] <in.mid> <out.wav>\n");
         return 2;
     }
     const auto midi = protocodus::demos::ReadMidi(paths[0]);
@@ -94,7 +99,7 @@ int main(int argc, char** argv)
             const auto& m = midi[next++];
             const int status = m.bytes[0] & 0xF0, channel = m.bytes[0] & 0x0F;
             if (status == 0x90)
-                performer.noteOn(channel, m.bytes[1], m.bytes[2]);
+                performer.noteOn(channel, m.bytes[1], m.bytes[2], tab && channel < 6 ? channel : -1);
             else if (status == 0x80)
                 performer.noteOff(channel, m.bytes[1]);
             else if (status == 0xE0)
