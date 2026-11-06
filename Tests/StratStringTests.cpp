@@ -372,6 +372,34 @@ void testSecondPlane()
     check(worstDecay < 0.02, "the swing along the top decays as the other does, less the neck");
 }
 
+void testOpposedPlanes()
+{
+    // A stroke at the other tilt sends the swing along the top off the other
+    // way, and changes nothing toward the poles; with the push and without.
+    const double rate = 48000.0;
+    bool polesSame = true, topMirrored = true, topMoves = false;
+    for (double stroke : {0.0, 1.5})
+    {
+        auto alike = makeString(rate, 1, 5), opposed = makeString(rate, 1, 5);
+        alike->pluck(1.5, pickMetres, 0.0002, stroke);
+        opposed->pluck(1.5, pickMetres, 0.0002, stroke, true);
+        std::array<float, StratString::tapCount> pa {}, ta {}, po {}, to {};
+        for (int i = 0; i < static_cast<int>(0.3 * rate); ++i)
+        {
+            alike->process(pa, ta);
+            opposed->process(po, to);
+            for (int k = 0; k < StratString::tapCount; ++k)
+            {
+                polesSame = polesSame && pa[static_cast<size_t>(k)] == po[static_cast<size_t>(k)];
+                topMirrored = topMirrored && ta[static_cast<size_t>(k)] == -to[static_cast<size_t>(k)];
+                topMoves = topMoves || ta[static_cast<size_t>(k)] != 0.0f;
+            }
+        }
+    }
+    check(polesSame, "the tilt leaves the swing toward the poles as it is");
+    check(topMirrored && topMoves, "the other tilt sends the swing along the top the other way");
+}
+
 void testNeck()
 {
     // Partials at the neck's resonance: what the poles' swing loses over
@@ -797,6 +825,7 @@ int main()
     testDecay();
     testWraps();
     testSecondPlane();
+    testOpposedPlanes();
     testNeck();
     testPerSecondLoss();
     testNodes();

@@ -82,9 +82,11 @@ public:
     // pick into the string at that speed, through the give of its grip, until
     // the string pushes back with the slip force; without one the string
     // starts held at that force, as a fingertip leaves it. Adds to whatever
-    // is already sounding.
+    // is already sounding. With opposedPlanes the stroke sets the swing along
+    // the top off in the other sense to the swing toward the poles, as a pick
+    // leaving the string at the other tilt does (StratPerformer draws it).
     void pluck(double forceNewtons, double metresFromBridge, double releaseSeconds,
-               double strokeMetresPerSecond = 0.0) noexcept;
+               double strokeMetresPerSecond = 0.0, bool opposedPlanes = false) noexcept;
     // The spring between the hand and the string: fitted with the stroke
     // speed (StratPerformer's pushRatio) to the push IDMT-SMT-Guitar's Strat
     // neck DI shows before every pick release, a ~1 ms ramp to ~0.7 of the
@@ -280,6 +282,7 @@ private:
     double pickMetres = 0.13;
     Tap pick {};
     double force = 0.0;
+    float topDrive = 1.0f; // the latest stroke's sense along the top, +-1
     double forceStart = 0.0;
     double forceEnd = 0.0;
     int releaseLength = 0;

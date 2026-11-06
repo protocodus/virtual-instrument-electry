@@ -48,7 +48,8 @@ public:
                    double kilogramsPerSecond, double widthMetres = 0.0) noexcept;
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
-               double releaseSeconds, double strokeMetresPerSecond = 0.0) noexcept;
+               double releaseSeconds, double strokeMetresPerSecond = 0.0,
+               bool opposedPlanes = false) noexcept;
 
     double fundamentalHz(int stringIndex) const noexcept;
     bool isSounding(int stringIndex) const noexcept;

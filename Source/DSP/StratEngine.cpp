@@ -111,7 +111,7 @@ double steelCoupling(int stringIndex) noexcept
 constexpr double acrossShare = 0.15;
 
 // What the coil hears of the string's swing along the top, against its swing
-// toward the poles, the stroke driving both alike (StratString): the pole
+// toward the poles, the stroke driving both as hard (StratString): the pole
 // hears the string's drift sideways much less than its swing toward it (Pate
 // et al., JASA 135(5), 2014, on a P-90), and the stroke drives that drift
 // more. Fitted to the same Strat recorded direct (IDMT-SMT-Guitar, neck
@@ -122,9 +122,9 @@ constexpr double acrossShare = 0.15;
 // of the stronger and 0.96 Hz off it (medians). 0.2 gives 0.44 dB, 0.20 and
 // 1.00 Hz; 0.1 gives 0.21 dB and 0.11, 0.3 0.69 dB and 0.30. Without it the
 // fundamental strays 0.01 dB. The recording's second partial strays less
-// than its fundamental (0.32 dB, 1.0 here), which one share cannot follow,
-// and its pairs start at their sum or their difference alike, where these
-// all start at the sum.
+// than its fundamental (0.32 dB, 1.0 here), which one share cannot follow.
+// Whether a pair starts at its sum or its difference is the stroke's tilt
+// (StratPerformer).
 constexpr float inPlaneHeard = 0.2f;
 
 // The flux law is tabulated over the string's distance from the poles,
@@ -256,12 +256,14 @@ void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge
 }
 
 void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromBridge,
-                        double releaseSeconds, double strokeMetresPerSecond) noexcept
+                        double releaseSeconds, double strokeMetresPerSecond,
+                        bool opposedPlanes) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     strings[static_cast<size_t>(stringIndex)].pluck(forceNewtons, metresFromBridge,
-                                                    releaseSeconds, strokeMetresPerSecond);
+                                                    releaseSeconds, strokeMetresPerSecond,
+                                                    opposedPlanes);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 
