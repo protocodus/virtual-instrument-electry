@@ -4,6 +4,25 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the Strat's slides take as long as a hand's (B)
+
+Decided: whether the Strat performer's slide, voiced at 20 ms plus 30 ms a
+fret, should take 8 ms plus 43 ms a fret, the line through
+IDMT-SMT-Guitar's Stratocaster's 19 picked slides of 1 to 7 frets (read
+and rendered the same way; beside the code in
+`Source/DSP/StratPerformer.cpp`).
+
+- A: the branch before the change (36172ad).
+- B: the branch with it.
+
+Material: the original Alabama-style riff of the vibrato entry, its lick now
+with a two-fret and a five-fret slide, middle and neck pickups, 48 kHz,
+whole-file RMS matched to −20 dBFS (both −15.1 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses nothing beyond
+the measured line.
+
 ## 2026-11-06 — the fretting hand's vibrato starts from the note, and wavers (B)
 
 Decided: whether the Strat performer's mod-wheel vibrato, which rocked every

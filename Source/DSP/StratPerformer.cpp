@@ -216,10 +216,20 @@ constexpr double slideNewtons = 0.6;
 // recordings' 10th percentile is 64 ms, but the lookahead leaves 50.
 constexpr double pickGapSeconds = 0.010;
 
-// A slide's travel time, and how soon a stroke must follow the last one to
-// go the other way, as a strumming hand keeps moving. Voiced.
-constexpr double slideBaseSeconds = 0.020;
-constexpr double slideSecondsPerFret = 0.030;
+// A slide's travel time. On IDMT-SMT-Guitar's Stratocaster (dataset 2, 19
+// picked slides up 2 to 7 frets: its slide take, up the G from the 5th fret
+// by 2 to 7, and the slides of its licks; pYIN, 1.5 ms hops) the pitch
+// crosses from 10 to 90 % of the way in 61, 96, 118, 152, 160 and 196 ms
+// over 2 to 7 frets on the G, 49 to 80 ms over 2 in the licks and 26 to 49
+// over 1; the line through them (Theil-Sen), over the 0.61 of the travel
+// this smooth step takes from 10 to 90 %, is 8 ms and 43 ms a fret.
+// Rendered up the G from the 5th fret and read the same way, the slides take
+// 55, 81, 107, 139, 164 and 195 ms over 2 to 7 frets and 28 over 1; the 20
+// and 30 ms voiced before took 47 to 143, 1.3 to 1.8 times too fast.
+constexpr double slideBaseSeconds = 0.008;
+constexpr double slideSecondsPerFret = 0.043;
+// How soon a stroke must follow the last one to go the other way, as a
+// strumming hand keeps moving. Voiced.
 constexpr double alternateWithinSeconds = 0.35;
 
 // Fretting-hand vibrato: a bend rocking up from the note and back, up to a
