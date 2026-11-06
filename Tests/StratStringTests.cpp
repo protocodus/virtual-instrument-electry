@@ -210,8 +210,42 @@ TopRead readTop(const std::vector<float>& y, double rate, double f0, PartialHz p
     return best;
 }
 
+// The fret seen by a partial at f on a string of impedance z: the neck under
+// it yields toward the poles, Y the sum over its modes of
+// G (w/Q) s / (s^2 + (w/Q) s + w^2) at s = j 2 pi f, and the end reflects
+// -(1 - zY) / (1 + zY). Returned without the sign.
+std::complex<double> fretReflection(double z, double f)
+{
+    const std::complex<double> s(0.0, 2.0 * pi * f);
+    std::complex<double> y = 0.0;
+    for (const StratString::NeckMode& mode : StratString::neckModes)
+    {
+        const double w = 2.0 * pi * mode.hz;
+        const double band = w / mode.q;
+        y += mode.conductance * band * s / (s * s + band * s + w * w);
+    }
+    return (1.0 - z * y) / (1.0 + z * y);
+}
+
+// The yielding fret's pull on partial f of a note at f0, as a fraction of its
+// frequency: the loop takes out the fret's phase delay at the fundamental, so
+// only the difference is left, once a round trip.
+double neckPull(double z, double f, double f0)
+{
+    const double residual = -std::arg(fretReflection(z, f)) / (2.0 * pi * f)
+        + std::arg(fretReflection(z, f0)) / (2.0 * pi * f0);
+    return 1.0 / (1.0 + residual * f0) - 1.0;
+}
+
+// What the yielding fret takes from partial f over the given seconds, dB.
+double neckLoss(double z, double f, double f0, double seconds)
+{
+    return -decibels(std::abs(fretReflection(z, f))) * f0 * seconds;
+}
+
 // The table's decays at the fundamental, the eighth harmonic and the top,
-// with the wraps on top.
+// with the wraps and the neck the open string is stopped on at the nut on
+// top: the table is what the string loses on its own.
 void testDecay()
 {
     const double rate = 48000.0;
@@ -230,7 +264,8 @@ void testDecay()
             const double late = magnitude(y, rate, 1.8, 0.5, partialHz(n));
             const double t60 = 60.0 * 1.5 / (decibels(early) - decibels(late));
             const double want = 60.0
-                / (60.0 / (n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic) + wrapLoss(spec, rate, partialHz(n)));
+                / (60.0 / (n == 1 ? spec.t60Fundamental : spec.t60EighthHarmonic) + wrapLoss(spec, rate, partialHz(n))
+                   + neckLoss(string->impedance(), partialHz(n), spec.openHz, 1.0));
             const double error = std::abs(t60 / want - 1.0);
             worst = error > worst ? error : worst;
         }
@@ -295,34 +330,6 @@ void testWraps()
 // The two planes of the swing: the one along the top reflects as a string
 // inPlaneShortening shorter, so every partial of it sits that share of the
 // speaking length sharp, and it loses what the other loses each trip.
-// The fret seen by a partial at f on a string of impedance z: the neck under
-// it yields toward the poles, Y = G (w/Q) s / (s^2 + (w/Q) s + w^2) at
-// s = j 2 pi f, and the end reflects -(1 - zY) / (1 + zY). Returned without
-// the sign.
-std::complex<double> fretReflection(double z, double f)
-{
-    const double w = 2.0 * pi * StratString::neckHz;
-    const double band = w / StratString::neckQ;
-    const std::complex<double> s(0.0, 2.0 * pi * f);
-    const std::complex<double> y = StratString::neckConductance * band * s / (s * s + band * s + w * w);
-    return (1.0 - z * y) / (1.0 + z * y);
-}
-
-// The yielding fret's pull on partial f of a note at f0, as a fraction of its
-// frequency: the loop takes out the fret's phase delay at the fundamental, so
-// only the difference is left, once a round trip.
-double neckPull(double z, double f, double f0)
-{
-    const double residual = -std::arg(fretReflection(z, f)) / (2.0 * pi * f)
-        + std::arg(fretReflection(z, f0)) / (2.0 * pi * f0);
-    return 1.0 / (1.0 + residual * f0) - 1.0;
-}
-
-// What the yielding fret takes from partial f over the given seconds, dB.
-double neckLoss(double z, double f, double f0, double seconds)
-{
-    return -decibels(std::abs(fretReflection(z, f))) * f0 * seconds;
-}
 
 void testSecondPlane()
 {

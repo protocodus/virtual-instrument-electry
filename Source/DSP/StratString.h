@@ -6,14 +6,16 @@
 namespace electry
 {
 
-// The neck under the frets, toward the poles, as one resonance: its
-// admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2) (StratString's neckHz,
-// neckQ and neckConductance) through the bilinear transform warped to w.
-// Every string on it pushes on it at its own fret, the nut for an open
-// string, and the neck moves under all of them alike (StratString.cpp).
+// The neck under the frets, toward the poles, as a sum of resonances: each
+// mode's admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2) (StratString's
+// neckModes) through the bilinear transform warped to its w. Every string on
+// it pushes on it at its own fret, the nut for an open string, and the neck
+// moves under all of them alike (StratString.cpp).
 class StratNeck
 {
 public:
+    static constexpr int modeCount = 2;
+
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;
     // One sample: `push` is the sum over the strings on it of 2 Z y, each
@@ -24,14 +26,21 @@ public:
     float velocity() const noexcept { return velocity1; }
 
 private:
-    // (b, 0, -b) / (1, a1, a2), from force to velocity.
-    float numerator = 0.0f;
-    float a1 = 0.0f;
-    float a2 = 0.0f;
+    // Each mode (b, 0, -b) / (1, a1, a2), from the force they share to the
+    // velocity it adds.
+    struct Mode
+    {
+        float numerator = 0.0f;
+        float a1 = 0.0f;
+        float a2 = 0.0f;
+        float velocity1 = 0.0f;
+        float velocity2 = 0.0f;
+    };
+    std::array<Mode, modeCount> modes {};
+    float numeratorSum = 0.0f;
     float force1 = 0.0f;
     float force2 = 0.0f;
     float velocity1 = 0.0f;
-    float velocity2 = 0.0f;
 };
 
 // One Stratocaster string as a two-rail digital waveguide of velocity waves,
@@ -138,11 +147,15 @@ public:
     // per round trip, wound and plain (StratString.cpp).
     static const double woundPerSecondShare;
     static const double plainPerSecondShare;
-    // The neck under the fret yields toward the poles in one resonance: its
-    // frequency, Q and conductance at the peak, s/kg (StratString.cpp).
-    static const double neckHz;
-    static const double neckQ;
-    static const double neckConductance;
+    // The neck under the fret yields toward the poles in resonances: each
+    // one's frequency, Q and conductance at its peak, s/kg (StratString.cpp).
+    struct NeckMode
+    {
+        double hz;
+        double q;
+        double conductance;
+    };
+    static const std::array<NeckMode, StratNeck::modeCount> neckModes;
 
     // One sample on a neck of its own; writes the string's velocity (m/s)
     // under each tap, toward the poles and along the top.
