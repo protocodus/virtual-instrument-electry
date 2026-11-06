@@ -12,10 +12,22 @@ constexpr double scale = StratString::scaleMetres;
 
 // The hand's force on the pick. Velocity reads linearly as force, so the
 // string's deflection and the pickup's output follow it linearly, from the
-// lightest stroke that still slips off the pick at 1/20 of full. 4 N holds
-// the low E 5 mm aside at a fifth of its length. Voiced until phase 2 fits
-// the reference's velocity layers.
-constexpr double fullForce = 4.0;
+// lightest stroke that still slips off the pick at 1/20 of full. The
+// ordinary stroke, velocity 77, is measured by its pitch glide: a string
+// swinging harder is stretched further and starts sharper, by what its
+// steel, length and tension say (StratString::setTuning), so a recording's
+// glide gives its stroke's force. A Strat recorded direct (IDMT-SMT-Guitar
+// dataset 1, neck pickup, 75 of its 78 notes) starts 2.1 cents sharp over
+// 15 to 60 ms against 0.4 to 0.8 s (median), where this model struck at
+// 2.5 N starts 5.6; at least absolute error the recording glides 0.32 of
+// the model's (0.26 to 0.36 over 90 % of resamples), so its stroke is 1.4 N
+// (1.3 to 1.5). Its dataset 2, 118 notes of fret runs recorded apart, gives
+// 1.2 N, and the glide grows along the neck there as it does here (the G and
+// B 1 to 2 cents low on the neck, 5 to 9 at frets 15 to 20). Full force
+// against the ordinary is voiced until phase 2 fits the reference's
+// velocity layers: 2.24 N holds the low E 3 mm aside at a fifth of its
+// length.
+constexpr double fullForce = 2.24;
 constexpr double lightestShare = 0.05;
 
 // The string leaves the pick in two stages: it slides across the tip's grip
@@ -24,16 +36,16 @@ constexpr double lightestShare = 0.05;
 // the force go as the spring's does. A Strat recorded direct (IDMT-SMT-Guitar
 // dataset 1, neck pickup, 78 picked notes, rendered at 88.2 kHz) fixes both
 // from its 2 to 5 kHz in the first 50 ms, within 2.0 dB over the six bands
-// and string groups: d = 0.15 mm, and 90 us for the tip, a 0.73 mm celluloid
-// medium of about 6 kN/m moving 20 mg. That assumes the recording's ordinary
-// stroke is 2.5 N, velocity 76 here. Grip and tip trade along the fit (0.05
-// to 0.3 mm with 110 to 60 us score within 0.3 dB of it), and this pair
+// and string groups: d = 0.084 mm at its ordinary stroke's 1.4 N (above),
+// and 90 us for the tip, a 0.73 mm celluloid medium of about 6 kN/m moving
+// 20 mg. Grip and tip trade along the fit (0.028 to 0.17 mm with 110 to
+// 60 us score within 0.3 dB of it), and this pair
 // leaves 5 to 16 kHz the least off (3.6 dB). Release in the string's time
 // alone (Z / k for the tip) left the wound strings 5 to 8 dB and the plain 2
 // to 7 dB too bright above 3 kHz. A tip's stiffness grows with the cube of
 // its thickness and its mass in proportion, so a thicker pick springs clear
 // sooner.
-constexpr double gripDepth = 0.00015;
+constexpr double gripDepth = 0.000084;
 constexpr double mediumStiffness = 6000.0;
 constexpr double mediumTipKilograms = 20e-6;
 constexpr double mediumThickness = 0.73e-3;

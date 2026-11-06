@@ -177,9 +177,13 @@ void testReleaseAndPedal()
         auto p = makePerformer();
         if (pedal)
             p->sustain(true);
-        p->noteOn(0, 57, 100); // the A at the 12th fret, or the D at the 7th
+        // The B-flat on the G string's 3rd fret. No open string's low
+        // partials stand near its own, so none rings on after it through the
+        // neck (StratString's neck) as the open A rings on at the octave
+        // after an A, on the guitar as here.
+        p->noteOn(0, 58, 100);
         render(*p, 0.2);
-        p->noteOff(0, 57);
+        p->noteOff(0, 58);
         const auto y = render(*p, 0.6);
         return energy(y, 0.4, 0.2) / energy(y, 0.0, 0.05);
     };
@@ -474,6 +478,9 @@ void testTilt()
     // Sixteen strokes of the open A, each released and gone before the next,
     // against a fresh performer's first: the swing along the top starts with
     // the stroke's or against it, and a fresh performer starts the same way.
+    // The open strings the A rings through the neck (StratString's neck)
+    // fall 50 dB under it only some 3 s after it is released; sooner, the
+    // last stroke still sounds in the next.
     auto fresh = makePerformer();
     fresh->noteOn(0, 45, 90);
     const auto first = render(*fresh, 0.4);
@@ -484,7 +491,7 @@ void testTilt()
         p->noteOn(0, 45, 90);
         const auto stroke = render(*p, 0.5);
         p->noteOff(0, 45);
-        render(*p, 0.5);
+        render(*p, 4.0);
         double differs = 0.0, total = 0.0;
         for (size_t i = 0; i < first.size(); ++i)
         {

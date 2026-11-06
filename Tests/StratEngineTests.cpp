@@ -153,7 +153,7 @@ double twelfthFretOctave(double newtons, bool stroke)
     const double impedance = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
     const double force = std::abs(newtons);
     if (stroke)
-        engine->pluck(0, newtons, 0.13, impedance * 0.00015 / force + 90.7e-6,
+        engine->pluck(0, newtons, 0.13, impedance * 0.000084 / force + 90.7e-6,
                       1.5 * force / (2.0 * impedance));
     else
         engine->pluck(0, newtons, 0.13, 0.0002);
@@ -172,12 +172,14 @@ double twelfthFretOctave(double newtons, bool stroke)
 void testFluxLaw()
 {
     const double light = twelfthFretOctave(lightNewtons, false);
-    const double half = twelfthFretOctave(1.25, false);
-    const double full = twelfthFretOctave(2.5, false);
-    const double ordinary = twelfthFretOctave(2.5, true);
-    const double up = twelfthFretOctave(-2.5, true);
+    // 1.4 N is StratPerformer's ordinary stroke, which the recorded Strat's
+    // pitch glide gives; these took 2.5 N, assumed, before it was measured.
+    const double half = twelfthFretOctave(0.7, false);
+    const double full = twelfthFretOctave(1.4, false);
+    const double ordinary = twelfthFretOctave(1.4, true);
+    const double up = twelfthFretOctave(-1.4, true);
     std::printf("12th-fret 2nd partial at the neck coil: %.1f dB light, %.1f at "
-                "1.25 N, %.1f at 2.5 N; %.1f an ordinary stroke, %.1f upstroke\n",
+                "0.7 N, %.1f at 1.4 N; %.1f an ordinary stroke, %.1f upstroke\n",
                 light, half, full, ordinary, up);
     check(light < -28.0, "a light pluck leaves the neck coil's notch empty");
     check(full - half > 5.0 && full - half < 7.0, "the fill grows as the swing squared");
@@ -202,7 +204,7 @@ void testStringBalance()
         auto engine = makeEngine(Position::neck);
         const auto& spec = StratString::construction(s);
         const double z = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
-        engine->pluck(s, 2.5, 0.13, 0.0002, 1.5 * 2.5 / (2.0 * z));
+        engine->pluck(s, 1.4, 0.13, 0.0002, 1.5 * 1.4 / (2.0 * z));
         const auto y = render(*engine, 0.3);
         double sum = 0.0;
         for (int k = 1; k * spec.openHz < 1200.0; ++k)
