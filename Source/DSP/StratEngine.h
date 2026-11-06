@@ -52,7 +52,11 @@ public:
                bool opposedPlanes = false) noexcept;
 
     double fundamentalHz(int stringIndex) const noexcept;
+    // Moving under a pickup, from its own stroke or another's through the
+    // neck, above 200 dB under a pluck.
     bool isSounding(int stringIndex) const noexcept;
+    // A pick or a finger is driving it (StratString::isDriven).
+    bool isDriven(int stringIndex) const noexcept;
 
     // Writes `samples` of the voltage at the jack.
     void process(float* jackVolts, int samples) noexcept;
@@ -65,10 +69,12 @@ private:
         bool changed = false;
     };
     void applyPending() noexcept;
-    // One sample of every sounding string, summed into each coil's EMF.
+    // One sample of every sounding string, and of every string while the
+    // neck moves, summed into each coil's EMF.
     void stepStrings(float (&emf)[coilCount]) noexcept;
 
     std::array<StratString, stringCount> strings {};
+    StratNeck neck;
     std::array<Pending, stringCount> pending {};
     std::array<int, stringCount> quietSamples {};
     std::array<int, stringCount> quietLimit {};

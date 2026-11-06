@@ -80,7 +80,9 @@ constexpr double lightNewtons = 0.05;
 void testCoilPlacement()
 {
     // The open low E plucked at L/5. The neck coil sits at L/4 and so hears
-    // no 4th harmonic; the middle and bridge coils do.
+    // no 4th harmonic; the middle and bridge coils do. The palm holds the
+    // other strings: the open high E is tuned to that harmonic and, free,
+    // rings with it through the neck where the neck coil hears it.
     const auto& spec = StratString::construction(0);
     const auto partial = [&](int n) {
         return n * spec.openHz
@@ -89,6 +91,8 @@ void testCoilPlacement()
     for (Position position : {Position::neck, Position::middle, Position::bridge})
     {
         auto engine = makeEngine(position);
+        for (int s = 1; s < 6; ++s)
+            engine->setDamper(s, 0, 0.02, 2.0);
         engine->pluck(0, lightNewtons, StratString::scaleMetres / 5.0, 0.0002);
         const auto y = render(*engine, 0.6);
         const double around = 0.5 * (level(y, 0.05, 0.5, partial(3))
@@ -263,26 +267,40 @@ void testBlockPartition()
 
 void testQuietStrings()
 {
-    auto engine = makeEngine(Position::neck);
-    engine->setDamper(5, 0, 0.02, 2.0);
+    // The palm on all six: a free string would ring on with the plucked one
+    // through the neck for as long as its own decay takes.
+    const auto palmed = [] {
+        auto engine = makeEngine(Position::neck);
+        for (int s = 0; s < 6; ++s)
+            engine->setDamper(s, 0, 0.02, 2.0);
+        return engine;
+    };
+    const auto anySounding = [](const StratEngine& engine) {
+        bool any = false;
+        for (int s = 0; s < 6; ++s)
+            any = any || engine.isSounding(s);
+        return any;
+    };
+    auto engine = palmed();
+    check(!anySounding(*engine), "an unplayed guitar is silent");
     engine->pluck(5, 1.5, 0.13, 0.0002);
     check(engine->isSounding(5), "a plucked string sounds");
     std::vector<float> y(static_cast<size_t>(rate));
     int seconds = 0;
-    while (engine->isSounding(5) && seconds < 30)
+    while (anySounding(*engine) && seconds < 30)
     {
         engine->process(y.data(), static_cast<int>(y.size()));
         ++seconds;
     }
-    check(!engine->isSounding(5), "a damped string falls silent");
-    check(!engine->isSounding(0), "an unplayed string is silent");
+    check(!anySounding(*engine), "a damped guitar falls silent");
 
     // Played again, it sounds as a fresh string would: what was left is
     // 200 dB down.
     engine->setDamper(5, 0, 0.02, 0.0);
     engine->pluck(5, 1.5, 0.13, 0.0002);
     const auto again = render(*engine, 0.3);
-    auto fresh = makeEngine(Position::neck);
+    auto fresh = palmed();
+    fresh->setDamper(5, 0, 0.02, 0.0);
     fresh->pluck(5, 1.5, 0.13, 0.0002);
     const auto first = render(*fresh, 0.3);
     double difference = 0.0, energy = 0.0;
@@ -292,6 +310,32 @@ void testQuietStrings()
         energy += first[i] * first[i];
     }
     check(difference < 1e-12 * energy, "a string played after silence sounds like new");
+}
+
+void testSympathy()
+{
+    // The high E at fret 1, an F, with the open G free or under the palm.
+    // Free, the G rings at its own partials, which none of the F's reaches,
+    // through the neck both share; its second, 392 Hz, sits nearest the
+    // neck's resonance. The recorded Strat's free open strings stand 40 to
+    // 60 dB under the note's fundamental (StratString.cpp).
+    const double b = StratString::construction(3).stiffness;
+    const auto ringing = [b](bool palmOnG) {
+        auto engine = makeEngine(Position::neck);
+        if (palmOnG)
+            engine->setDamper(3, 0, 0.02, 2.0);
+        engine->setFret(5, 1.0);
+        engine->pluck(5, 1.5, 0.13, 0.0002);
+        const auto y = render(*engine, 1.8);
+        const double second
+            = 2.0 * engine->fundamentalHz(3) * std::sqrt((1.0 + 4.0 * b) / (1.0 + b));
+        return level(y, 0.3, 1.5, second) - level(y, 0.3, 1.5, engine->fundamentalHz(5));
+    };
+    const double free = ringing(false), palmed = ringing(true);
+    std::printf("open G under a fretted high E: %.1f dB re the note free, %.1f under the palm\n",
+                free, palmed);
+    check(free > -70.0 && free < -30.0, "a free open string rings along through the neck");
+    check(palmed < free - 20.0, "the palm stops it");
 }
 
 void testMovingControls()
@@ -429,6 +473,7 @@ int main()
     testStringBalance();
     testBlockPartition();
     testQuietStrings();
+    testSympathy();
     testMovingControls();
     testTremoloRetunes();
     testTopOctaveAtEveryRate();

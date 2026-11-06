@@ -2,6 +2,7 @@
 
 #include "DspCompatibility.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace electry
@@ -212,6 +213,7 @@ void StratEngine::prepare(double sampleRate) noexcept
     tremolo = StratBridge {};
     bridgeMoved = false;
     circuit.prepare(stringRate);
+    neck.prepare(stringRate);
     {
         const double centre = 2.0 * halfbandPairs - 1.0;
         double sum = 0.0;
@@ -239,6 +241,7 @@ void StratEngine::reset() noexcept
         quietSamples[static_cast<size_t>(s)] = quietLimit[static_cast<size_t>(s)];
         swing[static_cast<size_t>(s)] = {};
     }
+    neck.reset();
     circuit.reset();
     jackHistory.fill(0.0f);
     jackWrite = 0;
@@ -333,6 +336,12 @@ bool StratEngine::isSounding(int stringIndex) const noexcept
             < quietLimit[static_cast<size_t>(stringIndex)];
 }
 
+bool StratEngine::isDriven(int stringIndex) const noexcept
+{
+    return stringIndex >= 0 && stringIndex < stringCount
+        && strings[static_cast<size_t>(stringIndex)].isDriven();
+}
+
 void StratEngine::applyPending() noexcept
 {
     for (int s = 0; s < stringCount; ++s)
@@ -351,17 +360,42 @@ void StratEngine::applyPending() noexcept
 void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
 {
     // Below this on every tap for two loops a string is skipped until it is
-    // played again: 200 dB under a pluck, far above the float subnormals
-    // its decay would otherwise reach.
+    // played again or the neck moves it: 200 dB under a pluck, far above the
+    // float subnormals its decay would otherwise reach.
     constexpr float quietVelocity = 1e-10f;
+    // While the neck moves every string runs, as each hears it at its fret.
+    const bool neckMoving = scalarAbs(neck.velocity()) >= quietVelocity;
+    std::array<bool, stringCount> running {};
+    float push = 0.0f, load = 0.0f;
+    bool any = false;
+    for (int s = 0; s < stringCount; ++s)
+    {
+        const size_t k = static_cast<size_t>(s);
+        running[k] = neckMoving || quietSamples[k] < quietLimit[k];
+        if (!running[k])
+            continue;
+        any = true;
+        const float z = static_cast<float>(strings[k].impedance());
+        push += 2.0f * z * strings[k].arrive();
+        load += z;
+    }
+    if (!any)
+    {
+        // Every string is at rest and the neck has fallen under the line;
+        // let it rest too rather than ring down into subnormals.
+        neck.reset();
+        return;
+    }
+    const float neckVelocity = neck.move(push, load);
+
     std::array<float, StratString::tapCount> taps {};
     std::array<float, StratString::tapCount> alongTop {};
     for (int s = 0; s < stringCount; ++s)
     {
         const size_t k = static_cast<size_t>(s);
-        if (quietSamples[k] >= quietLimit[k])
+        if (!running[k])
             continue;
-        strings[k].process(taps, alongTop);
+        strings[k].leave(neckVelocity, taps, alongTop);
         bool quiet = !strings[k].isDriven();
         for (int c = 0; c < coilCount; ++c)
         {
@@ -380,7 +414,7 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
                 + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
             emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
         }
-        quietSamples[k] = quiet ? quietSamples[k] + 1 : 0;
+        quietSamples[k] = quiet ? std::min(quietSamples[k] + 1, quietLimit[k]) : 0;
     }
 }
 

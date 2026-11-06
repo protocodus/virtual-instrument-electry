@@ -110,7 +110,8 @@ void testChordShapes()
     }
 }
 
-// First sample at which each string sounds.
+// First sample at which each string is struck. (Sounding will not do: a
+// stroke sets the others moving through the neck at once.)
 std::array<int, 6> onsets(StratPerformer& p, int samples)
 {
     std::array<int, 6> first {};
@@ -120,7 +121,7 @@ std::array<int, 6> onsets(StratPerformer& p, int samples)
     {
         p.render(&y, 1);
         for (int s = 0; s < 6; ++s)
-            if (first[static_cast<size_t>(s)] < 0 && p.engine().isSounding(s))
+            if (first[static_cast<size_t>(s)] < 0 && p.engine().isDriven(s))
                 first[static_cast<size_t>(s)] = i;
     }
     return first;

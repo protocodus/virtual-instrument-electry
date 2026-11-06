@@ -6,6 +6,34 @@
 namespace electry
 {
 
+// The neck under the frets, toward the poles, as one resonance: its
+// admittance Y(s) = G (w/Q) s / (s^2 + (w/Q) s + w^2) (StratString's neckHz,
+// neckQ and neckConductance) through the bilinear transform warped to w.
+// Every string on it pushes on it at its own fret, the nut for an open
+// string, and the neck moves under all of them alike (StratString.cpp).
+class StratNeck
+{
+public:
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    // One sample: `push` is the sum over the strings on it of 2 Z y, each
+    // string's impedance times twice the velocity arriving at its fret, and
+    // `load` the sum of their impedances. Returns the velocity the neck moves
+    // at under them; each string's fret sends back that less what arrived.
+    float move(float push, float load) noexcept;
+    float velocity() const noexcept { return velocity1; }
+
+private:
+    // (b, 0, -b) / (1, a1, a2), from force to velocity.
+    float numerator = 0.0f;
+    float a1 = 0.0f;
+    float a2 = 0.0f;
+    float force1 = 0.0f;
+    float force2 = 0.0f;
+    float velocity1 = 0.0f;
+    float velocity2 = 0.0f;
+};
+
 // One Stratocaster string as a two-rail digital waveguide of velocity waves,
 // indexed from the bridge saddle. The pick, the pickups and the palm all sit
 // near the bridge, so the rails are exact delays there; the losses, the
@@ -23,7 +51,8 @@ namespace electry
 // their ends differ only by the in-plane speaking length (inPlaneShortening),
 // so each partial is a pair a fraction of a hertz apart that the pickup hears
 // beating (StratEngine reads both). Toward the poles the neck also yields
-// under the fret, in one resonance near 420 Hz (StratString.cpp).
+// under the fret, in one resonance near 420 Hz (StratString.cpp), and the
+// strings that share it reach one another through it (StratNeck).
 class StratString
 {
 public:
@@ -115,10 +144,17 @@ public:
     static const double neckQ;
     static const double neckConductance;
 
-    // One sample; writes the string's velocity (m/s) under each tap, toward
-    // the poles and along the top.
+    // One sample on a neck of its own; writes the string's velocity (m/s)
+    // under each tap, toward the poles and along the top.
     void process(std::array<float, tapCount>& towardPoles,
                  std::array<float, tapCount>& alongTop) noexcept;
+    // The same sample in two halves, so that strings sharing a neck meet at
+    // it: arrive() returns the velocity of the wave arriving at the fret
+    // toward the poles, and leave() reflects it off the fret moving at the
+    // neck's velocity and finishes the sample.
+    float arrive() noexcept;
+    void leave(float neckVelocity, std::array<float, tapCount>& towardPoles,
+               std::array<float, tapCount>& alongTop) noexcept;
     // A release or its high-passed tail is still driving the string.
     bool isDriven() const noexcept
     {
@@ -169,18 +205,15 @@ private:
         std::array<float, dispersionSections> allpassState {};
         LoopTap loopTap;
         double loopTapPosition = -1.0;
-        // The neck's resonance under the fret: the force it was driven with
-        // (over the string's impedance) and the velocity it moved at, the
-        // last two samples.
-        float neckForce1 = 0.0f;
-        float neckForce2 = 0.0f;
-        float neckVelocity1 = 0.0f;
-        float neckVelocity2 = 0.0f;
     };
-    // Reads the right rail at the fret, through the loss and the dispersion,
-    // and writes the reflection onto the left rail; a nonzero neckGain lets
-    // the fret yield.
-    void reflectAtFret(Plane& plane, double readAt, int skipped, float neckGain) noexcept;
+    // The wave arriving at the fret: the right rail read there, through the
+    // loss and the dispersion.
+    float arriveAtFret(Plane& plane, double readAt) noexcept;
+    // Writes the fret's reflection onto the left rail.
+    void leaveFret(Plane& plane, float reflected) noexcept;
+    // Where the left rail grew this sample, -1 if it did not.
+    int skipped = -1;
+    float arrivingAtNeck = 0.0f;
 
     void designDispersion(double stiffnessNow, double f0) noexcept;
     double positionSamples(double metres) const noexcept;
@@ -249,11 +282,8 @@ private:
     // The wraps: a one-pole lowpass (1 - p) / (1 - p z^-1), unity at DC.
     float wrapPole = 0.0f;
     std::complex<double> wrapResponse(double omega) const noexcept;
-    // The neck's admittance as a bilinear biquad (b, 0, -b) / (1, a1, a2),
-    // b per kg/s of the string's impedance.
-    double neckNumerator = 0.0;
-    float neckA1 = 0.0f;
-    float neckA2 = 0.0f;
+    // The neck process() plays on.
+    StratNeck ownNeck;
     // The yielding fret's phase delay at the fundamental, samples: the loop
     // takes it out so a fretted note stays in tune, and the plane along the
     // top, whose fret does not yield, puts it back.
