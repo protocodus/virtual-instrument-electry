@@ -265,6 +265,9 @@ private:
         int position = 0; // the first sample point it covers
         int count = 1;
         float absorption = 0.0f; // at each point
+        // A point between two samples: its share of the next one, which it
+        // reads and loads with the current one in proportion.
+        float next = 0.0f;
     };
     std::array<Damper, damperCount> dampers {};
 

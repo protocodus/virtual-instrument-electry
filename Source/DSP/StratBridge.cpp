@@ -109,42 +109,59 @@ void StratBridge::setBend(int stringIndex, double pitchRatio) noexcept
     solve();
 }
 
+void StratBridge::setPress(int stringIndex, double metres) noexcept
+{
+    if (stringIndex < 0 || stringIndex >= count)
+        return;
+    press[static_cast<size_t>(stringIndex)] = metres > 0.0 ? metres : 0.0;
+    solve();
+}
+
 void StratBridge::solve() noexcept
 {
-    // Plate equilibrium: K theta = tau + h sum(dT), dT_j = k_j (stretch_j -
-    // h theta). The arm's position is the tilt it gives with no string bent;
-    // a bent string's tension is the target pitch squared over the tension
-    // it would have unbent at that tilt. With u_j = k_j stretch_j for the
-    // bent strings this closes:
-    //   U = (B + h K_bent theta_arm) / (1 - h^2 K_bent / K_total),
-    //   theta = theta_arm + h U / K_total.
+    // Plate equilibrium: K theta = tau + h sum(dT_j). The arm's position is
+    // the tilt it gives with nothing pressed or bent, so tau = K_total
+    // theta_arm, K_total = K + h^2 sum(k_j). An unbent string's tension
+    // changes by k_j (press_j - h theta). A bent one is held at its target:
+    // the pitch ratio squared over the tension it would have with no string
+    // bent, at theta_0 = theta_arm + h P / K_total, P = sum(k_j press_j). With
+    // P_unbent the unbent strings' share of P and B the bent strings' changes
+    // this closes:
+    //   theta = (K_total theta_arm + h (P_unbent + B)) / (K_total - h^2 K_bent).
     const double h = saddleHeight;
     const double total = springStiffness() + h * h * sumStiffness();
     const double armAngle = arm >= 0.0 ? -arm * pullUpLimit() : -arm * diveLimit();
 
-    double bentStiffness = 0.0, targets = 0.0;
+    double pressedAll = 0.0;
+    for (int s = 0; s < count; ++s)
+        pressedAll += axialStiffness(s) * press[static_cast<size_t>(s)];
+    const double unbentAngle = armAngle + h * pressedAll / total;
+
+    double bentStiffness = 0.0, targets = 0.0, pressed = 0.0;
     std::array<double, count> target {};
     for (int s = 0; s < count; ++s)
     {
         const size_t k = static_cast<size_t>(s);
         if (bend[k] <= 1.0)
+        {
+            pressed += axialStiffness(s) * press[k];
             continue;
-        const double unbent = restTension(s) - axialStiffness(s) * h * armAngle;
-        target[k] = bend[k] * bend[k] * unbent;
+        }
+        target[k] = bend[k] * bend[k]
+            * (restTension(s) + axialStiffness(s) * (press[k] - h * unbentAngle));
         targets += target[k] - restTension(s);
         bentStiffness += axialStiffness(s);
     }
-    const double pull = (targets + h * bentStiffness * armAngle)
-        / (1.0 - h * h * bentStiffness / total);
     // The body stops the plate's back edge; the arm's stop limits the dive.
-    plateAngle = clamp(armAngle + h * pull / total, -pullUpLimit(), diveLimit());
+    plateAngle = clamp((total * armAngle + h * (pressed + targets)) / (total - h * h * bentStiffness),
+                       -pullUpLimit(), diveLimit());
 
     for (int s = 0; s < count; ++s)
     {
         const size_t k = static_cast<size_t>(s);
         const double tension = bend[k] > 1.0
             ? target[k]
-            : restTension(s) - axialStiffness(s) * h * plateAngle;
+            : restTension(s) + axialStiffness(s) * (press[k] - h * plateAngle);
         ratio[k] = tension / restTension(s);
     }
 }

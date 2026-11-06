@@ -1,7 +1,8 @@
 // The floating tremolo in equilibrium: the plate's torques balance in every
 // state, a bend reaches its target pitch while the plate tilts under it,
-// every other string sags flat by its own stiffness, and the arm stops at
-// the body and at the dive stop.
+// every other string sags flat by its own stiffness, a fretting finger's
+// stretch raises its string less what the plate gives back, and the arm stops
+// at the body and at the dive stop.
 #include "DSP/StratBridge.h"
 
 #include <cmath>
@@ -134,6 +135,56 @@ void testBends()
     check(std::abs(bridge.angle()) < 1e-15, "lifted bends return the plate to rest");
 }
 
+void testPress()
+{
+    const double h = StratBridge::saddleHeightMetres();
+    const double press = 30.5e-6;
+    const double whole = std::pow(2.0, 2.0 / 12.0);
+    for (double arm : {0.0, -0.5, 0.6})
+        for (int pressed : {0, 3, 5})
+        {
+            StratBridge reference;
+            reference.setArm(arm);
+            StratBridge bridge;
+            bridge.setArm(arm);
+            bridge.setPress(pressed, press);
+
+            // The pressed string rises by its stiffness times the stretch, less
+            // the plate's give; the plate tilts forward under it.
+            const double k = StratBridge::axialStiffness(pressed);
+            const double want = 1.0
+                + k * (press - h * bridge.angle()) / StratBridge::restTension(pressed);
+            check(std::abs(bridge.tensionRatio(pressed) / want - 1.0) < 1e-12
+                      && bridge.tensionRatio(pressed) > reference.tensionRatio(pressed)
+                      && bridge.angle() > reference.angle(),
+                  "a pressed string rises by its stretch, less the plate's give");
+
+            double strings = 0.0;
+            for (int s = 0; s < count; ++s)
+                strings += h * (bridge.tensionRatio(s) - 1.0) * StratBridge::restTension(s);
+            const double arms = armAngle(arm) * totalStiffness();
+            const double springs = StratBridge::springStiffness() * bridge.angle();
+            check(std::abs(springs - arms - strings) < 1e-9 * std::abs(arms + 1.0),
+                  "the plate's torques balance under a press");
+
+            bool flatter = true;
+            for (int s = 0; s < count; ++s)
+                if (s != pressed)
+                    flatter = flatter && bridge.tensionRatio(s) < reference.tensionRatio(s);
+            check(flatter, "a press pulls the other strings flat");
+
+            // A bend on a pressed string goes to its target over the pressed
+            // pitch, which is what the player hears before bending.
+            bridge.setBend(pressed, whole);
+            check(std::abs(bridge.tensionRatio(pressed) / (whole * whole * want) - 1.0) < 1e-12,
+                  "a pressed string bends to its target over its pressed pitch");
+            bridge.setBend(pressed, 1.0);
+            bridge.setPress(pressed, 0.0);
+            check(std::abs(bridge.angle() - reference.angle()) < 1e-15,
+                  "lifting the finger returns the plate");
+        }
+}
+
 } // namespace
 
 int main()
@@ -141,6 +192,7 @@ int main()
     testRest();
     testArm();
     testBends();
+    testPress();
     if (failures == 0)
         std::printf("StratBridge: all checks passed\n");
     return failures == 0 ? 0 : 1;
