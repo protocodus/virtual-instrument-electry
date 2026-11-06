@@ -170,6 +170,32 @@ constexpr int pinchHighestPartial = 24;
 constexpr double legatoShare = 0.375;
 constexpr double fingerReleaseSeconds = 0.002;
 
+// The fretting finger's own sounds. Between the notes of IDMT-SMT-Guitar's
+// Stratocaster fret runs (dataset 2, every string from fret 0 to 20, picked
+// one fret apart, 114 gaps), every gap but one holds one sharp tick before
+// the next note, where the finger reaches its fret: 64, 135 and 265 ms
+// before the pick (10th, 50th and 90th percentiles). Its loudest sample
+// above 1 kHz stands 35, 38, 42, 48, 46 and 52 dB under the next note's
+// attack from the low E up (medians), its swing below 2 kHz 42, 42, 46,
+// 53, 46 and 50 dB under the note's peak.
+//
+// The finger takes the string down from its height over the fret onto
+// the fret; under it the string's end there moves with it and stops on the
+// fret at full speed, which is the tick. Fender's vintage setup leaves the
+// strings 0.5 mm over the first fret and 5/64 in over the 17th; between
+// them the height grows along the string.
+constexpr double heightAtFirstFret = 0.0005;
+constexpr double heightAtSeventeenth = 5.0 / 64.0 * 0.0254;
+constexpr double pressSeconds = 0.035;
+// A finger gliding along a string it rests on to the next fret, with the
+// flesh of a light touch; and one pressing a slide, lighter than a fretted
+// note's press as a player eases off to move.
+constexpr double shiftNewtons = 0.3;
+constexpr double slideNewtons = 0.6;
+// The hand reaches the fret this long before the pick at the latest: the
+// recordings' 10th percentile is 64 ms, but the lookahead leaves 50.
+constexpr double pickGapSeconds = 0.010;
+
 // A slide's travel time, and how soon a stroke must follow the last one to
 // go the other way, as a strumming hand keeps moving. Voiced.
 constexpr double slideBaseSeconds = 0.020;
@@ -207,6 +233,20 @@ double clamp(double value, double low, double high) noexcept
 {
     return value < low ? low : (value > high ? high : value);
 }
+
+// How far string s stands over `fret`, which the finger takes it down.
+double heightOverFret(int fret) noexcept
+{
+    const double fromNut = scale - fretMetres(fret);
+    const double first = scale - fretMetres(1), seventeenth = scale - fretMetres(17);
+    return heightAtFirstFret
+        + (heightAtSeventeenth - heightAtFirstFret) * (fromNut - first) / (seventeenth - first);
+}
+
+// Minimum jerk: where a hand moving from 0 to 1 over u in [0, 1] is, and its
+// speed over the mean.
+double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
+double reachSpeed(double u) noexcept { return 30.0 * u * u * (1.0 - u) * (1.0 - u); }
 
 // Where the thumb lands for a pinch on `length` of string picked `pick` from
 // the bridge.
@@ -260,12 +300,23 @@ void StratPerformer::reset() noexcept
     steadyStroke = true;
     lastStroke = -1000000;
     pendingCount = eventCount = 0;
+    delayedHead = delayedCount = 0;
     now = 0;
     applyPalm();
 }
 
 void StratPerformer::setControls(const StratControls& controls) noexcept
 {
+    if (!controls.lookahead)
+        while (delayedCount > 0)
+        {
+            // What was held back plays now, in order.
+            const Midi m = delayed[static_cast<size_t>(delayedHead)];
+            delayedHead = (delayedHead + 1) % maxMidi;
+            --delayedCount;
+            dispatch(m);
+        }
+    latency = controls.lookahead ? static_cast<int>(std::lround(lookaheadSeconds * sampleRate)) : 0;
     current = controls;
     current.pickMetres = clamp(controls.pickMetres, 0.025, 0.250);
     current.pick = clamp(controls.pick, 0.0, 1.0);
@@ -316,6 +367,35 @@ void StratPerformer::applyPalm() noexcept
     }
 }
 
+bool StratPerformer::queue(const Midi& m) noexcept
+{
+    if (latency == 0)
+        return false;
+    if (delayedCount == maxMidi)
+    {
+        // Full: the oldest plays now rather than be lost.
+        const Midi oldest = delayed[static_cast<size_t>(delayedHead)];
+        delayedHead = (delayedHead + 1) % maxMidi;
+        --delayedCount;
+        dispatch(oldest);
+    }
+    delayed[static_cast<size_t>((delayedHead + delayedCount) % maxMidi)] = m;
+    ++delayedCount;
+    return true;
+}
+
+void StratPerformer::dispatch(const Midi& m) noexcept
+{
+    switch (m.kind)
+    {
+    case MidiKind::noteOn: playNoteOn(m.channel, m.note, m.velocity); break;
+    case MidiKind::noteOff: playNoteOff(m.channel, m.note); break;
+    case MidiKind::bend: playPitchBend(m.channel, m.value); break;
+    case MidiKind::wheel: vibratoDepth = m.value; break;
+    case MidiKind::pedal: playSustain(m.value > 0.5); break;
+    }
+}
+
 void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
 {
     if (velocity <= 0)
@@ -323,6 +403,30 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
         noteOff(channel, note);
         return;
     }
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::noteOn;
+    m.channel = channel & 15;
+    m.note = note;
+    m.velocity = velocity;
+    if (!queue(m))
+    {
+        playNoteOn(channel, note, velocity);
+        return;
+    }
+    if (note >= lowestNote)
+    {
+        // The hand reads ahead: it goes to the notes as soon as it can.
+        Event e;
+        e.time = now;
+        e.kind = EventKind::prepare;
+        e.due = m.time;
+        schedule(e);
+    }
+}
+
+void StratPerformer::playNoteOn(int channel, int note, int velocity) noexcept
+{
     if (note >= firstArticulationKey && note < firstArticulationKey + articulationCount)
     {
         latched = static_cast<Articulation>(note - firstArticulationKey);
@@ -346,6 +450,17 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
 }
 
 void StratPerformer::noteOff(int channel, int note) noexcept
+{
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::noteOff;
+    m.channel = channel & 15;
+    m.note = note;
+    if (!queue(m))
+        playNoteOff(channel, note);
+}
+
+void StratPerformer::playNoteOff(int channel, int note) noexcept
 {
     if (note == dampKey)
     {
@@ -396,9 +511,15 @@ void StratPerformer::release(int s) noexcept
     }
     guitar->setBend(s, 1.0);
     const std::uint64_t order = st.order;
+    const double rest = st.fret;
+    const int prepared = st.prepared;
+    const std::int64_t preparedDue = st.preparedDue;
     st = StringState {};
     st.order = order;
     st.released = true;
+    st.restFret = rest;
+    st.prepared = prepared;
+    st.preparedDue = preparedDue;
     // The hand that lets a note go lies across the free strings with it
     // until it next picks. On IDMT-SMT-Guitar's Stratocaster fret runs
     // (dataset 2: frets 0 to 20 on every string, 126 releases with the other
@@ -508,6 +629,17 @@ double StratPerformer::strokeForce(int velocity) noexcept
 
 void StratPerformer::pitchBend(int channel, double position) noexcept
 {
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::bend;
+    m.channel = channel & 15;
+    m.value = position;
+    if (!queue(m))
+        playPitchBend(channel, position);
+}
+
+void StratPerformer::playPitchBend(int channel, double position) noexcept
+{
     channel &= 15;
     position = clamp(position, -1.0, 1.0);
     if (channel == 0)
@@ -519,10 +651,25 @@ void StratPerformer::pitchBend(int channel, double position) noexcept
 
 void StratPerformer::modWheel(double position) noexcept
 {
-    vibratoDepth = clamp(position, 0.0, 1.0) * vibratoSemitones;
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::wheel;
+    m.value = clamp(position, 0.0, 1.0) * vibratoSemitones;
+    if (!queue(m))
+        vibratoDepth = m.value;
 }
 
 void StratPerformer::sustain(bool down) noexcept
+{
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::pedal;
+    m.value = down ? 1.0 : 0.0;
+    if (!queue(m))
+        playSustain(down);
+}
+
+void StratPerformer::playSustain(bool down) noexcept
 {
     pedal = down;
     if (down)
@@ -536,6 +683,7 @@ void StratPerformer::allNotesOff() noexcept
 {
     pendingCount = 0;
     eventCount = 0;
+    delayedHead = delayedCount = 0;
     pedal = false;
     damping = false;
     for (int s = 0; s < StratEngine::stringCount; ++s)
@@ -670,7 +818,7 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     return true;
 }
 
-void StratPerformer::assign(const Pending* notes, int count,
+void StratPerformer::assign(const Pending* notes, int count, const std::array<bool, 6>& held,
                             std::array<int, 6>& stringFor) const noexcept
 {
     // Every way of putting the notes on distinct strings, lowest note first,
@@ -682,8 +830,11 @@ void StratPerformer::assign(const Pending* notes, int count,
     const int placed = count < StratEngine::stringCount ? count : StratEngine::stringCount;
     double best = 1e300;
     bool used[StratEngine::stringCount] {};
-    const auto noteCost = [&](int s, int fret) {
-        double c = strings[static_cast<size_t>(s)].keyDown ? 20.0 : 0.0;
+    const auto noteCost = [&](int s, int fret, int note) {
+        double c = held[static_cast<size_t>(s)] ? 20.0 : 0.0;
+        // Where the hand has already gone for this note.
+        if (strings[static_cast<size_t>(s)].prepared == note)
+            c -= 10.0;
         if (fret == 0)
             return c + (hand <= 5.0 ? 0.0 : 3.0);
         const double low = hand - 1.0, high = hand + 3.0;
@@ -733,7 +884,7 @@ void StratPerformer::assign(const Pending* notes, int count,
                 continue;
             used[s] = true;
             trial[static_cast<size_t>(i)] = s;
-            self(self, i + 1, cost + noteCost(s, fret));
+            self(self, i + 1, cost + noteCost(s, fret, notes[i].note));
             used[s] = false;
         }
     };
@@ -782,7 +933,10 @@ void StratPerformer::startStroke() noexcept
         return;
 
     std::array<int, 6> stringFor {};
-    assign(notes, count, stringFor);
+    std::array<bool, 6> held {};
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+        held[static_cast<size_t>(s)] = strings[static_cast<size_t>(s)].keyDown;
+    assign(notes, count, held, stringFor);
     int first = StratEngine::stringCount, last = -1;
     for (int i = 0; i < count; ++i)
         if (stringFor[static_cast<size_t>(i)] >= 0)
@@ -828,6 +982,126 @@ void StratPerformer::startStroke() noexcept
     // The hand settles where the shape's lowest fretted note sits.
     if (lowestFret <= frets && (lowestFret < hand - 1.0 || lowestFret > hand + 3.0))
         hand = lowestFret;
+    unprepare();
+}
+
+// A finger the hand sent ahead to a note that went to another string lets
+// that string go as a played note's finger does.
+void StratPerformer::unprepare() noexcept
+{
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+    {
+        StringState& st = strings[static_cast<size_t>(s)];
+        if (st.prepared < 0 || st.note >= 0 || st.preparedDue > now)
+            continue;
+        st.prepared = -1;
+        if (st.shifting)
+            guitar->rub(s, st.shiftTo, 0.0, 0.0);
+        st.shifting = false;
+        if (st.fretted)
+            release(s);
+    }
+}
+
+// The fretting hand reads the notes due at `due` and goes to them: on each
+// string a note will take, a finger glides along it from where it rests,
+// if it rests there, and presses the string to its fret, as early as the
+// lookahead lets it and after the key holding the string lets go, and a
+// little before the pick (the timings above).
+void StratPerformer::prepareNotes(std::int64_t due) noexcept
+{
+    // The articulation and the damping hand as they will stand then.
+    Articulation style = latched;
+    bool damped = damping;
+    Pending notes[6];
+    int count = 0;
+    std::array<bool, 6> held {};
+    std::array<std::int64_t, 6> freeAt {};
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+        held[static_cast<size_t>(s)] = strings[static_cast<size_t>(s)].keyDown;
+    for (int i = 0; i < delayedCount; ++i)
+    {
+        Midi& m = delayed[static_cast<size_t>((delayedHead + i) % maxMidi)];
+        if (m.time > due)
+            break;
+        if (m.kind == MidiKind::noteOn)
+        {
+            if (m.note >= firstArticulationKey && m.note < firstArticulationKey + articulationCount)
+                style = static_cast<Articulation>(m.note - firstArticulationKey);
+            else if (m.note == dampKey)
+                damped = true;
+            else if (m.time == due && !m.prepared && m.note >= lowestNote && count < 6)
+            {
+                m.prepared = true;
+                notes[count++] = {m.note, m.channel, m.velocity};
+            }
+        }
+        else if (m.kind == MidiKind::noteOff)
+        {
+            if (m.note == dampKey)
+                damped = false;
+            for (int s = 0; s < StratEngine::stringCount; ++s)
+            {
+                const StringState& st = strings[static_cast<size_t>(s)];
+                if (st.keyDown && st.note == m.note && st.channel == m.channel && !pedal)
+                {
+                    held[static_cast<size_t>(s)] = false;
+                    freeAt[static_cast<size_t>(s)] = m.time;
+                }
+            }
+        }
+    }
+    const bool fretting = style == Articulation::sustain || style == Articulation::palmMute
+        || style == Articulation::pinch;
+    if (count == 0 || !fretting || damped)
+        return;
+
+    std::array<int, 6> stringFor {};
+    assign(notes, count, held, stringFor);
+    const auto press = static_cast<std::int64_t>(pressSeconds * sampleRate);
+    const std::int64_t latest = due - static_cast<std::int64_t>(pickGapSeconds * sampleRate);
+    for (int i = 0; i < count; ++i)
+    {
+        const int s = stringFor[static_cast<size_t>(i)];
+        if (s < 0)
+            continue;
+        StringState& st = strings[static_cast<size_t>(s)];
+        const int fret = notes[i].note - openNote[s];
+        if (fret <= 0 || held[static_cast<size_t>(s)] || st.prepared >= 0)
+            continue;
+        const std::int64_t start = now > freeAt[static_cast<size_t>(s)] ? now : freeAt[static_cast<size_t>(s)];
+        if (latest - start < press)
+            continue;
+        st.prepared = notes[i].note;
+        st.preparedDue = due;
+        std::int64_t contact = start + press;
+        // A finger already on the string, or about to be, at another fret.
+        const bool resting = st.released || st.keyDown;
+        const double from = st.keyDown ? st.fret : st.restFret;
+        if (resting && from > 0.0 && from != fret)
+        {
+            const double frets = std::abs(fret - from);
+            const auto glide = static_cast<std::int64_t>(
+                (slideBaseSeconds + slideSecondsPerFret * frets) * sampleRate);
+            const std::int64_t room = latest - start - press;
+            const std::int64_t length = glide < room ? glide : room;
+            Event e;
+            e.time = start;
+            e.kind = EventKind::shift;
+            e.string = s;
+            e.from = fingerMetres(from) - 0.5 * fingerWidth;
+            e.to = fingerMetres(fret) - 0.5 * fingerWidth;
+            e.length = length;
+            schedule(e);
+            contact = start + length + press;
+        }
+        Event p;
+        p.time = contact - press;
+        p.kind = EventKind::press;
+        p.string = s;
+        p.fret = fret;
+        schedule(p);
+    }
 }
 
 void StratPerformer::runEvent(const Event& e) noexcept
@@ -845,6 +1119,38 @@ void StratPerformer::runEvent(const Event& e) noexcept
     {
         if (!st.handResting)
             guitar->setDamper(s, 1, 0.0, 0.0);
+        return;
+    }
+    if (e.kind == EventKind::prepare)
+    {
+        prepareNotes(e.due);
+        return;
+    }
+    if (e.kind == EventKind::shift || e.kind == EventKind::press)
+    {
+        // Unless the note went elsewhere, or a key took the string first.
+        if (st.prepared < 0 || st.keyDown)
+            return;
+        if (e.kind == EventKind::shift)
+        {
+            st.shifting = true;
+            st.shiftFrom = e.from;
+            st.shiftTo = e.to;
+            st.shiftStart = now;
+            st.shiftLength = e.length;
+        }
+        else
+        {
+            if (st.shifting)
+                guitar->rub(s, st.shiftTo, 0.0, 0.0);
+            st.shifting = false;
+            // The fingertip leaves the speaking length for the fret.
+            guitar->setDamper(s, 1, 0.0, 0.0);
+            guitar->press(s, e.fret, heightOverFret(static_cast<int>(e.fret)), pressSeconds);
+            st.fret = e.fret;
+            st.fretted = true;
+            st.released = false;
+        }
         return;
     }
     double pickAt = clamp(current.pickMetres + e.pickOffset, 0.025, 0.250);
@@ -911,6 +1217,30 @@ void StratPerformer::controlUpdate() noexcept
                 st.fret = st.slideFrom + (st.slideTo - st.slideFrom) * u * u * (3.0 - 2.0 * u);
             if (stopped(st.fret) != before)
                 guitar->setFret(s, stopped(st.fret));
+            // The pressing finger rubs along the string as it goes.
+            const double travel = std::abs(fretMetres(st.slideTo) - fretMetres(st.slideFrom));
+            const double speed = st.slide && st.slideLength > 0
+                ? travel * sampleRate / st.slideLength * 6.0 * u * (1.0 - u)
+                : 0.0;
+            guitar->rub(s, fretMetres(st.fret), speed, slideNewtons);
+        }
+        if (st.shifting)
+        {
+            const double u = st.shiftLength > 0
+                ? static_cast<double>(now - st.shiftStart) / static_cast<double>(st.shiftLength)
+                : 1.0;
+            if (u >= 1.0)
+            {
+                guitar->rub(s, st.shiftTo, 0.0, 0.0);
+                st.shifting = false;
+            }
+            else
+            {
+                const double travel = st.shiftTo - st.shiftFrom;
+                guitar->rub(s, st.shiftFrom + travel * reach(u),
+                            std::abs(travel) * sampleRate / st.shiftLength * reachSpeed(u),
+                            shiftNewtons);
+            }
         }
         if (st.note < 0 || !st.fretted)
             continue;
@@ -934,6 +1264,18 @@ void StratPerformer::render(float* out, int samples) noexcept
     {
         if (now % StratEngine::controlPeriod == 0)
             controlUpdate();
+        if (delayedCount > 0 && delayed[static_cast<size_t>(delayedHead)].time <= now)
+        {
+            while (delayedCount > 0 && delayed[static_cast<size_t>(delayedHead)].time <= now)
+            {
+                const Midi m = delayed[static_cast<size_t>(delayedHead)];
+                delayedHead = (delayedHead + 1) % maxMidi;
+                --delayedCount;
+                dispatch(m);
+            }
+            if (pendingCount > 0)
+                startStroke();
+        }
         while (eventCount > 0 && events[0].time <= now)
         {
             const Event e = events[0];
@@ -947,6 +1289,8 @@ void StratPerformer::render(float* out, int samples) noexcept
         chunk = chunk < toControl ? chunk : toControl;
         if (eventCount > 0 && events[0].time - now < chunk)
             chunk = events[0].time - now;
+        if (delayedCount > 0 && delayed[static_cast<size_t>(delayedHead)].time - now < chunk)
+            chunk = delayed[static_cast<size_t>(delayedHead)].time - now;
         guitar->process(out + done, static_cast<int>(chunk));
         for (int i = 0; i < chunk; ++i)
             out[done + i] = static_cast<float>(out[done + i] * outputGain);

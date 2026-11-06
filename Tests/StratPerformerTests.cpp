@@ -662,9 +662,12 @@ void testArmAndBends()
           "a member channel's bend takes its string a whole tone up");
 }
 
-std::vector<float> performance(int block)
+std::vector<float> performance(int block, bool lookahead = false)
 {
     auto p = makePerformer();
+    electry::StratControls controls;
+    controls.lookahead = lookahead;
+    p->setControls(controls);
     std::vector<float> out(static_cast<size_t>(1.2 * rate));
     struct Step
     {
@@ -778,6 +781,57 @@ void testBlockPartition()
         same = same && performance(block) == reference;
     check(same, "any block size gives the same bits");
     check(performance(480) == performance(480), "the same performance gives the same bits");
+    const auto ahead = performance(1, true);
+    bool aheadSame = true;
+    for (int block : {5, 480, 4096})
+        aheadSame = aheadSame && performance(block, true) == ahead;
+    check(aheadSame, "with the lookahead too, any block size gives the same bits");
+}
+
+// The lookahead delays everything by its 50 ms and spends them on the
+// fretting hand: the finger reaches its fret before the pick, with a tick
+// far under the note, and the note lands as late as the latency says.
+void testLookahead()
+{
+    const auto play = [](bool lookahead, int& latency) {
+        auto p = makePerformer();
+        electry::StratControls controls;
+        controls.lookahead = lookahead;
+        p->setControls(controls);
+        latency = p->latencySamples();
+        // The C on the B string's 1st fret.
+        p->noteOn(0, 60, 100);
+        return render(*p, 0.4);
+    };
+    int off = 0, on = 0;
+    const auto plain = play(false, off), ahead = play(true, on);
+    check(off == 0 && on == static_cast<int>(StratPerformer::lookaheadSeconds * rate),
+          "the lookahead reports its 50 ms as latency, and none without it");
+    const auto onset = [](const std::vector<float>& x) {
+        float peak = 0.0f;
+        for (float v : x)
+            peak = std::max(peak, std::abs(v));
+        size_t i = 0;
+        while (std::abs(x[i]) < 0.3f * peak)
+            ++i;
+        return std::make_pair(static_cast<int>(i), peak);
+    };
+    const auto [plainOnset, plainPeak] = onset(plain);
+    const auto [aheadOnset, aheadPeak] = onset(ahead);
+    std::printf("lookahead: attack %d samples later, peak %.1f dB against without\n",
+                aheadOnset - plainOnset, 20.0 * std::log10(aheadPeak / plainPeak));
+    check(std::abs(aheadOnset - plainOnset - on) < static_cast<int>(0.002 * rate),
+          "the pick lands the latency later");
+    float before = 0.0f;
+    for (int i = 0; i < aheadOnset - static_cast<int>(0.003 * rate); ++i)
+        before = std::max(before, std::abs(ahead[static_cast<size_t>(i)]));
+    const double tick = 20.0 * std::log10(before / aheadPeak + 1e-30);
+    std::printf("the finger's tick before the pick: %.1f dB under the note\n", -tick);
+    check(tick > -80.0 && tick < -25.0, "the finger reaches its fret audibly but quietly before the pick");
+    float plainBefore = 0.0f;
+    for (int i = 0; i < plainOnset - static_cast<int>(0.003 * rate); ++i)
+        plainBefore = std::max(plainBefore, std::abs(plain[static_cast<size_t>(i)]));
+    check(plainBefore < 1e-6f, "without the lookahead nothing sounds before the pick");
 }
 
 } // namespace
@@ -800,6 +854,7 @@ int main()
     testTilt();
     testScatter();
     testBlockPartition();
+    testLookahead();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

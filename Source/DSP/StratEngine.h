@@ -49,6 +49,11 @@ public:
     const StratBridge& bridge() const noexcept { return tremolo; }
     void setDamper(int stringIndex, int damper, double metresFromBridge,
                    double kilogramsPerSecond, double widthMetres = 0.0) noexcept;
+    // StratString::rub: the fretting finger's own force.
+    void rub(int stringIndex, double metresFromBridge, double speed, double newtons) noexcept;
+    // A finger taking the string down to `fret` (setFret, then
+    // StratString::press).
+    void press(int stringIndex, double fret, double depthMetres, double seconds) noexcept;
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                double releaseSeconds, double strokeMetresPerSecond = 0.0,

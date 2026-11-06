@@ -2,6 +2,7 @@
 
 #include <array>
 #include <complex>
+#include <cstdint>
 
 namespace electry
 {
@@ -92,6 +93,9 @@ public:
         double wrapLoss;
         // Wrapped strings lose their upper partials faster than solid ones.
         bool wound;
+        // The wrap wire's diameter, the pitch of the ridges a finger
+        // sliding along the string rides over; 0 for a plain string.
+        double wrapMetres;
     };
     static const Construction& construction(int stringIndex) noexcept;
 
@@ -114,6 +118,19 @@ public:
     // longer feels, until the string is put back on a fret (0).
     void setFingerEnd(double kilogramsPerSecond) noexcept;
     bool onFret() const noexcept { return !lifted; }
+
+    // The fretting finger's own force on the string where it touches it,
+    // toward the poles: rubbing, the fingertip sliding along the string at
+    // `speed` m/s while pressing on it with `newtons`, sent into the rails
+    // as the pick's force is, half each way. Restate it every update period
+    // (it ramps between); a speed of 0 ends it.
+    void rub(double metresFromBridge, double speed, double newtons) noexcept;
+    bool isRubbing() const noexcept { return rubTarget != 0.0f || rubSpeed != 0.0f; }
+    // The finger taking the string down onto its fret: the string's end
+    // there goes `depthMetres` toward the board over `seconds`, as a spring
+    // loaded from rest, so it meets the fret at full speed (StratString.cpp).
+    // The string is already stopped at that fret (setTuning).
+    void press(double depthMetres, double seconds) noexcept;
 
     // A damper on the string (palm, a touching finger): a point, or a
     // contact spread evenly along a width of string centred there.
@@ -182,7 +199,8 @@ public:
     // A release or its high-passed tail is still driving the string.
     bool isDriven() const noexcept
     {
-        return stickRemaining > 0 || releasePosition < releaseLength || blockedForce != 0.0;
+        return stickRemaining > 0 || releasePosition < releaseLength || blockedForce != 0.0
+            || fingerActive || pressPosition < pressLength;
     }
 
     // Waveguide characteristic impedance sqrt(T mu) at the current tension.
@@ -250,7 +268,7 @@ private:
     float readLeft(const Plane& plane, const Tap& tap) const noexcept;
     void clearLeft(int fromPosition, int toPosition) noexcept;
     void clearRight(int fromPosition, int toPosition) noexcept;
-    void inject(Plane& plane, float velocity) noexcept;
+    void inject(Plane& plane, const Tap& at, float velocity) noexcept;
     void damp(Plane& plane) noexcept;
 
     double sampleRate = 48000.0;
@@ -369,6 +387,22 @@ private:
     double blockCoefficient = 0.0;
     void placeDampers() noexcept;
     double lastUsablePosition() const noexcept;
+
+    // The fretting finger: its rubbing force, and the fret end's press.
+    float fingerForce() noexcept;
+    bool fingerActive = false;
+    double fingerMetres = 0.0;
+    Tap fingerTap {};
+    float rubSpeed = 0.0f, rubTarget = 0.0f, rubStep = 0.0f;
+    float rubNewtons = 0.0f;
+    int rubRemaining = 0;
+    double rubPhase = 0.0;
+    std::uint32_t rubNoise = 0x2545F491u; // xorshift32
+    float rubRough = 0.0f;
+    float rubbing() noexcept;
+    double pressDepth = 0.0;
+    int pressPosition = 0, pressLength = 0;
+    float roughPole = 0.0f;
 };
 
 } // namespace electry

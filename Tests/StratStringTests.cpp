@@ -327,6 +327,36 @@ void testWraps()
     check(worst < 4.0, "the wound strings lose their top to the wraps");
 }
 
+// A finger sliding along the wound low E rides over its wraps: the rub's
+// line moves with the speed, at speed over the wrap's pitch, and stops
+// when the finger does.
+void testRub()
+{
+    const double rate = 48000.0;
+    const double wrap = StratString::construction(0).wrapMetres;
+    const auto rubAt = [&](double speed, bool& stops) {
+        auto string = makeString(rate, 0, 0);
+        string->rub(0.5, speed, 1.0);
+        const auto y = run(*string, rate, 0.4, 2);
+        string->rub(0.5, 0.0, 1.0);
+        run(*string, rate, 0.01, 2);
+        stops = !string->isRubbing();
+        return y;
+    };
+    bool fastStops = false, slowStops = false;
+    const auto fast = rubAt(0.5, fastStops), slow = rubAt(0.35, slowStops);
+    const double fastHz = 0.5 / wrap, slowHz = 0.35 / wrap;
+    const auto db = [&](const std::vector<float>& y, double f) {
+        return 20.0 * std::log10(magnitude(y, rate, 0.1, 0.3, f) + 1e-30);
+    };
+    std::printf("rub at 0.5 m/s: %.1f dB at %.0f Hz, at 0.35 m/s %.1f dB there; "
+                "at %.0f Hz %.1f and %.1f dB\n",
+                db(fast, fastHz), fastHz, db(slow, fastHz), slowHz, db(fast, slowHz), db(slow, slowHz));
+    check(db(fast, fastHz) > db(slow, fastHz) + 6.0 && db(slow, slowHz) > db(fast, slowHz) + 6.0,
+          "a rub on a wound string sings at its speed over the wrap");
+    check(fastStops && slowStops, "the rub stops when the finger does");
+}
+
 // The two planes of the swing: the one along the top reflects as a string
 // inPlaneShortening shorter, so every partial of it sits that share of the
 // speaking length sharp, and it loses what the other loses each trip.
@@ -876,6 +906,7 @@ int main()
     testTuningAndStiffness(96000.0);
     testDecay();
     testWraps();
+    testRub();
     testSecondPlane();
     testOpposedPlanes();
     testNeck();

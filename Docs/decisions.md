@@ -4,6 +4,24 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the finger's ticks and rubs with the lookahead (B)
+
+Decided: whether the Strat performer's optional 50 ms lookahead, which lets
+the fretting finger glide to and press each fret before the pick, should
+sound as rendered. Its levels were fitted to IDMT-SMT-Guitar's Strat fret
+runs and sit beside the code in `Source/DSP/StratPerformer.cpp` and
+`Source/DSP/StratString.cpp`; the lookahead stays off by default.
+
+- A: the performer without the lookahead.
+- B: the same with it on.
+
+Material: a 20-note line over the three wound strings, neck pickup, 48 kHz,
+whole-file RMS matched to −20 dBFS (both trimmed −10.5 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses nothing beyond
+the measured levels.
+
 ## 2026-11-05 — keep the strings' second plane of swing (B)
 
 Decided: whether each Strat string swings along the top as well as toward

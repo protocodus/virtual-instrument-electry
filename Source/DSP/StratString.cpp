@@ -54,13 +54,31 @@ constexpr double steelModulus = 207e9;
 // only the partials it could follow for 1.5 s had read the wound strings'
 // top at 10 to 40 dB/s: the fast ones were gone before it began.)
 constexpr StratString::Construction strings[StratString::stringCount] = {
-    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, 4000.0, 4.0, 71.0, true},     // E2 .046w
-    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, 4000.0, 3.0, 88.0, true},      // A2 .036w
-    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, 4000.0, 2.14, 50.0, true},      // D3 .026w
-    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, 8000.0, 1.07, 0.0, false},    // G3 .017
-    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, 8000.0, 1.82, 0.0, false},     // B3 .013
-    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, 8000.0, 2.22, 0.0, false},     // E4 .010
+    {82.4068892, 6.82460e-3, 1.50e-4, 25.0, 11.5, 4000.0, 4.0, 71.0, true, 0.35e-3},  // E2 .046w
+    {110.000000, 4.27948e-3, 7.1e-5, 24.5, 10.0, 4000.0, 3.0, 88.0, true, 0.23e-3},   // A2 .036w
+    {146.832384, 2.26278e-3, 6.2e-5, 24.0, 8.5, 4000.0, 2.14, 50.0, true, 0.15e-3},   // D3 .026w
+    {195.997718, 1.14327e-3, 1.128e-4, 23.4, 7.0, 8000.0, 1.07, 0.0, false, 0.0},     // G3 .017
+    {246.941651, 6.68602e-4, 4.15e-5, 18.5, 5.5, 8000.0, 1.82, 0.0, false, 0.0},      // B3 .013
+    {329.627557, 3.95554e-4, 1.38e-5, 14.2, 4.0, 8000.0, 2.22, 0.0, false, 0.0},      // E4 .010
 };
+// Wrap wire: a round steel core wound with one round wrap, the gauge being
+// the core and two wraps, solved for the published unit weight above: the
+// low E's 0.0185 in core (the stiffness above) leaves a 0.35 mm wrap, the A
+// 0.23 mm and the D 0.15 mm. A finger sliding at 0.5 m/s rides over them at
+// 1.4, 2.2 and 3.3 kHz.
+
+// A finger rubbing along a string (StratString::rub): the share of its
+// pressing force that rises and falls over each wrap, reached at speeds well
+// over ridgeSpeed, and that of the skin's roughness, low-passed at 2 kHz;
+// fitted in StratPerformer.
+constexpr double ridgeDepth = 0.04;
+constexpr double ridgeSpeed = 0.1;
+constexpr float roughness = 0.02f;
+constexpr double roughHz = 2000.0;
+// A pressing finger meets its fret at this share of the speed a rigid
+// quarter-cosine stroke would: fitted in StratPerformer so the ticks sit at
+// the recordings' level.
+constexpr double landingShare = 0.55;
 
 double clamp(double value, double low, double high) noexcept
 {
@@ -253,6 +271,7 @@ void StratString::prepare(double rate, int stringIndex, int updateSamples) noexc
 
     // 5 Hz, an octave under the lowest note the tremolo can dive to.
     blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
+    roughPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * roughHz / sampleRate));
 
     tuned = false;
     designedStiffness = -1.0;
@@ -283,6 +302,12 @@ void StratString::reset() noexcept
     historySum = historySquares = 0.0;
     historyLength = recountCountdown = 0;
     lifted = false;
+    fingerActive = false;
+    rubSpeed = rubTarget = rubStep = rubNewtons = 0.0f;
+    rubRemaining = 0;
+    rubPhase = 0.0;
+    rubRough = 0.0f;
+    pressPosition = pressLength = 0;
 }
 
 void StratString::setFingerEnd(double kilogramsPerSecond) noexcept
@@ -566,6 +591,7 @@ void StratString::setTaps(const std::array<double, tapCount>& metresFromBridge) 
             clamp(positionSamples(tapMetres[static_cast<size_t>(k)]), 1.0,
                   lastUsablePosition()));
     pick = tapAt(clamp(positionSamples(pickMetres), 1.0, lastUsablePosition()));
+    fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
     // An injection m samples old sits m samples on along both rails, where the
     // pick's read weighs it by the weights' correlation at lag m.
     for (int m = 1; m <= 3; ++m)
@@ -778,6 +804,93 @@ void StratString::startRelease(double from, double to, double seconds) noexcept
     releasePosition = 0;
 }
 
+void StratString::rub(double metresFromBridge, double speed, double newtons) noexcept
+{
+    if (speed == 0.0 && !isRubbing())
+        return;
+    if (!fingerActive || rubSpeed == 0.0f)
+    {
+        fingerMetres = metresFromBridge;
+        fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
+    }
+    else if (std::abs(metresFromBridge - fingerMetres) * samplesPerMetre >= 0.5)
+    {
+        fingerMetres = metresFromBridge;
+        fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
+    }
+    rubTarget = static_cast<float>(std::abs(speed));
+    rubNewtons = static_cast<float>(newtons);
+    rubRemaining = rampSamples;
+    rubStep = (rubTarget - rubSpeed) / static_cast<float>(rampSamples);
+    fingerActive = true;
+}
+
+void StratString::press(double depthMetres, double seconds) noexcept
+{
+    pressDepth = depthMetres;
+    pressPosition = 0;
+    pressLength = std::max(1, static_cast<int>(std::ceil(seconds * sampleRate)));
+}
+
+float StratString::fingerForce() noexcept
+{
+    float f = 0.0f;
+    if (rubRemaining > 0)
+    {
+        rubSpeed += rubStep;
+        if (--rubRemaining == 0)
+            rubSpeed = rubTarget;
+    }
+    if (rubSpeed > 0.0f)
+        f += rubbing();
+    else
+        rubSpeed = rubTarget = 0.0f;
+    fingerActive = rubSpeed > 0.0f;
+    return f;
+}
+
+float StratString::rubbing() noexcept
+{
+    // The flesh rides over each wrap in turn: the force toward the poles
+    // dips into the groove and rises on the next wrap, a ramp per wrap that
+    // ends at each crest (band-limited, so its top does not fold back), and
+    // grows with speed as the flesh has less time to settle into the
+    // grooves. Every string, plain or wound, adds the skin's own roughness.
+    const float speed = rubSpeed;
+    float f = 0.0f;
+    if (spec->wrapMetres > 0.0)
+    {
+        const double increment = speed / (spec->wrapMetres * sampleRate);
+        rubPhase += increment;
+        if (rubPhase >= 1.0)
+            rubPhase -= std::floor(rubPhase);
+        double saw = 2.0 * rubPhase - 1.0;
+        // polyBLEP at the crest.
+        const double dt = increment < 0.5 ? increment : 0.5;
+        if (dt > 0.0)
+        {
+            if (rubPhase < dt)
+            {
+                const double t = rubPhase / dt;
+                saw -= t + t - t * t - 1.0;
+            }
+            else if (rubPhase > 1.0 - dt)
+            {
+                const double t = (rubPhase - 1.0) / dt;
+                saw -= t * t + t + t + 1.0;
+            }
+        }
+        f += static_cast<float>(ridgeDepth * speed / (speed + ridgeSpeed) * saw);
+    }
+    rubNoise ^= rubNoise << 13;
+    rubNoise ^= rubNoise >> 17;
+    rubNoise ^= rubNoise << 5;
+    const float white = static_cast<float>(static_cast<std::int32_t>(rubNoise)) * (1.0f / 2147483648.0f);
+    rubRough += roughPole * (white - rubRough);
+    f += roughness * speed / (speed + ridgeSpeed) * rubRough;
+    return rubNewtons * f;
+}
+
 float StratString::readRight(const Plane& plane, const Tap& tap) const noexcept
 {
     const int index = write - tap.base;
@@ -859,14 +972,14 @@ void StratString::leaveFret(Plane& plane, float reflected) noexcept
         plane.left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = reflected;
 }
 
-void StratString::inject(Plane& plane, float v) noexcept
+void StratString::inject(Plane& plane, const Tap& at, float v) noexcept
 {
-    const int r = write - pick.base;
-    const int l = write + leftOffset + pick.base;
+    const int r = write - at.base;
+    const int l = write + leftOffset + at.base;
     for (int j = 0; j < 4; ++j)
     {
-        plane.right[static_cast<size_t>((r - j) & railMask)] += pick.weight[j] * v;
-        plane.left[static_cast<size_t>((l + j) & railMask)] += pick.weight[j] * v;
+        plane.right[static_cast<size_t>((r - j) & railMask)] += at.weight[j] * v;
+        plane.left[static_cast<size_t>((l + j) & railMask)] += at.weight[j] * v;
     }
 }
 
@@ -1004,7 +1117,22 @@ float StratString::arrive() noexcept
 void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardPoles,
                         std::array<float, tapCount>& alongTop) noexcept
 {
-    leaveFret(poles, onFret() ? neckVelocity - arrivingAtNeck : -fingerEnd * arrivingAtNeck);
+    float fretMotion = 0.0f;
+    if (pressPosition < pressLength)
+    {
+        // The string's end at the fret goes down with the finger and stops
+        // on the fret at landingShare of a quarter-cosine's full speed, the
+        // fingertip's flesh having taken the rest: a blend of a stroke that
+        // lands at full speed, sin(pi u / 2), and one that lands at rest,
+        // sin(pi u), each covering the height h.
+        ++pressPosition;
+        const double u = static_cast<double>(pressPosition) / pressLength;
+        fretMotion = static_cast<float>(
+            pressDepth * 0.5 * pi * sampleRate / pressLength
+            * (landingShare * std::sin(0.5 * pi * u) + (1.0 - landingShare) * std::sin(pi * u)));
+    }
+    leaveFret(poles, onFret() ? neckVelocity + fretMotion - arrivingAtNeck
+                              : -fingerEnd * arrivingAtNeck);
 
     if (stickRemaining > 0)
     {
@@ -1062,8 +1190,16 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
     // StratEngine weighs what the pickup hears of each.
     if (v != 0.0f)
     {
-        inject(poles, v);
-        inject(top, topDrive * v);
+        inject(poles, pick, v);
+        inject(top, pick, topDrive * v);
+    }
+    if (fingerActive)
+    {
+        // The finger presses toward the poles; what it stirs along the top
+        // is left out.
+        const float u = static_cast<float>(fingerForce() / (2.0 * characteristicImpedance));
+        if (u != 0.0f)
+            inject(poles, fingerTap, u);
     }
 
     damp(poles);

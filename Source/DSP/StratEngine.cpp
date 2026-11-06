@@ -294,6 +294,27 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
         fret, tremolo.tensionRatio(stringIndex));
 }
 
+void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
+                      double newtons) noexcept
+{
+    if (stringIndex < 0 || stringIndex >= stringCount)
+        return;
+    StratString& string = strings[static_cast<size_t>(stringIndex)];
+    if (speed == 0.0 && !string.isRubbing())
+        return;
+    string.rub(metresFromBridge, speed, newtons);
+    quietSamples[static_cast<size_t>(stringIndex)] = 0;
+}
+
+void StratEngine::press(int stringIndex, double fret, double depthMetres, double seconds) noexcept
+{
+    if (stringIndex < 0 || stringIndex >= stringCount)
+        return;
+    setFret(stringIndex, fret);
+    strings[static_cast<size_t>(stringIndex)].press(depthMetres, seconds);
+    quietSamples[static_cast<size_t>(stringIndex)] = 0;
+}
+
 void StratEngine::liftFromFret(int stringIndex, double kilogramsPerSecond) noexcept
 {
     if (stringIndex >= 0 && stringIndex < stringCount)

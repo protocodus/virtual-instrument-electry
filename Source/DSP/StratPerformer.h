@@ -18,12 +18,16 @@ struct StratControls
     double palmMute = 0.5;        // palm pressure while Palm mute is on, 0 to 1
     double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040
     double outputDecibels = 0.0;  // -24 to +12
+    // Play everything lookaheadSeconds late, so the fretting hand can reach
+    // each note before it is picked: it lands on the fret, sliding along
+    // the string from the last one when it was there (StratPerformer).
+    bool lookahead = false;
 
     bool operator==(const StratControls& o) const noexcept
     {
         return circuit == o.circuit && pickMetres == o.pickMetres && pick == o.pick
             && palmMute == o.palmMute && strumSeconds == o.strumSeconds
-            && outputDecibels == o.outputDecibels;
+            && outputDecibels == o.outputDecibels && lookahead == o.lookahead;
     }
 };
 
@@ -41,13 +45,15 @@ struct StratControls
 // fretting-hand vibrato and the sustain pedal lets released notes ring.
 //
 // Events take effect where they are called: render up to an event's sample,
-// then send it. prepare() allocates; nothing after it does.
+// then send it; with the lookahead on, latencySamples() later. prepare()
+// allocates; nothing after it does.
 class StratPerformer
 {
 public:
     static constexpr int lowestNote = 40;
     static constexpr int highestNote = 85;
     static constexpr int frets = 21;
+    static constexpr double lookaheadSeconds = 0.050;
 
     enum class Articulation : std::uint8_t
     {
@@ -89,6 +95,8 @@ public:
     void allNotesOff() noexcept;
 
     void render(float* out, int samples) noexcept;
+    // What the lookahead delays the output by, 0 without it.
+    int latencySamples() const noexcept { return latency; }
 
     Articulation articulation() const noexcept { return latched; }
     Stroke stroke() const noexcept { return strokes; }
@@ -114,13 +122,25 @@ private:
         double slideFrom = 0.0, slideTo = 0.0;
         std::int64_t slideStart = 0, slideLength = 0;
         std::uint64_t order = 0;
+        // Where a released note's finger rests on it, and since when.
+        double restFret = 0.0;
+        // The finger gliding along it to the next fret (lookahead).
+        bool shifting = false;
+        double shiftFrom = 0.0, shiftTo = 0.0;
+        std::int64_t shiftStart = 0, shiftLength = 0;
+        // The note the fretting hand has gone ahead to, -1 none.
+        int prepared = -1;
+        std::int64_t preparedDue = 0;
     };
 
     enum class EventKind : std::uint8_t
     {
         strike,
         liftTouch,
-        leaveString
+        leaveString,
+        prepare,   // the fretting hand reads the notes due at `due`
+        shift,     // a finger glides along the string to the next fret
+        press      // and presses the string down onto it
     };
     struct Event
     {
@@ -134,6 +154,29 @@ private:
         double touchWidth = 0.0;
         bool pinch = false;
         double pickOffset = 0.0; // the hand's wander this stroke
+        std::int64_t due = 0;    // prepare: when the notes are picked
+        double from = 0.0, to = 0.0; // shift: fingertip metres from the bridge
+        std::int64_t length = 0;     // shift: samples
+    };
+
+    // MIDI held back by the lookahead, in arrival order.
+    enum class MidiKind : std::uint8_t
+    {
+        noteOn,
+        noteOff,
+        bend,
+        wheel,
+        pedal
+    };
+    struct Midi
+    {
+        std::int64_t time = 0;
+        MidiKind kind = MidiKind::noteOn;
+        int channel = 0;
+        int note = 0;
+        int velocity = 0;
+        double value = 0.0;
+        bool prepared = false;
     };
 
     struct Pending
@@ -148,8 +191,18 @@ private:
     void startStroke() noexcept;
     bool playOnSoundingString(const Pending& p) noexcept;
     bool playHarmonic(const Pending& p, double force) noexcept;
-    void assign(const Pending* notes, int count, std::array<int, 6>& stringFor) const noexcept;
+    // held: the strings a key holds through the stroke.
+    void assign(const Pending* notes, int count, const std::array<bool, 6>& held,
+                std::array<int, 6>& stringFor) const noexcept;
     void schedule(const Event& e) noexcept;
+    bool queue(const Midi& m) noexcept;
+    void dispatch(const Midi& m) noexcept;
+    void playNoteOn(int channel, int note, int velocity) noexcept;
+    void playNoteOff(int channel, int note) noexcept;
+    void playPitchBend(int channel, double position) noexcept;
+    void playSustain(bool down) noexcept;
+    void prepareNotes(std::int64_t due) noexcept;
+    void unprepare() noexcept;
     void runEvent(const Event& e) noexcept;
     void release(int stringIndex) noexcept;
     void liftRestingHand() noexcept;
@@ -191,6 +244,11 @@ private:
     static constexpr int maxEvents = 64;
     std::array<Event, maxEvents> events {};
     int eventCount = 0;
+
+    static constexpr int maxMidi = 512;
+    std::array<Midi, maxMidi> delayed {};
+    int delayedHead = 0, delayedCount = 0;
+    int latency = 0;
 
     std::int64_t now = 0;
 };
