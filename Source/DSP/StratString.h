@@ -220,6 +220,9 @@ private:
     // stretchSamplesPerJoule times that energy, measured every control period
     // and ramped between.
     double stretchSamplesPerJoule = 0.0;
+    // What holds the floating plate against this string's pull: its springs
+    // and the other strings, N m/rad (StratBridge).
+    double plateHold = 1.0;
     double stretch = 0.0;
     double stretchStep = 0.0;
     int stretchCountdown = 0;

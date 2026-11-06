@@ -1,5 +1,7 @@
 #include "StratString.h"
 
+#include "StratBridge.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -203,6 +205,13 @@ void StratString::prepare(double rate, int stringIndex) noexcept
 {
     sampleRate = rate;
     spec = &construction(stringIndex);
+    {
+        const double h = StratBridge::saddleHeightMetres();
+        plateHold = StratBridge::springStiffness();
+        for (int j = 0; j < stringCount; ++j)
+            if (j != stringIndex)
+                plateHold += h * h * StratBridge::axialStiffness(j);
+    }
 
     designedLossShare = -1.0;
 
@@ -425,14 +434,24 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     // that bends it: B = pi^3 E d^4 / (64 T L^2) gives EA = 2 L sqrt(E T B
     // / pi) at the open string's standard tension, 36 kN for the low E's core
     // and 10 kN for the high E. The pitch rises; the loop shortens.
+    //
+    // The saddle rides the floating plate, which tilts forward under the
+    // extra pull and gives some of the stretch back, as under a bend or a
+    // press (StratBridge): with k = EA / L, the springs and the other strings
+    // holding the plate with K, the tension rises by k / (1 + h^2 k / K)
+    // per metre of stretch, 0.79 of k on the open low E, 0.83 on the G and
+    // 0.94 on the high E. Friction at the saddle and the nut keeps the
+    // stretch on the speaking length, as the time the glide takes is short.
     {
         const double openTension = spec->kilogramsPerMetre * std::pow(2.0 * scaleMetres * spec->openHz, 2.0);
         const double stretchStiffness
             = 2.0 * scaleMetres * std::sqrt(steelModulus * openTension * spec->stiffness / pi);
         const double tensionNow = spec->kilogramsPerMetre * waveSpeed * waveSpeed;
         const double speaking = scaleMetres * std::pow(2.0, -fret / 12.0);
-        stretchSamplesPerJoule = stretchStiffness / (4.0 * speaking * tensionNow * tensionNow)
-            * sampleRate / fundamental;
+        const double h = StratBridge::saddleHeightMetres();
+        const double own = stretchStiffness / speaking;
+        const double held = own / (1.0 + h * h * own / plateHold);
+        stretchSamplesPerJoule = held / (4.0 * tensionNow * tensionNow) * sampleRate / fundamental;
     }
 
     // A round trip of a shorter or tighter string takes less time, so it
