@@ -488,6 +488,11 @@ void testHarmonics()
 // E's own fundamental lasts longest under the thumb.
 void testPinch()
 {
+    // The thumb picks the node: whichever partial it keeps, from the 3rd to
+    // the 12th, must come out of the stroke. The pick strikes the low E and A
+    // nearest the bridge (StratPerformer's pickLine), where the node within
+    // reach is the 7th partial's, which their wraps drain: there it comes out
+    // of the stroke but stays under the fundamental.
     for (int note : {40, 45, 50, 55, 59, 64, 76})
     {
         const auto pluck = [note](bool pinch) {
@@ -502,14 +507,26 @@ void testPinch()
             const double base = p->engine().fundamentalHz(s);
             const double b = StratString::construction(s).stiffness
                 * std::pow(2.0, p->stringFret(s) / 6.0);
-            const double fifth = 5.0 * base * std::sqrt((1.0 + 25.0 * b) / (1.0 + b));
-            return level(y, 0.2, 0.5, fifth) - level(y, 0.2, 0.5, base);
+            std::vector<double> over;
+            for (int k = 3; k <= 12; ++k)
+            {
+                const double partial = k * base * std::sqrt((1.0 + k * k * b) / (1.0 + b));
+                over.push_back(partial < 0.45 * rate
+                                   ? level(y, 0.2, 0.5, partial) - level(y, 0.2, 0.5, base)
+                                   : -1e9);
+            }
+            return over;
         };
-        const double pinched = pluck(true), ordinary = pluck(false);
-        std::printf("pinch %d: 5th partial %.1f dB over the fundamental (ordinary %.1f)\n", note,
-                    pinched, ordinary);
-        check(note == 40 || pinched > 0.0, "a pinch's harmonic rings over the fundamental");
-        check(pinched > ordinary + 20.0, "a pinch brings its harmonic out of an ordinary stroke");
+        const auto pinched = pluck(true), ordinary = pluck(false);
+        size_t kept = 0;
+        for (size_t k = 1; k < pinched.size(); ++k)
+            if (pinched[k] - ordinary[k] > pinched[kept] - ordinary[kept])
+                kept = k;
+        std::printf("pinch %d: partial %zu %.1f dB over the fundamental (ordinary %.1f)\n", note,
+                    kept + 3, pinched[kept], ordinary[kept]);
+        check(note < 50 || pinched[kept] > 0.0, "a pinch's harmonic rings over the fundamental");
+        check(pinched[kept] > ordinary[kept] + 20.0,
+              "a pinch brings its harmonic out of an ordinary stroke");
     }
 }
 

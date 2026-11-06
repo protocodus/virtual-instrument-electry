@@ -13,7 +13,7 @@ namespace electry
 struct StratControls
 {
     StratCircuit::Controls circuit {};
-    double pickMetres = 0.130;    // pick position from the bridge, 0.025 to 0.250
+    double pickMetres = 0.109;    // pick position from the bridge, mean over the strings, 0.025 to 0.250
     double pick = 0.5;            // plectrum, 0 thin to 1 heavy
     double palmMute = 0.5;        // palm pressure while Palm mute is on, 0 to 1
     double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040

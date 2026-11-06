@@ -89,6 +89,17 @@ constexpr double pushRatio = 2.0;
 // are taken whole. The player picked the low E and A at medians of 91 and 93
 // mm from the bridge and the others at 116 to 122.
 constexpr double pickScatterMetres = 0.006;
+
+// The picking hand crosses the strings on a slant, the forearm reaching over
+// the body from its upper bout: on the same recording the pick struck the
+// low E and A 25 mm nearer the bridge than the plain strings. Each string's
+// place, fitted by rendering every note at picks 80 to 135 mm from the
+// bridge and keeping the one whose first 12 partials over 5 to 105 ms come
+// nearest the recording's: 89, 93, 112, 116, 121 and 121 mm, about their
+// mean of 109 mm (StratControls::pickMetres). At one place for every
+// string, 130 mm, the partials stood 6.6 dB from the recording's (mean
+// absolute, all 78 notes); at these, 4.5.
+constexpr double pickLine[6] = {-0.020, -0.016, 0.003, 0.007, 0.012, 0.012};
 constexpr double forceScatter = 0.10;
 
 // The palm, fitted to the palm mutes of IDMT-SMT-Guitar's Stratocaster
@@ -230,7 +241,6 @@ double clamp(double value, double low, double high) noexcept
     return value < low ? low : (value > high ? high : value);
 }
 
-// How far string s stands over `fret`, which the finger takes it down.
 // Minimum jerk: where a hand moving from 0 to 1 over u in [0, 1] is, and its
 // speed over the mean.
 double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
@@ -1148,7 +1158,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         }
         return;
     }
-    double pickAt = clamp(current.pickMetres + e.pickOffset, 0.025, 0.250);
+    double pickAt = clamp(current.pickMetres + pickLine[s] + e.pickOffset, 0.025, 0.250);
     if (damping)
     {
         // A stroke under the damping hand, which stays.
