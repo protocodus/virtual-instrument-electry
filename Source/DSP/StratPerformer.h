@@ -222,6 +222,7 @@ private:
     double strokeForce(int velocity) noexcept;
     static constexpr std::uint32_t scatterSeed = 0x85EBCA6Bu;
     static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
+    static constexpr std::uint32_t paceSeed = 0x27D4EB2Fu;
     void applyPalm() noexcept;
     void controlUpdate() noexcept;
 
@@ -248,6 +249,7 @@ private:
     bool nextStrokeUp = false;
     std::uint32_t tilt = tiltSeed; // the picking hand's tilt from stroke to stroke
     std::uint32_t scatter = scatterSeed; // and its place and push
+    std::uint32_t pace = paceSeed;       // and its pace from string to string
     double strokePick = 0.0;    // this stroke's pick offset from the control
     bool steadyStroke = true;   // the first stroke after a reset
     std::int64_t lastStroke = -1000000;

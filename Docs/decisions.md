@@ -4,6 +4,27 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the strumming hand's uneven pace (B)
+
+Decided: whether a Strat strum after the first from rest crosses its strings
+at an uneven pace, each gap off the pace control with a log standard
+deviation of 0.29, as IDMT-SMT-Guitar's annotated chord strums give (the
+reading sits beside the code in `Source/DSP/StratPerformer.cpp`). The pace
+draws come from their own sequence, so the strokes' force and place are
+those of A.
+
+- A: the branch before the change (9820fcc), at an even pace.
+- B: the branch with it.
+
+Material: the original Alabama-style riff, middle and neck pickups, 48 kHz,
+whole-file RMS matched to −20 dBFS (A −15.7 dB, B −15.7 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses only the
+measured spread. Both guitars' strokes also end faster than they start (the
+last third's gaps 0.82 and 0.88 of the stroke's mean, the first third's
+1.07 and 1.05), too near the spread's own error to be modelled.
+
 ## 2026-11-06 — the finger behind the fret (B)
 
 Decided: whether a fretted Strat string loses 1.17 times its string loss

@@ -7,9 +7,11 @@
 // whatever the host's block size.
 #include "DSP/StratPerformer.h"
 
+#include <array>
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <initializer_list>
 #include <memory>
 #include <vector>
 
@@ -129,6 +131,28 @@ std::array<int, 6> onsets(StratPerformer& p, int samples)
     return first;
 }
 
+// A stroke after the first from rest: the strings in `order` sound one after
+// another, each gap within the hand's scatter of the pace (StratPerformer.cpp:
+// 2.5 deviations of 0.29 either way).
+bool paced(const std::array<int, 6>& onset, std::initializer_list<int> order, int pace)
+{
+    int previous = -1;
+    for (int s : order)
+    {
+        const int t = onset[static_cast<size_t>(s)];
+        if (previous >= 0)
+        {
+            const double gap = t - previous;
+            if (gap < 0.48 * pace || gap > 2.08 * pace)
+                return false;
+        }
+        else if (t != 0)
+            return false;
+        previous = t;
+    }
+    return true;
+}
+
 void testStrums()
 {
     electry::StratControls controls;
@@ -153,11 +177,12 @@ void testStrums()
     render(*q, 0.1, 1);
     for (int n : {45, 52, 57, 61, 64})
         q->noteOn(0, n, 100);
-    const auto up = onsets(*q, 6 * pace);
-    ordered = true;
-    for (int s = 1; s < 6; ++s)
-        ordered = ordered && up[static_cast<size_t>(s)] == (5 - s) * pace;
-    check(ordered, "a stroke that follows quickly goes up, high to low");
+    const auto up = onsets(*q, 12 * pace);
+    check(paced(up, {5, 4, 3, 2, 1}, pace), "a stroke that follows quickly goes up, high to low");
+    bool even = true;
+    for (int s = 1; s < 5; ++s)
+        even = even && up[static_cast<size_t>(s)] - up[static_cast<size_t>(s + 1)] == pace;
+    check(!even, "the hand crosses the strings of a later stroke unevenly");
 
     // After a pause the hand starts down again.
     auto r = makePerformer();
@@ -166,11 +191,8 @@ void testStrums()
     render(*r, 0.5, 1);
     for (int n : {40, 47, 52, 56, 59})
         r->noteOn(0, n, 100);
-    const auto again = onsets(*r, 6 * pace);
-    ordered = true;
-    for (int s = 0; s < 5; ++s)
-        ordered = ordered && again[static_cast<size_t>(s)] == s * pace;
-    check(ordered, "after a pause the next stroke goes down");
+    const auto again = onsets(*r, 12 * pace);
+    check(paced(again, {0, 1, 2, 3, 4}, pace), "after a pause the next stroke goes down");
 }
 
 // The stroke keyswitches: G1 latches downstrokes, G#1 upstrokes and A1 the
@@ -200,11 +222,8 @@ void testStrokeKeys()
     render(*q, 0.1, 1);
     for (int n : {45, 52, 57, 61, 64})
         q->noteOn(0, n, 100);
-    const auto down = onsets(*q, 6 * pace);
-    ordered = true;
-    for (int s = 1; s < 6; ++s)
-        ordered = ordered && down[static_cast<size_t>(s)] == (s - 1) * pace;
-    check(ordered, "with downstrokes latched a quick second stroke goes down too");
+    const auto down = onsets(*q, 12 * pace);
+    check(paced(down, {1, 2, 3, 4, 5}, pace), "with downstrokes latched a quick second stroke goes down too");
 
     // Back to alternating after upstrokes: from rest down, then a quick one up.
     auto r = makePerformer();
@@ -216,11 +235,8 @@ void testStrokeKeys()
     render(*r, 0.1, 1);
     for (int n : {45, 52, 57, 61, 64})
         r->noteOn(0, n, 100);
-    const auto back = onsets(*r, 6 * pace);
-    ordered = true;
-    for (int s = 1; s < 6; ++s)
-        ordered = ordered && back[static_cast<size_t>(s)] == (5 - s) * pace;
-    check(ordered, "alternating again, a quick stroke after one from rest goes up");
+    const auto back = onsets(*r, 12 * pace);
+    check(paced(back, {5, 4, 3, 2, 1}, pace), "alternating again, a quick stroke after one from rest goes up");
 }
 
 // B1 latches the fingers: plucked further from the bridge and let go more
