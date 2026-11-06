@@ -5,6 +5,7 @@
 // can move under a sounding chord.
 #include "DSP/StratEngine.h"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -175,6 +176,33 @@ void testFluxLaw()
     check(ordinary > -21.0 && ordinary < -13.0,
           "an ordinary stroke fills it as far as the recorded Strat's");
     check(std::abs(up - ordinary) < 2.0, "an upstroke fills it as much");
+}
+
+void testStringBalance()
+{
+    // One stroke on each open string, the neck coil alone: its level below
+    // 1.2 kHz over the first 250 ms. A Strat recorded direct has every
+    // string within 6 dB of its low E (IDMT-SMT-Guitar, neck pickup, notes
+    // at frets 0-2: 0 to -5.6 dB in dataset 1, +1.1 to -1.9 in dataset 2),
+    // where the steel and the gap alone leave the high E 10 dB under.
+    double low = 0.0, worst = 0.0;
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+    {
+        auto engine = makeEngine(Position::neck);
+        const auto& spec = StratString::construction(s);
+        const double z = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
+        engine->pluck(s, 2.5, 0.13, 0.0002, 1.5 * 2.5 / (2.0 * z));
+        const auto y = render(*engine, 0.3);
+        double sum = 0.0;
+        for (int k = 1; k * spec.openHz < 1200.0; ++k)
+            sum += std::pow(10.0, level(y, 0.01, 0.25, k * spec.openHz) / 10.0);
+        const double db = 10.0 * std::log10(sum);
+        if (s == 0)
+            low = db;
+        std::printf("open string %d at one stroke: %+.1f dB against the low E\n", s, db - low);
+        worst = std::max(worst, std::abs(db - low));
+    }
+    check(worst < 6.0, "one stroke on every string comes out as evenly as the recorded Strat's");
 }
 
 // Renders the same performance with the host splitting it into blocks of
@@ -356,6 +384,7 @@ int main()
     testCoilPlacement();
     testCoilPositions();
     testFluxLaw();
+    testStringBalance();
     testBlockPartition();
     testQuietStrings();
     testMovingControls();
