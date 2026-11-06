@@ -223,6 +223,27 @@ void testStrokeKeys()
     check(ordered, "alternating again, a quick stroke after one from rest goes up");
 }
 
+// B1 latches the fingers: plucked further from the bridge and let go more
+// slowly, a note keeps its fundamental and loses its top against the pick's.
+void testFingerKey()
+{
+    const auto tilt = [](bool fingers) {
+        auto p = makePerformer();
+        if (fingers)
+            p->noteOn(0, StratPerformer::fingerKey, 1);
+        p->noteOn(0, 45, 100);
+        const auto x = render(*p, 0.3);
+        return level(x, 0.02, 0.2, 110.0 * 12.0) - level(x, 0.02, 0.2, 110.0);
+    };
+    check(tilt(true) < tilt(false) - 3.0, "a finger-plucked note is darker than a picked one");
+
+    auto p = makePerformer();
+    p->noteOn(0, StratPerformer::fingerKey, 1);
+    check(p->isFingerPlucking(), "B1 latches finger plucking");
+    p->noteOn(0, StratPerformer::firstStrokeKey, 1);
+    check(!p->isFingerPlucking(), "G1 takes the pick back");
+}
+
 // A#1 held lays the fretting hand across the strings: a chord the pedal holds
 // stops, a stroke under it is muted, and the strings ring again once it lifts.
 void testDampAll()
@@ -887,6 +908,7 @@ int main()
     testChordShapes();
     testStrums();
     testStrokeKeys();
+    testFingerKey();
     testDampAll();
     testReleaseAndPedal();
     testRestingHand();

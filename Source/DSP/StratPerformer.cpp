@@ -187,6 +187,21 @@ constexpr double pinchReachMetres = 0.010;
 constexpr double thumbOffsetMetres = 0.010;
 constexpr int pinchHighestPartial = 24;
 
+// Plucking with the fingers. IDMT-SMT-Guitar's Stratocaster plays its licks
+// three ways (dataset 2), and 173 notes of 15 licks match note for note
+// between the picked and the finger-plucked takes. Against the same note
+// picked, read through the middle coil in octave bands over 0-20, 20-60 and
+// 60-200 ms, each against its own 125-500 Hz, a plucked note stands 2 dB
+// richer at 125 Hz and 3 dB poorer at 1 to 4 kHz (medians), from the first
+// 20 ms on. A finger leaving the string as the pick does, at the pick's
+// place, leaves those cells 2.0 dB from the recording's (mean absolute);
+// leaving it 40 mm further from the bridge, and 1.5 times as slowly as the
+// medium pick does at the same force, 0.8 (the neighbours tried, 20 to 60
+// mm and 1.25 to 2 times, within 1.6; at the pick's place no release tried
+// fits under 1.8).
+constexpr double fingerOffsetMetres = 0.040;
+constexpr double fingerReleaseShare = 1.5;
+
 // A hammer-on or pull-off: the finger strikes or flicks the string at its
 // fret with a share of a pick's force, and releases it slowly, being soft.
 // Voiced at half the 1.4 N ordinary stroke the glide gave before the pick
@@ -343,6 +358,7 @@ void StratPerformer::reset() noexcept
     wobble = wobbleSeed;
     pedal = false;
     damping = false;
+    fingers = false;
     hand = 2.0;
     nextStrokeUp = false;
     tilt = tiltSeed;
@@ -402,6 +418,11 @@ double StratPerformer::velocityForce(int velocity) const noexcept
 
 double StratPerformer::releaseSeconds(int s, double force) const noexcept
 {
+    if (fingers)
+    {
+        const double tip = 0.5 * pi * std::sqrt(mediumTipKilograms / mediumStiffness);
+        return fingerReleaseShare * (impedance(s) * gripDepth / force + tip);
+    }
     const double thickness = thinThickness + (heavyThickness - thinThickness) * current.pick;
     const double ratio = thickness / mediumThickness;
     const double stiffness = mediumStiffness * ratio * ratio * ratio;
@@ -491,6 +512,12 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringI
     if (note >= firstStrokeKey && note < firstStrokeKey + strokeCount)
     {
         strokes = static_cast<Stroke>(note - firstStrokeKey);
+        fingers = false;
+        return;
+    }
+    if (note == fingerKey)
+    {
+        fingers = true;
         return;
     }
     if (note == dampKey)
@@ -1251,6 +1278,8 @@ void StratPerformer::runEvent(const Event& e) noexcept
     }
     guitar->setBend(s, st.bend);
     const double force = std::abs(e.force);
+    if (fingers)
+        pickAt = clamp(pickAt + fingerOffsetMetres, 0.025, 0.250);
     guitar->pluck(s, e.force, pickAt, releaseSeconds(s, force),
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
     if (!st.keyDown && !st.sustained && st.note >= 0)

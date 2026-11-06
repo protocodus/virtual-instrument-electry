@@ -4,6 +4,34 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the Strat plucked with the fingers (B)
+
+Decided: whether the Strat performer gains a latched finger-plucking key
+(B1), whose stroke lands 40 mm further from the bridge than the pick's and
+leaves the string 1.5 times as slowly as the medium pick at the same force,
+as 173 notes of IDMT-SMT-Guitar's Stratocaster's licks played both ways
+give (the reading sits beside the code in `Source/DSP/StratPerformer.cpp`).
+G1 to A1 take the pick back. Nothing changes for a player who never presses
+B1.
+
+While looking for it, three other readings were made and changed nothing:
+the same session's muted licks put the palm nearer 30 mm from the saddle
+than the 20 mm its muted takes fit (the two disagree, so the fit stays);
+the chord strums' annotated string-to-string times were too coarse to set a
+strum pace; and the residue after a release sits within a few dB of the
+recording's noise.
+
+- A: the branch before the change (d825841), which ignores B1.
+- B: the branch with it.
+
+Material: the original Alabama-style riff, its intro arpeggios now under B1
+(plucked by the pick in A), the verse and lick with the pick, middle and neck
+pickups, 48 kHz, whole-file RMS matched to −20 dBFS (A −15.1 dB, B −15.9 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses nothing beyond
+the measured place and release.
+
 ## 2026-11-06 — the Strat's slides take as long as a hand's (B)
 
 Decided: whether the Strat performer's slide, voiced at 20 ms plus 30 ms a

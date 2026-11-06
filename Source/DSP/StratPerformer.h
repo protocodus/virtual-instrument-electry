@@ -42,7 +42,8 @@ struct StratControls
 //   G1, G#1 and A1 (31 to 33) latch Downstrokes, Upstrokes and Alternate
 //     strokes (down from rest, alternating while the hand keeps moving);
 //   A#1 (34), held, lays the fretting hand across all six strings: it stops
-//     what rings, and strokes under it are muted.
+//     what rings, and strokes under it are muted;
+//   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back.
 // Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel adds
 // fretting-hand vibrato and the sustain pedal lets released notes ring.
@@ -80,6 +81,7 @@ public:
     static constexpr int firstStrokeKey = firstArticulationKey + articulationCount;
     static constexpr int strokeCount = 3;
     static constexpr int dampKey = firstStrokeKey + strokeCount;
+    static constexpr int fingerKey = dampKey + 1;
 
     StratPerformer();
     void prepare(double sampleRate);
@@ -105,6 +107,7 @@ public:
     Articulation articulation() const noexcept { return latched; }
     Stroke stroke() const noexcept { return strokes; }
     bool isDamping() const noexcept { return damping; }
+    bool isFingerPlucking() const noexcept { return fingers; }
     const StratEngine& engine() const noexcept { return *guitar; }
     // The note a string is playing, or -1.
     int stringNote(int stringIndex) const noexcept;
@@ -229,6 +232,7 @@ private:
     Articulation latched = Articulation::sustain;
     Stroke strokes = Stroke::alternate;
     bool damping = false;
+    bool fingers = false; // plucking with the fingers, not the pick
 
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
