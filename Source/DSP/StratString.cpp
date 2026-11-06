@@ -675,10 +675,12 @@ void StratString::clearRight(int fromPosition, int toPosition) noexcept
 }
 
 void StratString::pluck(double forceNewtons, double metresFromBridge,
-                        double releaseSeconds, double strokeMetresPerSecond) noexcept
+                        double releaseSeconds, double strokeMetresPerSecond,
+                        bool opposedPlanes) noexcept
 {
     // A release or a contact still running completes first.
     force = forceEnd;
+    topDrive = opposedPlanes ? -1.0f : 1.0f;
     // The stretch is measured on a grid counted from the latest pluck, so a
     // string played again after silence sounds as a new one does.
     stretchCountdown = recountCountdown = 0;
@@ -931,12 +933,12 @@ void StratString::process(std::array<float, tapCount>& towardPoles,
         blockedForce = 0.0;
     const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
     injected = {v, injected[0], injected[1]};
-    // The stroke drives both planes alike; StratEngine weighs what the
-    // pickup hears of each.
+    // The stroke drives both planes as hard, the top in its own sense;
+    // StratEngine weighs what the pickup hears of each.
     if (v != 0.0f)
     {
         inject(poles, v);
-        inject(top, v);
+        inject(top, topDrive * v);
     }
 
     damp(poles);

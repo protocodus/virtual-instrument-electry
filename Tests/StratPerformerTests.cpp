@@ -468,6 +468,40 @@ std::vector<float> performance(int block)
     return out;
 }
 
+void testTilt()
+{
+    // Sixteen strokes of the open A, each released and gone before the next,
+    // against a fresh performer's first: the swing along the top starts with
+    // the stroke's or against it, and a fresh performer starts the same way.
+    auto fresh = makePerformer();
+    fresh->noteOn(0, 45, 90);
+    const auto first = render(*fresh, 0.4);
+    auto p = makePerformer();
+    int opposed = 0, unclear = 0;
+    for (int k = 0; k < 16; ++k)
+    {
+        p->noteOn(0, 45, 90);
+        const auto stroke = render(*p, 0.5);
+        p->noteOff(0, 45);
+        render(*p, 0.5);
+        double differs = 0.0, total = 0.0;
+        for (size_t i = 0; i < first.size(); ++i)
+        {
+            const double d = static_cast<double>(stroke[i]) - first[i];
+            differs += d * d;
+            total += static_cast<double>(first[i]) * first[i];
+        }
+        const double db = 10.0 * std::log10(differs / total + 1e-30);
+        if (db > -20.0)
+            ++opposed;
+        else if (db > -50.0)
+            ++unclear;
+    }
+    std::printf("tilt: %d of 16 strokes against the top\n", opposed);
+    check(unclear == 0, "a stroke's top swing is either with the stroke or against it");
+    check(opposed >= 5 && opposed <= 11, "the hand's tilt changes from stroke to stroke");
+}
+
 void testBlockPartition()
 {
     const auto reference = performance(1);
@@ -490,6 +524,7 @@ int main()
     testPalm();
     testDeadNotes();
     testArmAndBends();
+    testTilt();
     testBlockPartition();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");

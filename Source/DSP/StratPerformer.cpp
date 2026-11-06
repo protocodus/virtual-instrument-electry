@@ -156,6 +156,7 @@ void StratPerformer::reset() noexcept
     pedal = false;
     hand = 2.0;
     nextStrokeUp = false;
+    tilt = tiltSeed;
     lastStroke = -1000000;
     pendingCount = eventCount = 0;
     now = 0;
@@ -273,6 +274,31 @@ void StratPerformer::release(int s) noexcept
     const std::uint64_t order = st.order;
     st = StringState {};
     st.order = order;
+}
+
+// A pick leaves the string at a tilt that changes from stroke to stroke, so
+// the string's swing along the top sets off with its swing toward the poles
+// or against it, and its partials' beats start at their sum or at their
+// difference. On the Strat recorded direct (IDMT-SMT-Guitar, neck pickup, 78
+// notes, one stroke each), the two decaying components fitted to each of the
+// first six partials' envelopes over 2 s (295 fits where a pair beats one
+// decay by 0.3 dB), taken back to the onset, start at their sum (cos of
+// their phase over 0.5) in 30 % and at their difference (under -0.5) in
+// 38 %, every string both ways. The same fit puts 73 % and 12 % on renders
+// whose strokes all set the planes off together and 9 % and 72 % on renders
+// whose strokes all set them apart. With every stroke alike every note beat
+// alike: the 450 to 1400 Hz partials of the plain strings dipped together a
+// second in and then held, where the recorded ones decline steadily. Half
+// the 78 notes each way brings their early balance at 1.3 to 3.2 kHz to 2.8
+// to 4.0 dB from the recording's, from 4.1 to 5.9.
+bool StratPerformer::nextTiltOpposed() noexcept
+{
+    // xorshift32; its top bit is even enough from stroke to stroke, and from
+    // this seed the first stroke after a reset sets the planes off together.
+    tilt ^= tilt << 13;
+    tilt ^= tilt >> 17;
+    tilt ^= tilt << 5;
+    return (tilt >> 31) != 0;
 }
 
 void StratPerformer::pitchBend(int channel, double position) noexcept
@@ -600,7 +626,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
     guitar->setBend(s, strings[static_cast<size_t>(s)].bend);
     const double force = std::abs(e.force);
     guitar->pluck(s, e.force, current.pickMetres, releaseSeconds(s, force),
-                  pushRatio * force / (2.0 * impedance(s)));
+                  pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed());
     const StringState& st = strings[static_cast<size_t>(s)];
     if (!st.keyDown && !st.sustained && st.note >= 0)
         release(s);

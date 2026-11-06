@@ -128,6 +128,8 @@ private:
     void schedule(const Event& e) noexcept;
     void runEvent(const Event& e) noexcept;
     void release(int stringIndex) noexcept;
+    bool nextTiltOpposed() noexcept;
+    static constexpr std::uint32_t tiltSeed = 0x9E3779B9u;
     void applyPalm() noexcept;
     void controlUpdate() noexcept;
 
@@ -144,6 +146,7 @@ private:
     bool pedal = false;
     double hand = 2.0;
     bool nextStrokeUp = false;
+    std::uint32_t tilt = tiltSeed; // the picking hand's tilt from stroke to stroke
     std::int64_t lastStroke = -1000000;
     std::uint64_t orderCounter = 0;
 
