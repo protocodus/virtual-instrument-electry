@@ -481,7 +481,8 @@ void testNeck()
 // A share of each string's loss goes per second rather than per round trip,
 // so an octave up the neck a partial loses 2 - a times what the open
 // string's partial at the same frequency loses, not twice: open partial 10
-// against partial 5 at fret 12, less what the yielding fret takes per trip.
+// against partial 5 at fret 12, less what the yielding fret takes per trip,
+// and times what the finger behind the fret takes (fretFingerLoss).
 void testPerSecondLoss()
 {
     const double rate = 48000.0;
@@ -505,9 +506,10 @@ void testPerSecondLoss()
             const double lost = decibels(magnitude(y, rate, 0.3, 0.5, fn)) - decibels(magnitude(y, rate, 1.8, 0.5, fn));
             decay[fret == 0 ? 0 : 1] = lost / 1.5 - neckLoss(string->impedance(), fn, f0, 1.0);
         }
+        const double want = (2.0 - a) * StratString::fretFingerLoss;
         const double ratio = decay[1] / decay[0];
-        const double e = std::abs(ratio / (2.0 - a) - 1.0);
-        std::printf("string %d at %.0f Hz: fret 12 loses %.2f times the open string, want %.2f\n", s, f, ratio, 2.0 - a);
+        const double e = std::abs(ratio / want - 1.0);
+        std::printf("string %d at %.0f Hz: fret 12 loses %.2f times the open string, want %.2f\n", s, f, ratio, want);
         worst = e > worst ? e : worst;
     }
     check(worst < 0.05, "a fretted note loses the per-second share for as long as its trip");

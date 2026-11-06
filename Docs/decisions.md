@@ -4,6 +4,26 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the finger behind the fret (B)
+
+Decided: whether a fretted Strat string loses 1.17 times its string loss
+from the first fret on, the fretting finger taking what crosses the fret,
+while the open strings keep theirs. The factor is the median of what the
+78 notes of IDMT-SMT-Guitar's Stratocaster, recorded direct, give against
+the model rendered note for note (the reading sits beside the code in
+`Source/DSP/StratString.cpp`); the open strings already matched.
+
+- A: the branch before the change (675086e).
+- B: the branch with it.
+
+Material: the original Alabama-style riff, middle and neck pickups, 48 kHz,
+whole-file RMS matched to −20 dBFS (A −15.9 dB, B −15.7 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. It licenses only the
+measured factor; above 2 kHz B now decays slightly faster than the
+recording, which a fit by band would have to answer, not this factor.
+
 ## 2026-11-06 — the Strat plucked with the fingers (B)
 
 Decided: whether the Strat performer gains a latched finger-plucking key

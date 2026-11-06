@@ -126,6 +126,22 @@ const double StratString::inPlaneShortening = 0.00066;
 const double StratString::woundPerSecondShare = 0.64;
 const double StratString::plainPerSecondShare = 0.36;
 
+// A fretted string loses more than that law gives, from the first fret on:
+// the finger behind the fret takes what crosses it, which the nut's slot,
+// with only the free length to the tuner beyond it, gives back. Read on the
+// same recording against this model (band decays over 0.1 to 0.8 s of each
+// note, 250 Hz to 4 kHz in octaves, the model rendered note for note with
+// the same pickup), the open strings decay with the recording's (median
+// residual -0.9 to +1.9 dB/s by band) and every fretted group too slowly
+// (frets 1-3, 4-6, 7-9, 10-12: -0.7 to -4.1 dB/s); taken against each
+// string's own open note, the recording's fretted notes lose 1.11, 1.17,
+// 1.17 and 1.30 times what the model's do over 500 Hz to 4 kHz (medians over
+// strings and octaves by fret group, string by string 0.85 to 1.7). The
+// Strat read through its middle coil (dataset2, the fret runs) agrees in
+// direction on four of six strings. Each fretted trip's loss takes the
+// median factor; the open strings keep theirs.
+const double StratString::fretFingerLoss = 1.17;
+
 // The neck is not rigid under the fret. Fleischer and Zwicker measured a
 // Stratocaster's ("Dead Spots", Beitraege zur Vibro- und Psychoakustik 1/96,
 // Fig. 44): driven at the fret, square to the fretboard, it yields far more
@@ -515,7 +531,8 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     // A round trip of a shorter or tighter string takes less time, so it
     // loses less of the share that goes per second (StratString.cpp).
     const double perSecond = spec->wound ? woundPerSecondShare : plainPerSecondShare;
-    const double share = perSecond * spec->openHz / fundamental + 1.0 - perSecond;
+    const double share = (perSecond * spec->openHz / fundamental + 1.0 - perSecond)
+        * (fret > 0.0 ? fretFingerLoss : 1.0);
     if (designedLossShare < 0.0 || std::abs(share - designedLossShare) > 1e-3)
         designLoss(share);
 

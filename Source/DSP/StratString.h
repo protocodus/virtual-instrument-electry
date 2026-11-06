@@ -173,6 +173,9 @@ public:
     // per round trip, wound and plain (StratString.cpp).
     static const double woundPerSecondShare;
     static const double plainPerSecondShare;
+    // What a fretted string's loss is multiplied by, the finger behind the
+    // fret taking its share (StratString.cpp).
+    static const double fretFingerLoss;
     // The neck under the fret yields toward the poles in resonances: each
     // one's frequency, Q and conductance at its peak, s/kg (StratString.cpp).
     struct NeckMode
