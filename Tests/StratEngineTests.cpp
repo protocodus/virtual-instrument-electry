@@ -50,19 +50,26 @@ std::vector<float> render(StratEngine& engine, double seconds)
     return out;
 }
 
-double level(const std::vector<float>& x, double startSeconds, double lengthSeconds,
-             double f)
+double levelAt(const std::vector<float>& x, double sampleRate, double startSeconds,
+               double lengthSeconds, double f)
 {
-    const int start = static_cast<int>(startSeconds * rate);
-    const int length = static_cast<int>(lengthSeconds * rate);
+    const int start = static_cast<int>(startSeconds * sampleRate);
+    const int length = static_cast<int>(lengthSeconds * sampleRate);
     std::complex<double> sum = 0.0;
     for (int i = 0; i < length; ++i)
     {
         const double window = 0.5 - 0.5 * std::cos(2.0 * pi * (i + 0.5) / length);
         sum += static_cast<double>(x[static_cast<size_t>(start + i)]) * window
-            * std::polar(1.0, -2.0 * pi * f * (start + i) / rate);
+            * std::polar(1.0, -2.0 * pi * f * (start + i) / sampleRate);
     }
-    return 20.0 * std::log10(std::abs(sum) + 1e-30);
+    // Per second of window, so windows at different rates compare.
+    return 20.0 * std::log10(std::abs(sum) / sampleRate + 1e-30);
+}
+
+double level(const std::vector<float>& x, double startSeconds, double lengthSeconds,
+             double f)
+{
+    return levelAt(x, rate, startSeconds, lengthSeconds, f);
 }
 
 // Light enough that the coils read the string linearly: at an ordinary
@@ -372,6 +379,41 @@ void testTremoloRetunes()
     check(tuned, "the arm and a bend retune every string through the bridge");
 }
 
+// The top octave keeps the string's own loss whatever the host's rate: the
+// loop's read between samples would drain it on every round trip at 44.1
+// kHz, unless the strings run faster than the host (StratEngine.cpp). The
+// open high E's partials at 10 to 16 kHz over 0.3 to 0.5 s, against its
+// first three, at 44.1 kHz and at 192 kHz.
+void testTopOctaveAtEveryRate()
+{
+    const auto& spec = StratString::construction(5);
+    const auto topOverBody = [&](double hostRate) {
+        auto engine = std::make_unique<StratEngine>();
+        engine->prepare(hostRate);
+        StratCircuit::Controls controls;
+        controls.position = Position::neck;
+        engine->setControls(controls);
+        engine->pluck(5, 1.0, 0.13, 0.0001);
+        std::vector<float> y(static_cast<size_t>(0.5 * hostRate));
+        engine->process(y.data(), static_cast<int>(y.size()));
+        const auto energy = [&](int first, int last) {
+            double sum = 0.0;
+            for (int n = first; n <= last; ++n)
+            {
+                const double f = n * spec.openHz
+                    * std::sqrt((1.0 + spec.stiffness * n * n) / (1.0 + spec.stiffness));
+                sum += std::pow(10.0, levelAt(y, hostRate, 0.3, 0.2, f) / 10.0);
+            }
+            return 10.0 * std::log10(sum);
+        };
+        return energy(31, 48) - energy(1, 3);
+    };
+    const double host = topOverBody(44100.0), fast = topOverBody(192000.0);
+    std::printf("high E 10-16 kHz at 0.3-0.5 s, re its first three partials: "
+                "%.1f dB at 44.1 kHz, %.1f at 192 kHz\n", host, fast);
+    check(std::abs(host - fast) < 1.5, "the top octave decays alike at 44.1 and 192 kHz");
+}
+
 void testDeterminism()
 {
     check(performance(256) == performance(256), "the same performance gives the same bits");
@@ -389,6 +431,7 @@ int main()
     testQuietStrings();
     testMovingControls();
     testTremoloRetunes();
+    testTopOctaveAtEveryRate();
     testDeterminism();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");

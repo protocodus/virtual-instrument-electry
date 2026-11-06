@@ -31,8 +31,8 @@ public:
     static constexpr int tapCount = 3;
     // 25.5 in.
     static constexpr double scaleMetres = 0.6477;
-    // Tuning updates arrive this often; the fret-end delay ramps across one
-    // period so a bend never steps.
+    // Tuning updates arrive this often, in the host's samples; the fret-end
+    // delay ramps across one period so a bend never steps.
     static constexpr int controlPeriod = 32;
 
     struct Construction
@@ -57,7 +57,9 @@ public:
     };
     static const Construction& construction(int stringIndex) noexcept;
 
-    void prepare(double sampleRate, int stringIndex) noexcept;
+    // A string run faster than its host (StratEngine) takes its tuning
+    // updates every updateSamples of its own.
+    void prepare(double sampleRate, int stringIndex, int updateSamples = controlPeriod) noexcept;
     void reset() noexcept;
 
     // fret: 0 open, fractional while sliding. tensionRatio: tension over
@@ -213,6 +215,7 @@ private:
     double loopDelayTarget = 0.0;
     double loopDelayStep = 0.0;
     int rampRemaining = 0;
+    int rampSamples = controlPeriod;
     bool tuned = false;
     // The in-plane loop's shortfall, samples.
     double topShortfall = 0.0;
