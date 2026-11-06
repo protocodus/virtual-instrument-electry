@@ -4,6 +4,21 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the finger lets go as fast as the pick (F2)
+
+Decided by ear: the finger-plucked intro of the Alabama demo sounded
+chorus-like to the owner from the finger round on (bisected by ear: the
+engine after the slides round was clean, after the finger round not; the
+amplifier's delay and room, the string's two swing lengths and the fretted
+notes' sharpness each switched off changed nothing). Of the finger round's
+two changes, the owner heard F2, the finger leaving the string as fast as
+the medium pick, as better than F0 (shipping, 1.5 times as slowly) and F1
+(at the pick's place). The measured fit preferred 1.5 (0.8 dB against
+1.25 to 2 within 1.6 dB of the recording's octave cells); this is the
+owner's choice by ear, not a measurement. The finger still plucks 40 mm
+further from the bridge. The owner hears the finger tone as still too much
+body and too soft an attack; that remains open.
+
 ## 2026-11-06 — the palm presses unevenly (B)
 
 Decided: whether each stroke under Palm mute presses the palm a little
