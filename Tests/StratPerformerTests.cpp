@@ -2,8 +2,9 @@
 // use, strums that cross the strings in order and alternate, releases that
 // stop a note unless the pedal is down and quiet the free strings with it,
 // legato and slides on the ringing
-// string, harmonics at their pitch, the palm, the arm and finger bends,
-// and the same sound whatever the host's block size.
+// string, harmonics at their pitch, pinch harmonics, the palm, the arm and
+// finger bends, the stroke and damping keyswitches, and the same sound
+// whatever the host's block size.
 #include "DSP/StratPerformer.h"
 
 #include <cmath>
@@ -172,6 +173,104 @@ void testStrums()
     check(ordered, "after a pause the next stroke goes down");
 }
 
+// The stroke keyswitches: G1 latches downstrokes, G#1 upstrokes and A1 the
+// alternating hand of testStrums.
+void testStrokeKeys()
+{
+    electry::StratControls controls;
+    controls.strumSeconds = 0.010;
+    const int pace = static_cast<int>(controls.strumSeconds * rate);
+
+    auto p = makePerformer();
+    p->setControls(controls);
+    p->noteOn(0, StratPerformer::firstStrokeKey + 1, 1);
+    check(p->stroke() == StratPerformer::Stroke::up, "G#1 latches upstrokes");
+    for (int n : {40, 47, 52, 56, 59, 64})
+        p->noteOn(0, n, 100);
+    const auto up = onsets(*p, 6 * pace);
+    bool ordered = true;
+    for (int s = 0; s < 6; ++s)
+        ordered = ordered && up[static_cast<size_t>(s)] == (5 - s) * pace;
+    check(ordered, "an upstroke from rest crosses the strings high to low");
+
+    auto q = makePerformer();
+    q->setControls(controls);
+    q->noteOn(0, StratPerformer::firstStrokeKey, 1);
+    q->noteOn(0, 40, 100);
+    render(*q, 0.1, 1);
+    for (int n : {45, 52, 57, 61, 64})
+        q->noteOn(0, n, 100);
+    const auto down = onsets(*q, 6 * pace);
+    ordered = true;
+    for (int s = 1; s < 6; ++s)
+        ordered = ordered && down[static_cast<size_t>(s)] == (s - 1) * pace;
+    check(ordered, "with downstrokes latched a quick second stroke goes down too");
+
+    // Back to alternating after upstrokes: from rest down, then a quick one up.
+    auto r = makePerformer();
+    r->setControls(controls);
+    r->noteOn(0, StratPerformer::firstStrokeKey + 1, 1);
+    r->noteOn(0, StratPerformer::firstStrokeKey + 2, 1);
+    check(r->stroke() == StratPerformer::Stroke::alternate, "A1 latches alternate strokes");
+    r->noteOn(0, 40, 100);
+    render(*r, 0.1, 1);
+    for (int n : {45, 52, 57, 61, 64})
+        r->noteOn(0, n, 100);
+    const auto back = onsets(*r, 6 * pace);
+    ordered = true;
+    for (int s = 1; s < 6; ++s)
+        ordered = ordered && back[static_cast<size_t>(s)] == (5 - s) * pace;
+    check(ordered, "alternating again, a quick stroke after one from rest goes up");
+}
+
+// A#1 held lays the fretting hand across the strings: a chord the pedal holds
+// stops, a stroke under it is muted, and the strings ring again once it lifts.
+void testDampAll()
+{
+    const auto chord = [](StratPerformer& p) {
+        for (int n : {40, 47, 52, 56, 59, 64})
+            p.noteOn(0, n, 100);
+    };
+    auto free = makePerformer();
+    free->sustain(true);
+    chord(*free);
+    render(*free, 0.3);
+    const auto ringing = render(*free, 0.5);
+
+    auto p = makePerformer();
+    p->sustain(true);
+    chord(*p);
+    render(*p, 0.3);
+    p->noteOn(0, StratPerformer::dampKey, 1);
+    check(p->isDamping(), "A#1 lays the hand on the strings");
+    const auto choked = render(*p, 0.5);
+    const double stopped = energy(choked, 0.3, 0.2) / energy(ringing, 0.3, 0.2);
+    std::printf("damp all: the held chord %.1f dB under its free ring\n",
+                10.0 * std::log10(stopped));
+    check(stopped < 1e-4, "damping stops a chord the pedal holds");
+    bool cleared = true;
+    for (int s = 0; s < 6; ++s)
+        cleared = cleared && p->stringNote(s) < 0;
+    check(cleared, "damping lets go of every string");
+
+    const auto decay = [](const std::vector<float>& y) {
+        return energy(y, 0.15, 0.1) / energy(y, 0.0, 0.05);
+    };
+    p->sustain(false);
+    p->noteOn(0, 64, 100);
+    const auto muted = render(*p, 0.3);
+    p->noteOff(0, 64);
+    p->noteOff(0, StratPerformer::dampKey);
+    check(!p->isDamping(), "releasing A#1 lifts the hand");
+    render(*p, 0.5);
+    p->noteOn(0, 64, 100);
+    const auto open = render(*p, 0.3);
+    std::printf("damp all: a stroke under the hand keeps %.1f dB, after it lifts %.1f dB\n",
+                10.0 * std::log10(decay(muted)), 10.0 * std::log10(decay(open)));
+    check(decay(muted) < 1e-3 * decay(open), "a stroke under the damping hand is muted");
+    check(decay(open) > 0.1, "the strings ring once the hand lifts");
+}
+
 void testReleaseAndPedal()
 {
     const auto ring = [](bool pedal) {
@@ -313,6 +412,38 @@ void testHarmonics()
         std::printf("harmonic %d on string %d: %.1f dB over the fundamental\n", note, s,
                     harmonic - fundamental);
         check(harmonic > fundamental + 25.0, "a harmonic leaves out the string's fundamental");
+    }
+}
+
+// A pinch at the ordinary pick position, 130 mm from the bridge: its node a
+// fifth of the string from the bridge is within reach, so the 5th partial
+// comes out of the fundamental, open or at the 12th fret (2/5 of half the
+// string), where an ordinary stroke from there leaves it far under. The low
+// E's own fundamental lasts longest under the thumb.
+void testPinch()
+{
+    for (int note : {40, 45, 50, 55, 59, 64, 76})
+    {
+        const auto pluck = [note](bool pinch) {
+            auto p = makePerformer();
+            if (pinch)
+                p->noteOn(0, StratPerformer::firstArticulationKey + 6, 1);
+            p->noteOn(0, note, 110);
+            const auto y = render(*p, 0.8);
+            int s = 0;
+            for (int k = 0; k < 6; ++k)
+                s = p->stringNote(k) == note ? k : s;
+            const double base = p->engine().fundamentalHz(s);
+            const double b = StratString::construction(s).stiffness
+                * std::pow(2.0, p->stringFret(s) / 6.0);
+            const double fifth = 5.0 * base * std::sqrt((1.0 + 25.0 * b) / (1.0 + b));
+            return level(y, 0.2, 0.5, fifth) - level(y, 0.2, 0.5, base);
+        };
+        const double pinched = pluck(true), ordinary = pluck(false);
+        std::printf("pinch %d: 5th partial %.1f dB over the fundamental (ordinary %.1f)\n", note,
+                    pinched, ordinary);
+        check(note == 40 || pinched > 0.0, "a pinch's harmonic rings over the fundamental");
+        check(pinched > ordinary + 20.0, "a pinch brings its harmonic out of an ordinary stroke");
     }
 }
 
@@ -557,10 +688,13 @@ int main()
 {
     testChordShapes();
     testStrums();
+    testStrokeKeys();
+    testDampAll();
     testReleaseAndPedal();
     testRestingHand();
     testLegatoAndSlide();
     testHarmonics();
+    testPinch();
     testPalm();
     testDeadNotes();
     testArmAndBends();

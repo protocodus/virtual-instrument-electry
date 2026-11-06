@@ -113,6 +113,20 @@ constexpr double fingerWidth = 0.025;
 // and leaves the modes with a node there, 30 to 40 dB clear after 40 ms.
 constexpr double touchSeconds = 0.040;
 
+// A pinch harmonic: the thumb beside the pick catches the string as the pick
+// leaves it and, as a harmonic's touch does, takes the waves passing it for
+// the same time, leaving the partials with a node under it. The player moves
+// the hand until the thumb lands on a node, the lowest partial's within reach
+// of the pick, and the pick strikes the thumb's width off it (on the node it
+// would leave out the very partial the thumb keeps). At the ordinary pick
+// position the open strings' 5th partial then stands 26 to 63 dB further
+// over the fundamental than a stroke leaves it; with the pick 5 mm off, 20
+// to 56; the thumb lifting after 10 or 20 ms instead, 10 to 45. Voiced: no
+// recording of a pinch was at hand.
+constexpr double pinchReachMetres = 0.010;
+constexpr double thumbOffsetMetres = 0.010;
+constexpr int pinchHighestPartial = 24;
+
 // A hammer-on or pull-off: the finger strikes or flicks the string at its
 // fret with a share of a pick's force, and releases it slowly, being soft.
 // Voiced at half the 1.4 N ordinary stroke the glide gave before the pick
@@ -158,6 +172,23 @@ double clamp(double value, double low, double high) noexcept
     return value < low ? low : (value > high ? high : value);
 }
 
+// Where the thumb lands for a pinch on `length` of string picked `pick` from
+// the bridge.
+double pinchNode(double length, double pick) noexcept
+{
+    double nearest = 0.5 * length;
+    for (int k = 2; k <= pinchHighestPartial; ++k)
+        for (int j = 1; j < k; ++j)
+        {
+            const double x = j * length / k;
+            if (std::abs(x - pick) <= pinchReachMetres)
+                return x;
+            if (std::abs(x - pick) < std::abs(nearest - pick))
+                nearest = x;
+        }
+    return nearest;
+}
+
 } // namespace
 
 StratPerformer::StratPerformer() : guitar(std::make_unique<StratEngine>()) {}
@@ -184,6 +215,7 @@ void StratPerformer::reset() noexcept
     channelBend.fill(0.0);
     vibratoDepth = vibratoPhase = 0.0;
     pedal = false;
+    damping = false;
     hand = 2.0;
     nextStrokeUp = false;
     tilt = tiltSeed;
@@ -258,6 +290,16 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
         applyPalm();
         return;
     }
+    if (note >= firstStrokeKey && note < firstStrokeKey + strokeCount)
+    {
+        strokes = static_cast<Stroke>(note - firstStrokeKey);
+        return;
+    }
+    if (note == dampKey)
+    {
+        dampStrings(true);
+        return;
+    }
     const int top = latched == Articulation::harmonic ? highestNote + 10 : highestNote;
     if (note < lowestNote || note > top || pendingCount >= maxPending)
         return;
@@ -266,6 +308,11 @@ void StratPerformer::noteOn(int channel, int note, int velocity) noexcept
 
 void StratPerformer::noteOff(int channel, int note) noexcept
 {
+    if (note == dampKey)
+    {
+        dampStrings(false);
+        return;
+    }
     channel &= 15;
     for (int i = 0; i < pendingCount; ++i)
         if (pending[static_cast<size_t>(i)].note == note
@@ -340,6 +387,32 @@ void StratPerformer::liftRestingHand() noexcept
     }
 }
 
+// The fretting hand laid flat across the strings where it is: the flesh of a
+// released note's finger (release, above) on every string, which lets go of
+// its fret. It stays while the key is held, so strokes under it are muted.
+void StratPerformer::dampStrings(bool down) noexcept
+{
+    damping = down;
+    if (!down)
+    {
+        liftRestingHand();
+        return;
+    }
+    const double at = fingerMetres(hand);
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+    {
+        StringState& st = strings[static_cast<size_t>(s)];
+        guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
+        if (st.fret > 0.0)
+            guitar->setFret(s, 0.0);
+        guitar->setBend(s, 1.0);
+        const std::uint64_t order = st.order;
+        st = StringState {};
+        st.order = order;
+        st.handResting = true;
+    }
+}
+
 // A pick leaves the string at a tilt that changes from stroke to stroke, so
 // the string's swing along the top sets off with its swing toward the poles
 // or against it, and its partials' beats start at their sum or at their
@@ -396,6 +469,7 @@ void StratPerformer::allNotesOff() noexcept
     pendingCount = 0;
     eventCount = 0;
     pedal = false;
+    damping = false;
     for (int s = 0; s < StratEngine::stringCount; ++s)
         if (strings[static_cast<size_t>(s)].note >= 0)
             release(s);
@@ -608,7 +682,8 @@ void StratPerformer::startStroke() noexcept
 
     const bool alternate = now - lastStroke
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
-    const bool strokeUp = alternate ? nextStrokeUp : false;
+    const bool strokeUp = strokes == Stroke::up
+        || (strokes == Stroke::alternate && alternate && nextStrokeUp);
     nextStrokeUp = !strokeUp;
     lastStroke = now;
     const double sign = strokeUp ? -1.0 : 1.0;
@@ -659,6 +734,7 @@ void StratPerformer::startStroke() noexcept
         e.touchMetres = dead ? fingerMetres(fret) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
         e.touchWidth = dead ? fingerWidth : 0.0;
+        e.pinch = latched == Articulation::pinch;
         schedule(e);
 
         StringState& st = strings[static_cast<size_t>(s)];
@@ -680,19 +756,44 @@ void StratPerformer::startStroke() noexcept
 void StratPerformer::runEvent(const Event& e) noexcept
 {
     const int s = e.string;
+    StringState& st = strings[static_cast<size_t>(s)];
     if (e.kind == EventKind::liftTouch)
     {
-        guitar->setDamper(s, 1, 0.0, 0.0);
+        if (!st.handResting)
+            guitar->setDamper(s, 1, 0.0, 0.0);
         return;
     }
-    liftRestingHand();
-    guitar->setDamper(s, 1, e.touchMetres, e.touchResistance, e.touchWidth);
-    guitar->setFret(s, e.fret);
-    guitar->setBend(s, strings[static_cast<size_t>(s)].bend);
+    double pickAt = current.pickMetres;
+    if (damping)
+    {
+        // A stroke under the damping hand, which stays.
+        guitar->setDamper(s, 1, fingerMetres(e.fret), fingerResistance, fingerWidth);
+        guitar->setFret(s, 0.0);
+        st.fretted = false;
+        st.handResting = true;
+    }
+    else
+    {
+        liftRestingHand();
+        guitar->setFret(s, e.fret);
+        if (e.pinch)
+        {
+            const double node = pinchNode(fretMetres(e.fret), pickAt);
+            pickAt = node - thumbOffsetMetres;
+            guitar->setDamper(s, 1, node, impedance(s));
+            Event lift;
+            lift.time = now + static_cast<std::int64_t>(touchSeconds * sampleRate);
+            lift.kind = EventKind::liftTouch;
+            lift.string = s;
+            schedule(lift);
+        }
+        else
+            guitar->setDamper(s, 1, e.touchMetres, e.touchResistance, e.touchWidth);
+    }
+    guitar->setBend(s, st.bend);
     const double force = std::abs(e.force);
-    guitar->pluck(s, e.force, current.pickMetres, releaseSeconds(s, force),
+    guitar->pluck(s, e.force, pickAt, releaseSeconds(s, force),
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
-    const StringState& st = strings[static_cast<size_t>(s)];
     if (!st.keyDown && !st.sustained && st.note >= 0)
         release(s);
 }

@@ -28,11 +28,17 @@ struct StratControls
 };
 
 // MIDI to a guitarist's hands. Notes 40 to 85 sound at concert pitch on the
-// six strings and 21 frets; C1 to F1 (24 to 29) latch Open, Palm mute, Dead
-// note, Legato, Slide and Harmonic. Channel 1's pitch bend is the tremolo
-// arm; pitch bend on channels 2 to 16 bends that channel's string at MPE's
-// 48-semitone range. The mod wheel adds fretting-hand vibrato and the
-// sustain pedal lets released notes ring.
+// six strings and 21 frets. Keyswitches below them:
+//   C1 to F#1 (24 to 30) latch Sustain (ordinary notes), Palm mute, Mute (a
+//     dead note), Hammer-on (and pull-off), Slide, Harmonic and Pinch
+//     harmonic;
+//   G1, G#1 and A1 (31 to 33) latch Downstrokes, Upstrokes and Alternate
+//     strokes (down from rest, alternating while the hand keeps moving);
+//   A#1 (34), held, lays the fretting hand across all six strings: it stops
+//     what rings, and strokes under it are muted.
+// Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
+// bends that channel's string at MPE's 48-semitone range. The mod wheel adds
+// fretting-hand vibrato and the sustain pedal lets released notes ring.
 //
 // Events take effect where they are called: render up to an event's sample,
 // then send it. prepare() allocates; nothing after it does.
@@ -45,15 +51,26 @@ public:
 
     enum class Articulation : std::uint8_t
     {
-        open,
+        sustain,
         palmMute,
         deadNote,
         legato,
         slide,
-        harmonic
+        harmonic,
+        pinch
     };
     static constexpr int firstArticulationKey = 24;
-    static constexpr int articulationCount = 6;
+    static constexpr int articulationCount = 7;
+
+    enum class Stroke : std::uint8_t
+    {
+        down,
+        up,
+        alternate
+    };
+    static constexpr int firstStrokeKey = firstArticulationKey + articulationCount;
+    static constexpr int strokeCount = 3;
+    static constexpr int dampKey = firstStrokeKey + strokeCount;
 
     StratPerformer();
     void prepare(double sampleRate);
@@ -74,6 +91,8 @@ public:
     void render(float* out, int samples) noexcept;
 
     Articulation articulation() const noexcept { return latched; }
+    Stroke stroke() const noexcept { return strokes; }
+    bool isDamping() const noexcept { return damping; }
     const StratEngine& engine() const noexcept { return *guitar; }
     // The note a string is playing, or -1.
     int stringNote(int stringIndex) const noexcept;
@@ -112,6 +131,7 @@ private:
         double touchMetres = 0.0;
         double touchResistance = 0.0;
         double touchWidth = 0.0;
+        bool pinch = false;
     };
 
     struct Pending
@@ -131,6 +151,7 @@ private:
     void runEvent(const Event& e) noexcept;
     void release(int stringIndex) noexcept;
     void liftRestingHand() noexcept;
+    void dampStrings(bool down) noexcept;
     bool nextTiltOpposed() noexcept;
     static constexpr std::uint32_t tiltSeed = 0x9E3779B9u;
     void applyPalm() noexcept;
@@ -140,7 +161,9 @@ private:
     StratControls current;
     double sampleRate = 48000.0;
     double outputGain = 1.0;
-    Articulation latched = Articulation::open;
+    Articulation latched = Articulation::sustain;
+    Stroke strokes = Stroke::alternate;
+    bool damping = false;
 
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
