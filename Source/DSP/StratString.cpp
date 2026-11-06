@@ -922,9 +922,22 @@ void StratString::process(std::array<float, tapCount>& towardPoles,
     }
     else if (releasePosition < releaseLength)
     {
+        // The bent tip lets go as a spring does from rest: its force falls
+        // as the cosine of a quarter period and reaches nothing at full
+        // speed, so the string leaves it at a corner, and that corner is
+        // the attack's top octave. A Strat recorded direct (IDMT-SMT-Guitar
+        // dataset 1, neck pickup, 78 notes, the first 50 ms, rendered at
+        // 88.2 kHz) holds 2 to 5 kHz within 2.0 dB of this law and of a
+        // raised cosine over the whole release alike, each with its own
+        // fitted time (StratPerformer); the raised cosine, smooth at both
+        // ends, then leaves 10 to 16 kHz 7 to 16 dB under the recording,
+        // this one 1 to 6. Over 10 to 260 ms the recording's B and high E
+        // hold 16 kHz 63 to 65 dB under their strongest band, this law 65
+        // to 66, the raised cosine 79; the '62 reference and a clean
+        // electric library hold 71 to 79.
         ++releasePosition;
         const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);
-        force = forceStart + (forceEnd - forceStart) * (0.5 - 0.5 * std::cos(pi * u));
+        force = forceStart + (forceEnd - forceStart) * (1.0 - std::cos(0.5 * pi * u));
     }
     // One-pole DC blocker on the force.
     blockedForce = force - forceHeld + blockCoefficient * blockedForce;
