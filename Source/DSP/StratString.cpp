@@ -201,9 +201,10 @@ StratString::LoopTap StratString::loopTapAt(double position) noexcept
     return tap;
 }
 
-void StratString::prepare(double rate, int stringIndex) noexcept
+void StratString::prepare(double rate, int stringIndex, int updateSamples) noexcept
 {
     sampleRate = rate;
+    rampSamples = updateSamples;
     spec = &construction(stringIndex);
     {
         const double h = StratBridge::saddleHeightMetres();
@@ -511,8 +512,8 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     if (glide || std::abs(split - half) > 0.1 * half + 2.0)
         leftTarget = halfWhole;
     loopDelayTarget = total;
-    rampRemaining = controlPeriod;
-    loopDelayStep = (loopDelayTarget - loopDelay) / controlPeriod;
+    rampRemaining = rampSamples;
+    loopDelayStep = (loopDelayTarget - loopDelay) / rampSamples;
     setTaps(tapMetres);
     placeDampers();
 }
@@ -583,13 +584,18 @@ void StratString::placeDampers() noexcept
         // and a wave keeps |(Z - ZL) / (Z + ZL)|^2 of its energy. A dashpot
         // lighter than that stretch is stiff loses as R (kd)^2, so the
         // correction holds at every partial; a heavier one depends far less on
-        // where it is and is left as it is. Beyond a quarter of the string the
-        // stretch is no spring, and a sample is a small share of the distance.
+        // where it is and is left as it is, on its sample point: shared between
+        // two it pulls less the nearer it sits to halfway, and the full palm
+        // on the high E at fret 5 took 345 to 539 dB/s off its fundamental at
+        // 44.1 to 192 kHz, where on the point it takes 447 to 486 (the
+        // recorded heaviest mutes 405 and 490). Beyond a quarter of the
+        // string the stretch is no spring, and a sample is a small share of
+        // the distance.
         double r = d.resistance / z;
         const double kd = 2.0 * pi * 2.0 * fundamental / sampleRate;
         const double spring = 1.0 / std::tan(kd * at), rounded = 1.0 / std::tan(kd * d.position);
-        if (r > 0.0 && kd * std::max(at, static_cast<double>(d.position)) < 0.5 * pi
-            && r * r < 1.0 + spring * spring)
+        const bool nearSaddle = kd * std::max(at, static_cast<double>(d.position)) < 0.5 * pi;
+        if (r > 0.0 && nearSaddle && r * r < 1.0 + spring * spring)
         {
             // loss r'^2 + (2 loss - 4) r' + loss (1 + rounded^2) = 0, its
             // lighter root; past the most a dashpot there can absorb, that.
@@ -599,7 +605,7 @@ void StratString::placeDampers() noexcept
             r = disc <= 0.0 ? std::sqrt(1.0 + rounded * rounded)
                             : (b - std::sqrt(disc)) / (2.0 * loss);
         }
-        else
+        else if (!nearSaddle)
         {
             // Further along it sits between two samples. A harmonic touch
             // has to: rounded to a sample, the finger misses the node by up to

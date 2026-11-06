@@ -136,6 +136,38 @@ constexpr double fluxStepMetres = 0.00005;
 // fundamental (41 Hz, a full dive): 0.7% and 7 degrees off there.
 constexpr double swingLeakHz = 5.0;
 
+// A string's loop reads its fret end between samples, and that read loses
+// the top octave on every round trip: at 44.1 kHz the seventh-order Lagrange
+// costs the high E 27, 94, 253 and 568 dB/s at 10, 12, 14 and 16 kHz, over
+// its own 28 to 30, and less or more from note to note as the read point
+// falls. At 88.2 kHz it costs under 7. On a Strat recorded direct
+// (IDMT-SMT-Guitar dataset 1, neck pickup, the 39 notes on the plain
+// strings) 12 to 16 kHz over 80 to 250 ms stands 68 dB under the notes'
+// 150 to 1200 Hz in their first 10 ms; the strings at 44.1 kHz left it 98
+// under, at 88.2 kHz 66. The circuit, fed the coils' EMF as straight lines
+// between samples (StratCircuit), loses 1.5 to 3.9 dB at 10 to 16 kHz to
+// those lines at 44.1 kHz and under 1 at 88.2. So under this rate the
+// strings and the circuit run at twice the host's.
+constexpr double oversampleBelowHz = 64000.0;
+
+// The halfband lowpass back to the host's rate: a Kaiser-windowed sinc,
+// flat within 0.003 dB to 19 kHz at a 44.1 kHz host (0.3 dB at 20 kHz) and
+// 68 dB down from 25.1 kHz, where anything it lets through folds back above
+// 19 kHz. It delays the jack by 15.5 of the host's samples, 0.35 ms there.
+constexpr double halfbandBeta = 6.76;
+
+double besselI0(double x) noexcept
+{
+    double sum = 1.0, term = 1.0;
+    for (int k = 1; k < 100 && term > 1e-15 * sum; ++k)
+    {
+        const double h = x / (2.0 * k);
+        term *= h * h;
+        sum += term;
+    }
+    return sum;
+}
+
 } // namespace
 
 double StratEngine::coilMetres(int coil, int stringIndex) noexcept
@@ -156,27 +188,46 @@ double StratEngine::coilCoupling(int stringIndex) noexcept
 
 void StratEngine::prepare(double sampleRate) noexcept
 {
+    oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
+    // The strings, the coils over them and the circuit run at this rate.
+    const double stringRate = sampleRate * oversampling;
     for (int s = 0; s < stringCount; ++s)
     {
         StratString& string = strings[static_cast<size_t>(s)];
-        string.prepare(sampleRate, s);
+        string.prepare(stringRate, s, controlPeriod * oversampling);
         string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
         gapSteps[static_cast<size_t>(s)] = static_cast<float>(gapMetres(s) / fluxStepMetres);
         // Two loops of the open string slackened to a quarter of its
         // tension, the longest the string can be.
         quietLimit[static_cast<size_t>(s)] = static_cast<int>(
-            4.0 * sampleRate / StratString::construction(s).openHz);
+            4.0 * stringRate / StratString::construction(s).openHz);
         pending[static_cast<size_t>(s)] = Pending {};
     }
     for (int i = 0; i < fluxTableSize; ++i)
         fluxTable[static_cast<size_t>(i)] = static_cast<float>(
             fluxSlope(i * fluxStepMetres) / fluxSlope(gapBassMetres));
-    swingLeak = static_cast<float>(1.0 - 2.0 * pi * swingLeakHz / sampleRate);
-    swingSteps = static_cast<float>(acrossShare / (sampleRate * fluxStepMetres));
+    swingLeak = static_cast<float>(1.0 - 2.0 * pi * swingLeakHz / stringRate);
+    swingSteps = static_cast<float>(acrossShare / (stringRate * fluxStepMetres));
     tremolo = StratBridge {};
     bridgeMoved = false;
-    circuit.prepare(sampleRate);
+    circuit.prepare(stringRate);
+    {
+        const double centre = 2.0 * halfbandPairs - 1.0;
+        double sum = 0.0;
+        for (int j = 0; j < halfbandPairs; ++j)
+        {
+            const double n = 2.0 * j + 1.0;
+            const double r = n / centre;
+            const double tap = ((j & 1) != 0 ? -1.0 : 1.0) / (pi * n)
+                * besselI0(halfbandBeta * std::sqrt(1.0 - r * r)) / besselI0(halfbandBeta);
+            halfband[static_cast<size_t>(j)] = static_cast<float>(tap);
+            sum += tap;
+        }
+        // The pairs carry the other half of the gain at DC.
+        for (float& tap : halfband)
+            tap = static_cast<float>(tap * 0.25 / sum);
+    }
     reset();
 }
 
@@ -189,6 +240,8 @@ void StratEngine::reset() noexcept
         swing[static_cast<size_t>(s)] = {};
     }
     circuit.reset();
+    jackHistory.fill(0.0f);
+    jackWrite = 0;
     phase = 0;
 }
 
@@ -295,7 +348,7 @@ void StratEngine::applyPending() noexcept
     bridgeMoved = false;
 }
 
-void StratEngine::process(float* jackVolts, int samples) noexcept
+void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
 {
     // Below this on every tap for two loops a string is skipped until it is
     // played again: 200 dB under a pluck, far above the float subnormals
@@ -303,40 +356,66 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
     constexpr float quietVelocity = 1e-10f;
     std::array<float, StratString::tapCount> taps {};
     std::array<float, StratString::tapCount> alongTop {};
+    for (int s = 0; s < stringCount; ++s)
+    {
+        const size_t k = static_cast<size_t>(s);
+        if (quietSamples[k] >= quietLimit[k])
+            continue;
+        strings[k].process(taps, alongTop);
+        bool quiet = !strings[k].isDriven();
+        for (int c = 0; c < coilCount; ++c)
+        {
+            const float v = taps[static_cast<size_t>(c)];
+            const float u = alongTop[static_cast<size_t>(c)];
+            quiet = quiet && scalarAbs(v) < quietVelocity && scalarAbs(u) < quietVelocity;
+            float& y = swing[k][static_cast<size_t>(c)];
+            y = y * swingLeak + v;
+            // A string driven onto the poles reads as touching them,
+            // and one far off as at the table's end.
+            float d = gapSteps[k] - swingSteps * y;
+            d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
+            const int i = static_cast<int>(d);
+            const float t = d - static_cast<float>(i);
+            const float slope = fluxTable[static_cast<size_t>(i)]
+                + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
+            emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
+        }
+        quietSamples[k] = quiet ? quietSamples[k] + 1 : 0;
+    }
+}
+
+void StratEngine::process(float* jackVolts, int samples) noexcept
+{
+    constexpr int mask = halfbandHistory - 1;
+    constexpr int centre = 2 * halfbandPairs - 1;
     for (int i = 0; i < samples; ++i)
     {
         if (phase == 0)
             applyPending();
         phase = (phase + 1) % controlPeriod;
 
-        float emf[coilCount] {0.0f, 0.0f, 0.0f};
-        for (int s = 0; s < stringCount; ++s)
+        if (oversampling == 1)
         {
-            const size_t k = static_cast<size_t>(s);
-            if (quietSamples[k] >= quietLimit[k])
-                continue;
-            strings[k].process(taps, alongTop);
-            bool quiet = !strings[k].isDriven();
-            for (int c = 0; c < coilCount; ++c)
-            {
-                const float v = taps[static_cast<size_t>(c)];
-                const float u = alongTop[static_cast<size_t>(c)];
-                quiet = quiet && scalarAbs(v) < quietVelocity && scalarAbs(u) < quietVelocity;
-                float& y = swing[k][static_cast<size_t>(c)];
-                y = y * swingLeak + v;
-                // A string driven onto the poles reads as touching them,
-                // and one far off as at the table's end.
-                float d = gapSteps[k] - swingSteps * y;
-                d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
-                const int i = static_cast<int>(d);
-                const float t = d - static_cast<float>(i);
-                const float slope = fluxTable[static_cast<size_t>(i)]
-                    + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
-                emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
-            }
-            quietSamples[k] = quiet ? quietSamples[k] + 1 : 0;
+            float emf[coilCount] {0.0f, 0.0f, 0.0f};
+            stepStrings(emf);
+            jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+            continue;
         }
-        jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+        for (int k = 0; k < 2; ++k)
+        {
+            float emf[coilCount] {0.0f, 0.0f, 0.0f};
+            stepStrings(emf);
+            jackWrite = (jackWrite + 1) & mask;
+            jackHistory[static_cast<size_t>(jackWrite)]
+                = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+        }
+        const int middle = jackWrite - centre;
+        float y = 0.5f * jackHistory[static_cast<size_t>(middle & mask)];
+        for (int j = 0; j < halfbandPairs; ++j)
+            y += halfband[static_cast<size_t>(j)]
+                * (jackHistory[static_cast<size_t>((middle + 2 * j + 1) & mask)]
+                   + jackHistory[static_cast<size_t>((middle - 2 * j - 1) & mask)]);
+        jackVolts[i] = y;
     }
 }
 

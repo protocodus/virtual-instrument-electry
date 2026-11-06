@@ -65,6 +65,8 @@ private:
         bool changed = false;
     };
     void applyPending() noexcept;
+    // One sample of every sounding string, summed into each coil's EMF.
+    void stepStrings(float (&emf)[coilCount]) noexcept;
 
     std::array<StratString, stringCount> strings {};
     std::array<Pending, stringCount> pending {};
@@ -84,6 +86,17 @@ private:
     bool bridgeMoved = false;
     StratCircuit circuit;
     int phase = 0;
+
+    // Under 64 kHz the guitar runs at twice the host's rate (StratEngine.cpp)
+    // and a halfband lowpass takes the jack back down to it: its centre tap
+    // is 1/2 and every other tap off the centre is zero, so halfband[j] is
+    // the pair 2j + 1 either side.
+    int oversampling = 1;
+    static constexpr int halfbandPairs = 16;
+    static constexpr int halfbandHistory = 64; // past 4 * halfbandPairs - 1
+    std::array<float, halfbandPairs> halfband {};
+    std::array<float, halfbandHistory> jackHistory {};
+    int jackWrite = 0;
 };
 
 } // namespace electry
