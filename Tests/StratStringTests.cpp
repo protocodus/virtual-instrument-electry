@@ -812,6 +812,51 @@ void testPickContact()
     }
 }
 
+void testRestingDeflection()
+{
+    // A pluck held at its force starts from the string bent aside under it,
+    // which the rails leave out (StratEngine hands it to the coils), so once
+    // released the string swings about a line restingDeflection back from
+    // where its rails start. Taut-string statics give that line: F x (L - p)
+    // / (T L) between the bridge and the force at p, F p (L - x) / (T L)
+    // beyond it, T = mu (2 L f)^2 on the open string's scale. Over the high
+    // E's first period the swing under each tap sits there within 10 %: the
+    // force's 5 Hz DC blocker lets the bent rest creep back over 30 ms, 6 %
+    // by then.
+    const double rate = 96000.0, force = 1.0;
+    const auto& spec = StratString::construction(5);
+    const double tension = spec.kilogramsPerMetre
+        * std::pow(2.0 * StratString::scaleMetres * spec.openHz, 2.0);
+    for (double fret : {0.0, 7.0})
+        for (int tap : {0, 2})
+        {
+            auto string = makeString(rate, 5, fret);
+            string->pluck(force, pickMetres, 0.0001);
+            const double speaking = StratString::scaleMetres * std::pow(2.0, -fret / 12.0);
+            const double x = tap == 0 ? neckMetres : bridgeMetres;
+            const double statics = x < pickMetres
+                ? force * x * (speaking - pickMetres) / (tension * speaking)
+                : force * pickMetres * (speaking - x) / (tension * speaking);
+            check(std::abs(string->restingDeflection(force, x) / statics - 1.0) < 1e-6,
+                  "the held force bends the string as taut-string statics say");
+            const double period = 1.0 / string->fundamentalHz();
+            const std::vector<float> v = run(*string, rate, 0.0005 + period, tap);
+            double y = 0.0, sum = 0.0;
+            const size_t from = static_cast<size_t>(0.0005 * rate);
+            for (size_t i = 0; i < v.size(); ++i)
+            {
+                y += v[i] / rate;
+                if (i >= from)
+                    sum += y;
+            }
+            const double centre = sum / static_cast<double>(v.size() - from);
+            std::printf("fret %.0f tap %d: rest %.3f mm, swing centre %.3f mm\n", fret, tap,
+                        1000.0 * statics, 1000.0 * centre);
+            check(std::abs(-centre / statics - 1.0) < 0.1,
+                  "released, the string swings about the line it was held from");
+        }
+}
+
 void testDeterminism()
 {
     const auto render = [] {
@@ -842,6 +887,7 @@ int main()
     testBendAndGlide();
     testFretJumpsStayBounded();
     testPickContact();
+    testRestingDeflection();
     testDeterminism();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");

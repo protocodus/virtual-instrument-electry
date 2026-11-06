@@ -179,6 +179,10 @@ public:
 
     // Waveguide characteristic impedance sqrt(T mu) at the current tension.
     double impedance() const noexcept { return characteristicImpedance; }
+    // How far a force held at the latest pluck's point bends the speaking
+    // length aside at a point (metres from the bridge), at rest: the
+    // deflected rest that a pluck's held force leaves out of the rails.
+    double restingDeflection(double forceNewtons, double atMetres) const noexcept;
 
     // The dispersion section count and its coefficient for the current
     // stiffness, exposed for the tuning check.

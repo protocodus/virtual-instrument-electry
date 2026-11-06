@@ -88,6 +88,7 @@ private:
     std::array<std::array<float, coilCount>, stringCount> swing {};
     float swingLeak = 1.0f;
     float swingSteps = 0.0f; // table steps per (m/s) sample of swing
+    double stringRate = 96000.0; // the strings', coils' and circuit's rate
     StratBridge tremolo;
     bool bridgeMoved = false;
     StratCircuit circuit;
