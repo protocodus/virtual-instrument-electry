@@ -97,7 +97,7 @@ double steelCoupling(int stringIndex) noexcept
 // mostly along the body, which a pole under it hardly reads, so this share
 // of it moves toward the poles. It is fitted to the flux law's own mark on
 // a Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup, at the
-// 1.4 N its pitch glide gives the ordinary stroke: StratPerformer).
+// 1.88 N its pitch glide gives the ordinary stroke: StratPerformer).
 // The neck coil sits a quarter of the way along an open string and halfway
 // along one stopped at the 12th fret, so a linear coil leaves out the open
 // strings' 4th partial and the 12th-fret notes' 2nd; the recording has them
@@ -107,9 +107,9 @@ double steelCoupling(int stringIndex) noexcept
 // 200 ms, and +0.1 dB over all four; 0.4 leaves them 1.9 dB short. It was
 // 0.268 while the stroke pushed the string from nothing: with the share the
 // pick now holds at rest (StratPerformer) that leaves them 5.4 dB short.
-// A string swinging along the body
-// over a round pole also gives second-order flux, and it rests 1 to 2 mm
-// above the set gap at the low frets; the share stands for both. Which way a stroke leans is not
+// A string swinging along the body over a round pole also gives
+// second-order flux, and it rests 1 to 2 mm above the set gap at the low
+// frets; the share stands for both. Which way a stroke leans is not
 // measured: a downstroke (positive force) leans toward the poles here.
 constexpr double acrossShare = 0.5;
 
