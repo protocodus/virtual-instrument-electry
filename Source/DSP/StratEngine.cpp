@@ -65,15 +65,19 @@ constexpr double lowEVoltsPerMetrePerSecond = 1.0;
 // to string. At one stroke on every string the rules above put the plain
 // strings 6 to 10 dB under the low E; a Strat recorded direct reads them
 // nearer even. Its notes' level below 1.2 kHz over their first 250 ms,
-// against this model's at one force (IDMT-SMT-Guitar, neck pickup: dataset
-// 1, 78 notes at frets 0-12, and dataset 2, 126 at frets 0-20, recorded
-// apart), stands over the low E's by 0 and 1.6 dB on the A, 1.8 and 1.7 on
-// the D, 5.5 and 7.2 on the G, 4.4 and 6.9 on the B and 6.8 and 5.9 on the
-// high E; these are the two sessions' means. The '62 reference, another
-// guitar, puts its open D, G and high E 1.3, 6.2 and 8.8 dB over on the same
-// reckoning. Nothing here says which part of the pickup or the stroke makes
-// the difference, so it stands with the poles, as one per string.
-constexpr double poleBalanceDb[StratString::stringCount] = {0.0, 0.75, 1.75, 6.35, 5.65, 6.35};
+// against this model's at one force, first stood over the low E's by 0 and
+// 1.6 dB on the A, 1.8 and 1.7 on the D, 5.5 and 7.2 on the G, 4.4 and 6.9
+// on the B and 6.8 and 5.9 on the high E (IDMT-SMT-Guitar: dataset 1, 78
+// notes at frets 0-12 on the neck pickup; dataset 2, 126 at frets 0-20,
+// recorded apart, then also read through the neck). Dataset 2's open notes
+// match the middle coil's comb best (partials 1 to 14, frets 0 to 7), not
+// the neck's; read through it, against the engine as it now stands, the
+// balance below is the two sessions' mean, each session's string medians
+// within 2.2 dB of it. The '62 reference, another guitar, puts its open D,
+// G and high E 1.3, 6.2 and 8.8 dB over on the first reckoning. Nothing
+// here says which part of the pickup or the stroke makes the difference, so
+// it stands with the poles, as one per string.
+constexpr double poleBalanceDb[StratString::stringCount] = {0.0, 1.55, 2.0, 5.8, 5.15, 5.2};
 
 double poleBalance(int stringIndex) noexcept
 {
