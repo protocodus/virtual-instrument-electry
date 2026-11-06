@@ -20,19 +20,22 @@ constexpr double lightestShare = 0.05;
 
 // The string leaves the pick in two stages: it slides across the tip's grip
 // depth d at its kink velocity F / Z, taking Z d / F, and the tip then springs
-// clear in a quarter of its own period, (pi/2) sqrt(m / k). A Strat recorded
-// direct (IDMT-SMT-Guitar dataset 1, neck pickup, 78 picked notes) fixes both
-// from its 2 to 5 kHz in the first 50 ms, within 2.5 dB on the wound strings
-// and 4 dB on the plain ones: d = 0.41 mm, and 123 us for the tip, a 0.73 mm
-// celluloid medium of about 6 kN/m moving 37 mg. That assumes the
-// recording's ordinary stroke is 2.5 N, velocity 76 here. Release in the
-// string's time alone (Z / k for the tip) left the wound strings 5 to 8 dB
-// and the plain 2 to 7 dB too bright above 3 kHz. A tip's stiffness grows with
-// the cube of its thickness and its mass in proportion, so a thicker pick
-// springs clear sooner.
-constexpr double gripDepth = 0.00041;
+// clear in a quarter of its own period, (pi/2) sqrt(m / k); StratString lets
+// the force go as the spring's does. A Strat recorded direct (IDMT-SMT-Guitar
+// dataset 1, neck pickup, 78 picked notes, rendered at 88.2 kHz) fixes both
+// from its 2 to 5 kHz in the first 50 ms, within 2.0 dB over the six bands
+// and string groups: d = 0.15 mm, and 90 us for the tip, a 0.73 mm celluloid
+// medium of about 6 kN/m moving 20 mg. That assumes the recording's ordinary
+// stroke is 2.5 N, velocity 76 here. Grip and tip trade along the fit (0.05
+// to 0.3 mm with 110 to 60 us score within 0.3 dB of it), and this pair
+// leaves 5 to 16 kHz the least off (3.6 dB). Release in the string's time
+// alone (Z / k for the tip) left the wound strings 5 to 8 dB and the plain 2
+// to 7 dB too bright above 3 kHz. A tip's stiffness grows with the cube of
+// its thickness and its mass in proportion, so a thicker pick springs clear
+// sooner.
+constexpr double gripDepth = 0.00015;
 constexpr double mediumStiffness = 6000.0;
-constexpr double mediumTipKilograms = 37e-6;
+constexpr double mediumTipKilograms = 20e-6;
 constexpr double mediumThickness = 0.73e-3;
 constexpr double thinThickness = 0.46e-3;
 constexpr double heavyThickness = 1.0e-3;

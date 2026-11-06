@@ -142,7 +142,7 @@ double twelfthFretOctave(double newtons, bool stroke)
     const double impedance = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
     const double force = std::abs(newtons);
     if (stroke)
-        engine->pluck(0, newtons, 0.13, impedance * 0.00041 / force + 123e-6,
+        engine->pluck(0, newtons, 0.13, impedance * 0.00015 / force + 90.7e-6,
                       1.5 * force / (2.0 * impedance));
     else
         engine->pluck(0, newtons, 0.13, 0.0002);
