@@ -17,35 +17,38 @@ constexpr double scale = StratString::scaleMetres;
 // swinging harder is stretched further and starts sharper, by what its
 // steel, length and tension say (StratString::setTuning), so a recording's
 // glide gives its stroke's force. A Strat recorded direct (IDMT-SMT-Guitar
-// dataset 1, neck pickup, 75 of its 78 notes) starts 2.1 cents sharp over
-// 15 to 60 ms against 0.4 to 0.8 s (median), where this model struck at
-// 2.5 N starts 5.6; at least absolute error the recording glides 0.32 of
-// the model's (0.26 to 0.36 over 90 % of resamples), so its stroke is 1.4 N
-// (1.3 to 1.5). Its dataset 2, 118 notes of fret runs recorded apart, gives
-// 1.2 N, and the glide grows along the neck there as it does here (the G and
-// B 1 to 2 cents low on the neck, 5 to 9 at frets 15 to 20). Full force
-// against the ordinary is voiced until phase 2 fits the reference's
-// velocity layers: 2.24 N holds the low E 3 mm aside at a fifth of its
-// length.
-constexpr double fullForce = 2.24;
+// dataset 1, neck pickup, 74 of its 78 notes) starts 2.1 cents sharp over
+// 15 to 60 ms against 0.4 to 0.8 s (median), and this model's ordinary
+// stroke of 1.88 N starts 2.1; at least absolute error the recording glides
+// 0.95 of the model's (0.65 to 1.05 over 90 % of resamples), a stroke of
+// 1.83 N (1.5 to 1.9). It is harder than the 1.4 N a push from nothing
+// gave: the share the pick holds at rest (below) leaves the string less to
+// swing with. The same Strat's dataset 2, 118 notes of fret runs recorded
+// apart, gives a stroke 0.86 times as hard, and the glide grows along the
+// neck there as it does here (the G and B 1 to 2 cents low on the neck, 5
+// to 9 at frets 15 to 20). Full force against the ordinary is voiced until
+// phase 2 fits the reference's velocity layers: 3.0 N holds the low E 4 mm
+// aside at a fifth of its length.
+constexpr double fullForce = 3.0;
 constexpr double lightestShare = 0.05;
 
 // The string leaves the pick in two stages: it slides across the tip's grip
 // depth d at its kink velocity F / Z, taking Z d / F, and the tip then springs
 // clear in a quarter of its own period, (pi/2) sqrt(m / k); StratString lets
-// the force go as the spring's does. A Strat recorded direct (IDMT-SMT-Guitar
-// dataset 1, neck pickup, 78 picked notes, rendered at 88.2 kHz) fixes both
-// from its 2 to 5 kHz in the first 50 ms, within 2.0 dB over the six bands
-// and string groups: d = 0.084 mm at its ordinary stroke's 1.4 N (above),
-// and 90 us for the tip, a 0.73 mm celluloid medium of about 6 kN/m moving
-// 20 mg. Grip and tip trade along the fit (0.028 to 0.17 mm with 110 to
-// 60 us score within 0.3 dB of it), and this pair
-// leaves 5 to 16 kHz the least off (3.6 dB). Release in the string's time
-// alone (Z / k for the tip) left the wound strings 5 to 8 dB and the plain 2
-// to 7 dB too bright above 3 kHz. A tip's stiffness grows with the cube of
+// the force go as the spring's does. The tip is a 0.73 mm celluloid medium
+// of about 6 kN/m moving 20 mg, 90 us. The grip is fitted with the stroke
+// below to a Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup,
+// 78 picked notes): over each note's first 260 ms, in third octaves 100 Hz
+// to 10 kHz level-matched below 1.2 kHz, d = 0.6 mm leaves the model 2.7 dB
+// off the recording (median over notes and bands), 0.45 and 0.8 mm 2.9 and
+// 3.2, and the 0.084 mm a push from nothing wanted 3.9. Against that push
+// and grip every string's 1 to 10 kHz comes nearer (2.2 to 4.1 dB off by
+// string, mean over bands, from 3.3 to 6.2); the exception is the wound
+// strings' 2.5 to 5 kHz in their first 25 ms, now up to 8 dB short where
+// they stood within 5 either way. A tip's stiffness grows with the cube of
 // its thickness and its mass in proportion, so a thicker pick springs clear
 // sooner.
-constexpr double gripDepth = 0.000084;
+constexpr double gripDepth = 0.0006;
 constexpr double mediumStiffness = 6000.0;
 constexpr double mediumTipKilograms = 20e-6;
 constexpr double mediumThickness = 0.73e-3;
@@ -53,14 +56,24 @@ constexpr double thinThickness = 0.46e-3;
 constexpr double heavyThickness = 1.0e-3;
 
 // Before it slips, the pick drives the string at the hand's speed through
-// the grip (StratString::contactStiffness). At one force on all six strings,
-// IDMT's push wants that speed in proportion to each string's own release
-// speed F / 2Z, at 1.5 times it (1.4 to 1.7 score within 0.015); a single
-// hand speed for all six, 2.5 to 6 m/s, correlates 0.74 to 0.80 against
-// 0.835. With the push the release law above still holds 2 to 5 kHz within
-// 2.5 dB on every string, and the partials under 500 Hz come within 1.6 dB of
-// the reference, from 3.
-constexpr double pushRatio = 1.5;
+// the grip (StratString::contactStiffness), from a share of the slip force
+// it already holds with the string at rest under it: the stroke takes the
+// string up slowly at first, more slowly than a wave crosses it, and only
+// its last part is fast. Two Strats recorded direct show it at the neck
+// pickup (IDMT-SMT-Guitar dataset 1, 78 notes, and EGFxSet's clean American
+// Stratocaster, CC BY 4.0, 78 notes at frets 0 to 12): the first swing after
+// the release is 0.86 and 0.90 of the largest in the 27 ms that follow, the
+// push before it 0.58 and 0.44 (medians), and the settled swing's peaks
+// either side of rest differ by +1.1 and -0.5 dB. A push from nothing gave
+// 0.53, 0.54 and +3.5 dB: its own wave stays in every period and sets it
+// lopsided. Holding half, at twice each string's release speed F / 2Z,
+// gives 0.71, 0.47 and +1.2 dB, and on EGFxSet's bridge pickup 0.89, 0.46
+// and +0.6 against 0.84, 0.30 and +0.6. Holding 0.4 and 0.6 gives +1.5 and
+// +0.9 dB with pushes of 0.54 and 0.38; 1.5 and 2.5 times the speed give
+// first swings of 0.63 and 0.75, and the attack's third octaves (above)
+// 0.2 to 0.3 dB further off.
+constexpr double heldShare = 0.5;
+constexpr double pushRatio = 2.0;
 
 // The palm, fitted to the palm mutes of IDMT-SMT-Guitar's Stratocaster
 // (dataset 2: five increasingly heavy mutes at fret 5 on every string, each
@@ -102,7 +115,9 @@ constexpr double touchSeconds = 0.040;
 
 // A hammer-on or pull-off: the finger strikes or flicks the string at its
 // fret with a share of a pick's force, and releases it slowly, being soft.
-constexpr double legatoShare = 0.5;
+// Voiced at half the 1.4 N ordinary stroke the glide gave before the pick
+// held a share at rest; the same 0.7 N is this share of the 1.88 N one.
+constexpr double legatoShare = 0.375;
 constexpr double fingerReleaseSeconds = 0.002;
 
 // A slide's travel time, and how soon a stroke must follow the last one to
@@ -676,7 +691,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
     guitar->setBend(s, strings[static_cast<size_t>(s)].bend);
     const double force = std::abs(e.force);
     guitar->pluck(s, e.force, current.pickMetres, releaseSeconds(s, force),
-                  pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed());
+                  pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
     const StringState& st = strings[static_cast<size_t>(s)];
     if (!st.keyDown && !st.sustained && st.note >= 0)
         release(s);

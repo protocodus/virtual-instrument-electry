@@ -125,15 +125,18 @@ public:
     // is already sounding. With opposedPlanes the stroke sets the swing along
     // the top off in the other sense to the swing toward the poles, as a pick
     // leaving the string at the other tilt does (StratPerformer draws it).
+    // With a heldShare the push starts from that share of the slip force,
+    // taken up so slowly that the string stands at rest under it, as it does
+    // under the whole force without a push.
     void pluck(double forceNewtons, double metresFromBridge, double releaseSeconds,
-               double strokeMetresPerSecond = 0.0, bool opposedPlanes = false) noexcept;
+               double strokeMetresPerSecond = 0.0, bool opposedPlanes = false,
+               double heldShare = 0.0) noexcept;
     // The spring between the hand and the string: fitted with the stroke
-    // speed (StratPerformer's pushRatio) to the push IDMT-SMT-Guitar's Strat
-    // neck DI shows before every pick release, a ~1 ms ramp to ~0.7 of the
-    // following peak. Over +-3 ms of the release edge, 18 notes (each string,
-    // frets 0/5/10) correlate 0.835 with the reference against 0.62 without a
-    // push; a rigid pick reaches 0.79 but its sharp first touch leaves 4-8 kHz
-    // 5-14 dB too bright. 600-1000 N/m score within 0.01 of the best.
+    // (StratPerformer's heldShare and pushRatio) to the attacks of two Strats
+    // recorded direct. 400 and 1600 N/m leave the neck pickup's first swing
+    // after the release at 0.57 and 0.75 of the largest that follows (0.71
+    // here, the recordings 0.86 and 0.90) and the first 260 ms 3.0 and 3.2 dB
+    // off one of them in third octaves (2.7 here).
     static constexpr double contactStiffness = 800.0;
 
     // Where a wound string's wraps loss is stated.
