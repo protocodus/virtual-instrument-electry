@@ -73,6 +73,10 @@ public:
     // StratString::planesOpposed.
     bool planesOpposed(int stringIndex) const noexcept;
 
+    // Mains hum the single coils pick up from the room, 0 none to 1 as loud
+    // as on the recorded Strat (StratEngine.cpp), at the mains frequency.
+    void setHum(double amount, double mainsHz) noexcept;
+
     // Writes `samples` of the voltage at the jack.
     void process(float* jackVolts, int samples) noexcept;
 
@@ -106,6 +110,14 @@ private:
     double stringRate = 96000.0; // the strings', coils' and circuit's rate
     StratBridge tremolo;
     bool bridgeMoved = false;
+    // The hum: a rotor at the mains frequency, its odd harmonics by the
+    // Chebyshev recursion, scaled by humVolts.
+    static constexpr int humHarmonics = 6;
+    std::array<float, humHarmonics> humVolts {};
+    double humCos = 1.0, humSin = 0.0, humStepCos = 1.0, humStepSin = 0.0;
+    bool humming = false;
+    double humAmount = 0.0, humMainsHz = 50.0;
+    float hum() noexcept;
     StratCircuit circuit;
     int phase = 0;
 

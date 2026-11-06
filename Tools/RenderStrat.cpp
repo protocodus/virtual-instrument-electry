@@ -3,7 +3,7 @@
 // is local material: write it outside the checkout.
 //
 //   RenderStrat [--rate HZ] [--pickup 1-5] [--pick METRES] [--lookahead]
-//               [--tab] [--tail SECONDS] <in.mid> <out.wav>
+//               [--tab] [--hum 0-1] [--tail SECONDS] <in.mid> <out.wav>
 //
 // --tab plays each note on the string its MIDI channel names, channel 1 the
 // low E to 6 the high E, as a transcription with string numbers asks.
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
 {
     int rate = 48000;
     int pickup = 5;
-    double pick = -1.0, tail = 2.0;
+    double pick = -1.0, tail = 2.0, hum = 0.0;
     bool lookahead = false, tab = false;
     std::vector<const char*> paths;
     for (int i = 1; i < argc; ++i)
@@ -60,6 +60,8 @@ int main(int argc, char** argv)
             pickup = std::atoi(argv[++i]);
         else if (a == "--pick" && i + 1 < argc)
             pick = std::atof(argv[++i]);
+        else if (a == "--hum" && i + 1 < argc)
+            hum = std::atof(argv[++i]);
         else if (a == "--tail" && i + 1 < argc)
             tail = std::atof(argv[++i]);
         else if (a == "--lookahead")
@@ -72,7 +74,7 @@ int main(int argc, char** argv)
     if (paths.size() != 2 || pickup < 1 || pickup > 5)
     {
         std::fprintf(stderr, "usage: RenderStrat [--rate HZ] [--pickup 1-5] [--pick METRES] "
-                             "[--lookahead] [--tab] [--tail SECONDS] <in.mid> <out.wav>\n");
+                             "[--lookahead] [--tab] [--hum 0-1] [--tail SECONDS] <in.mid> <out.wav>\n");
         return 2;
     }
     const auto midi = protocodus::demos::ReadMidi(paths[0]);
@@ -84,6 +86,7 @@ int main(int argc, char** argv)
     if (pick > 0.0)
         controls.pickMetres = pick;
     controls.lookahead = lookahead;
+    controls.hum = hum;
     performer.setControls(controls);
 
     const double end = (midi.empty() ? 0.0 : midi.back().seconds) + tail;

@@ -321,7 +321,10 @@ void StratPerformer::setControls(const StratControls& controls) noexcept
     current.palmMute = clamp(controls.palmMute, 0.0, 1.0);
     current.strumSeconds = clamp(controls.strumSeconds, 0.0, 0.040);
     current.outputDecibels = clamp(controls.outputDecibels, -24.0, 12.0);
+    current.hum = clamp(controls.hum, 0.0, 1.0);
+    current.mainsHz = controls.mainsHz < 55.0 ? 50.0 : 60.0;
     guitar->setControls(current.circuit);
+    guitar->setHum(current.hum, current.mainsHz);
     outputGain = std::pow(10.0, current.outputDecibels / 20.0);
     applyPalm();
 }

@@ -852,6 +852,29 @@ void testLookahead()
     check(plainBefore < 1e-6f, "without the lookahead nothing sounds before the pick");
 }
 
+// The coils' hum: off, silence; on, the mains line and its odd harmonics,
+// at 50 or 60 Hz.
+void testHum()
+{
+    const auto lines = [](double hum, double mains) {
+        auto p = makePerformer();
+        electry::StratControls controls;
+        controls.hum = hum;
+        controls.mainsHz = mains;
+        p->setControls(controls);
+        const auto y = render(*p, 0.5);
+        return std::array<double, 3> {level(y, 0.1, 0.4, mains), level(y, 0.1, 0.4, 2.0 * mains),
+                                      level(y, 0.1, 0.4, 3.0 * mains)};
+    };
+    const auto off = lines(0.0, 50.0), fifty = lines(1.0, 50.0), sixty = lines(1.0, 60.0);
+    std::printf("hum: 50 Hz %.1f dB, 100 Hz %.1f, 150 Hz %.1f; at 60 Hz mains %.1f, %.1f, %.1f\n",
+                fifty[0], fifty[1], fifty[2], sixty[0], sixty[1], sixty[2]);
+    check(off[0] < -250.0, "no hum, no line");
+    check(fifty[0] > off[0] + 200.0 && fifty[2] > fifty[0] - 3.0 && fifty[1] < fifty[0] - 40.0,
+          "the coils hum at the mains frequency and its odd harmonics");
+    check(std::abs(sixty[0] - fifty[0]) < 1.0, "60 Hz mains hums as loud");
+}
+
 } // namespace
 
 int main()
@@ -873,6 +896,7 @@ int main()
     testScatter();
     testBlockPartition();
     testLookahead();
+    testHum();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

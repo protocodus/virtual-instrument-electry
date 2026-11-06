@@ -18,6 +18,8 @@ struct StratControls
     double palmMute = 0.5;        // palm pressure while Palm mute is on, 0 to 1
     double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040
     double outputDecibels = 0.0;  // -24 to +12
+    double hum = 0.0;             // mains hum in the coils, 0 none to 1 as recorded
+    double mainsHz = 50.0;        // 50 or 60
     // Play everything lookaheadSeconds late, so the fretting hand can reach
     // each note before it is picked: it lands on the fret, sliding along
     // the string from the last one when it was there (StratPerformer).
@@ -27,7 +29,8 @@ struct StratControls
     {
         return circuit == o.circuit && pickMetres == o.pickMetres && pick == o.pick
             && palmMute == o.palmMute && strumSeconds == o.strumSeconds
-            && outputDecibels == o.outputDecibels && lookahead == o.lookahead;
+            && outputDecibels == o.outputDecibels && hum == o.hum && mainsHz == o.mainsHz
+            && lookahead == o.lookahead;
     }
 };
 
