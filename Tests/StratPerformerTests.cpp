@@ -1,6 +1,7 @@
 // The performer as a guitarist: chord shapes on the strings a player would
 // use, strums that cross the strings in order and alternate, releases that
-// stop a note unless the pedal is down, legato and slides on the ringing
+// stop a note unless the pedal is down and quiet the free strings with it,
+// legato and slides on the ringing
 // string, harmonics at their pitch, the palm, the arm and finger bends,
 // and the same sound whatever the host's block size.
 #include "DSP/StratPerformer.h"
@@ -177,10 +178,7 @@ void testReleaseAndPedal()
         auto p = makePerformer();
         if (pedal)
             p->sustain(true);
-        // The B-flat on the G string's 3rd fret. No open string's low
-        // partials stand near its own, so none rings on after it through the
-        // neck (StratString's neck) as the open A rings on at the octave
-        // after an A, on the guitar as here.
+        // The B-flat on the G string's 3rd fret.
         p->noteOn(0, 58, 100);
         render(*p, 0.2);
         p->noteOff(0, 58);
@@ -207,6 +205,39 @@ void testReleaseAndPedal()
     check(s >= 0, "the pedal keeps a released note on its string");
     p->sustain(false);
     check(s >= 0 && p->stringNote(s) < 0, "lifting the pedal releases it");
+}
+
+// The A on the G string's 2nd fret drives the open A at its octave through
+// the neck (StratString's neck); a free string that hears the B-flat rings at
+// its own pitch. The hand that lets the A go stops both, and lifts at the
+// next stroke.
+void testRestingHand()
+{
+    auto p = makePerformer();
+    p->noteOn(0, 57, 100);
+    render(*p, 0.2);
+    p->noteOff(0, 57);
+    const auto y = render(*p, 0.6);
+    const double left = energy(y, 0.4, 0.2) / energy(y, 0.0, 0.05);
+    std::printf("after an A, the open A %.1f dB\n", 10.0 * std::log10(left));
+    check(left < 1e-5, "the hand that lets a note go stops the open string it drives");
+
+    const auto sympathy = [](bool afterRelease) {
+        auto q = makePerformer();
+        if (afterRelease)
+        {
+            q->noteOn(0, 57, 100);
+            render(*q, 0.2);
+            q->noteOff(0, 57);
+            render(*q, 0.3);
+        }
+        q->noteOn(0, 58, 100);
+        const auto z = render(*q, 1.0);
+        return level(z, 0.5, 0.4, 110.0) - level(z, 0.5, 0.4, 233.08);
+    };
+    const double fresh = sympathy(false), after = sympathy(true);
+    std::printf("open A under a B-flat: fresh %.1f dB, after a release %.1f dB\n", fresh, after);
+    check(std::abs(after - fresh) < 3.0, "the free strings ring again from the next stroke");
 }
 
 void testLegatoAndSlide()
@@ -527,6 +558,7 @@ int main()
     testChordShapes();
     testStrums();
     testReleaseAndPedal();
+    testRestingHand();
     testLegatoAndSlide();
     testHarmonics();
     testPalm();

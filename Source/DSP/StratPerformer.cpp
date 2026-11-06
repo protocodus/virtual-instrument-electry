@@ -282,13 +282,47 @@ void StratPerformer::release(int s) noexcept
 {
     StringState& st = strings[static_cast<size_t>(s)];
     // The fretting finger lets go of the fret but stays on the string.
-    guitar->setDamper(s, 1, fingerMetres(st.fret), fingerResistance, fingerWidth);
+    const double at = fingerMetres(st.fret);
+    guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
     if (st.fret > 0.0)
         guitar->setFret(s, 0.0);
     guitar->setBend(s, 1.0);
     const std::uint64_t order = st.order;
     st = StringState {};
     st.order = order;
+    st.released = true;
+    // The hand that lets a note go lies across the free strings with it
+    // until it next picks. On IDMT-SMT-Guitar's Stratocaster fret runs
+    // (dataset 2: frets 0 to 20 on every string, 126 releases with the other
+    // five strings free), the other strings' own lines, 291 that stood 10 dB
+    // over the noise before a release, fall a median 17 dB at it, into the
+    // noise (32 stay 6 dB over it), and the open strings a note drives in
+    // tune (unisons, octaves, fifths) are left 56 to 69 dB under its
+    // strongest line (medians by string). Free, they were left here 29 to 41
+    // dB under it, still ringing; under the hand, 58 dB and more, below the
+    // recording's noise 77 to 85 dB down. The flesh is the finger's, where
+    // the finger lies. The strings ring free from the next stroke, as the
+    // recording's own lines do in each note.
+    for (int t = 0; t < StratEngine::stringCount; ++t)
+    {
+        StringState& free = strings[static_cast<size_t>(t)];
+        if (free.note >= 0 || free.released || free.handResting)
+            continue;
+        guitar->setDamper(t, 1, at, fingerResistance, fingerWidth);
+        free.handResting = true;
+    }
+}
+
+void StratPerformer::liftRestingHand() noexcept
+{
+    for (int t = 0; t < StratEngine::stringCount; ++t)
+    {
+        StringState& st = strings[static_cast<size_t>(t)];
+        if (!st.handResting)
+            continue;
+        guitar->setDamper(t, 1, 0.0, 0.0);
+        st.handResting = false;
+    }
 }
 
 // A pick leaves the string at a tilt that changes from stroke to stroke, so
@@ -636,6 +670,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         guitar->setDamper(s, 1, 0.0, 0.0);
         return;
     }
+    liftRestingHand();
     guitar->setDamper(s, 1, e.touchMetres, e.touchResistance, e.touchWidth);
     guitar->setFret(s, e.fret);
     guitar->setBend(s, strings[static_cast<size_t>(s)].bend);

@@ -88,6 +88,8 @@ private:
         bool sustained = false; // key up while the pedal is down
         double fret = 0.0;      // where the fretting hand is
         bool fretted = false;   // pressed to the fret (not touching)
+        bool released = false;  // let go, the finger still on it
+        bool handResting = false; // free, under the hand that let a note go
         double bend = 1.0;      // finger bend and vibrato, pitch ratio
         bool slide = false;
         double slideFrom = 0.0, slideTo = 0.0;
@@ -128,6 +130,7 @@ private:
     void schedule(const Event& e) noexcept;
     void runEvent(const Event& e) noexcept;
     void release(int stringIndex) noexcept;
+    void liftRestingHand() noexcept;
     bool nextTiltOpposed() noexcept;
     static constexpr std::uint32_t tiltSeed = 0x9E3779B9u;
     void applyPalm() noexcept;
