@@ -748,6 +748,18 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
     startRelease(force, force - forceNewtons, releaseSeconds);
 }
 
+double StratString::restingDeflection(double forceNewtons, double atMetres) const noexcept
+{
+    // A taut string under a point force stands as two straight lines from
+    // its ends, y(x) = F x (L - p) / (T L) on the bridge side of the force
+    // at p and F p (L - x) / (T L) beyond it.
+    const double speaking = scaleMetres * std::pow(2.0, -fret / 12.0);
+    const double near = std::min(pickMetres, atMetres);
+    const double far = std::min(std::max(pickMetres, atMetres), speaking);
+    const double tensionNow = characteristicImpedance / samplesPerMetre * sampleRate;
+    return forceNewtons * near * (speaking - far) / (tensionNow * speaking);
+}
+
 void StratString::startRelease(double from, double to, double seconds) noexcept
 {
     forceStart = from;

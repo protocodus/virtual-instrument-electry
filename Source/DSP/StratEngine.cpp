@@ -194,7 +194,7 @@ void StratEngine::prepare(double sampleRate) noexcept
 {
     oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
     // The strings, the coils over them and the circuit run at this rate.
-    const double stringRate = sampleRate * oversampling;
+    stringRate = sampleRate * oversampling;
     for (int s = 0; s < stringCount; ++s)
     {
         StratString& string = strings[static_cast<size_t>(s)];
@@ -320,9 +320,16 @@ void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromB
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
-    strings[static_cast<size_t>(stringIndex)].pluck(forceNewtons, metresFromBridge,
-                                                    releaseSeconds, strokeMetresPerSecond,
-                                                    opposedPlanes, heldShare);
+    StratString& string = strings[static_cast<size_t>(stringIndex)];
+    string.pluck(forceNewtons, metresFromBridge, releaseSeconds, strokeMetresPerSecond,
+                 opposedPlanes, heldShare);
+    // The rails leave out the deflected rest the pluck starts from, so the
+    // coils, which read the string's distance from their poles, take it
+    // here: the string under them already stands that far aside.
+    const double held = strokeMetresPerSecond > 0.0 ? heldShare * forceNewtons : forceNewtons;
+    for (int c = 0; c < coilCount; ++c)
+        swing[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)] += static_cast<float>(
+            string.restingDeflection(held, coilMetres(c, stringIndex)) * stringRate);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 
