@@ -637,39 +637,71 @@ std::vector<float> performance(int block)
 
 void testTilt()
 {
-    // Sixteen strokes of the open A, each released and gone before the next,
-    // against a fresh performer's first: the swing along the top starts with
-    // the stroke's or against it, and a fresh performer starts the same way.
-    // The open strings the A rings through the neck (StratString's neck)
-    // fall 50 dB under it only some 3 s after it is released; sooner, the
-    // last stroke still sounds in the next.
-    auto fresh = makePerformer();
-    fresh->noteOn(0, 45, 90);
-    const auto first = render(*fresh, 0.4);
+    // Sixteen strokes of the open A: the swing along the top starts with the
+    // stroke's or against it, changing from stroke to stroke, and a fresh
+    // performer starts with it. The hand's scatter (testScatter) makes every
+    // stroke after the first sound different anyway, so the tilt is read from
+    // the string; StratString's own tests hear what it does.
     auto p = makePerformer();
-    int opposed = 0, unclear = 0;
+    int opposed = 0;
+    bool firstWith = true;
     for (int k = 0; k < 16; ++k)
     {
         p->noteOn(0, 45, 90);
-        const auto stroke = render(*p, 0.5);
+        render(*p, 0.05);
+        const bool against = p->engine().planesOpposed(1);
+        firstWith = k > 0 ? firstWith : !against;
+        opposed += against ? 1 : 0;
         p->noteOff(0, 45);
-        render(*p, 4.0);
-        double differs = 0.0, total = 0.0;
-        for (size_t i = 0; i < first.size(); ++i)
-        {
-            const double d = static_cast<double>(stroke[i]) - first[i];
-            differs += d * d;
-            total += static_cast<double>(first[i]) * first[i];
-        }
-        const double db = 10.0 * std::log10(differs / total + 1e-30);
-        if (db > -20.0)
-            ++opposed;
-        else if (db > -50.0)
-            ++unclear;
+        render(*p, 0.5);
     }
     std::printf("tilt: %d of 16 strokes against the top\n", opposed);
-    check(unclear == 0, "a stroke's top swing is either with the stroke or against it");
+    check(firstWith, "a fresh performer's first stroke sets the planes off together");
     check(opposed >= 5 && opposed <= 11, "the hand's tilt changes from stroke to stroke");
+}
+
+// The hand's scatter: the first stroke after a reset lands where the controls
+// put it, sample for sample; the strokes after it differ in force and in where
+// they land, by about the 0.9 dB and 6 mm the recorded player's notes spread.
+// Strokes are compared at one tilt, which moves the level by itself.
+void testScatter()
+{
+    const double f0 = StratString::construction(3).openHz;
+    auto q = makePerformer();
+    q->noteOn(0, 55, 100);
+    const auto fresh = render(*q, 0.25);
+    auto p = makePerformer();
+    std::vector<double> fundamental, third;
+    bool firstSame = true;
+    for (int k = 0; k < 24; ++k)
+    {
+        p->noteOn(0, 55, 100);
+        const auto y = render(*p, 0.25);
+        const bool against = p->engine().planesOpposed(3);
+        p->noteOff(0, 55);
+        render(*p, 0.25);
+        if (k == 0)
+            firstSame = y == fresh;
+        if (against)
+            continue;
+        fundamental.push_back(level(y, 0.02, 0.2, f0));
+        third.push_back(level(y, 0.02, 0.2, 3.0 * f0) - fundamental.back());
+    }
+    check(firstSame, "the first stroke lands where the controls put it");
+    const auto sd = [](const std::vector<double>& v) {
+        double m = 0.0, s = 0.0;
+        for (double x : v)
+            m += x / static_cast<double>(v.size());
+        for (double x : v)
+            s += (x - m) * (x - m) / static_cast<double>(v.size() - 1);
+        return std::sqrt(s);
+    };
+    std::printf("scatter over %zu strokes with the planes together: fundamental SD %.2f dB, "
+                "3rd partial's balance SD %.2f dB\n",
+                fundamental.size(), sd(fundamental), sd(third));
+    check(fundamental.size() >= 6, "enough strokes share a tilt");
+    check(sd(fundamental) > 0.3 && sd(fundamental) < 2.0, "strokes differ in force as a player's do");
+    check(sd(third) > 0.1, "strokes differ in where they land");
 }
 
 void testBlockPartition()
@@ -699,6 +731,7 @@ int main()
     testDeadNotes();
     testArmAndBends();
     testTilt();
+    testScatter();
     testBlockPartition();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");

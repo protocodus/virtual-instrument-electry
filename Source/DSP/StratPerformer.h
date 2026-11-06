@@ -132,6 +132,7 @@ private:
         double touchResistance = 0.0;
         double touchWidth = 0.0;
         bool pinch = false;
+        double pickOffset = 0.0; // the hand's wander this stroke
     };
 
     struct Pending
@@ -154,6 +155,9 @@ private:
     void dampStrings(bool down) noexcept;
     bool nextTiltOpposed() noexcept;
     static constexpr std::uint32_t tiltSeed = 0x9E3779B9u;
+    double nextScatter() noexcept;
+    double strokeForce(int velocity) noexcept;
+    static constexpr std::uint32_t scatterSeed = 0x85EBCA6Bu;
     void applyPalm() noexcept;
     void controlUpdate() noexcept;
 
@@ -173,6 +177,9 @@ private:
     double hand = 2.0;
     bool nextStrokeUp = false;
     std::uint32_t tilt = tiltSeed; // the picking hand's tilt from stroke to stroke
+    std::uint32_t scatter = scatterSeed; // and its place and push
+    double strokePick = 0.0;    // this stroke's pick offset from the control
+    bool steadyStroke = true;   // the first stroke after a reset
     std::int64_t lastStroke = -1000000;
     std::uint64_t orderCounter = 0;
 

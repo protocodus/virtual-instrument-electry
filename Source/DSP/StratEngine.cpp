@@ -352,6 +352,12 @@ bool StratEngine::isDriven(int stringIndex) const noexcept
         && strings[static_cast<size_t>(stringIndex)].isDriven();
 }
 
+bool StratEngine::planesOpposed(int stringIndex) const noexcept
+{
+    return stringIndex >= 0 && stringIndex < stringCount
+        && strings[static_cast<size_t>(stringIndex)].planesOpposed();
+}
+
 void StratEngine::applyPending() noexcept
 {
     for (int s = 0; s < stringCount; ++s)
