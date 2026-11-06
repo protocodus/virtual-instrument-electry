@@ -32,6 +32,15 @@ public:
     // A finger holds this string bent to `pitchRatio` times the pitch it
     // would have unbent, as a player bends to a target by ear. 1 lifts it.
     void setBend(int stringIndex, double pitchRatio) noexcept;
+    // A fretting finger stretches this string by `metres` as it presses it
+    // onto the fret; 0 lifts it. Its tension rises by its axial stiffness
+    // times that, less what the plate gives back, and the others sag a
+    // little, as under a bend.
+    void setPress(int stringIndex, double metres) noexcept;
+    double pressMetres(int stringIndex) const noexcept
+    {
+        return press[static_cast<std::size_t>(stringIndex)];
+    }
 
     // Each string's tension over its tension at rest, unbent.
     double tensionRatio(int stringIndex) const noexcept
@@ -57,6 +66,7 @@ private:
 
     double arm = 0.0;
     std::array<double, stringCount> bend {};
+    std::array<double, stringCount> press {};
     std::array<double, stringCount> ratio {};
     double plateAngle = 0.0;
 };

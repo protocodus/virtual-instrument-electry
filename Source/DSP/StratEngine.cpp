@@ -176,12 +176,33 @@ void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
     circuit.setControls(controls);
 }
 
+// Fretting stretches the string: the finger pushes it past the fret's crown
+// toward the board, and its tension rises by its axial stiffness times the
+// stretch, less what the floating plate gives back (StratBridge). One
+// stretch for every string and fret fits the intonation of both
+// IDMT-SMT-Guitar Strat sessions (dataset 1, frets 1-12; dataset 2's fret
+// runs, frets 1-20; each fretted note's late pitch against its own open
+// string's, 192 notes): 30.5 um over frets 1-12 takes the median error from
+// 6.4 to 2.8 cents, and the strings' own stiffness over tension gives the
+// pattern: the low E 13 cents sharp, the G 11, the A 8, the B 7, the D and
+// high E 4, against medians of 16, 10, 6, 3, 6 and 1. The sessions alone fit
+// 21 and 32 um. It is the finger about 0.8 mm past the crown 10 mm behind
+// the fret. Above the 12th fret dataset 2 reads 3 to 9 cents sharper still,
+// the action rising; that is left out.
+const double StratEngine::fretPressMetres = 30.5e-6;
+
 void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     Pending& p = pending[static_cast<size_t>(stringIndex)];
     p.fret = fret;
+    const double press = fret > 0.0 ? fretPressMetres : 0.0;
+    if (press != tremolo.pressMetres(stringIndex))
+    {
+        tremolo.setPress(stringIndex, press);
+        bridgeMoved = true;
+    }
     if (glide)
     {
         p.glide = true;

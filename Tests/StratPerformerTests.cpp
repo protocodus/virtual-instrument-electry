@@ -234,7 +234,10 @@ void testLegatoAndSlide()
     render(*q, 0.05);
     const int middle = q->stringFret(s);
     render(*q, 0.3);
-    const double want = StratString::construction(s).openHz * std::pow(2.0, (67 - openNote[s]) / 12.0);
+    // The fretting finger stretches the string (StratEngine::fretPressMetres),
+    // and the bridge's tension ratio carries it.
+    const double want = StratString::construction(s).openHz * std::pow(2.0, (67 - openNote[s]) / 12.0)
+        * std::sqrt(q->engine().bridge().tensionRatio(s));
     check(middle > from && middle < 67 - openNote[s], "a slide passes the frets between");
     check(q->stringNote(s) == 67
               && std::abs(q->engine().fundamentalHz(s) / want - 1.0) < 1e-9,
@@ -412,8 +415,13 @@ void testArmAndBends()
     for (int s = 0; s < 6; ++s)
         if (p->stringNote(s) == 69)
             bent = s;
+    // The pitch the string would have unbent: the same arm, and the same
+    // fretting fingers stretching their strings.
     electry::StratBridge reference;
     reference.setArm(-0.5);
+    for (int s = 0; s < 6; ++s)
+        if (p->stringNote(s) >= 0 && p->stringFret(s) > 0)
+            reference.setPress(s, electry::StratEngine::fretPressMetres);
     check(bent >= 0
               && std::abs(p->engine().bridge().tensionRatio(bent)
                           / (std::pow(2.0, 4.0 / 12.0) * reference.tensionRatio(bent)) - 1.0)

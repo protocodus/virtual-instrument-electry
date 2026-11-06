@@ -33,8 +33,12 @@ public:
     // A fret change without glide stops the string there at once, so a pluck
     // in the same sample sounds the new note. A glide, the arm and finger
     // bends follow at the next control period; restate them at least that
-    // often for a smooth gesture.
+    // often for a smooth gesture. Any fret above 0 is pressed, which
+    // stretches the string by fretPressMetres (StratBridge::setPress).
     void setFret(int stringIndex, double fret, bool glide = false) noexcept;
+    // How far a fretting finger stretches a string (StratEngine.cpp has the
+    // measurement).
+    static const double fretPressMetres;
     // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge).
     void setArm(double position) noexcept;
     // A finger bend to `pitchRatio` over the string's unbent pitch.

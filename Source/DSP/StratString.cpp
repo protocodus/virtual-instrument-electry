@@ -554,6 +554,7 @@ void StratString::placeDampers() noexcept
             continue;
         }
         d.position = static_cast<int>(std::lround(at));
+        d.next = 0.0f;
         // On its sample point the dashpot gets the resistance that loses as
         // much each period at the second partial as R would at its true
         // place. A palm 20 mm from the saddle is two samples along a high E at
@@ -578,6 +579,16 @@ void StratString::placeDampers() noexcept
             const double disc = b * b - 4.0 * loss * loss * (1.0 + rounded * rounded);
             r = disc <= 0.0 ? std::sqrt(1.0 + rounded * rounded)
                             : (b - std::sqrt(disc)) / (2.0 * loss);
+        }
+        else
+        {
+            // Further along it sits between two samples. A harmonic touch
+            // has to: rounded to a sample, the finger misses the node by up to
+            // half of one, its two sides turn back into the fundamental when
+            // it lifts, and how much (5 dB between neighbours, high E fret 9
+            // at 48 kHz) follows that rounding.
+            d.position = static_cast<int>(at);
+            d.next = static_cast<float>(at - d.position);
         }
         // A dashpot of resistance R on a string of impedance Z passes
         // 2Z / (2Z + R) of the local velocity and absorbs the rest.
@@ -796,6 +807,23 @@ void StratString::damp(Plane& plane) noexcept
     {
         if (d.absorption == 0.0f)
             continue;
+        if (d.next > 0.0f)
+        {
+            // What the dashpot reads and what it takes, shared alike, so a
+            // mode with its node at the point loses nothing.
+            float& r0 = plane.right[static_cast<size_t>((write - d.position) & railMask)];
+            float& l0 = plane.left[static_cast<size_t>((write + leftOffset + d.position) & railMask)];
+            float& r1 = plane.right[static_cast<size_t>((write - d.position - 1) & railMask)];
+            float& l1
+                = plane.left[static_cast<size_t>((write + leftOffset + d.position + 1) & railMask)];
+            const float near = 1.0f - d.next;
+            const float v = d.absorption * (near * (r0 + l0) + d.next * (r1 + l1));
+            r0 -= near * v;
+            l0 -= near * v;
+            r1 -= d.next * v;
+            l1 -= d.next * v;
+            continue;
+        }
         for (int k = d.position; k < d.position + d.count; ++k)
         {
             float& r = plane.right[static_cast<size_t>((write - k) & railMask)];
