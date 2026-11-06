@@ -223,7 +223,9 @@ private:
     static constexpr std::uint32_t scatterSeed = 0x85EBCA6Bu;
     static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
     static constexpr std::uint32_t paceSeed = 0x27D4EB2Fu;
-    void applyPalm() noexcept;
+    static constexpr std::uint32_t pressSeed = 0x165667B1u;
+    // pressureOffset: this stroke's palm off the Palm control.
+    void applyPalm(double pressureOffset = 0.0) noexcept;
     void controlUpdate() noexcept;
 
     std::unique_ptr<StratEngine> guitar;
@@ -250,6 +252,7 @@ private:
     std::uint32_t tilt = tiltSeed; // the picking hand's tilt from stroke to stroke
     std::uint32_t scatter = scatterSeed; // and its place and push
     std::uint32_t pace = paceSeed;       // and its pace from string to string
+    std::uint32_t press = pressSeed;     // and the palm's from stroke to stroke
     double strokePick = 0.0;    // this stroke's pick offset from the control
     bool steadyStroke = true;   // the first stroke after a reset
     std::int64_t lastStroke = -1000000;

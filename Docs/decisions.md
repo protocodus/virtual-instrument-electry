@@ -4,6 +4,26 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-06 — the palm presses unevenly (B)
+
+Decided: whether each stroke under Palm mute presses the palm a little
+harder or lighter around the Palm control, a standard deviation of 0.15 of
+the pressure, as the spread of 177 muted lick notes of IDMT-SMT-Guitar's
+Stratocaster gives (the reading sits beside the code in
+`Source/DSP/StratPerformer.cpp`). Its draws come from their own sequence.
+
+- A: the branch before the change (44d0103), one pressure for every stroke.
+- B: the branch with it.
+
+Material: the original Alabama-style riff, its verse palm-muted, middle and
+neck pickups, 48 kHz, whole-file RMS matched to −20 dBFS (A −15.7 dB,
+B −15.7 dB).
+
+**B is kept under the owner's standing rule that a candidate wins unless the
+owner says otherwise**; no one has listened yet. The spread includes
+whatever else differs between muted notes, so it bounds the palm's own
+scatter from above; it licenses nothing about where the palm lies.
+
 ## 2026-11-06 — the strumming hand's uneven pace (B)
 
 Decided: whether a Strat strum after the first from rest crosses its strings

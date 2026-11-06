@@ -129,6 +129,19 @@ constexpr double palmMetres = 0.020;
 constexpr double palmRestPerSecond = 12.7;
 constexpr double palmPressedResistance = 2.0;
 
+// Nor does the palm press alike from stroke to stroke. Over the same
+// session's 177 muted lick notes, each against its own note picked open
+// (dataset 2, middle coil), what the mute takes from the 250 Hz, 500 Hz and
+// 1 kHz octaves by 120 to 200 ms spreads 8.1, 13.5 and 13.6 dB from note to
+// note (robust SD), the model's at one pressure 4.1, 5.4 and 6.6 dB from the
+// pick's own scatter; rendering the licks at pressures 0.5 and 0.75 moves
+// those octaves 42, 78 and 85 dB per unit pressure, so the spread left over
+// is 0.17, 0.16 and 0.14 of the pressure. Each stroke under Palm mute takes
+// the middle of them about the Palm control. It includes whatever else
+// differs between muted notes, so it bounds the palm's own scatter from
+// above.
+constexpr double palmScatter = 0.15;
+
 // A finger lying on the string without pressing it, fitted to the 72 dead
 // notes of the same Stratocaster (frets 3, 8 and 14 on every string; decay of
 // each octave band 250 Hz to 4 kHz over the first 80 ms). A point cannot
@@ -373,6 +386,7 @@ void StratPerformer::reset() noexcept
     tilt = tiltSeed;
     scatter = scatterSeed;
     pace = paceSeed;
+    press = pressSeed;
     strokePick = 0.0;
     steadyStroke = true;
     lastStroke = -1000000;
@@ -440,14 +454,15 @@ double StratPerformer::releaseSeconds(int s, double force) const noexcept
     return impedance(s) * gripDepth / force + tip;
 }
 
-void StratPerformer::applyPalm() noexcept
+void StratPerformer::applyPalm(double pressureOffset) noexcept
 {
     const bool on = latched == Articulation::palmMute;
+    const double pressure = clamp(current.palmMute + pressureOffset, 0.0, 1.0);
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         const double rest = palmRestPerSecond * StratString::construction(s).kilogramsPerMetre;
         const double resistance
-            = rest * std::pow(palmPressedResistance / rest, current.palmMute);
+            = rest * std::pow(palmPressedResistance / rest, pressure);
         guitar->setDamper(s, 0, palmMetres, on ? resistance : 0.0);
     }
 }
@@ -1013,6 +1028,8 @@ void StratPerformer::startStroke() noexcept
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
     steadyStroke = lastStroke < 0;
     strokePick = pickScatterMetres * nextScatter();
+    if (latched == Articulation::palmMute && !steadyStroke)
+        applyPalm(palmScatter * normalDraw(press));
     const bool strokeUp = strokes == Stroke::up
         || (strokes == Stroke::alternate && alternate && nextStrokeUp);
     nextStrokeUp = !strokeUp;
