@@ -222,8 +222,9 @@ constexpr int pinchHighestPartial = 24;
 // mm and 1.25 to 2 times, within 1.6; at the pick's place no release tried
 // fits under 1.8). By ear the 1.5 times slower release sounded detuned, as a
 // chorus, on the ringing arpeggios of the Alabama demo, and the finger now
-// leaves the string as fast as the pick (Docs/decisions.md); the place stays.
-constexpr double fingerOffsetMetres = 0.040;
+// leaves the string as fast as the pick, 20 mm further from the bridge than
+// it, the near edge of the places that fit (Docs/decisions.md).
+constexpr double fingerOffsetMetres = 0.020;
 constexpr double fingerReleaseShare = 1.0;
 
 // A hammer-on or pull-off: the finger strikes or flicks the string at its

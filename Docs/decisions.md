@@ -15,9 +15,11 @@ two changes, the owner heard F2, the finger leaving the string as fast as
 the medium pick, as better than F0 (shipping, 1.5 times as slowly) and F1
 (at the pick's place). The measured fit preferred 1.5 (0.8 dB against
 1.25 to 2 within 1.6 dB of the recording's octave cells); this is the
-owner's choice by ear, not a measurement. The finger still plucks 40 mm
-further from the bridge. The owner hears the finger tone as still too much
-body and too soft an attack; that remains open.
+owner's choice by ear, not a measurement. The owner then heard the finger
+tone as too much body and too soft an attack; B of a second pair, the finger
+20 mm further from the bridge than the pick instead of 40 (the near edge of
+the places within 1.6 dB of the recording's cells), is kept under the
+owner's standing rule that a candidate wins unless the owner says otherwise.
 
 ## 2026-11-06 — the palm presses unevenly (B)
 
