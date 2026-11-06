@@ -119,7 +119,8 @@ private:
     enum class EventKind : std::uint8_t
     {
         strike,
-        liftTouch
+        liftTouch,
+        leaveString
     };
     struct Event
     {

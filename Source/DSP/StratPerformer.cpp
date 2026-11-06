@@ -122,6 +122,26 @@ constexpr double palmPressedResistance = 2.0;
 constexpr double fingerResistance = 2.0;
 constexpr double fingerWidth = 0.025;
 
+// The finger that lets a fretted note go lets the string up off the fret
+// before it leaves the string: for a moment the flesh, not the fret, ends
+// it, and takes what arrives there, which no finger lying beside a fret can
+// (a touch on a point the waves pass leaves at least half of them each
+// time). On IDMT-SMT-Guitar's Stratocaster fret runs (dataset 2, 114
+// fretted releases over the six strings) a released note's 0.1 to 1 kHz
+// band falls 26 to 30 dB in its steepest 20 ms (medians by string). The
+// finger beside the fret alone left it falling 16 to 19, 8.4 dB short at
+// the median release, and least at the frets over the open string's nodes
+// (the 7th, 12th and 19th, 9 to 14 dB). Ending the string with the
+// finger's own flesh for 15 ms first, the releases fall 21 to 26 dB, 4.2 dB
+// from the recording's at the median (mean 9.7 dB to 5.8); 10 to 30 ms fit
+// within 0.7 dB of that and 1 to 4 kg/s within 0.4. A wider finger instead,
+// 50 to 160 mm of it, fits no better than 5.7 dB and stops the treble
+// strings far faster than the bass. The click at the release (the loudest
+// 4 ms of 1 to 8 kHz around it, over the note before) moves from 11.7, 9.2,
+// 1.2, -9.2, -0.9 and -1.6 dB to 6.4, 5.6, 0.8, 0.4, -0.1 and -0.2, the
+// recording's 18.5, 9.2, 0.1, -4.3, -2.2 and -0.5.
+constexpr double liftSeconds = 0.015;
+
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
 // splits the string into two halves whose motion turns back into the
 // fundamental when the finger lifts (20 dB of it left, measured), while a
@@ -366,7 +386,14 @@ void StratPerformer::release(int s) noexcept
     const double at = fingerMetres(st.fret);
     guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
     if (st.fret > 0.0)
-        guitar->setFret(s, 0.0);
+    {
+        guitar->liftFromFret(s, fingerResistance);
+        Event leave;
+        leave.time = now + static_cast<std::int64_t>(liftSeconds * sampleRate);
+        leave.kind = EventKind::leaveString;
+        leave.string = s;
+        schedule(leave);
+    }
     guitar->setBend(s, 1.0);
     const std::uint64_t order = st.order;
     st = StringState {};
@@ -512,8 +539,13 @@ void StratPerformer::allNotesOff() noexcept
     pedal = false;
     damping = false;
     for (int s = 0; s < StratEngine::stringCount; ++s)
-        if (strings[static_cast<size_t>(s)].note >= 0)
+    {
+        const StringState& st = strings[static_cast<size_t>(s)];
+        if (st.note >= 0)
             release(s);
+        else if (!st.fretted)
+            guitar->setFret(s, 0.0); // a lift under way, its end dropped above
+    }
 }
 
 void StratPerformer::schedule(const Event& e) noexcept
@@ -802,6 +834,13 @@ void StratPerformer::runEvent(const Event& e) noexcept
 {
     const int s = e.string;
     StringState& st = strings[static_cast<size_t>(s)];
+    if (e.kind == EventKind::leaveString)
+    {
+        // Unless the hand has fretted or played it since.
+        if (st.note < 0 && !st.fretted)
+            guitar->setFret(s, 0.0);
+        return;
+    }
     if (e.kind == EventKind::liftTouch)
     {
         if (!st.handResting)

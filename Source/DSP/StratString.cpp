@@ -282,6 +282,14 @@ void StratString::reset() noexcept
     stretchCountdown = 0;
     historySum = historySquares = 0.0;
     historyLength = recountCountdown = 0;
+    lifted = false;
+}
+
+void StratString::setFingerEnd(double kilogramsPerSecond) noexcept
+{
+    const double z = characteristicImpedance;
+    lifted = kilogramsPerSecond > 0.0;
+    fingerEnd = lifted ? static_cast<float>((kilogramsPerSecond - z) / (kilogramsPerSecond + z)) : 0.0f;
 }
 
 void StratString::designLoss(double share) noexcept
@@ -948,7 +956,7 @@ void StratString::process(std::array<float, tapCount>& towardPoles,
 {
     const float z = static_cast<float>(characteristicImpedance);
     const float y = arrive();
-    leave(ownNeck.move(2.0f * z * y, z), towardPoles, alongTop);
+    leave(onFret() ? ownNeck.move(2.0f * z * y, z) : 0.0f, towardPoles, alongTop);
 }
 
 float StratString::arrive() noexcept
@@ -985,8 +993,10 @@ float StratString::arrive() noexcept
     stretch += stretchStep;
     // Both planes share the string's tension, and so its stretch.
     const double readAt = loopDelay - stretch - leftLength;
-    // The fret does not yield along the top.
-    leaveFret(top, -arriveAtFret(top, readAt - topShortfall + neckDelay));
+    // The fret does not yield along the top; a finger's end damps both
+    // planes alike.
+    const float topArriving = arriveAtFret(top, readAt - topShortfall + neckDelay);
+    leaveFret(top, onFret() ? -topArriving : -fingerEnd * topArriving);
     arrivingAtNeck = arriveAtFret(poles, readAt);
     return arrivingAtNeck;
 }
@@ -994,7 +1004,7 @@ float StratString::arrive() noexcept
 void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardPoles,
                         std::array<float, tapCount>& alongTop) noexcept
 {
-    leaveFret(poles, neckVelocity - arrivingAtNeck);
+    leaveFret(poles, onFret() ? neckVelocity - arrivingAtNeck : -fingerEnd * arrivingAtNeck);
 
     if (stickRemaining > 0)
     {
