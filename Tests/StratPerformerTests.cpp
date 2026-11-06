@@ -356,7 +356,8 @@ void testLegatoAndSlide()
               && p->stringFret(s) == 71 - openNote[s],
           "a hammer-on moves the ringing string's fret");
 
-    // Slide: the fret travels, then rests on the target in tune.
+    // Slide: the finger travels, then rests on the target in tune.
+    int middle = -1;
     auto q = makePerformer();
     q->noteOn(0, 28, 1);
     q->noteOn(0, 62, 100);
@@ -366,14 +367,36 @@ void testLegatoAndSlide()
             s = k;
     const int from = q->stringFret(s);
     q->noteOn(0, 67, 100);
-    render(*q, 0.05);
-    const int middle = q->stringFret(s);
-    render(*q, 0.3);
+    // Frets stop the string all the way: every control period of the slide
+    // it sounds a fret, one after another, and every fret between.
+    const auto fretFrom = [&](double hz) {
+        const double open = StratString::construction(s).openHz * std::sqrt(q->engine().bridge().tensionRatio(s));
+        return 12.0 * std::log2(hz / open);
+    };
+    bool fretted = true, inOrder = true;
+    int visited = 0;
+    double last = fretFrom(q->engine().fundamentalHz(s));
+    for (int i = 0; i < 400; ++i)
+    {
+        render(*q, 0.0005);
+        const double at = fretFrom(q->engine().fundamentalHz(s));
+        fretted = fretted && std::abs(at - std::floor(at + 0.5)) < 1e-6;
+        if (std::floor(at + 0.5) != std::floor(last + 0.5))
+        {
+            inOrder = inOrder && std::floor(at + 0.5) == std::floor(last + 0.5) + 1.0;
+            ++visited;
+        }
+        last = at;
+        if (i == 99)
+            middle = q->stringFret(s);
+    }
+    check(fretted && inOrder && visited == 67 - openNote[s] - from,
+          "a slide steps through every fret between");
     // The fretting finger stretches the string (StratEngine::fretPressMetres),
     // and the bridge's tension ratio carries it.
     const double want = StratString::construction(s).openHz * std::pow(2.0, (67 - openNote[s]) / 12.0)
         * std::sqrt(q->engine().bridge().tensionRatio(s));
-    check(middle > from && middle < 67 - openNote[s], "a slide passes the frets between");
+    check(middle > from && middle < 67 - openNote[s], "a slide's finger passes the frets between");
     check(q->stringNote(s) == 67
               && std::abs(q->engine().fundamentalHz(s) / want - 1.0) < 1e-9,
           "a slide lands in tune");

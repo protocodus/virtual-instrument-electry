@@ -854,6 +854,12 @@ void StratPerformer::controlUpdate() noexcept
         StringState& st = strings[static_cast<size_t>(s)];
         if (st.slide)
         {
+            // The finger glides; the frets under it stop the string, each in
+            // turn as the fingertip, a third of a fret behind the one it
+            // stops (fingerMetres), crosses the one before. So a slide steps
+            // through every fret between, as a fretted glissando does.
+            const auto stopped = [](double fret) { return std::ceil(fret - 1.0 / 3.0); };
+            const double before = stopped(st.fret);
             const double u = st.slideLength > 0
                 ? static_cast<double>(now - st.slideStart) / static_cast<double>(st.slideLength)
                 : 1.0;
@@ -864,7 +870,8 @@ void StratPerformer::controlUpdate() noexcept
             }
             else
                 st.fret = st.slideFrom + (st.slideTo - st.slideFrom) * u * u * (3.0 - 2.0 * u);
-            guitar->setFret(s, st.fret, true);
+            if (stopped(st.fret) != before)
+                guitar->setFret(s, stopped(st.fret));
         }
         if (st.note < 0 || !st.fretted)
             continue;
