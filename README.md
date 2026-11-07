@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.0.0 — 2026-11-07 — A Stratocaster
+
+`Source/DSP/` gains a second instrument, a 1957-style Stratocaster
+(`StratEngine`, played through `StratPerformer`): six strings over a floating
+tremolo bridge, three single coils on a five-way switch through the
+instrument's own wiring (volume, neck and middle tones, the cable and the
+amplifier's input), and the two hands that play it — pick or fingers, palm,
+strums, slides, legato, harmonics and the fretting hand's vibrato, chosen by
+keyswitches C0–B0. The mod wheel lowers the palm onto the strings, to a full
+Palm mute at the top; channel pressure adds vibrato. Electry's Reason Rack
+Extension 2.0 plays it; the plug-in still plays the 1.2 eight-string engine.
+
 ### 1.2.8 — 2026-10-20 — Lines stay in position
 
 A single note may now take a string whose previous note has only a key-up
@@ -1319,6 +1331,12 @@ coloration; it is an engineering approximation rather than a calibrated fret
 contact. The real DI comparisons use six-string performance references, and
 do not establish eight-string perceptual parity. Large-jump choking and a
 physical spatial model of the fretting contact remain further work.
+
+The Stratocaster of 2.0.0 plays only in the Reason Rack Extension and in
+`Tools/RenderStrat.cpp`; the plug-in has not moved to it yet. When its strings
+fall silent, their last motion leaves a DC offset near −120 dBFS that decays
+with a time constant of about 3 s, so a host that waits for digital silence
+waits some 20 s after the strings stop.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

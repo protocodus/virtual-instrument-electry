@@ -4,6 +4,15 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-07 — the mod wheel lays the palm on the strings (owner)
+
+The owner's decision, not a listening test: the mod wheel is the picking
+hand's palm, from off at the bottom to Palm mute's own press at the top
+(its resistance grows as the wheel's square, a playing law, not a
+measurement), so a riff can open and close the mute as it goes. The
+fretting hand's vibrato, the wheel's job before, moves to channel pressure.
+The Palm mute keyswitch is unchanged and still mutes on its own.
+
 ## 2026-11-06 — the finger lets go as fast as the pick (F2)
 
 Decided by ear: the finger-plucked intro of the Alabama demo sounded
