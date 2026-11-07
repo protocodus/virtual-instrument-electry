@@ -30,6 +30,8 @@ owner's standing rule the candidate ships unless the owner objects. A share
 falling as one pole above 1 kHz fitted the recording slightly closer but was
 not shipped: it uncovers the poles plane's top octave, which then decays
 1.5 dB apart at 44.1 and 192 kHz, and the engine's rate check rejects that.
+It also takes the top plane's 10–16 kHz away, which carries most of the high
+E's top octave at 0.3 s (17 dB of it in the check's light, fast pluck).
 
 ## 2026-11-07 — the mod wheel lays the palm on the strings (owner)
 

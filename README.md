@@ -1347,6 +1347,15 @@ fall silent, their last motion leaves a DC offset near −120 dBFS that decays
 with a time constant of about 3 s, so a host that waits for digital silence
 waits some 20 s after the strings stop.
 
+The Strat's two planes of swing split each partial by a fixed share of its
+frequency, the in-plane speaking length fitted on the first partials. On the
+recorded Strat the split levels off: its partials beat at about 1.2 Hz at
+0.5–1 kHz and 1.6–2.0 Hz from 1 to 6.5 kHz, the model's at 1.1, 2.1, 3.8 and
+6.5 Hz, and 2.0.1's share leaves them 0.2–0.5 dB deeper from 1 kHz up (44 recorded
+chords waver 1.54 and 1.46 dB at 1–2.5 and 2.5–6 kHz, the model 1.93 and
+1.92). A support that yields toward the poles only below its own resonance
+would level the split off; it is not modelled or measured yet.
+
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the
 [known-gaps experiments](Docs/research/known-gaps-experiments.md) record each
