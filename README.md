@@ -57,6 +57,15 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.0.1 — 2026-11-07 — Steadier upper partials
+
+The Stratocaster's pickups hear less of each string's swing along the top:
+0.15 of its swing toward the poles, where 2.0.0 heard 0.2. Fitted to the
+recorded Strat over every partial to 6.5 kHz instead of the fundamentals
+alone, the upper partials no longer shimmer against their twins at 4–6 Hz,
+the chorus-like waver 2.0.0 had; ringing notes and chords beat about as the
+recording does below 2 kHz, still a little more above it.
+
 ### 2.0.0 — 2026-11-07 — A Stratocaster
 
 `Source/DSP/` gains a second instrument, a 1957-style Stratocaster

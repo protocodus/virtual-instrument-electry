@@ -123,17 +123,26 @@ constexpr double acrossShare = 0.5;
 // et al., JASA 135(5), 2014, on a P-90), and the stroke drives that drift
 // more. Fitted to the same Strat recorded direct (IDMT-SMT-Guitar, neck
 // pickup, all 78 notes rendered at one stroke, which the beating does not
-// depend on): over each note's first 2 s its fundamental's level strays
-// 0.47 dB (median) from a straight decay,
-// and where a pair of decaying components fits one of the first six
-// partials' envelopes 0.3 dB better than one (310 fits), the weaker is 0.23
-// of the stronger and 0.96 Hz off it (medians). 0.2 gives 0.44 dB, 0.20 and
-// 1.00 Hz; 0.1 gives 0.21 dB and 0.11, 0.3 0.69 dB and 0.30. Without it the
-// fundamental strays 0.01 dB. The recording's second partial strays less
-// than its fundamental (0.32 dB, 1.0 here), which one share cannot follow.
+// depend on) on every partial to 6.5 kHz, read two ways. Over each note's
+// first 2 s a partial's level strays from a straight decay 0.88 dB on the
+// fundamentals, 0.85 on the 2nd partials and 1.39 on the 3rd to 6th, and
+// 1.07, 1.43 and 1.20 dB under 1 kHz, at 1-2 and at 2-4 kHz (medians). From
+// 0.15 to 1.6 s after the onset (until it falls within 8 dB of the
+// recording's noise, the model read over the same span), its envelope,
+// detrended as a quadratic and band-passed to 0.7-15 Hz, beats 0.85 dB at
+// 0.5-1 kHz, 1.01 at 1-2, 0.84 at 2-4 and 0.84 at 4-6.5 (RMS, medians), at no
+// common rate. 0.15 strays 0.77, 0.91, 1.13, 0.98, 1.29 and 1.50 dB and beats
+// 0.82, 1.18, 1.32 and 1.14 dB, a mean |ln| error of 0.18 over the ten; 0.13
+// and 0.17 score 0.20 and 0.19. 0.2, fitted to the fundamentals alone, scores
+// 0.29: its upper partials beat 1.48 to 1.61 dB at 1.3e-3 of their frequency,
+// 4 to 6 Hz high up, a shimmer the recording does not have. No one share
+// follows both readings, and above 2 kHz the model still beats more than the
+// recording. A share falling as one pole above 1 kHz fits closer (0.16) but
+// uncovers the poles plane's top octave, which the top plane's otherwise
+// masks: it then decays 1.5 dB apart at 44.1 and 192 kHz (Electry.StratEngine).
 // Whether a pair starts at its sum or its difference is the stroke's tilt
 // (StratPerformer).
-constexpr float inPlaneHeard = 0.2f;
+constexpr float inPlaneHeard = 0.15f;
 
 // The flux law is tabulated over the string's distance from the poles,
 // 0 to 12.8 mm, finely enough that interpolating it errs by under 1e-4.

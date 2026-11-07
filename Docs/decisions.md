@@ -4,6 +4,33 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-07 — the pickup hears less of the swing along the top (B, pending)
+
+Decided: whether the Strat's coils hear 0.15 of each string's swing along the
+top, fitted to the recorded Strat over every partial to 6.5 kHz, instead of
+the 0.2 fitted to its fundamentals alone. The owner heard a chorus-like
+waver from the second plane on; against the 78 recorded notes the model's
+upper partials beat about twice as deep as the recording's, and fast (1.3e-3
+of the partial's frequency, 4–6 Hz high up), where the recording's beat at no
+common rate. The fit and its numbers sit beside the code in
+`Source/DSP/StratEngine.cpp`.
+
+- A: 2.0.0 (5f62f22).
+- B: 2.0.1, the share at 0.15.
+
+Material: the owner's Alabama-style riff (vibrato on channel pressure, kept
+out of the repository), middle + neck pickups, and an open G strummed and
+left to ring followed by a D picked with the fingers; 48 kHz, whole-file RMS
+matched to −20 dBFS (riff −15.1 dB each, ring −11.6 dB each), with the riff
+also through the clean amp. On the ringing chord the 1.5–10 Hz waver at
+2.5–6 kHz is 1.78 dB in A and 1.53 dB in B; below 1 kHz they are the same.
+
+The share was settled by measurement; the set is a preview of it, and by the
+owner's standing rule the candidate ships unless the owner objects. A share
+falling as one pole above 1 kHz fitted the recording slightly closer but was
+not shipped: it uncovers the poles plane's top octave, which then decays
+1.5 dB apart at 44.1 and 192 kHz, and the engine's rate check rejects that.
+
 ## 2026-11-07 — the mod wheel lays the palm on the strings (owner)
 
 The owner's decision, not a listening test: the mod wheel is the picking
