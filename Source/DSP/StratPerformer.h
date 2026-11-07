@@ -274,6 +274,10 @@ private:
 
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
+    // The arm, followed between channel 1's bend messages (playPitchBend).
+    double armFrom = 0.0, armTo = 0.0, armNow = 0.0;
+    std::int64_t armStart = 0, armLength = 0;
+    std::int64_t lastArmMessage = -1;
     double wheel = 0.0;        // the mod wheel, 0 to 1
     double palmOffset = 0.0;   // this stroke's palm pressure off the Palm control
     double vibratoDepth = 0.0;

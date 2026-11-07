@@ -773,6 +773,30 @@ void testArmAndBends()
                           / (std::pow(2.0, 4.0 / 12.0) * reference.tensionRatio(bent)) - 1.0)
                   < 1e-9,
           "a member channel's bend takes its string a whole tone up");
+
+    // A stream of arm messages is one movement: the arm glides from each to
+    // the next over the time between them instead of stepping.
+    const auto angleAt = [](double position) {
+        electry::StratBridge b;
+        b.setArm(position);
+        return b.angle();
+    };
+    auto q = makePerformer();
+    q->noteOn(0, 45, 90);
+    render(*q, 0.05);
+    q->pitchBend(0, -0.2);
+    render(*q, 0.02);
+    q->pitchBend(0, -0.4);
+    render(*q, 0.01);
+    const double between = q->engine().bridge().angle();
+    render(*q, 0.015);
+    const double arrived = q->engine().bridge().angle();
+    check(between > angleAt(-0.2) && between < angleAt(-0.4), "the arm glides between messages");
+    check(std::abs(arrived / angleAt(-0.4) - 1.0) < 1e-12, "and arrives as the next one is due");
+    render(*q, 0.3);
+    q->pitchBend(0, 0.0);
+    render(*q, 0.001);
+    check(q->engine().bridge().angle() == 0.0, "a message after a pause is a jump");
 }
 
 // The frequency the windowed spectrum peaks at within `span` of a guess.

@@ -57,6 +57,16 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.0 — 2026-11-07 — A smooth arm and a softer pick attack
+
+The tremolo arm glides between pitch-bend messages instead of jumping to
+each one, so a dip or a shimmer sent as a stream of messages moves as a
+hand moves it rather than in steps. A message after a pause of more than
+0.1 s still jumps. The pick leaves the string a little more slowly, which
+takes the over-bright edge off the plain strings' attack: the G, B and high
+E's first 50 ms above 1.2 kHz stood 5 to 10 dB over the recorded Strat and
+now stand 2 to 6.5.
+
 ### 2.3.2 — 2026-11-07 — Quieter palm mutes and bends
 
 Palm-muted notes no longer leave a thin whistle at 2.5 to 6 kHz ringing

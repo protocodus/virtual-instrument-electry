@@ -40,7 +40,7 @@ constexpr double lightestShare = 0.05;
 // depth d at its kink velocity F / Z, taking Z d / F, and the tip then springs
 // clear in a quarter of its own period, (pi/2) sqrt(m / k); StratString lets
 // the force go as the spring's does. The tip is a 0.73 mm celluloid medium
-// of about 6 kN/m moving 20 mg, 90 us. The grip is fitted with the stroke
+// of about 6 kN/m moving 20 mg, 90 us (the estimate, refitted below). The grip is fitted with the stroke
 // below to a Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup,
 // 78 picked notes): over each note's first 260 ms, in third octaves 100 Hz
 // to 10 kHz level-matched below 1.2 kHz, d = 0.6 mm leaves the model 2.7 dB
@@ -52,9 +52,21 @@ constexpr double lightestShare = 0.05;
 // they stood within 5 either way. A tip's stiffness grows with the cube of
 // its thickness and its mass in proportion, so a thicker pick springs clear
 // sooner.
-constexpr double gripDepth = 0.0006;
+//
+// That fit held the tip at its estimated 20 mg and left the attack itself
+// too bright on the plain strings: over each note's first 50 ms, the same
+// third octaves above 1.2 kHz stood 4.7, 5.4 and 10.0 dB over the
+// recording on the G, B and high E (mean over bands; the whole 260 ms 1.4,
+// 0.9 and 3.3), because the grip's slide, Z d / F, is shortest on the
+// lightest strings and the tip's spring is too quick to even them. Fitting
+// the tip's moving mass with the grip, by the same measure over both
+// windows (this protocol reads the old fit 3.46 and 3.69 dB), the minimum
+// is flat over 80 to 120 mg and 0.2 to 0.3 mm: 80 mg (181 us) and 0.3 mm,
+// its middle, read 3.48 and 3.37 dB, and the plain strings' first 50 ms 1.9,
+// 2.7 and 6.5 dB over, every string's whole 260 ms within -2.1 to 2.8.
+constexpr double gripDepth = 0.0003;
 constexpr double mediumStiffness = 6000.0;
-constexpr double mediumTipKilograms = 20e-6;
+constexpr double mediumTipKilograms = 80e-6;
 constexpr double mediumThickness = 0.73e-3;
 constexpr double thinThickness = 0.46e-3;
 constexpr double heavyThickness = 1.0e-3;
@@ -157,6 +169,10 @@ constexpr double palmPressedResistance = 2.0;
 // differs between muted notes, so it bounds the palm's own scatter from
 // above.
 constexpr double palmScatter = 0.15;
+
+// Bend messages this close together on channel 1 are one arm movement
+// (playPitchBend).
+constexpr double armStreamSeconds = 0.1;
 
 // A finger lying on the string without pressing it, fitted to the 72 dead
 // notes of the same Stratocaster (frets 3, 8 and 14 on every string; decay of
@@ -452,6 +468,9 @@ void StratPerformer::reset() noexcept
 {
     guitar->reset();
     guitar->setArm(0.0);
+    armFrom = armTo = armNow = 0.0;
+    armStart = armLength = 0;
+    lastArmMessage = -1;
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         guitar->setBend(s, 1.0);
@@ -853,7 +872,30 @@ void StratPerformer::playPitchBend(int channel, double position) noexcept
     channel &= 15;
     position = clamp(position, -1.0, 1.0);
     if (channel == 0)
-        guitar->setArm(position);
+    {
+        // A hand moves the arm continuously; MIDI sends where it is every
+        // few milliseconds, and taken as it came each message was a step: a
+        // dip sent every 31 ms became a staircase of pitch, 70% of its
+        // movement (cents per second, RMS) in the steps. Inside a stream the
+        // arm goes from where it is to each new place over the time since
+        // the last message, so it arrives as the next one comes. A message
+        // after a pause is a jump, as before. The pause is a reading of the
+        // MIDI stream (controllers send at 10 Hz and more while moving), not
+        // a measurement of the hand.
+        const std::int64_t interval = now - lastArmMessage;
+        const bool streaming = lastArmMessage >= 0 && interval > 0
+            && interval <= static_cast<std::int64_t>(armStreamSeconds * sampleRate);
+        lastArmMessage = now;
+        armFrom = armNow;
+        armTo = position;
+        armStart = now;
+        armLength = streaming ? interval : 0;
+        if (armLength == 0)
+        {
+            armNow = position;
+            guitar->setArm(position);
+        }
+    }
     else
         channelBend[static_cast<size_t>(channel)]
             = clamp(position * memberBendSemitones, 0.0, maximumFingerBend);
@@ -1520,6 +1562,14 @@ void StratPerformer::startVibrato() noexcept
 
 void StratPerformer::controlUpdate() noexcept
 {
+    if (armLength > 0)
+    {
+        const double u = static_cast<double>(now - armStart) / static_cast<double>(armLength);
+        armNow = u >= 1.0 ? armTo : armFrom + (armTo - armFrom) * u;
+        if (u >= 1.0)
+            armLength = 0;
+        guitar->setArm(armNow);
+    }
     // Each cycle starts on the note, so a new cycle's rate and depth join
     // the last without a step.
     if (vibratoHold > 0)
