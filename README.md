@@ -57,6 +57,19 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.1.0 — 2026-11-07 — In tune together
+
+Chords now play as in tune as single notes. A stabilizer holds the
+Stratocaster's tremolo plate, so a chord's fingers or a bend no longer pull
+the other strings 1–6.5 cents flat, and the arm still dives and pulls up.
+Each string is tuned the way a player tunes it, with a tuner at an ordinary
+stroke, so the open strings read within a tenth of a cent where they read up
+to 2.3 cents sharp. The fretting hand never does the same thing twice: each
+finger lands at its own distance behind the fret and at its own speed, lifts
+at its own pace and glides with its own pressure, so the fret ticks, the
+releases and the finger glides (with Fretting Lookahead on) differ from note
+to note. Fret buzz is not modelled.
+
 ### 2.0.2 — 2026-11-07 — In tune up the neck
 
 The Stratocaster is set up the way a guitar tech sets one up: each saddle

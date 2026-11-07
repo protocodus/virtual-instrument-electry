@@ -33,24 +33,11 @@ double runLength(int s) noexcept
 // the pivot edge. Fender's floating setting lifts the back of the plate
 // 1/8 in off the body; taking that edge 56 mm behind the pivot matches the
 // pull-up Sound On Sound reports for a 3/16 in float, a tone and a half on
-// the G ("Guitar Technology", soundonsound.com), at 3.3 semitones here. The
-// three vintage springs are taken at 2.5 N/mm each, hooked 40 mm below the
-// pivot on the block. None of these is measured on the '62; all are open
-// to a better source.
+// the G ("Guitar Technology", soundonsound.com), at 3.3 semitones here.
+// Neither is measured on the '62; both are open to a better source.
 constexpr double saddleHeight = 0.011;
 constexpr double floatGap = inch / 8.0;
 constexpr double plateRear = 0.056;
-constexpr double springRate = 2500.0;
-constexpr int springCount = 3;
-constexpr double springLever = 0.040;
-
-double sumStiffness() noexcept
-{
-    double sum = 0.0;
-    for (int s = 0; s < count; ++s)
-        sum += StratBridge::axialStiffness(s);
-    return sum;
-}
 
 double clamp(double value, double low, double high) noexcept
 {
@@ -73,11 +60,6 @@ double StratBridge::restTension(int s) noexcept
 }
 
 double StratBridge::saddleHeightMetres() noexcept { return saddleHeight; }
-
-double StratBridge::springStiffness() noexcept
-{
-    return springCount * springRate * springLever * springLever;
-}
 
 double StratBridge::pullUpLimit() noexcept { return floatGap / plateRear; }
 
@@ -119,50 +101,15 @@ void StratBridge::setPress(int stringIndex, double metres) noexcept
 
 void StratBridge::solve() noexcept
 {
-    // Plate equilibrium: K theta = tau + h sum(dT_j). The arm's position is
-    // the tilt it gives with nothing pressed or bent, so tau = K_total
-    // theta_arm, K_total = K + h^2 sum(k_j). An unbent string's tension
-    // changes by k_j (press_j - h theta). A bent one is held at its target:
-    // the pitch ratio squared over the tension it would have with no string
-    // bent, at theta_0 = theta_arm + h P / K_total, P = sum(k_j press_j). With
-    // P_unbent the unbent strings' share of P and B the bent strings' changes
-    // this closes:
-    //   theta = (K_total theta_arm + h (P_unbent + B)) / (K_total - h^2 K_bent).
-    const double h = saddleHeight;
-    const double total = springStiffness() + h * h * sumStiffness();
-    const double armAngle = arm >= 0.0 ? -arm * pullUpLimit() : -arm * diveLimit();
-
-    double pressedAll = 0.0;
-    for (int s = 0; s < count; ++s)
-        pressedAll += axialStiffness(s) * press[static_cast<size_t>(s)];
-    const double unbentAngle = armAngle + h * pressedAll / total;
-
-    double bentStiffness = 0.0, targets = 0.0, pressed = 0.0;
-    std::array<double, count> target {};
+    // The plate sits at the arm's angle whatever the strings pull (the
+    // header): each string's tension changes by k (press - h theta), and a
+    // bent string is held at its target over that.
+    plateAngle = arm >= 0.0 ? -arm * pullUpLimit() : -arm * diveLimit();
     for (int s = 0; s < count; ++s)
     {
         const size_t k = static_cast<size_t>(s);
-        if (bend[k] <= 1.0)
-        {
-            pressed += axialStiffness(s) * press[k];
-            continue;
-        }
-        target[k] = bend[k] * bend[k]
-            * (restTension(s) + axialStiffness(s) * (press[k] - h * unbentAngle));
-        targets += target[k] - restTension(s);
-        bentStiffness += axialStiffness(s);
-    }
-    // The body stops the plate's back edge; the arm's stop limits the dive.
-    plateAngle = clamp((total * armAngle + h * (pressed + targets)) / (total - h * h * bentStiffness),
-                       -pullUpLimit(), diveLimit());
-
-    for (int s = 0; s < count; ++s)
-    {
-        const size_t k = static_cast<size_t>(s);
-        const double tension = bend[k] > 1.0
-            ? target[k]
-            : restTension(s) + axialStiffness(s) * (press[k] - h * plateAngle);
-        ratio[k] = tension / restTension(s);
+        const double unbent = restTension(s) + axialStiffness(s) * (press[k] - saddleHeight * plateAngle);
+        ratio[k] = bend[k] * bend[k] * unbent / restTension(s);
     }
 }
 

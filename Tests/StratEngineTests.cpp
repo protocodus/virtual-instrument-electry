@@ -426,23 +426,20 @@ void testTremoloRetunes()
         const double ratio = fret > 0.0
             ? open / (StratString::scaleMetres * std::pow(2.0, -fret / 12.0) + setback)
             : 1.0;
-        const double want = StratString::construction(s).openHz * ratio
+        const double want = StratString::construction(s).openHz * StratEngine::restPitch(s) * ratio
             * std::sqrt(engine->bridge().tensionRatio(s));
         tuned = tuned && std::abs(engine->fundamentalHz(s) / want - 1.0) < 1e-12;
     }
     check(tuned, "the arm and a bend retune every string through the bridge");
 }
 
-// The top octave keeps the string's own loss whatever the host's rate: the
-// loop's read between samples would drain it on every round trip at 44.1
-// kHz, unless the strings run faster than the host (StratEngine.cpp). The
-// open high E's partials at 10 to 16 kHz over 0.3 to 0.5 s, against its
-// first three, at 44.1 kHz and at 192 kHz.
 // Every fretted note within a cent of equal temperament against its open
 // string: the saddles and the nut (StratEngine::intonation) take back what
 // the fretting finger's stretch adds, which left the low E 13 to 18 cents
-// sharp and the G 11 to 15 (Electry 2.0.1). One string pressed at a time,
-// so the floating bridge carries that press alone.
+// sharp and the G 11 to 15 (Electry 2.0.1). A chord's notes play as they do
+// alone: the stabilizer holds the plate (StratBridge), where the floating
+// plate let an F barre's fingers pull every string 1 to 6.5 cents flat
+// (Electry 2.0.2).
 void testIntonation()
 {
     auto engine = makeEngine(Position::neck);
@@ -452,14 +449,36 @@ void testIntonation()
         for (int fret = 1; fret <= 21; ++fret)
         {
             engine->setFret(s, fret);
-            const double tempered = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0);
+            const double tempered
+                = StratString::construction(s).openHz * StratEngine::restPitch(s) * std::pow(2.0, fret / 12.0);
             worst = std::max(worst, std::abs(1200.0 * std::log2(engine->fundamentalHz(s) / tempered)));
         }
         engine->setFret(s, 0.0);
     }
     std::printf("fretted notes against equal temperament: %.2f cents at worst\n", worst);
     check(worst < 1.0, "every fretted note plays in tune with the open strings");
+
+    const int barre[6] = {1, 3, 3, 2, 1, 1};
+    double chordWorst = 0.0;
+    for (int s = 0; s < 6; ++s)
+        engine->setFret(s, barre[s]);
+    std::vector<float> y(StratEngine::controlPeriod);
+    engine->process(y.data(), static_cast<int>(y.size()));
+    for (int s = 0; s < 6; ++s)
+    {
+        const double tempered = StratString::construction(s).openHz * StratEngine::restPitch(s)
+            * std::pow(2.0, barre[s] / 12.0);
+        chordWorst = std::max(chordWorst, std::abs(1200.0 * std::log2(engine->fundamentalHz(s) / tempered)));
+    }
+    std::printf("an F barre against equal temperament: %.2f cents at worst\n", chordWorst);
+    check(chordWorst < 1.0, "a chord's notes play in tune together");
 }
+
+// The top octave keeps the string's own loss whatever the host's rate: the
+// loop's read between samples would drain it on every round trip at 44.1
+// kHz, unless the strings run faster than the host (StratEngine.cpp). The
+// open high E's partials at 10 to 16 kHz over 0.3 to 0.5 s, against its
+// first three, at 44.1 kHz and at 192 kHz.
 
 void testTopOctaveAtEveryRate()
 {

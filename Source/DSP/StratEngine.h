@@ -10,10 +10,11 @@
 namespace electry
 {
 
-// The guitar from the strings to the jack: six strings on the floating
-// tremolo, the three single coils reading them, and the passive circuit. It plays what it is told,
-// string by string; MIDI, fingering and articulations belong to the
-// performer. Large (the string rails): construct it on the heap.
+// The guitar from the strings to the jack: six strings on the stabilized
+// tremolo, the three single coils reading them, and the passive circuit. It
+// plays what it is told, string by string; MIDI, fingering and articulations
+// belong to the performer. Large (the string rails): construct it on the
+// heap.
 class StratEngine
 {
 public:
@@ -51,6 +52,9 @@ public:
     // The open string's speaking length and the saddle's setback, metres,
     // that play this string's fretted notes in tune (StratEngine.cpp).
     static std::pair<double, double> intonation(int stringIndex) noexcept;
+    // The open string's pitch at rest over standard pitch, where the player
+    // tuned it (StratEngine.cpp).
+    static double restPitch(int stringIndex) noexcept;
     // StratString::fretMetres: from the string's saddle to where `fret`
     // stops it, the nut at fret 0, metres.
     double fretMetres(int stringIndex, double fret) const noexcept;
@@ -65,7 +69,8 @@ public:
     void rub(int stringIndex, double metresFromBridge, double speed, double newtons) noexcept;
     // A finger taking the string down to `fret` (setFret, then
     // StratString::press).
-    void press(int stringIndex, double fret, double depthMetres, double seconds) noexcept;
+    void press(int stringIndex, double fret, double depthMetres, double seconds,
+               double landingScale = 1.0) noexcept;
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                double releaseSeconds, double strokeMetresPerSecond = 0.0,

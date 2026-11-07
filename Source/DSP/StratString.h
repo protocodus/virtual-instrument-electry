@@ -105,7 +105,7 @@ public:
     void reset() noexcept;
 
     // fret: 0 open, fractional while sliding. tensionRatio: tension over
-    // standard-tuning tension (the tremolo and finger bends). A fret change
+    // the tuned string's at rest (the tremolo and finger bends). A fret change
     // without glide stops the string there at once; with glide the fret end
     // travels, as a slide does.
     void setTuning(double fret, double tensionRatio, bool glide = false) noexcept;
@@ -117,6 +117,9 @@ public:
     // Every position on the string (setTaps, pluck, setDamper, rub) is metres
     // from this saddle.
     void setIntonation(double openMetres, double saddleSetbackMetres) noexcept;
+    // Where the player's tuner left the open string at rest: its pitch over
+    // standard pitch (StratEngine::restPitch). Call it before prepare.
+    void setRestPitch(double ratio) noexcept { restPitch = ratio; }
     // From the saddle to where `fret` stops the string, the nut at fret 0.
     double fretMetres(double fret) const noexcept;
 
@@ -136,10 +139,11 @@ public:
     void rub(double metresFromBridge, double speed, double newtons) noexcept;
     bool isRubbing() const noexcept { return rubTarget != 0.0f || rubSpeed != 0.0f; }
     // The finger taking the string down onto its fret: the string's end
-    // there goes `depthMetres` toward the board over `seconds`, as a spring
-    // loaded from rest, so it meets the fret at full speed (StratString.cpp).
-    // The string is already stopped at that fret (setTuning).
-    void press(double depthMetres, double seconds) noexcept;
+    // there goes `depthMetres` toward the board over `seconds` and meets the
+    // fret at landingScale times the speed the recordings' ticks give
+    // (StratString.cpp). The string is already stopped at that fret
+    // (setTuning).
+    void press(double depthMetres, double seconds, double landingScale = 1.0) noexcept;
 
     // A damper on the string (palm, a touching finger): a point, or a
     // contact spread evenly along a width of string centred there.
@@ -298,6 +302,7 @@ private:
     double fundamental = 0.0;
     double intonedOpen = scaleMetres;
     double saddleSetback = 0.0;
+    double restPitch = 1.0;
     double samplesPerMetre = 0.0;
     double characteristicImpedance = 0.0;
     int leftLength = 0;       // rail L, integer
@@ -318,9 +323,6 @@ private:
     // stretchSamplesPerJoule times that energy, measured every control period
     // and ramped between.
     double stretchSamplesPerJoule = 0.0;
-    // What holds the floating plate against this string's pull: its springs
-    // and the other strings, N m/rad (StratBridge).
-    double plateHold = 1.0;
     double stretch = 0.0;
     double stretchStep = 0.0;
     int stretchCountdown = 0;
@@ -415,6 +417,7 @@ private:
     float rubRough = 0.0f;
     float rubbing() noexcept;
     double pressDepth = 0.0;
+    double pressLanding = 0.0;
     int pressPosition = 0, pressLength = 0;
     float roughPole = 0.0f;
 };

@@ -1,7 +1,5 @@
 #include "StratString.h"
 
-#include "StratBridge.h"
-
 #include <algorithm>
 #include <cmath>
 
@@ -273,13 +271,6 @@ void StratString::prepare(double rate, int stringIndex, int updateSamples) noexc
     sampleRate = rate;
     rampSamples = updateSamples;
     spec = &construction(stringIndex);
-    {
-        const double h = StratBridge::saddleHeightMetres();
-        plateHold = StratBridge::springStiffness();
-        for (int j = 0; j < stringCount; ++j)
-            if (j != stringIndex)
-                plateHold += h * h * StratBridge::axialStiffness(j);
-    }
 
     designedLossShare = -1.0;
 
@@ -506,7 +497,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     const bool fretMoved = newFret != fret;
     fret = newFret;
     tension = tensionRatio;
-    const double openNow = spec->openHz * std::sqrt(tensionRatio);
+    const double openNow = spec->openHz * restPitch * std::sqrt(tensionRatio);
     fundamental = openNow * intonedOpen / fretMetres(fret);
     const double waveSpeed = 2.0 * intonedOpen * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
@@ -520,23 +511,18 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     // / pi) at the open string's standard tension, 36 kN for the low E's core
     // and 10 kN for the high E. The pitch rises; the loop shortens.
     //
-    // The saddle rides the floating plate, which tilts forward under the
-    // extra pull and gives some of the stretch back, as under a bend or a
-    // press (StratBridge): with k = EA / L, the springs and the other strings
-    // holding the plate with K, the tension rises by k / (1 + h^2 k / K)
-    // per metre of stretch, 0.79 of k on the open low E, 0.83 on the G and
-    // 0.94 on the high E. Friction at the saddle and the nut keeps the
-    // stretch on the speaking length, as the time the glide takes is short.
+    // The stabilizer holds the plate (StratBridge), so none of the stretch
+    // is given back: the tension rises by k = EA / L per metre of it.
+    // Friction at the saddle and the nut keeps the stretch on the speaking
+    // length, as the time the glide takes is short.
     {
         const double openTension = spec->kilogramsPerMetre * std::pow(2.0 * scaleMetres * spec->openHz, 2.0);
         const double stretchStiffness
             = 2.0 * scaleMetres * std::sqrt(steelModulus * openTension * spec->stiffness / pi);
         const double tensionNow = spec->kilogramsPerMetre * waveSpeed * waveSpeed;
         const double speaking = fretMetres(fret);
-        const double h = StratBridge::saddleHeightMetres();
-        const double own = stretchStiffness / speaking;
-        const double held = own / (1.0 + h * h * own / plateHold);
-        stretchSamplesPerJoule = held / (4.0 * tensionNow * tensionNow) * sampleRate / fundamental;
+        stretchSamplesPerJoule
+            = stretchStiffness / speaking / (4.0 * tensionNow * tensionNow) * sampleRate / fundamental;
     }
 
     // A round trip of a shorter or tighter string takes less time, so it
@@ -853,9 +839,12 @@ void StratString::rub(double metresFromBridge, double speed, double newtons) noe
     fingerActive = true;
 }
 
-void StratString::press(double depthMetres, double seconds) noexcept
+void StratString::press(double depthMetres, double seconds, double landingScale) noexcept
 {
     pressDepth = depthMetres;
+    // Up to twice the rigid stroke's speed the path still runs one way,
+    // starting slower and landing faster: a finger driven into the fret.
+    pressLanding = std::min(landingShare * landingScale, 2.0);
     pressPosition = 0;
     pressLength = std::max(1, static_cast<int>(std::ceil(seconds * sampleRate)));
 }
@@ -1149,7 +1138,7 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
     if (pressPosition < pressLength)
     {
         // The string's end at the fret goes down with the finger and stops
-        // on the fret at landingShare of a quarter-cosine's full speed, the
+        // on the fret at pressLanding of a quarter-cosine's full speed, the
         // fingertip's flesh having taken the rest: a blend of a stroke that
         // lands at full speed, sin(pi u / 2), and one that lands at rest,
         // sin(pi u), each covering the height h.
@@ -1157,7 +1146,7 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         const double u = static_cast<double>(pressPosition) / pressLength;
         fretMotion = static_cast<float>(
             pressDepth * 0.5 * pi * sampleRate / pressLength
-            * (landingShare * std::sin(0.5 * pi * u) + (1.0 - landingShare) * std::sin(pi * u)));
+            * (pressLanding * std::sin(0.5 * pi * u) + (1.0 - pressLanding) * std::sin(pi * u)));
     }
     leaveFret(poles, onFret() ? neckVelocity + fretMotion - arrivingAtNeck
                               : -fingerEnd * arrivingAtNeck);

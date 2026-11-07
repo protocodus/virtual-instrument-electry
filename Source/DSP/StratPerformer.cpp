@@ -26,9 +26,13 @@ constexpr double scale = StratString::scaleMetres;
 // swing with. The same Strat's dataset 2, 118 notes of fret runs recorded
 // apart, gives a stroke 0.86 times as hard, and the glide grows along the
 // neck there as it does here (the G and B 1 to 2 cents low on the neck, 5
-// to 9 at frets 15 to 20). Full force against the ordinary is voiced until
-// phase 2 fits the reference's velocity layers: 3.0 N holds the low E 4 mm
-// aside at a fifth of its length.
+// to 9 at frets 15 to 20). The fit took the plate floating; held by the
+// stabilizer (StratBridge) the same stroke glides 1.26 times as far (median
+// over the 78 notes, the fundamental's peak over 15 to 60 ms against 0.4 to
+// 0.8 s: 1.95 cents against 1.55), the hand being the same and the guitar
+// stiffer. Full force against the ordinary is voiced until phase 2 fits the
+// reference's velocity layers: 3.0 N holds the low E 4 mm aside at a fifth
+// of its length.
 constexpr double fullForce = 3.0;
 constexpr double lightestShare = 0.05;
 
@@ -174,6 +178,12 @@ constexpr double fingerWidth = 0.025;
 // 1.2, -9.2, -0.9 and -1.6 dB to 6.4, 5.6, 0.8, 0.4, -0.1 and -0.2, the
 // recording's 18.5, 9.2, 0.1, -4.3, -2.2 and -0.5.
 constexpr double liftSeconds = 0.015;
+// No two releases are alike: each takes its lift and its flesh at random,
+// evenly in log, across the ranges that fit the recording's releases within
+// 0.7 and 0.4 dB of the best fit above. How a player's releases spread is
+// not measured; drawing within the fit is voiced.
+constexpr double shortestLiftSeconds = 0.010, longestLiftSeconds = 0.030;
+constexpr double softestLift = 1.0, firmestLift = 4.0;
 
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
 // splits the string into two halves whose motion turns back into the
@@ -247,11 +257,22 @@ constexpr double fingerReleaseSeconds = 0.002;
 // (StratEngine::actionMetres) onto the fret; under it the string's end there
 // moves with it and stops on the fret, which is the tick.
 constexpr double pressSeconds = 0.035;
+// Nor are two landings alike. The ticks before the recorded notes spread by
+// 6.2 dB from note to note (the loudest sample above 1 kHz in each gap of
+// 30 ms or more against the next note's attack, robust SD about each
+// string's median, 120 gaps), and a tick's level goes as the speed it lands
+// at, so each finger lands at the fitted speed times exp(0.71 z). The spread
+// includes everything else that differs between the gaps, so it bounds the
+// hand's from above; it is taken whole.
+constexpr double landingScatter = 0.71;
 // A finger gliding along a string it rests on to the next fret, with the
 // flesh of a light touch; and one pressing a slide, lighter than a fretted
 // note's press as a player eases off to move.
 constexpr double shiftNewtons = 0.3;
 constexpr double slideNewtons = 0.6;
+// Each glide or slide presses as hard as the landings spread, voiced: no
+// recording isolates a rub's level.
+constexpr double rubScatter = landingScatter;
 // The hand reaches the fret this long before the pick at the latest: the
 // recordings' 10th percentile is 64 ms, but the lookahead leaves 50.
 constexpr double pickGapSeconds = 0.010;
@@ -302,14 +323,25 @@ double impedance(int s) noexcept
     return spec.kilogramsPerMetre * 2.0 * scale * spec.openHz;
 }
 
-// A fingertip presses just behind its fret, a third of the way to the next
+// Where each finger lands behind its fret (fingerMetres): a third of the way
+// to the next fret at the median, as players are taught to press close
+// behind it, the share scattered by a factor of exp(0.25 z) and kept within
+// 0.15 to 0.6, short of the next fret's buzz. Voiced at the owner's request
+// (Docs/decisions.md, 2026-11-07). It moves where the flesh touches the
+// string and where it rubs, not the pitch: a player in tune presses each
+// note down onto its fret alike (StratEngine::fretPressMetres).
+constexpr double placeShare = 1.0 / 3.0;
+constexpr double placeScatter = 0.25;
+constexpr double nearestPlace = 0.15, farthestPlace = 0.6;
+
+// A fingertip presses just behind its fret, `place` of the way to the next
 // one toward the nut; an open string is stopped by the hand near fret 3.
 // Metres from string s's saddle, as the intonation has set it.
-double fingerMetres(const StratEngine& guitar, int s, double fret) noexcept
+double fingerMetres(const StratEngine& guitar, int s, double fret, double place = placeShare) noexcept
 {
     const double f = fret < 1.0 ? 3.0 : std::floor(fret + 0.5);
     const double at = guitar.fretMetres(s, f);
-    return at + (guitar.fretMetres(s, f - 1.0) - at) / 3.0;
+    return at + (guitar.fretMetres(s, f - 1.0) - at) * place;
 }
 
 double clamp(double value, double low, double high) noexcept
@@ -317,17 +349,26 @@ double clamp(double value, double low, double high) noexcept
     return value < low ? low : (value > high ? high : value);
 }
 
+// A uniform draw in (0, 1) from xorshift32 `state`.
+double uniformDraw(std::uint32_t& state) noexcept
+{
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return (static_cast<double>(state) + 0.5) / 4294967296.0;
+}
+
 // A standard normal draw from xorshift32 `state`, within 2.5 deviations.
 double normalDraw(std::uint32_t& state) noexcept
 {
-    const auto uniform = [&state] {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        return (static_cast<double>(state) + 0.5) / 4294967296.0;
-    };
-    const double a = uniform(), b = uniform();
+    const double a = uniformDraw(state), b = uniformDraw(state);
     return clamp(std::sqrt(-2.0 * std::log(a)) * std::cos(2.0 * pi * b), -2.5, 2.5);
+}
+
+// From `low` to `high` evenly in log, at u in [0, 1].
+double logBetween(double low, double high, double u) noexcept
+{
+    return low * std::pow(high / low, u);
 }
 
 // Minimum jerk: where a hand moving from 0 to 1 over u in [0, 1] is, and its
@@ -391,6 +432,7 @@ void StratPerformer::reset() noexcept
     scatter = scatterSeed;
     pace = paceSeed;
     press = pressSeed;
+    fretHand = fretHandSeed;
     strokePick = 0.0;
     steadyStroke = true;
     lastStroke = -1000000;
@@ -614,13 +656,19 @@ void StratPerformer::release(int s) noexcept
 {
     StringState& st = strings[static_cast<size_t>(s)];
     // The fretting finger lets go of the fret but stays on the string.
-    const double rest = st.fret;
-    guitar->setDamper(s, 1, fingerMetres(*guitar, s, rest), fingerResistance, fingerWidth);
+    const double rest = st.fret, place = st.place;
+    guitar->setDamper(s, 1, fingerMetres(*guitar, s, rest, place), fingerResistance, fingerWidth);
     if (st.fret > 0.0)
     {
-        guitar->liftFromFret(s, fingerResistance);
+        const double lift = steadyStroke
+            ? liftSeconds
+            : logBetween(shortestLiftSeconds, longestLiftSeconds, uniformDraw(fretHand));
+        const double flesh = steadyStroke
+            ? fingerResistance
+            : logBetween(softestLift, firmestLift, uniformDraw(fretHand));
+        guitar->liftFromFret(s, flesh);
         Event leave;
-        leave.time = now + static_cast<std::int64_t>(liftSeconds * sampleRate);
+        leave.time = now + static_cast<std::int64_t>(lift * sampleRate);
         leave.kind = EventKind::leaveString;
         leave.string = s;
         schedule(leave);
@@ -633,6 +681,7 @@ void StratPerformer::release(int s) noexcept
     st.order = order;
     st.released = true;
     st.restFret = rest;
+    st.place = place;
     st.prepared = prepared;
     st.preparedDue = preparedDue;
     // The hand that lets a note go lies across the free strings with it
@@ -652,7 +701,7 @@ void StratPerformer::release(int s) noexcept
         StringState& free = strings[static_cast<size_t>(t)];
         if (free.note >= 0 || free.released || free.handResting)
             continue;
-        guitar->setDamper(t, 1, fingerMetres(*guitar, t, rest), fingerResistance, fingerWidth);
+        guitar->setDamper(t, 1, fingerMetres(*guitar, t, rest, place), fingerResistance, fingerWidth);
         free.handResting = true;
     }
 }
@@ -852,15 +901,20 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
         guitar->setFret(s, fret);
         if (fret > 0)
             startVibrato();
-        // A hammer-on strikes at the new fret, a pull-off flicks at the old.
-        const double at = fingerMetres(*guitar, s, fret > from ? fret : from);
+        // A hammer-on strikes at the new fret, a pull-off flicks at the old;
+        // the finger then on the string lands where it lands.
+        const double place = nextPlace();
+        const double at = fret > from ? fingerMetres(*guitar, s, fret, place)
+                                      : fingerMetres(*guitar, s, from, st.place);
         const double force = legatoShare * velocityForce(p.velocity);
         guitar->pluck(s, nextStrokeUp ? -force : force, at, fingerReleaseSeconds);
+        st.place = place;
         st.slide = false;
     }
     else
     {
         st.slide = true;
+        st.rubNewtons = slideNewtons * handScale(rubScatter);
         st.slideFrom = from;
         st.slideTo = fret;
         st.slideStart = now;
@@ -1099,6 +1153,10 @@ void StratPerformer::startStroke() noexcept
             continue;
         const int fret = notes[i].note - openNote[s];
         const bool dead = latched == Articulation::deadNote;
+        StringState& st = strings[static_cast<size_t>(s)];
+        // A finger the hand sent ahead is on its fret already.
+        const bool pressed = st.prepared == notes[i].note && st.fretted && st.fret == fret;
+        const double place = pressed ? st.place : nextPlace();
         // The pick crosses every string between, muted ones included.
         const int crossed = strokeUp ? last - s : s - first;
         Event e;
@@ -1107,15 +1165,15 @@ void StratPerformer::startStroke() noexcept
         e.string = s;
         e.fret = dead ? 0.0 : fret;
         e.force = sign * strokeForce(notes[i].velocity);
-        e.touchMetres = dead ? fingerMetres(*guitar, s, fret) : 0.0;
+        e.touchMetres = dead ? fingerMetres(*guitar, s, fret, place) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
         e.touchWidth = dead ? fingerWidth : 0.0;
         e.pinch = latched == Articulation::pinch;
         e.pickOffset = strokePick;
         schedule(e);
 
-        StringState& st = strings[static_cast<size_t>(s)];
         st = StringState {};
+        st.place = place;
         st.note = notes[i].note;
         st.channel = notes[i].channel;
         st.keyDown = true;
@@ -1220,6 +1278,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
             continue;
         st.prepared = notes[i].note;
         st.preparedDue = due;
+        const double place = nextPlace();
         std::int64_t contact = start + press;
         // A finger already on the string, or about to be, at another fret.
         const bool resting = st.released || st.keyDown;
@@ -1235,8 +1294,8 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
             e.time = start;
             e.kind = EventKind::shift;
             e.string = s;
-            e.from = fingerMetres(*guitar, s, from) - 0.5 * fingerWidth;
-            e.to = fingerMetres(*guitar, s, fret) - 0.5 * fingerWidth;
+            e.from = fingerMetres(*guitar, s, from, st.place) - 0.5 * fingerWidth;
+            e.to = fingerMetres(*guitar, s, fret, place) - 0.5 * fingerWidth;
             e.length = length;
             schedule(e);
             contact = start + length + press;
@@ -1246,6 +1305,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
         p.kind = EventKind::press;
         p.string = s;
         p.fret = fret;
+        p.place = place;
         schedule(p);
     }
 }
@@ -1280,6 +1340,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         if (e.kind == EventKind::shift)
         {
             st.shifting = true;
+            st.rubNewtons = shiftNewtons * handScale(rubScatter);
             st.shiftFrom = e.from;
             st.shiftTo = e.to;
             st.shiftStart = now;
@@ -1292,8 +1353,10 @@ void StratPerformer::runEvent(const Event& e) noexcept
             st.shifting = false;
             // The fingertip leaves the speaking length for the fret.
             guitar->setDamper(s, 1, 0.0, 0.0);
-            guitar->press(s, e.fret, StratEngine::actionMetres(e.fret), pressSeconds);
+            guitar->press(s, e.fret, StratEngine::actionMetres(e.fret), pressSeconds,
+                          handScale(landingScatter));
             st.fret = e.fret;
+            st.place = e.place;
             st.fretted = true;
             st.released = false;
         }
@@ -1338,6 +1401,18 @@ void StratPerformer::runEvent(const Event& e) noexcept
         release(s);
 }
 
+double StratPerformer::nextPlace() noexcept
+{
+    return steadyStroke ? placeShare
+                        : clamp(placeShare * std::exp(placeScatter * normalDraw(fretHand)),
+                                nearestPlace, farthestPlace);
+}
+
+double StratPerformer::handScale(double logSpread) noexcept
+{
+    return steadyStroke ? 1.0 : std::exp(logSpread * normalDraw(fretHand));
+}
+
 // A newly fretted note: the hand rocks from it afresh, after the pick.
 void StratPerformer::startVibrato() noexcept
 {
@@ -1370,10 +1445,11 @@ void StratPerformer::controlUpdate() noexcept
         if (st.slide)
         {
             // The finger glides; the frets under it stop the string, each in
-            // turn as the fingertip, a third of a fret behind the one it
-            // stops (fingerMetres), crosses the one before. So a slide steps
+            // turn as the fingertip, its place behind the one it stops
+            // (fingerMetres), crosses the one before. So a slide steps
             // through every fret between, as a fretted glissando does.
-            const auto stopped = [](double fret) { return std::ceil(fret - 1.0 / 3.0); };
+            const double place = st.place;
+            const auto stopped = [place](double fret) { return std::ceil(fret - place); };
             const double before = stopped(st.fret);
             const double u = st.slideLength > 0
                 ? static_cast<double>(now - st.slideStart) / static_cast<double>(st.slideLength)
@@ -1393,7 +1469,7 @@ void StratPerformer::controlUpdate() noexcept
             const double speed = st.slide && st.slideLength > 0
                 ? travel * sampleRate / st.slideLength * 6.0 * u * (1.0 - u)
                 : 0.0;
-            guitar->rub(s, guitar->fretMetres(s, st.fret), speed, slideNewtons);
+            guitar->rub(s, guitar->fretMetres(s, st.fret), speed, st.rubNewtons);
         }
         if (st.shifting)
         {
@@ -1410,7 +1486,7 @@ void StratPerformer::controlUpdate() noexcept
                 const double travel = st.shiftTo - st.shiftFrom;
                 guitar->rub(s, st.shiftFrom + travel * reach(u),
                             std::abs(travel) * sampleRate / st.shiftLength * reachSpeed(u),
-                            shiftNewtons);
+                            st.rubNewtons);
             }
         }
         if (st.note < 0 || !st.fretted)

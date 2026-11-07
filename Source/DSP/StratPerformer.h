@@ -125,11 +125,15 @@ private:
         bool keyDown = false;
         bool sustained = false; // key up while the pedal is down
         double fret = 0.0;      // where the fretting hand is
+        // Where its fingertip lies behind the fret, a share of the way to
+        // the next one toward the nut (StratPerformer.cpp, placeShare).
+        double place = 1.0 / 3.0;
         bool fretted = false;   // pressed to the fret (not touching)
         bool released = false;  // let go, the finger still on it
         bool handResting = false; // free, under the hand that let a note go
         double bend = 1.0;      // finger bend and vibrato, pitch ratio
         bool slide = false;
+        double rubNewtons = 0.0; // the finger's press as it slides or glides
         double slideFrom = 0.0, slideTo = 0.0;
         std::int64_t slideStart = 0, slideLength = 0;
         std::uint64_t order = 0;
@@ -168,6 +172,7 @@ private:
         std::int64_t due = 0;    // prepare: when the notes are picked
         double from = 0.0, to = 0.0; // shift: fingertip metres from the bridge
         std::int64_t length = 0;     // shift: samples
+        double place = 1.0 / 3.0;    // press: where the fingertip lands
     };
 
     // MIDI held back by the lookahead, in arrival order.
@@ -229,6 +234,12 @@ private:
     static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
     static constexpr std::uint32_t paceSeed = 0x27D4EB2Fu;
     static constexpr std::uint32_t pressSeed = 0x165667B1u;
+    static constexpr std::uint32_t fretHandSeed = 0xD3A2646Cu;
+    // The fretting hand's scatter (StratPerformer.cpp): where a finger lands
+    // behind its fret, how fast it lands and how hard it rubs, and how it
+    // lifts; as the controls put them on the first stroke after a reset.
+    double nextPlace() noexcept;
+    double handScale(double logSpread) noexcept;
     // The palm as the Palm mute key, the mod wheel and this stroke's
     // pressure off the Palm control (palmOffset) put it.
     void applyPalm() noexcept;
@@ -261,6 +272,7 @@ private:
     std::uint32_t scatter = scatterSeed; // and its place and push
     std::uint32_t pace = paceSeed;       // and its pace from string to string
     std::uint32_t press = pressSeed;     // and the palm's from stroke to stroke
+    std::uint32_t fretHand = fretHandSeed; // and the fretting hand's
     double strokePick = 0.0;    // this stroke's pick offset from the control
     bool steadyStroke = true;   // the first stroke after a reset
     std::int64_t lastStroke = -1000000;

@@ -205,29 +205,29 @@ double StratEngine::coilCoupling(int stringIndex) noexcept
 
 // The guitar is set up so its fretted notes play in tune with its open
 // strings. The fretting finger sharpens every fretted note by its stretch
-// (fretPressMetres, the action's stretch on top): the low E 13 to 18 cents,
-// the G 11 to 15, the A 8, the B 7, the D and high E 4 to 5 over frets 1 to
-// 19, with the open strings within a cent of their pitch. Setting the saddle
-// back lengthens every fretted string by the same distance, flattening the
-// high frets most; moving the nut toward the bridge (a compensated nut)
-// shortens only the open string, which is then tuned back up to pitch. The
-// two together put frets 1 to 21 in tune where the saddle alone, set at the
-// 12th fret as Fender's setup does it, leaves the low frets as sharp as
-// before (Varieschi and Gower, "Intonation and compensation of fretted
-// string instruments", Am. J. Phys. 78(1), 2010). Both are fitted here to
-// this finger's stretch, least squares over the 21 frets: a fretted note's
-// pitch over the open string's is openMetres / (L 2^(-n/12) + setback)
+// (fretPressMetres, the action's stretch on top): the low E 15 to 21 cents,
+// the G 12 to 17, the A 8 to 11, the B 7 to 10, the D and high E 4 to 6 over
+// frets 1 to 19, with the open strings within a cent of their pitch. Setting
+// the saddle back lengthens every fretted string by the same distance,
+// flattening the high frets most; moving the nut toward the bridge (a
+// compensated nut) shortens only the open string, which is then tuned back up
+// to pitch. The two together put frets 1 to 21 in tune where the saddle
+// alone, set at the 12th fret as Fender's setup does it, leaves the low frets
+// as sharp as before (Varieschi and Gower, "Intonation and compensation of
+// fretted string instruments", Am. J. Phys. 78(1), 2010). Both are fitted
+// here to this finger's stretch, least squares over the 21 frets: a fretted
+// note's pitch over the open string's is openMetres / (L 2^(-n/12) + setback)
 // times the root of its tension ratio, which is linear in openMetres and
-// setback once the tempered ratio is asked of it. The saddles go back 0.3
-// to 1.0 mm and the nut comes forward 1.4 to 4.4 mm, the low E's most, more
-// than a shop's compensated nut because this finger presses harder than a
-// light player's; every fret then plays within 0.46 cents of its pitch
-// (StratEngineTests' testIntonation), before a chord's other fingers pull
-// the floating bridge a little further. The strings take the setup's
-// lengths: the coils, the pick and the fingers are placed from each
-// string's own saddle (StratString::fretMetres). The owner asked for the
-// guitar in tune (Docs/decisions.md); the recorded Strat the stretch comes
-// from was not set up this way.
+// setback once the tempered ratio is asked of it. The saddles go back 0.3 to
+// 1.3 mm and the nut comes forward 1.4 to 5.4 mm, the low E's most, more than
+// a shop's compensated nut because this finger presses harder than a light
+// player's; every fret then plays within 0.56 cents of its pitch, and so does
+// every note of a chord, as the stabilizer keeps one finger's pull off the
+// other strings (StratBridge; StratEngineTests' testIntonation). The strings
+// take the setup's lengths: the coils, the pick and the fingers are placed
+// from each string's own saddle (StratString::fretMetres). The owner asked
+// for the guitar in tune (Docs/decisions.md); the recorded Strat the stretch
+// comes from was not set up this way.
 std::pair<double, double> StratEngine::intonation(int stringIndex) noexcept
 {
     constexpr int frets = 21;
@@ -253,6 +253,19 @@ std::pair<double, double> StratEngine::intonation(int stringIndex) noexcept
     return {openMetres, setback};
 }
 
+// The player tunes each open string with a tuner at an ordinary stroke and
+// reads it once the attack has passed. A string swinging that hard is
+// stretched and reads sharp of its pitch at rest (StratString::setTuning),
+// and the bridge and the neck it couples to pull its loop a little further,
+// so each string sits that much flat at rest: every open string at the
+// ordinary stroke reads within 0.3 cents of its pitch over 0.4 to 0.8 s
+// (StratPerformerTests' testTunedAtTheOrdinaryStroke, which measured these).
+double StratEngine::restPitch(int stringIndex) noexcept
+{
+    constexpr double flatCents[stringCount] = {1.86, 1.10, 1.14, 2.26, 1.37, 0.63};
+    return std::pow(2.0, -flatCents[stringIndex < 0 ? 0 : stringIndex % stringCount] / 1200.0);
+}
+
 void StratEngine::prepare(double sampleRate) noexcept
 {
     oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
@@ -264,6 +277,7 @@ void StratEngine::prepare(double sampleRate) noexcept
         StratString& string = strings[static_cast<size_t>(s)];
         const auto [openMetres, setback] = intonation(s);
         string.setIntonation(openMetres, setback);
+        string.setRestPitch(restPitch(s));
         string.prepare(stringRate, s, controlPeriod * oversampling);
         string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
@@ -326,16 +340,17 @@ void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
 
 // Fretting stretches the string: the finger pushes it past the fret's crown
 // toward the board, and its tension rises by its axial stiffness times the
-// stretch, less what the floating plate gives back (StratBridge). One
-// stretch for every string and fret fits the intonation of both
-// IDMT-SMT-Guitar Strat sessions (dataset 1, frets 1-12; dataset 2's fret
-// runs, frets 1-20; each fretted note's late pitch against its own open
-// string's, 192 notes): 30.5 um over frets 1-12 takes the median error from
-// 6.4 to 2.8 cents, and the strings' own stiffness over tension gives the
-// pattern: the low E 13 cents sharp, the G 11, the A 8, the B 7, the D and
-// high E 4, against medians of 16, 10, 6, 3, 6 and 1. The sessions alone fit
-// 21 and 32 um. It is the finger about 0.8 mm past the crown 10 mm behind
-// the fret.
+// stretch (StratBridge). One stretch for every string and fret fits the
+// intonation of both IDMT-SMT-Guitar Strat sessions (dataset 1, frets 1-12;
+// dataset 2's fret runs, frets 1-20; each fretted note's late pitch against
+// its own open string's, 192 notes): 30.5 um over frets 1-12 takes the median
+// error from 6.4 to 2.8 cents, and the strings' own stiffness over tension
+// gives the pattern: the low E 13 cents sharp, the G 11, the A 8, the B 7,
+// the D and high E 4, against medians of 16, 10, 6, 3, 6 and 1. The sessions
+// alone fit 21 and 32 um. It is the finger about 0.8 mm past the crown 10 mm
+// behind the fret. The fit took the plate floating, giving back some of each
+// stretch; held by the stabilizer, the same finger sharpens its string 5 %
+// (the high E) to 22 % (the low E) more, which the intonation takes up.
 //
 // On top of it the string comes down from its straight line onto the crown
 // (actionStretchMetres): 3.6 um at the 1st fret, 8.5 at the 12th, 16.4 at
@@ -404,12 +419,13 @@ void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 
-void StratEngine::press(int stringIndex, double fret, double depthMetres, double seconds) noexcept
+void StratEngine::press(int stringIndex, double fret, double depthMetres, double seconds,
+                        double landingScale) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     setFret(stringIndex, fret);
-    strings[static_cast<size_t>(stringIndex)].press(depthMetres, seconds);
+    strings[static_cast<size_t>(stringIndex)].press(depthMetres, seconds, landingScale);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 

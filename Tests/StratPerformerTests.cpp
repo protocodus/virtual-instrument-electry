@@ -7,6 +7,7 @@
 // whatever the host's block size.
 #include "DSP/StratPerformer.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <complex>
@@ -44,6 +45,12 @@ double fretRatio(int s, double fret)
     const auto [open, setback] = StratEngine::intonation(s);
     return fret > 0.0 ? open / (StratString::scaleMetres * std::pow(2.0, -fret / 12.0) + setback)
                       : 1.0;
+}
+
+// The open string where the player tuned it (StratEngine::restPitch).
+double tunedHz(int s)
+{
+    return StratString::construction(s).openHz * StratEngine::restPitch(s);
 }
 
 std::unique_ptr<StratPerformer> makePerformer()
@@ -422,7 +429,7 @@ void testReleaseLift()
     render(*p, 0.005);
     p->noteOn(0, 76, 90);
     const auto again = render(*p, 0.6);
-    const double want = StratString::construction(5).openHz * fretRatio(5, 12.0)
+    const double want = tunedHz(5) * fretRatio(5, 12.0)
         * std::sqrt(p->engine().bridge().tensionRatio(5));
     check(std::abs(p->engine().fundamentalHz(5) / want - 1.0) < 1e-9
               && level(again, 0.45, 0.1, 659.26) > level(again, 0.05, 0.1, 659.26) - 12.0,
@@ -461,7 +468,7 @@ void testLegatoAndSlide()
     // it sounds a fret, one after another, and every fret between.
     // fretRatio turned round: the fret a pitch is stopped at.
     const auto fretFrom = [&](double hz) {
-        const double open = StratString::construction(s).openHz * std::sqrt(q->engine().bridge().tensionRatio(s));
+        const double open = tunedHz(s) * std::sqrt(q->engine().bridge().tensionRatio(s));
         const auto [length, setback] = StratEngine::intonation(s);
         return -12.0 * std::log2((length * open / hz - setback) / StratString::scaleMetres);
     };
@@ -486,7 +493,7 @@ void testLegatoAndSlide()
           "a slide steps through every fret between");
     // The fretting finger stretches the string (StratEngine::fretPressMetres),
     // and the bridge's tension ratio carries it.
-    const double want = StratString::construction(s).openHz * fretRatio(s, 67 - openNote[s])
+    const double want = tunedHz(s) * fretRatio(s, 67 - openNote[s])
         * std::sqrt(q->engine().bridge().tensionRatio(s));
     check(middle > from && middle < 67 - openNote[s], "a slide's finger passes the frets between");
     check(q->stringNote(s) == 67
@@ -744,7 +751,7 @@ void testArmAndBends()
     for (int s = 0; s < 6; ++s)
     {
         const double fret = p->stringNote(s) >= 0 ? p->stringFret(s) : 0.0;
-        const double want = StratString::construction(s).openHz * fretRatio(s, fret)
+        const double want = tunedHz(s) * fretRatio(s, fret)
             * std::sqrt(p->engine().bridge().tensionRatio(s));
         tuned = tuned && std::abs(p->engine().fundamentalHz(s) / want - 1.0) < 1e-9;
     }
@@ -766,6 +773,43 @@ void testArmAndBends()
                           / (std::pow(2.0, 4.0 / 12.0) * reference.tensionRatio(bent)) - 1.0)
                   < 1e-9,
           "a member channel's bend takes its string a whole tone up");
+}
+
+// The frequency the windowed spectrum peaks at within `span` of a guess.
+double peakHz(const std::vector<float>& x, double start, double length, double guess, double span)
+{
+    double low = guess - span, high = guess + span;
+    for (int i = 0; i < 40; ++i)
+    {
+        const double a = low + 0.382 * (high - low), b = low + 0.618 * (high - low);
+        if (level(x, start, length, a) < level(x, start, length, b))
+            low = a;
+        else
+            high = b;
+    }
+    return 0.5 * (low + high);
+}
+
+// Each open string, picked at the ordinary stroke by a fresh hand, reads in
+// tune on a tuner once the attack has passed (StratEngine::restPitch): its
+// fundamental over 0.4 to 0.8 s within 0.3 cents of equal temperament from
+// A4 = 440 Hz.
+void testTunedAtTheOrdinaryStroke()
+{
+    double worst = 0.0;
+    std::printf("open strings at the ordinary stroke, cents over 0.4-0.8 s:");
+    for (int s = 0; s < 6; ++s)
+    {
+        auto p = makePerformer();
+        p->noteOn(0, openNote[s], 77, s);
+        const auto y = render(*p, 0.8);
+        const double tempered = 440.0 * std::pow(2.0, (openNote[s] - 69) / 12.0);
+        const double off = 1200.0 * std::log2(peakHz(y, 0.4, 0.4, tempered, 2.0) / tempered);
+        std::printf(" %+.2f", off);
+        worst = std::max(worst, std::abs(off));
+    }
+    std::printf("\n");
+    check(worst < 0.3, "every open string reads in tune at the ordinary stroke");
 }
 
 std::vector<float> performance(int block, bool lookahead = false)
@@ -940,6 +984,47 @@ void testLookahead()
     check(plainBefore < 1e-6f, "without the lookahead nothing sounds before the pick");
 }
 
+// The fretting hand's scatter: with the lookahead on, the finger reaches its
+// fret before each pick, the first time after a reset as the controls put
+// it and every time after at a speed of its own, so the ticks before the
+// notes spread about as the recorded player's do (6.2 dB, StratPerformer.cpp).
+void testFrettingHandScatter()
+{
+    electry::StratControls controls;
+    controls.lookahead = true;
+    // The C on the B string's 1st fret, picked, and let go.
+    const auto play = [](StratPerformer& p) {
+        p.noteOn(0, 60, 90);
+        const auto y = render(p, 0.4);
+        p.noteOff(0, 60);
+        render(p, 0.3);
+        // The steepest step before the pick: the tick's sharp edge.
+        const int pick = p.latencySamples();
+        double tick = 0.0;
+        for (int i = pick - static_cast<int>(0.045 * rate); i < pick - static_cast<int>(0.003 * rate); ++i)
+            tick = std::max(tick, std::abs(static_cast<double>(y[static_cast<size_t>(i)])
+                                           - y[static_cast<size_t>(i - 1)]));
+        return 20.0 * std::log10(tick + 1e-30);
+    };
+    auto fresh = makePerformer();
+    fresh->setControls(controls);
+    const double first = play(*fresh);
+    auto p = makePerformer();
+    p->setControls(controls);
+    std::vector<double> ticks;
+    for (int k = 0; k < 24; ++k)
+        ticks.push_back(play(*p));
+    check(ticks[0] == first, "the first landing after a reset is as the controls put it");
+    double mean = 0.0, spread = 0.0;
+    for (size_t k = 1; k < ticks.size(); ++k)
+        mean += ticks[k] / static_cast<double>(ticks.size() - 1);
+    for (size_t k = 1; k < ticks.size(); ++k)
+        spread += (ticks[k] - mean) * (ticks[k] - mean) / static_cast<double>(ticks.size() - 2);
+    spread = std::sqrt(spread);
+    std::printf("the fretting finger's ticks over %zu landings: SD %.1f dB\n", ticks.size() - 1, spread);
+    check(spread > 3.0 && spread < 9.0, "every landing ticks at its own level");
+}
+
 // The coils' hum: off, silence; on, the mains line and its odd harmonics,
 // at 50 or 60 Hz.
 void testHum()
@@ -982,10 +1067,12 @@ int main()
     testWheelAndPressure();
     testDeadNotes();
     testArmAndBends();
+    testTunedAtTheOrdinaryStroke();
     testTilt();
     testScatter();
     testBlockPartition();
     testLookahead();
+    testFrettingHandScatter();
     testHum();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");

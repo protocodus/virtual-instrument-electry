@@ -4,7 +4,6 @@
 // and the pick, pickup and damper positions against the nodes a point on an
 // ideal string has: a pluck or a pickup at 1/k of the length neither excites
 // nor hears harmonic k.
-#include "DSP/StratBridge.h"
 #include "DSP/StratString.h"
 
 #include <algorithm>
@@ -643,9 +642,8 @@ void testTensionModulation()
     // 0.010 in high E and of the low E's 0.0185 in core (its wrap carries no
     // tension), and E the energy of the triangle a pluck of force F at x
     // releases, F^2 x (L - x) / (2 T L), let go at once so all of it is in
-    // the string. The floating plate tilts under the extra pull and gives
-    // back h^2 k / K of it (StratBridge: k = EA / L, K the springs and the
-    // other strings holding the plate), so the rise is EA / (1 + h^2 k / K).
+    // the string. The stabilizer holds the plate (StratBridge), so none of
+    // the stretch is given back.
     const double rate = 48000.0, x = pickMetres, length = StratString::scaleMetres;
     const std::pair<int, double> strings[] = {{0, 0.0185}, {5, 0.010}};
     for (const auto& [s, inches] : strings)
@@ -654,12 +652,6 @@ void testTensionModulation()
         const double tension = spec.kilogramsPerMetre * std::pow(2.0 * length * spec.openHz, 2.0);
         const double diameter = inches * 0.0254;
         const double steel = 207e9 * pi * diameter * diameter / 4.0;
-        const double h = electry::StratBridge::saddleHeightMetres();
-        double hold = electry::StratBridge::springStiffness();
-        for (int j = 0; j < StratString::stringCount; ++j)
-            if (j != s)
-                hold += h * h * electry::StratBridge::axialStiffness(j);
-        const double stretchStiffness = steel / (1.0 + h * h * steel / length / hold);
         const auto sharpening = [&](double newtons, double startSeconds) {
             const auto pitch = [&](double force) {
                 auto string = makeString(rate, s, 0);
@@ -671,7 +663,7 @@ void testTensionModulation()
         };
         const auto theory = [&](double newtons) {
             const double energy = newtons * newtons * x * (length - x) / (2.0 * tension * length);
-            return cents(1.0 + stretchStiffness * energy / (4.0 * length * tension * tension), 1.0);
+            return cents(1.0 + steel * energy / (4.0 * length * tension * tension), 1.0);
         };
         const double hard = sharpening(2.0, 0.02), soft = sharpening(1.0, 0.02);
         const double late = sharpening(2.0, 1.5);

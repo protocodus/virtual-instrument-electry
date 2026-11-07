@@ -4,6 +4,71 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-07 — in tune together, and a fretting hand that never repeats (owner)
+
+The owner's decisions, not listening tests: "we need perfect tuning, i can
+still hear mistuning in the demos"; "subtle, realistic artifacts (each must
+be generated/synthesized and they need to have almost infinite variety)";
+"finger noises, fret noises, finger moving noise, subtle variation in string
+ring"; "small variation how far from a fret player presses it".
+
+Measured in 2.0.2, single notes played in tune, but a chord did not: its
+fretting fingers' stretch tilted the floating plate forward and sagged every
+string 1 to 6.5 cents flat, the low E most (an F barre), and a bend sagged
+the others further. On its own each open string also read sharp at an
+ordinary stroke (velocity 77, the fundamental over 0.4 to 0.8 s): the low E
++1.9 cents, the A +1.1, the D +1.1, the G +2.3, the B +1.4 and the high E
++0.6, from the stroke's stretch and the bridge's and neck's pull on the loop.
+
+2.1.0 sets the guitar up as a player who wants it in tune would:
+
+- A stabilizer holds the plate at rest against the strings
+  (`StratBridge`); the arm still moves it both ways, and a press or a bend
+  retunes only its own string. The same fretting stretch now sharpens its
+  string 5 % (high E) to 22 % (low E) more, which the intonation fit takes
+  up: saddles back 0.3 to 1.3 mm, nut forward 1.4 to 5.4 mm, every fret and
+  every note of an F barre within 0.56 cents (`testIntonation`).
+- Each string sits flat at rest by what it read at the ordinary stroke
+  (`StratEngine::restPitch`), as a tuner leaves it, so every open string at
+  velocity 77 reads within 0.05 cents over 0.4 to 0.8 s (the test holds it
+  to 0.3). Fretted notes at that stroke read within 0.35 cents of their
+  pitch at frets 5 and 12, but for the G at the 12th (-1.5) and the high E
+  at the 5th (-1.8) in that window, where their neighbouring windows read
+  +1.4 and +0.4: the loop's couplings, not the setup, which one peg per
+  string cannot take out.
+
+And the fretting hand varies from note to note, from a seeded generator, so
+a render repeats exactly and no two of its notes are alike; the first stroke
+after a reset is as the controls put it:
+
+- where each finger lands behind its fret: a third of the way to the next
+  fret at the median, by a factor of exp(0.25 z), within 0.15 to 0.6.
+  Voiced, at the owner's request. It moves where the flesh touches and rubs
+  the string, not the pitch;
+- how fast it lands, so how loud its tick is: the fitted speed times
+  exp(0.71 z), from the 6.2 dB spread of the recorded ticks
+  (IDMT-SMT-Guitar dataset 2's fret runs, 120 gaps), a bound from above
+  taken whole;
+- how it lifts at a release: its time and its flesh evenly in log across
+  10 to 30 ms and 1 to 4 kg/s, the ranges that fit the recorded releases
+  within 0.7 and 0.4 dB of the best. Drawing inside the fit is voiced;
+- how hard it presses as it glides along a string or slides: at the
+  landings' spread. Voiced: no recording isolates a rub's level.
+
+Not done: fret buzz is not modelled. The ticks and glides exist only with
+Fretting Lookahead on, as the hand needs to reach a note before its pick;
+the factory rigs ship with it off, and the owner was asked whether to turn
+it on.
+
+A preview, not a choice: A is 2.0.2 (f6da382), B the tuning alone, C the
+tuning and the hand, on F-Bb-C-F barre chords left to ring, a single-note
+line with the lookahead on and the Alabama-style riff with it on, whole-file
+RMS matched to -20 dBFS (chords -15.2, -15.4 and -15.4 dB; line -12.7 dB
+each; riff -14.8, -15.0 and -15.0 dB). On the chords' F barre A's notes
+settle 3 to 5 cents flat, B's and C's within a cent; on the line the ticks
+spread 3.1 dB in A and B and 7.2 dB in C. By the owner's standing rule C
+ships unless the owner objects.
+
 ## 2026-11-07 — the guitar is set up in tune (owner)
 
 The owner's decision, not a listening test: "double check and fix tuning".
