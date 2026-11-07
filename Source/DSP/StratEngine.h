@@ -5,6 +5,7 @@
 #include "StratString.h"
 
 #include <array>
+#include <utility>
 
 namespace electry
 {
@@ -47,6 +48,12 @@ public:
     // How much longer the string is taken down onto that fret's crown than
     // on its straight line from nut to saddle.
     static double actionStretchMetres(double fret) noexcept;
+    // The open string's speaking length and the saddle's setback, metres,
+    // that play this string's fretted notes in tune (StratEngine.cpp).
+    static std::pair<double, double> intonation(int stringIndex) noexcept;
+    // StratString::fretMetres: from the string's saddle to where `fret`
+    // stops it, the nut at fret 0, metres.
+    double fretMetres(int stringIndex, double fret) const noexcept;
     // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge).
     void setArm(double position) noexcept;
     // A finger bend to `pitchRatio` over the string's unbent pitch.

@@ -57,6 +57,17 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.0.2 — 2026-11-07 — In tune up the neck
+
+The Stratocaster is set up the way a guitar tech sets one up: each saddle
+moved back and the nut compensated, so its fretted notes play in tune with
+its open strings. In 2.0.1 the fretting finger's stretch left every fretted
+note sharp, the low E by 13–18 cents and the G by 11–15; now every fret on
+every string lands within half a cent of equal temperament, before the
+string's own swing adds the cent or two it adds to the open strings too.
+The pickups, the pick, the fingers and the harmonic touches sit where the
+new setup puts them.
+
 ### 2.0.1 — 2026-11-07 — Steadier upper partials
 
 The Stratocaster's pickups hear less of each string's swing along the top:

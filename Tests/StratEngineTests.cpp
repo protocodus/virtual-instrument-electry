@@ -421,7 +421,12 @@ void testTremoloRetunes()
     for (int s = 0; s < 6; ++s)
     {
         const double fret = s == 3 ? 7.0 : 0.0;
-        const double want = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0)
+        // The intonation's ratio for the fret (testIntonation).
+        const auto [open, setback] = StratEngine::intonation(s);
+        const double ratio = fret > 0.0
+            ? open / (StratString::scaleMetres * std::pow(2.0, -fret / 12.0) + setback)
+            : 1.0;
+        const double want = StratString::construction(s).openHz * ratio
             * std::sqrt(engine->bridge().tensionRatio(s));
         tuned = tuned && std::abs(engine->fundamentalHz(s) / want - 1.0) < 1e-12;
     }
@@ -433,6 +438,29 @@ void testTremoloRetunes()
 // kHz, unless the strings run faster than the host (StratEngine.cpp). The
 // open high E's partials at 10 to 16 kHz over 0.3 to 0.5 s, against its
 // first three, at 44.1 kHz and at 192 kHz.
+// Every fretted note within a cent of equal temperament against its open
+// string: the saddles and the nut (StratEngine::intonation) take back what
+// the fretting finger's stretch adds, which left the low E 13 to 18 cents
+// sharp and the G 11 to 15 (Electry 2.0.1). One string pressed at a time,
+// so the floating bridge carries that press alone.
+void testIntonation()
+{
+    auto engine = makeEngine(Position::neck);
+    double worst = 0.0;
+    for (int s = 0; s < 6; ++s)
+    {
+        for (int fret = 1; fret <= 21; ++fret)
+        {
+            engine->setFret(s, fret);
+            const double tempered = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0);
+            worst = std::max(worst, std::abs(1200.0 * std::log2(engine->fundamentalHz(s) / tempered)));
+        }
+        engine->setFret(s, 0.0);
+    }
+    std::printf("fretted notes against equal temperament: %.2f cents at worst\n", worst);
+    check(worst < 1.0, "every fretted note plays in tune with the open strings");
+}
+
 void testTopOctaveAtEveryRate()
 {
     const auto& spec = StratString::construction(5);
@@ -481,6 +509,7 @@ int main()
     testSympathy();
     testMovingControls();
     testTremoloRetunes();
+    testIntonation();
     testTopOctaveAtEveryRate();
     testDeterminism();
     if (failures == 0)

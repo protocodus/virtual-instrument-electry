@@ -4,6 +4,25 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-07 — the guitar is set up in tune (owner)
+
+The owner's decision, not a listening test: "double check and fix tuning".
+Measured on single notes (cents of the settled fundamental, 0.6–1.6 s, against
+equal temperament), 2.0.1 played its open strings within about a cent and its
+fretted notes sharp by the fretting finger's stretch: the low E 13–18 cents,
+the G 11–15, the A 8, the B 7–8, the D and high E 4–6. 2.0.2 sets each
+saddle back (0.3–1.0 mm) and compensates the nut (1.4–4.4 mm), fitted to that
+stretch over frets 1–21 (`StratEngine::intonation`), and its fretted notes
+settle within −0.8 to +2.4 cents of the tempered pitch at velocities 40, 90
+and 127, the open strings at +0.3 to +1.5. The recorded Strat the stretch was
+fitted to played its fretted notes sharp the same way; the owner chose a
+guitar in tune over that recording's setup.
+
+A preview, not a choice between candidates: A is 2.0.1, B is 2.0.2, on the
+same Alabama-style riff and ringing chords as the twin set below, whole-file
+RMS matched to −20 dBFS (riff −15.1 and −15.0 dB, ring −11.6 and −11.7 dB).
+By the owner's standing rule B ships unless the owner objects.
+
 ## 2026-11-07 — the pickup hears less of the swing along the top (B, pending)
 
 Decided: whether the Strat's coils hear 0.15 of each string's swing along the

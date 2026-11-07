@@ -111,6 +111,15 @@ public:
     void setTuning(double fret, double tensionRatio, bool glide = false) noexcept;
     double fundamentalHz() const noexcept { return fundamental; }
 
+    // The setup that plays the fretted notes in tune (StratEngine::prepare):
+    // the open string's speaking length from nut to saddle, and how far the
+    // saddle sits behind the scale's end, metres. Call it before prepare.
+    // Every position on the string (setTaps, pluck, setDamper, rub) is metres
+    // from this saddle.
+    void setIntonation(double openMetres, double saddleSetbackMetres) noexcept;
+    // From the saddle to where `fret` stops the string, the nut at fret 0.
+    double fretMetres(double fret) const noexcept;
+
     void setTaps(const std::array<double, tapCount>& metresFromBridge) noexcept;
 
     // The string lifted off its fret under the finger: the flesh, of this
@@ -287,6 +296,8 @@ private:
     double fret = 0.0;
     double tension = 1.0;
     double fundamental = 0.0;
+    double intonedOpen = scaleMetres;
+    double saddleSetback = 0.0;
     double samplesPerMetre = 0.0;
     double characteristicImpedance = 0.0;
     int leftLength = 0;       // rail L, integer

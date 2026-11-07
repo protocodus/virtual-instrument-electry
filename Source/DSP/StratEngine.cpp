@@ -13,8 +13,8 @@ constexpr double pi = 3.14159265358979323846;
 
 // Coil centres from the saddles: neck 162 mm and middle 98 mm, square to the
 // strings; the bridge coil slants from 46 mm under the low E to 36 mm under
-// the high E. Saddle intonation offsets of a few millimetres are left out:
-// every string is 25.5 in long here.
+// the high E, each string's own saddle where the intonation (prepare) has
+// set it back.
 constexpr double neckMetres = 0.162;
 constexpr double middleMetres = 0.098;
 constexpr double bridgeBassMetres = 0.046;
@@ -203,6 +203,56 @@ double StratEngine::coilCoupling(int stringIndex) noexcept
         * fluxSlope(gapMetres(stringIndex)) / fluxSlope(gapBassMetres);
 }
 
+// The guitar is set up so its fretted notes play in tune with its open
+// strings. The fretting finger sharpens every fretted note by its stretch
+// (fretPressMetres, the action's stretch on top): the low E 13 to 18 cents,
+// the G 11 to 15, the A 8, the B 7, the D and high E 4 to 5 over frets 1 to
+// 19, with the open strings within a cent of their pitch. Setting the saddle
+// back lengthens every fretted string by the same distance, flattening the
+// high frets most; moving the nut toward the bridge (a compensated nut)
+// shortens only the open string, which is then tuned back up to pitch. The
+// two together put frets 1 to 21 in tune where the saddle alone, set at the
+// 12th fret as Fender's setup does it, leaves the low frets as sharp as
+// before (Varieschi and Gower, "Intonation and compensation of fretted
+// string instruments", Am. J. Phys. 78(1), 2010). Both are fitted here to
+// this finger's stretch, least squares over the 21 frets: a fretted note's
+// pitch over the open string's is openMetres / (L 2^(-n/12) + setback)
+// times the root of its tension ratio, which is linear in openMetres and
+// setback once the tempered ratio is asked of it. The saddles go back 0.3
+// to 1.0 mm and the nut comes forward 1.4 to 4.4 mm, the low E's most, more
+// than a shop's compensated nut because this finger presses harder than a
+// light player's; every fret then plays within 0.46 cents of its pitch
+// (StratEngineTests' testIntonation), before a chord's other fingers pull
+// the floating bridge a little further. The strings take the setup's
+// lengths: the coils, the pick and the fingers are placed from each
+// string's own saddle (StratString::fretMetres). The owner asked for the
+// guitar in tune (Docs/decisions.md); the recorded Strat the stretch comes
+// from was not set up this way.
+std::pair<double, double> StratEngine::intonation(int stringIndex) noexcept
+{
+    constexpr int frets = 21;
+    const double length = StratString::scaleMetres;
+    double n = 0.0, sw = 0.0, sww = 0.0, sy = 0.0, swy = 0.0;
+    for (int fret = 1; fret <= frets; ++fret)
+    {
+        StratBridge alone;
+        alone.setPress(stringIndex, fretPressMetres + actionStretchMetres(fret));
+        const double sharp = std::sqrt(alone.tensionRatio(stringIndex));
+        // openMetres - setback * w = y puts this fret on its tempered pitch.
+        const double w = std::pow(2.0, fret / 12.0) / sharp;
+        const double y = length / sharp;
+        n += 1.0;
+        sw += w;
+        sww += w * w;
+        sy += y;
+        swy += w * y;
+    }
+    const double det = n * sww - sw * sw;
+    const double openMetres = (sy * sww - sw * swy) / det;
+    const double setback = (sw * sy - n * swy) / det;
+    return {openMetres, setback};
+}
+
 void StratEngine::prepare(double sampleRate) noexcept
 {
     oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
@@ -212,6 +262,8 @@ void StratEngine::prepare(double sampleRate) noexcept
     for (int s = 0; s < stringCount; ++s)
     {
         StratString& string = strings[static_cast<size_t>(s)];
+        const auto [openMetres, setback] = intonation(s);
+        string.setIntonation(openMetres, setback);
         string.prepare(stringRate, s, controlPeriod * oversampling);
         string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
@@ -405,6 +457,12 @@ void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromB
         swing[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)] += static_cast<float>(
             string.restingDeflection(held, coilMetres(c, stringIndex)) * stringRate);
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
+}
+
+double StratEngine::fretMetres(int stringIndex, double fret) const noexcept
+{
+    return strings[static_cast<size_t>(stringIndex < 0 ? 0 : stringIndex % stringCount)]
+        .fretMetres(fret);
 }
 
 double StratEngine::fundamentalHz(int stringIndex) const noexcept

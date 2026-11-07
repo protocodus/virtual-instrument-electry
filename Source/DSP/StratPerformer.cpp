@@ -295,8 +295,6 @@ constexpr double vibratoDepthScatter = 0.40; // log SD of a 42 % spread
 constexpr double memberBendSemitones = 48.0;
 constexpr double maximumFingerBend = 4.0;
 
-double fretMetres(double fret) noexcept { return scale * std::pow(2.0, -fret / 12.0); }
-
 // The string's wave impedance at standard tension, kg/s.
 double impedance(int s) noexcept
 {
@@ -306,10 +304,12 @@ double impedance(int s) noexcept
 
 // A fingertip presses just behind its fret, a third of the way to the next
 // one toward the nut; an open string is stopped by the hand near fret 3.
-double fingerMetres(double fret) noexcept
+// Metres from string s's saddle, as the intonation has set it.
+double fingerMetres(const StratEngine& guitar, int s, double fret) noexcept
 {
     const double f = fret < 1.0 ? 3.0 : std::floor(fret + 0.5);
-    return fretMetres(f) + (fretMetres(f - 1.0) - fretMetres(f)) / 3.0;
+    const double at = guitar.fretMetres(s, f);
+    return at + (guitar.fretMetres(s, f - 1.0) - at) / 3.0;
 }
 
 double clamp(double value, double low, double high) noexcept
@@ -614,8 +614,8 @@ void StratPerformer::release(int s) noexcept
 {
     StringState& st = strings[static_cast<size_t>(s)];
     // The fretting finger lets go of the fret but stays on the string.
-    const double at = fingerMetres(st.fret);
-    guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
+    const double rest = st.fret;
+    guitar->setDamper(s, 1, fingerMetres(*guitar, s, rest), fingerResistance, fingerWidth);
     if (st.fret > 0.0)
     {
         guitar->liftFromFret(s, fingerResistance);
@@ -627,7 +627,6 @@ void StratPerformer::release(int s) noexcept
     }
     guitar->setBend(s, 1.0);
     const std::uint64_t order = st.order;
-    const double rest = st.fret;
     const int prepared = st.prepared;
     const std::int64_t preparedDue = st.preparedDue;
     st = StringState {};
@@ -653,7 +652,7 @@ void StratPerformer::release(int s) noexcept
         StringState& free = strings[static_cast<size_t>(t)];
         if (free.note >= 0 || free.released || free.handResting)
             continue;
-        guitar->setDamper(t, 1, at, fingerResistance, fingerWidth);
+        guitar->setDamper(t, 1, fingerMetres(*guitar, t, rest), fingerResistance, fingerWidth);
         free.handResting = true;
     }
 }
@@ -681,11 +680,10 @@ void StratPerformer::dampStrings(bool down) noexcept
         liftRestingHand();
         return;
     }
-    const double at = fingerMetres(hand);
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         StringState& st = strings[static_cast<size_t>(s)];
-        guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
+        guitar->setDamper(s, 1, fingerMetres(*guitar, s, hand), fingerResistance, fingerWidth);
         if (st.fret > 0.0)
             guitar->setFret(s, 0.0);
         guitar->setBend(s, 1.0);
@@ -855,7 +853,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
         if (fret > 0)
             startVibrato();
         // A hammer-on strikes at the new fret, a pull-off flicks at the old.
-        const double at = fingerMetres(fret > from ? fret : from);
+        const double at = fingerMetres(*guitar, s, fret > from ? fret : from);
         const double force = legatoShare * velocityForce(p.velocity);
         guitar->pluck(s, nextStrokeUp ? -force : force, at, fingerReleaseSeconds);
         st.slide = false;
@@ -929,7 +927,7 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     e.fret = fret;
     e.force = force;
     // The node nearest the nut, where a player touches.
-    e.touchMetres = fretMetres(fret) * (partial - 1) / partial;
+    e.touchMetres = guitar->fretMetres(string, fret) * (partial - 1) / partial;
     e.touchResistance = harmonicTouchShare * impedance(string);
     e.pickOffset = strokePick;
     schedule(e);
@@ -1109,7 +1107,7 @@ void StratPerformer::startStroke() noexcept
         e.string = s;
         e.fret = dead ? 0.0 : fret;
         e.force = sign * strokeForce(notes[i].velocity);
-        e.touchMetres = dead ? fingerMetres(fret) : 0.0;
+        e.touchMetres = dead ? fingerMetres(*guitar, s, fret) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
         e.touchWidth = dead ? fingerWidth : 0.0;
         e.pinch = latched == Articulation::pinch;
@@ -1237,8 +1235,8 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
             e.time = start;
             e.kind = EventKind::shift;
             e.string = s;
-            e.from = fingerMetres(from) - 0.5 * fingerWidth;
-            e.to = fingerMetres(fret) - 0.5 * fingerWidth;
+            e.from = fingerMetres(*guitar, s, from) - 0.5 * fingerWidth;
+            e.to = fingerMetres(*guitar, s, fret) - 0.5 * fingerWidth;
             e.length = length;
             schedule(e);
             contact = start + length + press;
@@ -1305,7 +1303,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (damping)
     {
         // A stroke under the damping hand, which stays.
-        guitar->setDamper(s, 1, fingerMetres(e.fret), fingerResistance, fingerWidth);
+        guitar->setDamper(s, 1, fingerMetres(*guitar, s, e.fret), fingerResistance, fingerWidth);
         guitar->setFret(s, 0.0);
         st.fretted = false;
         st.handResting = true;
@@ -1318,7 +1316,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
             startVibrato();
         if (e.pinch)
         {
-            const double node = pinchNode(fretMetres(e.fret), pickAt);
+            const double node = pinchNode(guitar->fretMetres(s, e.fret), pickAt);
             pickAt = node - thumbOffsetMetres;
             guitar->setDamper(s, 1, node, impedance(s));
             Event lift;
@@ -1390,11 +1388,12 @@ void StratPerformer::controlUpdate() noexcept
             if (stopped(st.fret) != before)
                 guitar->setFret(s, stopped(st.fret));
             // The pressing finger rubs along the string as it goes.
-            const double travel = std::abs(fretMetres(st.slideTo) - fretMetres(st.slideFrom));
+            const double travel
+                = std::abs(guitar->fretMetres(s, st.slideTo) - guitar->fretMetres(s, st.slideFrom));
             const double speed = st.slide && st.slideLength > 0
                 ? travel * sampleRate / st.slideLength * 6.0 * u * (1.0 - u)
                 : 0.0;
-            guitar->rub(s, fretMetres(st.fret), speed, slideNewtons);
+            guitar->rub(s, guitar->fretMetres(s, st.fret), speed, slideNewtons);
         }
         if (st.shifting)
         {

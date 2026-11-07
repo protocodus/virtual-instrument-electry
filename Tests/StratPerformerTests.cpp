@@ -36,6 +36,16 @@ constexpr double pi = 3.14159265358979323846;
 constexpr double rate = 48000.0;
 constexpr int openNote[6] = {40, 45, 50, 55, 59, 64};
 
+// What a fret plays over the open string on the intonated guitar
+// (StratEngine::intonation): the open speaking length over the length from
+// the fret to the set-back saddle. The bridge's tension ratio comes on top.
+double fretRatio(int s, double fret)
+{
+    const auto [open, setback] = StratEngine::intonation(s);
+    return fret > 0.0 ? open / (StratString::scaleMetres * std::pow(2.0, -fret / 12.0) + setback)
+                      : 1.0;
+}
+
 std::unique_ptr<StratPerformer> makePerformer()
 {
     auto p = std::make_unique<StratPerformer>();
@@ -412,7 +422,7 @@ void testReleaseLift()
     render(*p, 0.005);
     p->noteOn(0, 76, 90);
     const auto again = render(*p, 0.6);
-    const double want = StratString::construction(5).openHz * std::pow(2.0, 12.0 / 12.0)
+    const double want = StratString::construction(5).openHz * fretRatio(5, 12.0)
         * std::sqrt(p->engine().bridge().tensionRatio(5));
     check(std::abs(p->engine().fundamentalHz(5) / want - 1.0) < 1e-9
               && level(again, 0.45, 0.1, 659.26) > level(again, 0.05, 0.1, 659.26) - 12.0,
@@ -449,9 +459,11 @@ void testLegatoAndSlide()
     q->noteOn(0, 67, 100);
     // Frets stop the string all the way: every control period of the slide
     // it sounds a fret, one after another, and every fret between.
+    // fretRatio turned round: the fret a pitch is stopped at.
     const auto fretFrom = [&](double hz) {
         const double open = StratString::construction(s).openHz * std::sqrt(q->engine().bridge().tensionRatio(s));
-        return 12.0 * std::log2(hz / open);
+        const auto [length, setback] = StratEngine::intonation(s);
+        return -12.0 * std::log2((length * open / hz - setback) / StratString::scaleMetres);
     };
     bool fretted = true, inOrder = true;
     int visited = 0;
@@ -474,7 +486,7 @@ void testLegatoAndSlide()
           "a slide steps through every fret between");
     // The fretting finger stretches the string (StratEngine::fretPressMetres),
     // and the bridge's tension ratio carries it.
-    const double want = StratString::construction(s).openHz * std::pow(2.0, (67 - openNote[s]) / 12.0)
+    const double want = StratString::construction(s).openHz * fretRatio(s, 67 - openNote[s])
         * std::sqrt(q->engine().bridge().tensionRatio(s));
     check(middle > from && middle < 67 - openNote[s], "a slide's finger passes the frets between");
     check(q->stringNote(s) == 67
@@ -732,7 +744,7 @@ void testArmAndBends()
     for (int s = 0; s < 6; ++s)
     {
         const double fret = p->stringNote(s) >= 0 ? p->stringFret(s) : 0.0;
-        const double want = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0)
+        const double want = StratString::construction(s).openHz * fretRatio(s, fret)
             * std::sqrt(p->engine().bridge().tensionRatio(s));
         tuned = tuned && std::abs(p->engine().fundamentalHz(s) / want - 1.0) < 1e-9;
     }

@@ -490,14 +490,25 @@ double StratString::positionSamples(double metres) const noexcept
     return metres * samplesPerMetre;
 }
 
+void StratString::setIntonation(double openMetres, double saddleSetbackMetres) noexcept
+{
+    intonedOpen = openMetres;
+    saddleSetback = saddleSetbackMetres;
+}
+
+double StratString::fretMetres(double fret) const noexcept
+{
+    return fret <= 0.0 ? intonedOpen : scaleMetres * std::pow(2.0, -fret / 12.0) + saddleSetback;
+}
+
 void StratString::setTuning(double newFret, double tensionRatio, bool glide) noexcept
 {
     const bool fretMoved = newFret != fret;
     fret = newFret;
     tension = tensionRatio;
     const double openNow = spec->openHz * std::sqrt(tensionRatio);
-    fundamental = openNow * std::pow(2.0, fret / 12.0);
-    const double waveSpeed = 2.0 * scaleMetres * openNow;
+    fundamental = openNow * intonedOpen / fretMetres(fret);
+    const double waveSpeed = 2.0 * intonedOpen * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
     characteristicImpedance = spec->kilogramsPerMetre * waveSpeed;
     topShortfall = 2.0 * inPlaneShortening * samplesPerMetre;
@@ -521,7 +532,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
         const double stretchStiffness
             = 2.0 * scaleMetres * std::sqrt(steelModulus * openTension * spec->stiffness / pi);
         const double tensionNow = spec->kilogramsPerMetre * waveSpeed * waveSpeed;
-        const double speaking = scaleMetres * std::pow(2.0, -fret / 12.0);
+        const double speaking = fretMetres(fret);
         const double h = StratBridge::saddleHeightMetres();
         const double own = stretchStiffness / speaking;
         const double held = own / (1.0 + h * h * own / plateHold);
@@ -804,7 +815,7 @@ double StratString::restingDeflection(double forceNewtons, double atMetres) cons
     // A taut string under a point force stands as two straight lines from
     // its ends, y(x) = F x (L - p) / (T L) on the bridge side of the force
     // at p and F p (L - x) / (T L) beyond it.
-    const double speaking = scaleMetres * std::pow(2.0, -fret / 12.0);
+    const double speaking = fretMetres(fret);
     const double near = std::min(pickMetres, atMetres);
     const double far = std::min(std::max(pickMetres, atMetres), speaking);
     const double tensionNow = characteristicImpedance / samplesPerMetre * sampleRate;
