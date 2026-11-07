@@ -1354,7 +1354,8 @@ recorded Strat the split levels off: its partials beat at about 1.2 Hz at
 6.5 Hz, and 2.0.1's share leaves them 0.2–0.5 dB deeper from 1 kHz up (44 recorded
 chords waver 1.54 and 1.46 dB at 1–2.5 and 2.5–6 kHz, the model 1.93 and
 1.92). A support that yields toward the poles only below its own resonance
-would level the split off; it is not modelled or measured yet.
+would level the split off; it is not modelled or measured yet
+([open work](Docs/plans/twin-split-2026-11-07.md)).
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the
