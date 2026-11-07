@@ -57,6 +57,15 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.2.1 — 2026-11-07 — Bends and vibrato timed from the pick
+
+The recorded Strat's annotated onsets run about 30 ms ahead of the pick, so
+the timings read from them were late. Timed from each note's own attack, a
+bend holds the struck pitch for 95 ms and then rises evenly to the note,
+10 to 90 % in 0.09 s, as the recorded licks' bends do; 2.2.0's bend set off
+at the pick and took twice as long. Vibrato, from the Vibrato key or channel
+pressure, starts rocking 32 ms sooner after the pick.
+
 ### 2.2.0 — 2026-11-07 — Bends, slide-ins and vibrato on keys
 
 The Stratocaster gains three articulation keyswitches above B0, latched like

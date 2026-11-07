@@ -300,32 +300,39 @@ constexpr double alternateWithinSeconds = 0.35;
 // cent, 2.7 ms hops) the hand rocks at 5.5 Hz (median), its swing up from
 // the note and back down even (each rise 0.50 of its cycle), 26 cents deep
 // (median), its troughs on the note; it starts from the note, its first peak
-// 68 ms later than half a cycle after the pick (median); and no two cycles
+// 36 ms later than half a cycle after the pick (median of 16 notes over
+// 3.5 Hz, timed from each note's own attack, the first 1 ms at 12 dB under
+// its loudest; the annotated onsets run 32 ms early at the median, and the
+// 68 ms read from them before was late by that); and no two cycles
 // are alike: each lasts 9.5 % longer or shorter than the last (cycle to
 // cycle, drift removed) and swings 42 % deeper or shallower (median of each
 // note's spread). Those spreads include the tracker's own, so they bound
 // the hand's from above; they are taken whole.
 constexpr double vibratoHz = 5.5;
 constexpr double vibratoSemitones = 0.5;
-constexpr double vibratoDelaySeconds = 0.068;
+constexpr double vibratoDelaySeconds = 0.036;
 constexpr double vibratoPeriodScatter = 0.095;
 constexpr double vibratoDepthScatter = 0.40; // log SD of a 42 % spread
 
 // Bend: the finger pushes the string a whole tone up, the bend most played,
-// from the pick on, fastest at first and slowing onto the note (push).
-// On IDMT-SMT-Guitar's Stratocaster (dataset 2, the 13 bends of its licks 3
-// to 6, every take; pYIN at 0.01 semitone, 1.5 ms hops, semitones over the
-// struck note) the pitch is 10 % of the way up 19 ms after the pick and
-// 10 to 90 % up in 181 ms (medians; 48 to 349 ms). push crosses 10 % at
-// 0.035 of its length and 90 % at 0.536, so 0.36 s: 13 ms and 181 ms.
-// A minimum-jerk push (reach) of the same rise would wait 88 ms to start.
-// The isolated bends of its bending take, 0.5 to 0.9 s, are slower than any
-// played in a lick and are left out.
+// bendDelaySeconds after the pick, along a minimum-jerk path (reach) over
+// bendRiseSeconds. On IDMT-SMT-Guitar's Stratocaster (dataset 2, the 12
+// bends of its licks 3 to 6 that rise over half a semitone, every take; pYIN
+// at 0.01 semitone, 1.5 ms hops, semitones over the struck note, from each
+// note's own attack: the first 1 ms at 12 dB under its loudest within 150 ms
+// of the annotation, which runs up to 50 ms early) the pitch is 10 % of the
+// way up 138 ms after the pick (median; 28 to 93 ms for quick bends, 184 to
+// 232 for notes held first), 10 to 90 % in 89 ms (48 to 120, one 287), and
+// half way at 0.48 of that (median), as even as minimum jerk's 0.5. Minimum
+// jerk crosses 10 to 90 % in 0.506 of its length and 10 % at 0.247 of it:
+// 0.175 s, starting 95 ms after the pick. The isolated bends of its bending
+// take, 0.3 to 0.6 s, are slower than any played in a lick and are left out.
 // Slide in: the finger starts three frets below and glides at the measured
 // slide's pace (slideSecondsPerFret) from the pick.
 constexpr int bendFrets = 2;
 constexpr int slideInFrets = 3;
-constexpr double bendRiseSeconds = 0.36;
+constexpr double bendDelaySeconds = 0.095;
+constexpr double bendRiseSeconds = 0.175;
 // The Vibrato key rocks a fretted note as deep as the recorded hand's median
 // (26 cents, above), unless channel pressure asks for more.
 constexpr double latchedVibratoSemitones = 0.26;
@@ -394,9 +401,6 @@ double logBetween(double low, double high, double u) noexcept
 // speed over the mean.
 double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
 double reachSpeed(double u) noexcept { return 30.0 * u * u * (1.0 - u) * (1.0 - u); }
-
-// A bending finger's path from 0 to 1 over u in [0, 1].
-double push(double u) noexcept { return 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u); }
 
 // Where the thumb lands for a pinch on `length` of string picked `pick` from
 // the bridge.
@@ -1460,7 +1464,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (e.bendSemitones > 0.0 && !damping)
     {
         st.bendSemitones = e.bendSemitones;
-        st.bendStart = now;
+        st.bendStart = now + static_cast<std::int64_t>(bendDelaySeconds * sampleRate);
         st.bendLength = static_cast<std::int64_t>(bendRiseSeconds * sampleRate);
     }
     if (!st.keyDown && !st.sustained && st.note >= 0)
@@ -1561,8 +1565,8 @@ void StratPerformer::controlUpdate() noexcept
         if (st.bendSemitones > 0.0)
             pushed = st.bendSemitones
                 * (st.bendLength > 0
-                       ? push(std::min(1.0, static_cast<double>(now - st.bendStart)
-                                                 / static_cast<double>(st.bendLength)))
+                       ? reach(clamp(static_cast<double>(now - st.bendStart)
+                                         / static_cast<double>(st.bendLength), 0.0, 1.0))
                        : 1.0);
         const double depth = latched == Articulation::vibrato && vibratoDepth < latchedVibratoSemitones
             ? latchedVibratoSemitones
