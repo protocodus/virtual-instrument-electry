@@ -1050,6 +1050,83 @@ void testHum()
 
 } // namespace
 
+// Bend, Slide in and Vibrato (C2 to D2): a bend is struck a whole tone low
+// on the note's string and pushed up to it; a slide in starts three frets
+// low and lands on the note's fret; the Vibrato key rocks a fretted note.
+void testGestureKeys()
+{
+    const auto stringOf = [](const StratPerformer& p, int note) {
+        for (int k = 0; k < 6; ++k)
+            if (p.stringNote(k) == note)
+                return k;
+        return -1;
+    };
+    const auto cents = [](double hz, double want) { return 1200.0 * std::log2(hz / want); };
+    const auto open = [](const StratPerformer& p, int s) {
+        return tunedHz(s) * std::sqrt(p.engine().bridge().tensionRatio(s));
+    };
+
+    auto p = makePerformer();
+    p->noteOn(0, 36, 1);
+    check(p->articulation() == StratPerformer::Articulation::bend, "C2 latches Bend");
+    p->noteOn(0, 69, 100);
+    render(*p, 0.002);
+    int s = stringOf(*p, 69);
+    check(s >= 0 && p->stringFret(s) == 69 - 2 - openNote[s], "a bend is struck two frets low");
+    if (s >= 0)
+    {
+        const double low = open(*p, s) * fretRatio(s, 69 - 2 - openNote[s]);
+        std::printf("bend: struck %+.1f cents from two frets low\n", cents(p->engine().fundamentalHz(s), low));
+        check(std::abs(cents(p->engine().fundamentalHz(s), low)) < 5.0,
+              "a bend starts a whole tone below the note");
+        render(*p, 0.6);
+        const double high = low * std::pow(2.0, 2.0 / 12.0);
+        std::printf("bend: reaches %+.1f cents from the note\n", cents(p->engine().fundamentalHz(s), high));
+        check(std::abs(cents(p->engine().fundamentalHz(s), high)) < 5.0, "a bend reaches the note");
+    }
+
+    auto q = makePerformer();
+    q->noteOn(0, 37, 1);
+    check(q->articulation() == StratPerformer::Articulation::slideIn, "C#2 latches Slide in");
+    q->noteOn(0, 70, 100);
+    render(*q, 0.005);
+    s = stringOf(*q, 70);
+    check(s >= 0 && q->stringFret(s) == 70 - 3 - openNote[s], "a slide in starts three frets low");
+    render(*q, 0.5);
+    check(s >= 0 && q->stringFret(s) == 70 - openNote[s]
+              && std::abs(q->engine().fundamentalHz(s)
+                              / (open(*q, s) * fretRatio(s, 70 - openNote[s])) - 1.0) < 1e-9,
+          "a slide in lands on the note in tune");
+
+    // An open string's note has nowhere below to come from: it plays plain.
+    auto r = makePerformer();
+    r->noteOn(0, 36, 1);
+    r->noteOn(0, 40, 100);
+    render(*r, 0.3);
+    check(r->stringNote(0) == 40 && r->stringFret(0) == 0, "a bend below the low E plays it plain");
+    // A note whose shift lands on an open string comes up from its first fret.
+    auto u = makePerformer();
+    u->noteOn(0, 37, 1);
+    u->noteOn(0, 67, 100);
+    render(*u, 0.005);
+    s = stringOf(*u, 67);
+    check(s >= 0 && u->stringFret(s) >= 1 && u->stringFret(s) < 67 - openNote[s],
+          "a slide in never starts from the open string");
+
+    const auto rocked = [](int key) {
+        auto v = makePerformer();
+        v->noteOn(0, key, 1);
+        v->noteOn(0, 66, 90);
+        return render(*v, 0.6);
+    };
+    check(rocked(38) != rocked(24), "the Vibrato key rocks a fretted note");
+    auto v = makePerformer();
+    v->noteOn(0, 38, 1);
+    check(v->articulation() == StratPerformer::Articulation::vibrato, "D2 latches Vibrato");
+    v->noteOn(0, 24, 1);
+    check(v->articulation() == StratPerformer::Articulation::sustain, "C1 takes Vibrato back");
+}
+
 int main()
 {
     testChordShapes();
@@ -1061,6 +1138,7 @@ int main()
     testRestingHand();
     testReleaseLift();
     testLegatoAndSlide();
+    testGestureKeys();
     testHarmonics();
     testPinch();
     testPalm();

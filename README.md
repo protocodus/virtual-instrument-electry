@@ -57,6 +57,19 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.2.0 — 2026-11-07 — Bends, slide-ins and vibrato on keys
+
+The Stratocaster gains three articulation keyswitches above B0, latched like
+the others: **Bend** (C1, note 36) strikes each note a whole tone low and
+pushes it up to pitch, fast at first and slowing onto the note, 10 to 90 %
+of the way in 0.18 s as the bends in the recorded Strat's licks rise;
+**Slide in** (C#1, 37) starts three frets below and glides up at the
+recorded slides' pace; **Vibrato** (D1, 38) rocks every fretted note as the
+recorded player's median vibrato does, 26 cents at 5.5 Hz, with channel
+pressure still able to ask for more. A note too near the nut for the whole
+move comes up from its first fret. Electry's Reason Rack Extension still
+plays 2.1.0.
+
 ### 2.1.0 — 2026-11-07 — In tune together
 
 Chords now play as in tune as single notes. A stabilizer holds the

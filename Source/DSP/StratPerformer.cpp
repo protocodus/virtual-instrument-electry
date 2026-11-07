@@ -311,6 +311,25 @@ constexpr double vibratoDelaySeconds = 0.068;
 constexpr double vibratoPeriodScatter = 0.095;
 constexpr double vibratoDepthScatter = 0.40; // log SD of a 42 % spread
 
+// Bend: the finger pushes the string a whole tone up, the bend most played,
+// from the pick on, fastest at first and slowing onto the note (push).
+// On IDMT-SMT-Guitar's Stratocaster (dataset 2, the 13 bends of its licks 3
+// to 6, every take; pYIN at 0.01 semitone, 1.5 ms hops, semitones over the
+// struck note) the pitch is 10 % of the way up 19 ms after the pick and
+// 10 to 90 % up in 181 ms (medians; 48 to 349 ms). push crosses 10 % at
+// 0.035 of its length and 90 % at 0.536, so 0.36 s: 13 ms and 181 ms.
+// A minimum-jerk push (reach) of the same rise would wait 88 ms to start.
+// The isolated bends of its bending take, 0.5 to 0.9 s, are slower than any
+// played in a lick and are left out.
+// Slide in: the finger starts three frets below and glides at the measured
+// slide's pace (slideSecondsPerFret) from the pick.
+constexpr int bendFrets = 2;
+constexpr int slideInFrets = 3;
+constexpr double bendRiseSeconds = 0.36;
+// The Vibrato key rocks a fretted note as deep as the recorded hand's median
+// (26 cents, above), unless channel pressure asks for more.
+constexpr double latchedVibratoSemitones = 0.26;
+
 // MPE's default member-channel bend range; a finger bends a string up only,
 // and four semitones is as far as a string goes under a finger.
 constexpr double memberBendSemitones = 48.0;
@@ -375,6 +394,9 @@ double logBetween(double low, double high, double u) noexcept
 // speed over the mean.
 double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
 double reachSpeed(double u) noexcept { return 30.0 * u * u * (1.0 - u) * (1.0 - u); }
+
+// A bending finger's path from 0 to 1 over u in [0, 1].
+double push(double u) noexcept { return 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u); }
 
 // Where the thumb lands for a pinch on `length` of string picked `pick` from
 // the bridge.
@@ -594,6 +616,12 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringI
     if (note == fingerKey)
     {
         fingers = true;
+        return;
+    }
+    if (note >= firstGestureKey && note < firstGestureKey + gestureCount)
+    {
+        latched = static_cast<Articulation>(articulationCount + note - firstGestureKey);
+        applyPalm();
         return;
     }
     if (note == dampKey)
@@ -896,6 +924,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     StringState& st = strings[static_cast<size_t>(s)];
     const double from = st.fret;
     guitar->setDamper(s, 1, 0.0, 0.0);
+    st.bendSemitones = 0.0; // the finger lets the bend down as it moves on
     if (latched == Articulation::legato)
     {
         guitar->setFret(s, fret);
@@ -1109,7 +1138,13 @@ void StratPerformer::startStroke() noexcept
     lastStroke = now;
     const double sign = strokeUp ? -1.0 : 1.0;
 
+    // A bend or a slide in is struck below the note, where the hand starts;
+    // it goes up to the note after the pick.
+    const int below = latched == Articulation::bend ? bendFrets
+        : latched == Articulation::slideIn             ? slideInFrets
+                                                       : 0;
     Pending notes[6];
+    int wanted[6] {};
     int count = 0;
     for (int i = 0; i < pendingCount; ++i)
     {
@@ -1120,7 +1155,13 @@ void StratPerformer::startStroke() noexcept
         if (latched == Articulation::harmonic && playHarmonic(p, sign * strokeForce(p.velocity)))
             continue;
         if (count < 6 && p.note <= highestNote)
-            notes[count++] = p;
+        {
+            wanted[count] = p.note;
+            notes[count] = p;
+            if (p.note - below >= lowestNote)
+                notes[count].note -= below;
+            ++count;
+        }
     }
     pendingCount = 0;
     if (count == 0)
@@ -1151,7 +1192,14 @@ void StratPerformer::startStroke() noexcept
         const int s = stringFor[static_cast<size_t>(i)];
         if (s < 0)
             continue;
-        const int fret = notes[i].note - openNote[s];
+        // From a fret, never the open string: a bend needs a finger on the
+        // string and a slide one to glide. So a note the shift put on an
+        // open string comes up from its first fret instead.
+        const int target = wanted[i] - openNote[s];
+        const int rise = std::min(wanted[i] - notes[i].note, std::max(target - 1, 0));
+        const int fret = target - rise;
+        if (fret > frets)
+            continue;
         const bool dead = latched == Articulation::deadNote;
         StringState& st = strings[static_cast<size_t>(s)];
         // A finger the hand sent ahead is on its fret already.
@@ -1170,11 +1218,13 @@ void StratPerformer::startStroke() noexcept
         e.touchWidth = dead ? fingerWidth : 0.0;
         e.pinch = latched == Articulation::pinch;
         e.pickOffset = strokePick;
+        e.slideFrets = latched == Articulation::slideIn ? rise : 0.0;
+        e.bendSemitones = latched == Articulation::bend ? rise : 0.0;
         schedule(e);
 
         st = StringState {};
         st.place = place;
-        st.note = notes[i].note;
+        st.note = wanted[i];
         st.channel = notes[i].channel;
         st.keyDown = true;
         st.fret = e.fret;
@@ -1397,6 +1447,22 @@ void StratPerformer::runEvent(const Event& e) noexcept
         pickAt = clamp(pickAt + fingerOffsetMetres, 0.025, 0.250);
     guitar->pluck(s, e.force, pickAt, releaseSeconds(s, force),
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
+    if (e.slideFrets > 0.0 && !damping)
+    {
+        st.slide = true;
+        st.rubNewtons = slideNewtons * handScale(rubScatter);
+        st.slideFrom = e.fret;
+        st.slideTo = e.fret + e.slideFrets;
+        st.slideStart = now;
+        st.slideLength = static_cast<std::int64_t>(
+            (slideBaseSeconds + slideSecondsPerFret * e.slideFrets) * sampleRate);
+    }
+    if (e.bendSemitones > 0.0 && !damping)
+    {
+        st.bendSemitones = e.bendSemitones;
+        st.bendStart = now;
+        st.bendLength = static_cast<std::int64_t>(bendRiseSeconds * sampleRate);
+    }
     if (!st.keyDown && !st.sustained && st.note >= 0)
         release(s);
 }
@@ -1491,8 +1557,18 @@ void StratPerformer::controlUpdate() noexcept
         }
         if (st.note < 0 || !st.fretted)
             continue;
+        double pushed = 0.0;
+        if (st.bendSemitones > 0.0)
+            pushed = st.bendSemitones
+                * (st.bendLength > 0
+                       ? push(std::min(1.0, static_cast<double>(now - st.bendStart)
+                                                 / static_cast<double>(st.bendLength)))
+                       : 1.0);
+        const double depth = latched == Articulation::vibrato && vibratoDepth < latchedVibratoSemitones
+            ? latchedVibratoSemitones
+            : vibratoDepth;
         const double semitones = (st.channel != 0 ? channelBend[static_cast<size_t>(st.channel)] : 0.0)
-            + vibratoDepth * rock;
+            + pushed + depth * rock;
         const double ratio = std::pow(2.0, semitones / 12.0);
         if (ratio != st.bend)
         {

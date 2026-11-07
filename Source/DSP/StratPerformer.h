@@ -43,7 +43,11 @@ struct StratControls
 //     strokes (down from rest, alternating while the hand keeps moving);
 //   A#1 (34), held, lays the fretting hand across all six strings: it stops
 //     what rings, and strokes under it are muted;
-//   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back.
+//   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back;
+//   C2 to D2 (36 to 38) latch Bend (struck a whole tone low and bent up to
+//     the note), Slide in (slid up into the note from below) and Vibrato (a
+//     fretted note the hand rocks as channel pressure's median player does),
+//     articulations like C1 to F#1, which they take over and give back.
 // Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
 // the picking hand's palm on the strings, from off to Palm mute's press at the
@@ -69,10 +73,16 @@ public:
         legato,
         slide,
         harmonic,
-        pinch
+        pinch,
+        bend,
+        slideIn,
+        vibrato
     };
     static constexpr int firstArticulationKey = 24;
     static constexpr int articulationCount = 7;
+    // Bend, Slide in and Vibrato, on the keys above the finger key.
+    static constexpr int firstGestureKey = 36;
+    static constexpr int gestureCount = 3;
 
     enum class Stroke : std::uint8_t
     {
@@ -134,6 +144,10 @@ private:
         double bend = 1.0;      // finger bend and vibrato, pitch ratio
         bool slide = false;
         double rubNewtons = 0.0; // the finger's press as it slides or glides
+        // Bend: the finger pushes the string up by bendSemitones over
+        // bendLength samples from bendStart.
+        double bendSemitones = 0.0;
+        std::int64_t bendStart = 0, bendLength = 0;
         double slideFrom = 0.0, slideTo = 0.0;
         std::int64_t slideStart = 0, slideLength = 0;
         std::uint64_t order = 0;
@@ -173,6 +187,8 @@ private:
         double from = 0.0, to = 0.0; // shift: fingertip metres from the bridge
         std::int64_t length = 0;     // shift: samples
         double place = 1.0 / 3.0;    // press: where the fingertip lands
+        double slideFrets = 0.0;     // strike: frets it slides up after the pick
+        double bendSemitones = 0.0;  // strike: how far the finger bends it up
     };
 
     // MIDI held back by the lookahead, in arrival order.
