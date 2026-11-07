@@ -334,9 +334,13 @@ constexpr int bendFrets = 2;
 constexpr int slideInFrets = 3;
 constexpr double bendDelaySeconds = 0.095;
 constexpr double bendRiseSeconds = 0.175;
-// The Vibrato key rocks a fretted note as deep as the recorded hand's median
-// (26 cents, above), unless channel pressure asks for more.
-constexpr double latchedVibratoSemitones = 0.26;
+// The Vibrato key rocks a fretted note as deep as the recorded hand's median,
+// unless channel pressure asks for more. Read alike on the 16 vibrato notes
+// over 3.5 Hz above and on 15 notes rendered with the key, A3 to C6 (pYIN at
+// 0.01 semitone, 2.7 ms hops, smoothed over 13.6 ms; median of each note's
+// peaks less its troughs of 6 cents' prominence), the recording swings 30
+// cents and 0.26 semitones swung 23, so 0.34.
+constexpr double latchedVibratoSemitones = 0.34;
 
 // MPE's default member-channel bend range; a finger bends a string up only,
 // and four semitones is as far as a string goes under a finger.

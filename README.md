@@ -57,6 +57,12 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.3.1 — 2026-11-07 — A deeper Vibrato key
+
+The Vibrato key swings each fretted note 30 cents, peak to trough, as the
+recorded Strat's vibrato notes do when both are read the same way; 2.3.0
+swung 23. Channel pressure's vibrato is unchanged.
+
 ### 2.3.0 — 2026-11-07 — Half-step bends
 
 A fourth bend key, **Half bend** (D#1, note 39), strikes each note a
