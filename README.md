@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.3.0 — 2026-11-07 — Half-step bends
+
+A fourth bend key, **Half bend** (D#1, note 39), strikes each note a
+semitone low and bends it up on the same timing as Bend. The recorded
+Strat's licks bend a semitone about as often as a whole tone: five of their
+twelve bends rise 0.8 to 1.2 semitones, six 1.5 to 2.
+
 ### 2.2.1 — 2026-11-07 — Bends and vibrato timed from the pick
 
 The recorded Strat's annotated onsets run about 30 ms ahead of the pick, so

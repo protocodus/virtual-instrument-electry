@@ -314,8 +314,9 @@ constexpr double vibratoDelaySeconds = 0.036;
 constexpr double vibratoPeriodScatter = 0.095;
 constexpr double vibratoDepthScatter = 0.40; // log SD of a 42 % spread
 
-// Bend: the finger pushes the string a whole tone up, the bend most played,
-// bendDelaySeconds after the pick, along a minimum-jerk path (reach) over
+// Bend: the finger pushes the string a whole tone up (Half bend: a
+// semitone; the licks below bend 0.78 to 1.2 semitones five times and 1.5 to
+// 2.0 six, one 2.9), bendDelaySeconds after the pick, along a minimum-jerk path (reach) over
 // bendRiseSeconds. On IDMT-SMT-Guitar's Stratocaster (dataset 2, the 12
 // bends of its licks 3 to 6 that rise over half a semitone, every take; pYIN
 // at 0.01 semitone, 1.5 ms hops, semitones over the struck note, from each
@@ -1145,6 +1146,7 @@ void StratPerformer::startStroke() noexcept
     // A bend or a slide in is struck below the note, where the hand starts;
     // it goes up to the note after the pick.
     const int below = latched == Articulation::bend ? bendFrets
+        : latched == Articulation::halfBend            ? 1
         : latched == Articulation::slideIn             ? slideInFrets
                                                        : 0;
     Pending notes[6];
@@ -1223,7 +1225,8 @@ void StratPerformer::startStroke() noexcept
         e.pinch = latched == Articulation::pinch;
         e.pickOffset = strokePick;
         e.slideFrets = latched == Articulation::slideIn ? rise : 0.0;
-        e.bendSemitones = latched == Articulation::bend ? rise : 0.0;
+        e.bendSemitones
+            = latched == Articulation::bend || latched == Articulation::halfBend ? rise : 0.0;
         schedule(e);
 
         st = StringState {};

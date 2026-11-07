@@ -1123,6 +1123,19 @@ void testGestureKeys()
     auto v = makePerformer();
     v->noteOn(0, 38, 1);
     check(v->articulation() == StratPerformer::Articulation::vibrato, "D2 latches Vibrato");
+    v->noteOn(0, 39, 1);
+    check(v->articulation() == StratPerformer::Articulation::halfBend, "D#2 latches Half bend");
+    v->noteOn(0, 69, 100);
+    render(*v, 0.002);
+    s = stringOf(*v, 69);
+    check(s >= 0 && v->stringFret(s) == 69 - 1 - openNote[s], "a half bend is struck a fret low");
+    if (s >= 0)
+    {
+        const double low = open(*v, s) * fretRatio(s, 69 - 1 - openNote[s]);
+        render(*v, 0.6);
+        check(std::abs(cents(v->engine().fundamentalHz(s), low * std::pow(2.0, 1.0 / 12.0))) < 5.0,
+              "a half bend reaches the note");
+    }
     v->noteOn(0, 24, 1);
     check(v->articulation() == StratPerformer::Articulation::sustain, "C1 takes Vibrato back");
 }

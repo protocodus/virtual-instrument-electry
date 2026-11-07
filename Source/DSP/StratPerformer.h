@@ -44,10 +44,11 @@ struct StratControls
 //   A#1 (34), held, lays the fretting hand across all six strings: it stops
 //     what rings, and strokes under it are muted;
 //   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back;
-//   C2 to D2 (36 to 38) latch Bend (struck a whole tone low and bent up to
-//     the note), Slide in (slid up into the note from below) and Vibrato (a
-//     fretted note the hand rocks as channel pressure's median player does),
-//     articulations like C1 to F#1, which they take over and give back.
+//   C2 to D#2 (36 to 39) latch Bend (struck a whole tone low and bent up to
+//     the note), Slide in (slid up into the note from below), Vibrato (a
+//     fretted note the hand rocks as channel pressure's median player does)
+//     and Half bend (struck a semitone low), articulations like C1 to F#1,
+//     which they take over and give back.
 // Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
 // the picking hand's palm on the strings, from off to Palm mute's press at the
@@ -76,13 +77,14 @@ public:
         pinch,
         bend,
         slideIn,
-        vibrato
+        vibrato,
+        halfBend
     };
     static constexpr int firstArticulationKey = 24;
     static constexpr int articulationCount = 7;
-    // Bend, Slide in and Vibrato, on the keys above the finger key.
+    // Bend, Slide in, Vibrato and Half bend, on the keys above the finger key.
     static constexpr int firstGestureKey = 36;
-    static constexpr int gestureCount = 3;
+    static constexpr int gestureCount = 4;
 
     enum class Stroke : std::uint8_t
     {
