@@ -57,6 +57,14 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.3.2 — 2026-11-07 — Quieter palm mutes and bends
+
+Palm-muted notes no longer leave a thin whistle at 2.5 to 6 kHz ringing
+after the pick: the palm now lies along 15 mm of string instead of touching
+it at one point, which let the partials with a node under it ring on. Bent
+notes are let go where they are bent rather than snapping back in tune
+with a click and a swoop at every release.
+
 ### 2.3.1 — 2026-11-07 — A deeper Vibrato key
 
 The Vibrato key swings each fretted note 30 cents, peak to trough, as the

@@ -641,7 +641,29 @@ void StratString::placeDampers() noexcept
             // A contact: its resistance shared among the points it covers.
             d.position = std::clamp(static_cast<int>(std::lround(at - 0.5 * (d.count - 1))), 1,
                                     last - d.count + 1);
-            const double r = d.resistance / (z * d.count);
+            double r = d.resistance / (z * d.count);
+            // Near the saddle a light contact takes each mode's energy as
+            // sin^2 kx under it, so where its sample points fall matters as
+            // it does for a point (below): a 15 mm palm is two samples of a
+            // high E at 48 kHz, and rounding the pair placed it 2 mm farther
+            // out, damping 18% more than on the other strings. Weighting the
+            // points to the span they stand for, at the second partial,
+            // takes that out; a firm contact depends little on it.
+            const double kd = 2.0 * pi * 2.0 * fundamental / sampleRate;
+            const double span = positionSamples(d.width), from = at - 0.5 * span;
+            if (kd * std::max(from + span, static_cast<double>(d.position + d.count - 1))
+                < 0.5 * pi)
+            {
+                const double spread = 0.5 - (std::sin(2.0 * kd * (from + span))
+                                             - std::sin(2.0 * kd * from)) / (4.0 * kd * span);
+                double sampled = 0.0;
+                for (int i = 0; i < d.count; ++i)
+                {
+                    const double v = std::sin(kd * (d.position + i));
+                    sampled += v * v / d.count;
+                }
+                r *= sampled > 0.0 ? spread / sampled : 1.0;
+            }
             d.absorption = static_cast<float>(r / (2.0 + r));
             continue;
         }

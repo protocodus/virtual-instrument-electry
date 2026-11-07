@@ -129,7 +129,19 @@ constexpr double strumGapScatter = 0.29;
 // geometrically; the player's three middle mutes sat between 0.1 and 0.9 of
 // the way, and the blend at 0, 0.15, 0.45, 0.75 and 1 reproduces the thirty
 // in this waveguide within 1.6 dB median per partial.
+//
+// That fit reads the first partials only. A point leaves every partial with
+// a node under it free - at 20 mm on a fret-5 string partials 24 and 48, 2.6
+// to 7 kHz - and those rang on under the mute: 30 to 130 ms after the
+// attack the rendered mutes held their energy above 2 kHz 37 dB under their
+// 100 Hz to 1 kHz band, the recording 53 dB under it (median of the thirty,
+// and the recording's figure is its noise floor there, so the truth is lower
+// still). The heel lies along the string, not at a point: spread over 15 mm
+// it leaves nothing above 2 kHz ringing (77 dB under), and moves partials 1
+// to 4 by under 2 dB, their fit to the recording no worse (mean error 1.7 dB
+// against 2.1 at a point). 6 to 15 mm all silence the band; 15 is a heel.
 constexpr double palmMetres = 0.020;
+constexpr double palmWidth = 0.015;
 constexpr double palmRestPerSecond = 12.7;
 constexpr double palmPressedResistance = 2.0;
 
@@ -544,7 +556,7 @@ void StratPerformer::applyPalm() noexcept
         const double rest = palmRestPerSecond * StratString::construction(s).kilogramsPerMetre;
         const double resistance
             = rest * std::pow(palmPressedResistance / rest, pressure);
-        guitar->setDamper(s, 0, palmMetres, share * resistance);
+        guitar->setDamper(s, 0, palmMetres, share * resistance, palmWidth);
     }
 }
 
@@ -710,11 +722,16 @@ void StratPerformer::release(int s) noexcept
         leave.string = s;
         schedule(leave);
     }
-    guitar->setBend(s, 1.0);
+    // The finger lets the string go still bent, as a player mutes a bend or
+    // a vibrato where it is: dropping it here retuned the ringing string by
+    // up to a whole tone in one step, a click and a downward swoop at every
+    // release of a bent note. The next note on the string sets its own bend.
+    const double bent = st.bend;
     const std::uint64_t order = st.order;
     const int prepared = st.prepared;
     const std::int64_t preparedDue = st.preparedDue;
     st = StringState {};
+    st.bend = bent;
     st.order = order;
     st.released = true;
     st.restFret = rest;
@@ -772,9 +789,11 @@ void StratPerformer::dampStrings(bool down) noexcept
         guitar->setDamper(s, 1, fingerMetres(*guitar, s, hand), fingerResistance, fingerWidth);
         if (st.fret > 0.0)
             guitar->setFret(s, 0.0);
-        guitar->setBend(s, 1.0);
+        // Bent strings stay bent under the hand (release).
+        const double bent = st.bend;
         const std::uint64_t order = st.order;
         st = StringState {};
+        st.bend = bent;
         st.order = order;
         st.handResting = true;
     }
