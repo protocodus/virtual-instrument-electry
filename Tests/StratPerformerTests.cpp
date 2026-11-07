@@ -628,6 +628,40 @@ void testPalm()
     check(pressed > 365.0 && pressed < 540.0, "a full palm damps as the recorded heaviest mutes");
 }
 
+void testWheelAndPressure()
+{
+    // The mod wheel lays the palm down: off at the bottom, Palm mute's at the
+    // top, a lighter touch between.
+    const auto take = [](int how, double wheel) {
+        auto p = makePerformer();
+        if (how == 1)
+            p->noteOn(0, 25, 1);
+        if (how == 2)
+            p->modWheel(wheel);
+        p->noteOn(0, 45, 90);
+        return render(*p, 0.6);
+    };
+    const auto open = take(0, 0.0), muted = take(1, 0.0), top = take(2, 1.0), bottom = take(2, 0.0),
+               half = take(2, 0.5);
+    check(top == muted, "the mod wheel at the top mutes as Palm mute does");
+    check(bottom == open, "the mod wheel at the bottom leaves the strings alone");
+    const double late = energy(open, 0.4, 0.2), lateHalf = energy(half, 0.4, 0.2),
+                 lateMuted = energy(muted, 0.4, 0.2);
+    std::printf("open A, its last 0.2 s: half wheel %.1f dB, full wheel %.1f dB from open\n",
+                10.0 * std::log10(lateHalf / late), 10.0 * std::log10(lateMuted / late));
+    check(lateMuted < lateHalf && lateHalf < late, "the palm mutes more as the wheel rises");
+
+    // Channel pressure rocks fretted notes; an open string has no finger to rock it.
+    const auto rocked = [](int note, double pressure) {
+        auto p = makePerformer();
+        p->channelPressure(pressure);
+        p->noteOn(0, note, 90);
+        return render(*p, 0.6);
+    };
+    check(rocked(47, 1.0) != rocked(47, 0.0), "channel pressure gives a fretted note vibrato");
+    check(rocked(45, 1.0) == rocked(45, 0.0), "channel pressure leaves an open string alone");
+}
+
 // Decay of the octave band around `hz`, dB/s, over the first 80 ms after
 // the band's loudest 10 ms frame (Hann frames 5 ms apart, the band's DFT bins
 // summed), until it first falls 30 dB below that.
@@ -736,7 +770,7 @@ std::vector<float> performance(int block, bool lookahead = false)
     };
     const Step steps[] = {
         {0, [](StratPerformer& q) { for (int n : {40, 47, 52, 56, 59, 64}) q.noteOn(0, n, 100); }},
-        {9000, [](StratPerformer& q) { q.modWheel(0.8); q.pitchBend(0, -0.3); }},
+        {9000, [](StratPerformer& q) { q.channelPressure(0.8); q.modWheel(0.3); q.pitchBend(0, -0.3); }},
         {14001, [](StratPerformer& q) { for (int n : {40, 47, 52, 56, 59, 64}) q.noteOff(0, n); }},
         {14001, [](StratPerformer& q) { q.noteOn(0, 28, 1); q.noteOn(0, 62, 90); }},
         {20000, [](StratPerformer& q) { q.noteOn(0, 66, 90); }},
@@ -933,6 +967,7 @@ int main()
     testHarmonics();
     testPinch();
     testPalm();
+    testWheelAndPressure();
     testDeadNotes();
     testArmAndBends();
     testTilt();

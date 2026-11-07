@@ -273,7 +273,7 @@ constexpr double slideSecondsPerFret = 0.043;
 constexpr double alternateWithinSeconds = 0.35;
 
 // Fretting-hand vibrato: a bend rocking up from the note and back, up to a
-// quarter tone above it at full wheel. On IDMT-SMT-Guitar's Stratocaster
+// quarter tone above it at full channel pressure. On IDMT-SMT-Guitar's Stratocaster
 // (dataset 2, the 18 vibrato notes of 0.8 s or more at their own rate over
 // 3.5 Hz, from its licks and its vibrato takes on every string; pYIN at 1
 // cent, 2.7 ms hops) the hand rocks at 5.5 Hz (median), its swing up from
@@ -376,6 +376,7 @@ void StratPerformer::reset() noexcept
         strings[static_cast<size_t>(s)] = StringState {};
     }
     channelBend.fill(0.0);
+    wheel = palmOffset = 0.0;
     vibratoDepth = vibratoPhase = 0.0;
     vibratoCycleHz = vibratoHz;
     vibratoCycleDepth = 1.0;
@@ -457,16 +458,20 @@ double StratPerformer::releaseSeconds(int s, double force) const noexcept
     return impedance(s) * gripDepth / force + tip;
 }
 
-void StratPerformer::applyPalm(double pressureOffset) noexcept
+// The mod wheel lowers the palm onto the strings: its resistance grows as the
+// wheel's square, to Palm mute's at the top, so the lower half of the wheel
+// is the palm's lightest touches and the upper half rests it to the Palm
+// control's press. The square is a playing law, not a measurement.
+void StratPerformer::applyPalm() noexcept
 {
-    const bool on = latched == Articulation::palmMute;
-    const double pressure = clamp(current.palmMute + pressureOffset, 0.0, 1.0);
+    const double share = latched == Articulation::palmMute ? 1.0 : wheel * wheel;
+    const double pressure = clamp(current.palmMute + palmOffset, 0.0, 1.0);
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         const double rest = palmRestPerSecond * StratString::construction(s).kilogramsPerMetre;
         const double resistance
             = rest * std::pow(palmPressedResistance / rest, pressure);
-        guitar->setDamper(s, 0, palmMetres, on ? resistance : 0.0);
+        guitar->setDamper(s, 0, palmMetres, share * resistance);
     }
 }
 
@@ -494,7 +499,8 @@ void StratPerformer::dispatch(const Midi& m) noexcept
     case MidiKind::noteOn: playNoteOn(m.channel, m.note, m.velocity, m.string); break;
     case MidiKind::noteOff: playNoteOff(m.channel, m.note); break;
     case MidiKind::bend: playPitchBend(m.channel, m.value); break;
-    case MidiKind::wheel: vibratoDepth = m.value; break;
+    case MidiKind::wheel: wheel = m.value; applyPalm(); break;
+    case MidiKind::pressure: vibratoDepth = m.value; break;
     case MidiKind::pedal: playSustain(m.value > 0.5); break;
     }
 }
@@ -755,9 +761,19 @@ void StratPerformer::modWheel(double position) noexcept
     Midi m;
     m.time = now + latency;
     m.kind = MidiKind::wheel;
+    m.value = clamp(position, 0.0, 1.0);
+    if (!queue(m))
+        dispatch(m);
+}
+
+void StratPerformer::channelPressure(double position) noexcept
+{
+    Midi m;
+    m.time = now + latency;
+    m.kind = MidiKind::pressure;
     m.value = clamp(position, 0.0, 1.0) * vibratoSemitones;
     if (!queue(m))
-        vibratoDepth = m.value;
+        dispatch(m);
 }
 
 void StratPerformer::sustain(bool down) noexcept
@@ -1031,8 +1047,10 @@ void StratPerformer::startStroke() noexcept
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
     steadyStroke = lastStroke < 0;
     strokePick = pickScatterMetres * nextScatter();
-    if (latched == Articulation::palmMute && !steadyStroke)
-        applyPalm(palmScatter * normalDraw(press));
+    const bool palmDown = latched == Articulation::palmMute || wheel > 0.0;
+    palmOffset = palmDown && !steadyStroke ? palmScatter * normalDraw(press) : 0.0;
+    if (palmDown)
+        applyPalm();
     const bool strokeUp = strokes == Stroke::up
         || (strokes == Stroke::alternate && alternate && nextStrokeUp);
     nextStrokeUp = !strokeUp;

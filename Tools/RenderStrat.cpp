@@ -113,6 +113,8 @@ int main(int argc, char** argv)
                 performer.pitchBend(channel, ((m.bytes[2] << 7 | m.bytes[1]) - 8192) / 8192.0);
             else if (status == 0xB0 && m.bytes[1] == 1)
                 performer.modWheel(m.bytes[2] / 127.0);
+            else if (status == 0xD0)
+                performer.channelPressure(m.bytes[1] / 127.0);
             else if (status == 0xB0 && m.bytes[1] == 64)
                 performer.sustain(m.bytes[2] >= 64);
         }

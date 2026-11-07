@@ -45,8 +45,10 @@ struct StratControls
 //     what rings, and strokes under it are muted;
 //   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back.
 // Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
-// bends that channel's string at MPE's 48-semitone range. The mod wheel adds
-// fretting-hand vibrato and the sustain pedal lets released notes ring.
+// bends that channel's string at MPE's 48-semitone range. The mod wheel lays
+// the picking hand's palm on the strings, from off to Palm mute's press at the
+// top; channel pressure adds fretting-hand vibrato; the sustain pedal lets
+// released notes ring.
 //
 // Events take effect where they are called: render up to an event's sample,
 // then send it; with the lookahead on, latencySamples() later. prepare()
@@ -97,6 +99,8 @@ public:
     void pitchBend(int channel, double position) noexcept;
     // 0 to 1.
     void modWheel(double position) noexcept;
+    // 0 to 1, any channel.
+    void channelPressure(double position) noexcept;
     void sustain(bool down) noexcept;
     void allNotesOff() noexcept;
 
@@ -173,6 +177,7 @@ private:
         noteOff,
         bend,
         wheel,
+        pressure,
         pedal
     };
     struct Midi
@@ -224,8 +229,9 @@ private:
     static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
     static constexpr std::uint32_t paceSeed = 0x27D4EB2Fu;
     static constexpr std::uint32_t pressSeed = 0x165667B1u;
-    // pressureOffset: this stroke's palm off the Palm control.
-    void applyPalm(double pressureOffset = 0.0) noexcept;
+    // The palm as the Palm mute key, the mod wheel and this stroke's
+    // pressure off the Palm control (palmOffset) put it.
+    void applyPalm() noexcept;
     void controlUpdate() noexcept;
 
     std::unique_ptr<StratEngine> guitar;
@@ -239,6 +245,8 @@ private:
 
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
+    double wheel = 0.0;        // the mod wheel, 0 to 1
+    double palmOffset = 0.0;   // this stroke's palm pressure off the Palm control
     double vibratoDepth = 0.0;
     double vibratoPhase = 0.0;
     double vibratoCycleHz = 0.0;   // this cycle's rate and depth
