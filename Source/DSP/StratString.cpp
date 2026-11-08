@@ -278,6 +278,7 @@ void StratString::prepare(double rate, int stringIndex, int updateSamples) noexc
 
     // 5 Hz, an octave under the lowest note the tremolo can dive to.
     blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
+    dcPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * 3.5 / sampleRate));
     roughPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * roughHz / sampleRate));
 
     tuned = false;
@@ -295,6 +296,8 @@ void StratString::reset() noexcept
         plane->lossInput = plane->lossState = 0.0f;
         plane->wrapState = 0.0f;
         plane->allpassState.fill(0.0f);
+        plane->historySum = 0.0;
+        plane->dcMean = 0.0f;
     }
     ownNeck.reset();
     skipped = -1;
@@ -306,7 +309,7 @@ void StratString::reset() noexcept
     injected.fill(0.0f);
     stretch = stretchStep = 0.0;
     stretchCountdown = 0;
-    historySum = historySquares = 0.0;
+    historySquares = 0.0;
     historyLength = recountCountdown = 0;
     lifted = false;
     fingerActive = false;
@@ -730,31 +733,33 @@ void StratString::measureStretch() noexcept
     // again and more.
     const int period = std::min(static_cast<int>(std::lround(sampleRate / fundamental - stretch)),
                                 railSize - leftLength - 2 * leftOffset);
-    const auto arrival = [this](int age) {
+    const auto arrival = [this](const Plane& plane, int age) {
         return static_cast<double>(
-            poles.left[static_cast<size_t>((write + leftOffset - age) & railMask)]);
+            plane.left[static_cast<size_t>((write + leftOffset - age) & railMask)]);
     };
     if (recountCountdown-- == 0)
     {
         // Now and then from scratch, so the sums' rounding cannot build up.
         recountCountdown = 63;
-        historySum = historySquares = 0.0;
+        poles.historySum = top.historySum = historySquares = 0.0;
         historyLength = 0;
     }
     for (; historyLength < period; ++historyLength)
     {
-        const double v = arrival(historyLength + 1);
-        historySum += v;
+        const double v = arrival(poles, historyLength + 1);
+        poles.historySum += v;
+        top.historySum += arrival(top, historyLength + 1);
         historySquares += v * v;
     }
     for (; historyLength > period; --historyLength)
     {
-        const double v = arrival(historyLength);
-        historySum -= v;
+        const double v = arrival(poles, historyLength);
+        poles.historySum -= v;
+        top.historySum -= arrival(top, historyLength);
         historySquares -= v * v;
     }
     const double energy = characteristicImpedance / sampleRate
-        * std::max(0.0, historySquares - historySum * historySum / period);
+        * std::max(0.0, historySquares - poles.historySum * poles.historySum / period);
     // A semitone at most, far past any pick: the loop must stay inside its rails.
     const double target = std::min(stretchSamplesPerJoule * energy, 0.06 * sampleRate / fundamental);
     stretchStep = (target - stretch) / controlPeriod;
@@ -778,8 +783,11 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
                         double releaseSeconds, double strokeMetresPerSecond,
                         bool opposedPlanes, double heldShare) noexcept
 {
-    // A release or a contact still running completes first.
-    force = forceEnd;
+    // A release or a contact still running completes first; re-centre the
+    // reference on forceEnd so heldShare offsets do not accumulate across
+    // strokes while keeping (force - forceHeld) continuous.
+    forceHeld -= forceEnd;
+    force = forceEnd = 0.0;
     topDrive = opposedPlanes ? -1.0f : 1.0f;
     // The stretch is measured on a grid counted from the latest pluck, so a
     // string played again after silence sounds as a new one does.
@@ -1115,18 +1123,32 @@ float StratString::arrive() noexcept
 {
     // The window of arrivals at the bridge moves on a sample: one a sample
     // old is final, as nothing behind the bridge is written.
+    const size_t newest = static_cast<size_t>((write + leftOffset - 1) & railMask);
+    const size_t oldest = static_cast<size_t>((write + leftOffset - 1 - historyLength) & railMask);
     {
-        const float in = poles.left[static_cast<size_t>((write + leftOffset - 1) & railMask)];
-        const float out
-            = poles.left[static_cast<size_t>((write + leftOffset - 1 - historyLength) & railMask)];
-        historySum += static_cast<double>(in) - out;
+        const float in = poles.left[newest];
+        const float out = poles.left[oldest];
+        poles.historySum += static_cast<double>(in) - out;
         historySquares += static_cast<double>(in) * in - static_cast<double>(out) * out;
+        top.historySum += static_cast<double>(top.left[newest]) - top.left[oldest];
     }
 
-    // Bridge: a rigid saddle reflects the arriving wave inverted.
+    // Bridge: a rigid saddle reflects the arriving wave inverted. Two
+    // inversions around the loop leave a 0 Hz mode (+c on right, -c on left,
+    // a static slope between fixed ends) untouched by a damper on r + l and
+    // decaying only at the open fundamental's T60; low-passing the period mean
+    // at 3.5 Hz and bleeding it at the saddle takes out that standing constant
+    // without touching the partials.
+    constexpr float meanBleed = 0.25f;
+    const float invLength = historyLength > 0 ? 1.0f / static_cast<float>(historyLength) : 0.0f;
     for (Plane* plane : {&poles, &top})
+    {
+        const float mean = static_cast<float>(plane->historySum) * invLength;
+        plane->dcMean += dcPole * (mean - plane->dcMean);
         plane->right[static_cast<size_t>(write & railMask)]
-            = -plane->left[static_cast<size_t>((write + leftOffset) & railMask)];
+            = -plane->left[static_cast<size_t>((write + leftOffset) & railMask)]
+            + meanBleed * plane->dcMean;
+    }
 
     // Fret end.
     if (rampRemaining > 0)

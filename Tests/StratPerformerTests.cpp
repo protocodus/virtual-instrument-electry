@@ -1164,6 +1164,109 @@ void testGestureKeys()
     check(v->articulation() == StratPerformer::Articulation::sustain, "C1 takes Vibrato back");
 }
 
+void testLookaheadAndEventInvariants()
+{
+    // 1. After a chord is released, all six strings fall silent within 2.5 s
+    // (against ~28 s before the 0 Hz saddle bleed) without a residual DC offset.
+    {
+        auto p = makePerformer();
+        for (int n : {40, 47, 52, 56, 59, 64})
+            p->noteOn(0, n, 110);
+        render(*p, 0.5);
+        for (int n : {40, 47, 52, 56, 59, 64})
+            p->noteOff(0, n);
+        render(*p, 2.3);
+        const auto tail = render(*p, 0.2);
+        bool anySounding = false;
+        for (int s = 0; s < 6; ++s)
+            anySounding = anySounding || p->engine().isSounding(s);
+        double mean = 0.0;
+        for (float v : tail)
+            mean += v / static_cast<double>(tail.size());
+        check(!anySounding && std::abs(mean) < 1e-8,
+              "released strings fall completely silent within 2.5 s without a DC tail");
+    }
+
+    // 2. Lookahead chord assignment does not depend on MIDI note arrival order.
+    {
+        const auto playChord = [](bool reverseOrder) {
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.lookahead = true;
+            p->setControls(controls);
+            const int chord[] = {48, 52, 55, 60, 64};
+            if (reverseOrder)
+                for (int i = 4; i >= 0; --i)
+                    p->noteOn(0, chord[i], 95);
+            else
+                for (int i = 0; i < 5; ++i)
+                    p->noteOn(0, chord[i], 95);
+            return render(*p, 0.15);
+        };
+        check(playChord(false) == playChord(true),
+              "lookahead prepares and strikes a chord identically regardless of MIDI note order");
+    }
+
+    // 3. Lookahead honours gesture keyswitches (Bend does not pre-press the
+    // unbent target fret; Vibrato does pre-press the fret before the pick).
+    {
+        electry::StratControls controls;
+        controls.lookahead = true;
+        auto bendPerf = makePerformer();
+        bendPerf->setControls(controls);
+        bendPerf->noteOn(0, 36, 1); // C2: Bend gesture
+        bendPerf->noteOn(0, 69, 100);
+        const auto bendOut = render(*bendPerf, 0.045); // before 50 ms latency expires
+        float bendPrePick = 0.0f;
+        for (float v : bendOut)
+            bendPrePick = std::max(bendPrePick, std::abs(v));
+        check(bendPrePick < 1e-6f, "a queued Bend gesture does not pre-press the unbent fret");
+
+        auto vibPerf = makePerformer();
+        vibPerf->setControls(controls);
+        vibPerf->noteOn(0, 38, 1); // D2: Vibrato gesture
+        vibPerf->noteOn(0, 60, 100);
+        const auto vibOut = render(*vibPerf, 0.045);
+        float vibPrePick = 0.0f;
+        for (float v : vibOut)
+            vibPrePick = std::max(vibPrePick, std::abs(v));
+        check(vibPrePick > 1e-5f, "a queued Vibrato gesture pre-presses the fret during lookahead");
+    }
+
+    // 4. Releasing a natural harmonic early (at 80 ms, before its 200 ms node
+    // touch lifts) cancels the pending liftTouch so the resting finger damper
+    // is not wiped out at 200 ms.
+    {
+        const auto harmonicTail = [](bool releaseEarly) {
+            auto p = makePerformer();
+            p->noteOn(0, 29, 1); // Harmonic
+            p->noteOn(0, 76, 110, 5); // 12th-fret harmonic on high E (touch lasts 200 ms)
+            render(*p, 0.08);
+            if (releaseEarly)
+                p->noteOff(0, 76); // Released at 80 ms
+            const auto y = render(*p, 0.5); // Spans past the old t = 200 ms liftTouch
+            return energy(y, 0.3, 0.2);
+        };
+        check(harmonicTail(true) < 1e-4 * harmonicTail(false),
+              "releasing a harmonic early cancels its pending liftTouch");
+    }
+
+    // 5. Striking a second fretted note while another fretted string is mid-
+    // vibrato eases the held string's pitch smoothly instead of stepping.
+    {
+        auto p = makePerformer();
+        p->channelPressure(1.0);
+        p->noteOn(0, 50, 90, 1); // A string, 5th fret
+        render(*p, 0.18);        // well into the first vibrato cycle
+        const double beforeHz = p->engine().fundamentalHz(1);
+        p->noteOn(0, 62, 90, 3); // G string, 7th fret
+        render(*p, static_cast<double>(StratEngine::controlPeriod) / rate);
+        const double stepCents = std::abs(1200.0 * std::log2(p->engine().fundamentalHz(1) / beforeHz));
+        check(stepCents < 5.0,
+              "striking a new fretted string does not snap a held string's vibrato pitch");
+    }
+}
+
 int main()
 {
     testChordShapes();
@@ -1189,6 +1292,7 @@ int main()
     testLookahead();
     testFrettingHandScatter();
     testHum();
+    testLookaheadAndEventInvariants();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

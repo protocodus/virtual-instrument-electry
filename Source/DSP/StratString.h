@@ -265,6 +265,8 @@ private:
         float lossState = 0.0f;
         float wrapState = 0.0f;
         std::array<float, dispersionSections> allpassState {};
+        double historySum = 0.0;
+        float dcMean = 0.0f;
         LoopTap loopTap;
         double loopTapPosition = -1.0;
     };
@@ -327,9 +329,10 @@ private:
     double stretchStep = 0.0;
     int stretchCountdown = 0;
     // The last historyLength arrivals at the bridge, as running sums of the
-    // samples and of their squares, recounted every so often.
-    double historySum = 0.0;
+    // samples (Plane::historySum) and of their squares, recounted every so
+    // often.
     double historySquares = 0.0;
+    float dcPole = 0.0f;
     int historyLength = 0;
     int recountCountdown = 0;
     void measureStretch() noexcept;

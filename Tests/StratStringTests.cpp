@@ -891,6 +891,51 @@ void testDeterminism()
     check(render() == render(), "the same input gives the same bits");
 }
 
+void testZeroHertzBleedAndRepeatedPlucks()
+{
+    // A dashpot on r + l cannot damp the 0 Hz mode (+c on right, -c on left);
+    // the saddle's period-mean bleed takes it down so a muted string does not
+    // leak a multi-second DC tail through the fret loss filter.
+    const double rate = 48000.0;
+    auto string = makeString(rate, 0, 2);
+    string->pluck(2.5, pickMetres, 0.0004, 1.8, false, 0.42);
+    run(*string, rate, 0.2, 0);
+    string->setDamper(0, 0.13, 2.0, 0.03);
+    string->setDamper(1, 0.29, 2.0, 0.03);
+    run(*string, rate, 1.8, 0);
+    const std::vector<float> tail = run(*string, rate, 0.1, 0);
+    float peak = 0.0f;
+    for (float v : tail)
+        peak = std::max(peak, std::abs(v));
+    check(peak < 1e-8f, "a muted low E sheds its 0 Hz standing slope within 1.8 s");
+
+    // Repeated strokes with heldShare > 0 re-centre their force reference on
+    // each pluck, so the 500th stroke after silence matches the first.
+    auto fresh = makeString(rate, 3, 5);
+    fresh->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
+    const std::vector<float> first = run(*fresh, rate, 0.05, 0);
+
+    auto repeated = makeString(rate, 3, 5);
+    for (int k = 0; k < 500; ++k)
+        repeated->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
+    // Let the 500th pluck's held force settle and reset the rails, then pluck
+    // once more and compare the driven onset against a single settled pluck.
+    run(*repeated, rate, 0.5, 0);
+    repeated->setDamper(0, 0.10, 5.0, 0.05);
+    run(*repeated, rate, 0.5, 0);
+    repeated->setDamper(0, 0.10, 0.0, 0.0);
+    repeated->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
+    const std::vector<float> afterMany = run(*repeated, rate, 0.05, 0);
+    double diff = 0.0, energy = 0.0;
+    for (size_t i = 0; i < first.size(); ++i)
+    {
+        const double d = static_cast<double>(afterMany[i]) - first[i];
+        diff += d * d;
+        energy += static_cast<double>(first[i]) * first[i];
+    }
+    check(diff < 1e-9 * energy, "repeated plucks with heldShare do not drift in force");
+}
+
 } // namespace
 
 int main()
@@ -914,6 +959,7 @@ int main()
     testPickContact();
     testRestingDeflection();
     testDeterminism();
+    testZeroHertzBleedAndRepeatedPlucks();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");
     return failures == 0 ? 0 : 1;

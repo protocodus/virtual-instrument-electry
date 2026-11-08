@@ -162,6 +162,9 @@ private:
         // The note the fretting hand has gone ahead to, -1 none.
         int prepared = -1;
         std::int64_t preparedDue = 0;
+        std::int64_t struckAt = -1;
+        double vibratoFrom = 0.0;
+        std::int64_t vibratoSettleStart = 0;
     };
 
     enum class EventKind : std::uint8_t
@@ -232,6 +235,7 @@ private:
     void assign(const Pending* notes, int count, const std::array<bool, 6>& held,
                 std::array<int, 6>& stringFor) const noexcept;
     void schedule(const Event& e) noexcept;
+    void cancelEvents(int stringIndex, EventKind kind) noexcept;
     bool queue(const Midi& m) noexcept;
     void dispatch(const Midi& m) noexcept;
     void playNoteOn(int channel, int note, int velocity, int stringIndex) noexcept;

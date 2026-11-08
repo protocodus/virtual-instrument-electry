@@ -723,6 +723,8 @@ void StratPerformer::playNoteOff(int channel, int note) noexcept
 void StratPerformer::release(int s) noexcept
 {
     StringState& st = strings[static_cast<size_t>(s)];
+    cancelEvents(s, EventKind::liftTouch);
+    cancelEvents(s, EventKind::leaveString);
     // The fretting finger lets go of the fret but stays on the string.
     const double rest = st.fret, place = st.place;
     guitar->setDamper(s, 1, fingerMetres(*guitar, s, rest, place), fingerResistance, fingerWidth);
@@ -805,6 +807,10 @@ void StratPerformer::dampStrings(bool down) noexcept
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         StringState& st = strings[static_cast<size_t>(s)];
+        cancelEvents(s, EventKind::liftTouch);
+        cancelEvents(s, EventKind::leaveString);
+        cancelEvents(s, EventKind::shift);
+        cancelEvents(s, EventKind::press);
         guitar->setDamper(s, 1, fingerMetres(*guitar, s, hand), fingerResistance, fingerWidth);
         if (st.fret > 0.0)
             guitar->setFret(s, 0.0);
@@ -971,6 +977,16 @@ void StratPerformer::schedule(const Event& e) noexcept
     events[static_cast<size_t>(i)] = e;
 }
 
+void StratPerformer::cancelEvents(int stringIndex, EventKind kind) noexcept
+{
+    int keep = 0;
+    for (int i = 0; i < eventCount; ++i)
+        if (events[static_cast<size_t>(i)].string != stringIndex
+            || events[static_cast<size_t>(i)].kind != kind)
+            events[static_cast<size_t>(keep++)] = events[static_cast<size_t>(i)];
+    eventCount = keep;
+}
+
 bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
 {
     // The line continues on the string it is ringing on.
@@ -993,6 +1009,10 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
 
     StringState& st = strings[static_cast<size_t>(s)];
     const double from = st.fret;
+    cancelEvents(s, EventKind::liftTouch);
+    cancelEvents(s, EventKind::leaveString);
+    cancelEvents(s, EventKind::shift);
+    cancelEvents(s, EventKind::press);
     guitar->setDamper(s, 1, 0.0, 0.0);
     st.bendSemitones = 0.0; // the finger lets the bend down as it moves on
     if (latched == Articulation::legato)
@@ -1026,6 +1046,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     st.sustained = false;
     st.fret = latched == Articulation::legato ? fret : from;
     st.fretted = true;
+    st.struckAt = now;
     st.order = ++orderCounter;
     if (fret > 0)
         hand = fret;
@@ -1073,6 +1094,10 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     if (string < 0)
         return false;
 
+    cancelEvents(string, EventKind::liftTouch);
+    cancelEvents(string, EventKind::leaveString);
+    cancelEvents(string, EventKind::shift);
+    cancelEvents(string, EventKind::press);
     Event e;
     e.time = now;
     e.kind = EventKind::strike;
@@ -1321,6 +1346,8 @@ void StratPerformer::unprepare() noexcept
         if (st.prepared < 0 || st.note >= 0 || st.preparedDue > now)
             continue;
         st.prepared = -1;
+        cancelEvents(s, EventKind::shift);
+        cancelEvents(s, EventKind::press);
         if (st.shifting)
             guitar->rub(s, st.shiftTo, 0.0, 0.0);
         st.shifting = false;
@@ -1354,9 +1381,12 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
         {
             if (m.note >= firstArticulationKey && m.note < firstArticulationKey + articulationCount)
                 style = static_cast<Articulation>(m.note - firstArticulationKey);
+            else if (m.note >= firstGestureKey && m.note < firstGestureKey + gestureCount)
+                style = static_cast<Articulation>(articulationCount + m.note - firstGestureKey);
             else if (m.note == dampKey)
                 damped = true;
-            else if (m.time == due && !m.prepared && m.note >= lowestNote && count < 6)
+            else if (m.time == due && !m.prepared && m.note >= lowestNote && m.note <= highestNote
+                     && count < 6)
             {
                 m.prepared = true;
                 notes[count++] = {m.note, m.channel, m.velocity, m.string};
@@ -1378,9 +1408,18 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
         }
     }
     const bool fretting = style == Articulation::sustain || style == Articulation::palmMute
-        || style == Articulation::pinch;
+        || style == Articulation::pinch || style == Articulation::vibrato;
     if (count == 0 || !fretting || damped)
         return;
+
+    // Sort what arrived together, lowest first, matching startStroke().
+    for (int i = 1; i < count; ++i)
+        for (int j = i; j > 0 && notes[j - 1].note > notes[j].note; --j)
+        {
+            const Pending t = notes[j];
+            notes[j] = notes[j - 1];
+            notes[j - 1] = t;
+        }
 
     std::array<int, 6> stringFor {};
     assign(notes, count, held, stringFor);
@@ -1438,8 +1477,8 @@ void StratPerformer::runEvent(const Event& e) noexcept
     StringState& st = strings[static_cast<size_t>(s)];
     if (e.kind == EventKind::leaveString)
     {
-        // Unless the hand has fretted or played it since.
-        if (st.note < 0 && !st.fretted)
+        // Unless the hand has fretted or struck it since.
+        if (!st.fretted || st.struckAt < 0)
             guitar->setFret(s, 0.0);
         return;
     }
@@ -1470,6 +1509,8 @@ void StratPerformer::runEvent(const Event& e) noexcept
         }
         else
         {
+            cancelEvents(s, EventKind::leaveString);
+            cancelEvents(s, EventKind::liftTouch);
             if (st.shifting)
                 guitar->rub(s, st.shiftTo, 0.0, 0.0);
             st.shifting = false;
@@ -1484,6 +1525,11 @@ void StratPerformer::runEvent(const Event& e) noexcept
         }
         return;
     }
+    cancelEvents(s, EventKind::leaveString);
+    cancelEvents(s, EventKind::shift);
+    cancelEvents(s, EventKind::press);
+    if (damping || e.pinch || e.touchWidth > 0.0 || e.touchResistance == 0.0)
+        cancelEvents(s, EventKind::liftTouch);
     double pickAt = clamp(current.pickMetres + pickLine[s] + e.pickOffset, 0.025, 0.250);
     if (damping)
     {
@@ -1513,6 +1559,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         else
             guitar->setDamper(s, 1, e.touchMetres, e.touchResistance, e.touchWidth);
     }
+    st.struckAt = now;
     guitar->setBend(s, st.bend);
     const double force = std::abs(e.force);
     if (fingers)
@@ -1551,9 +1598,19 @@ double StratPerformer::handScale(double logSpread) noexcept
     return steadyStroke ? 1.0 : std::exp(logSpread * normalDraw(fretHand));
 }
 
-// A newly fretted note: the hand rocks from it afresh, after the pick.
+// A newly fretted note: the hand rocks from it afresh, after the pick. Any
+// fretted string already mid-rock eases back to its fret over pressSeconds
+// rather than snapping down in a single control step.
 void StratPerformer::startVibrato() noexcept
 {
+    const double currentRock = vibratoCycleDepth * (0.5 - 0.5 * std::cos(vibratoPhase));
+    if (currentRock > 0.0)
+        for (StringState& st : strings)
+            if (st.fretted && st.struckAt >= 0)
+            {
+                st.vibratoFrom = currentRock;
+                st.vibratoSettleStart = now;
+            }
     vibratoPhase = 0.0;
     vibratoHold = static_cast<std::int64_t>(vibratoDelaySeconds * sampleRate);
     vibratoCycleHz = vibratoHz * std::exp(-vibratoPeriodScatter * normalDraw(wobble));
@@ -1585,6 +1642,7 @@ void StratPerformer::controlUpdate() noexcept
         }
     }
     const double rock = vibratoCycleDepth * (0.5 - 0.5 * std::cos(vibratoPhase));
+    const auto settleLength = static_cast<std::int64_t>(pressSeconds * sampleRate);
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         StringState& st = strings[static_cast<size_t>(s)];
@@ -1647,8 +1705,18 @@ void StratPerformer::controlUpdate() noexcept
         const double depth = latched == Articulation::vibrato && vibratoDepth < latchedVibratoSemitones
             ? latchedVibratoSemitones
             : vibratoDepth;
+        double stringRock = rock;
+        if (st.vibratoFrom > 0.0)
+        {
+            if (settleLength > 0 && now - st.vibratoSettleStart < settleLength)
+                stringRock = st.vibratoFrom
+                    * (1.0 - reach(static_cast<double>(now - st.vibratoSettleStart)
+                                   / static_cast<double>(settleLength)));
+            else
+                st.vibratoFrom = 0.0;
+        }
         const double semitones = (st.channel != 0 ? channelBend[static_cast<size_t>(st.channel)] : 0.0)
-            + pushed + depth * rock;
+            + pushed + depth * stringRock;
         const double ratio = std::pow(2.0, semitones / 12.0);
         if (ratio != st.bend)
         {

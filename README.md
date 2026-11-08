@@ -57,6 +57,19 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.1 — 2026-11-08 — Clean string silence, lookahead chords and vibrato handoffs
+
+Muted and released Stratocaster strings now fall to digital silence within two
+seconds instead of leaving a −120 dBFS DC tail for twenty seconds: the bridge
+saddle bleeds the waveguide loop's low-passed period mean so the 0 Hz standing
+slope that dashpots on `r + l` cannot reach decays with the note, and repeated
+strokes re-centre their pick-force reference. With Lookahead on, chords prepare
+the same strings whatever order their MIDI notes arrive in, queued Bend,
+Slide-in, Half-bend and Vibrato gesture keys are read ahead by the fretting
+hand, early harmonic releases and re-triggers cancel stale finger-lift events,
+and striking a new fretted string while another is mid-vibrato eases the held
+string's pitch back to its fret instead of stepping.
+
 ### 2.4.0 — 2026-11-07 — A smooth arm and a softer pick attack
 
 The tremolo arm glides between pitch-bend messages instead of jumping to
@@ -1419,10 +1432,7 @@ do not establish eight-string perceptual parity. Large-jump choking and a
 physical spatial model of the fretting contact remain further work.
 
 The Stratocaster of 2.0.0 plays only in the Reason Rack Extension and in
-`Tools/RenderStrat.cpp`; the plug-in has not moved to it yet. When its strings
-fall silent, their last motion leaves a DC offset near −120 dBFS that decays
-with a time constant of about 3 s, so a host that waits for digital silence
-waits some 20 s after the strings stop.
+`Tools/RenderStrat.cpp`; the plug-in has not moved to it yet.
 
 The Strat's two planes of swing split each partial by a fixed share of its
 frequency, the in-plane speaking length fitted on the first partials. On the
