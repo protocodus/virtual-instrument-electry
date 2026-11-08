@@ -254,6 +254,7 @@ void StratCircuit::updateCoefficients() noexcept
         a[k][k] = -coilOhms / coilHenries;
         a[k][3 + k] = -coilImpedance / coilHenries;
         a[3 + k][k] = 1.0 / (coilImpedance * coilFarads);
+        a[3 + k][3 + k] -= 1.0 / (eddyOhms * coilFarads);
         feedFromX(3 + k, coilConductance[k], coilFarads);
     }
     for (int t = 0; t < 2; ++t)

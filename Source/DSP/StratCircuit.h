@@ -63,6 +63,12 @@ public:
     // 13 kHz reported for vintage-correct Strat coils (Jungmann 1994, via
     // arXiv:2409.19782).
     static constexpr double coilFarads = 100e-12;
+    // Alnico 5 pole-piece eddy-current loss resistance in parallel with each
+    // coil's inductance and winding capacitance (Jungmann 1994; Horton and
+    // Moore 2009; Lemme 2003): alternating flux in the conductive Alnico 5
+    // rod magnets inside the bobbin damps the unloaded LC resonance (from
+    // Q > 13 down to ~3.2 unloaded and ~1.85 on the un-toned bridge pickup).
+    static constexpr double eddyOhms = 220e3;
     // 250 kOhm audio-taper Volume and Tones and 0.1 uF tone capacitors, the
     // vintage Stratocaster values; no treble bleed.
     static constexpr double potOhms = 250e3;

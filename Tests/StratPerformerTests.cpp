@@ -1050,12 +1050,14 @@ void testFrettingHandScatter()
 }
 
 // The coils' hum: off, silence; on, the mains line and its odd harmonics,
-// at 50 or 60 Hz.
+// at 50 or 60 Hz, and RWRP cancellation in the parallel positions (2 and 4).
 void testHum()
 {
-    const auto lines = [](double hum, double mains) {
+    const auto lines = [](double hum, double mains,
+                          electry::StratCircuit::Position pos = electry::StratCircuit::Position::neck) {
         auto p = makePerformer();
         electry::StratControls controls;
+        controls.circuit.position = pos;
         controls.hum = hum;
         controls.mainsHz = mains;
         p->setControls(controls);
@@ -1064,12 +1066,15 @@ void testHum()
                                       level(y, 0.1, 0.4, 3.0 * mains)};
     };
     const auto off = lines(0.0, 50.0), fifty = lines(1.0, 50.0), sixty = lines(1.0, 60.0);
-    std::printf("hum: 50 Hz %.1f dB, 100 Hz %.1f, 150 Hz %.1f; at 60 Hz mains %.1f, %.1f, %.1f\n",
-                fifty[0], fifty[1], fifty[2], sixty[0], sixty[1], sixty[2]);
+    const auto inBetween = lines(1.0, 50.0, electry::StratCircuit::Position::middleNeck);
+    std::printf("hum: 50 Hz %.1f dB (pos 4: %.1f dB), 100 Hz %.1f, 150 Hz %.1f; at 60 Hz mains %.1f, %.1f, %.1f\n",
+                fifty[0], inBetween[0], fifty[1], fifty[2], sixty[0], sixty[1], sixty[2]);
     check(off[0] < -250.0, "no hum, no line");
     check(fifty[0] > off[0] + 200.0 && fifty[2] > fifty[0] - 3.0 && fifty[1] < fifty[0] - 40.0,
           "the coils hum at the mains frequency and its odd harmonics");
     check(std::abs(sixty[0] - fifty[0]) < 1.0, "60 Hz mains hums as loud");
+    check(inBetween[0] < fifty[0] - 18.0,
+          "the RWRP middle coil cancels mains hum in the parallel in-between positions");
 }
 
 } // namespace
@@ -1264,6 +1269,46 @@ void testLookaheadAndEventInvariants()
         const double stepCents = std::abs(1200.0 * std::log2(p->engine().fundamentalHz(1) / beforeHz));
         check(stepCents < 5.0,
               "striking a new fretted string does not snap a held string's vibrato pitch");
+    }
+
+    // 6. Clean DI compressor and high-headroom ceiling: lifts single-note
+    // sustain, narrows the chord-to-single-note dynamic gap, and bounds
+    // extreme +12 dB strums below the 9.5 V (-0.45 dBFS) headroom ceiling.
+    {
+        const auto playSingleAndChord = [](double comp, double outDb = 0.0) {
+            electry::StratControls controls;
+            controls.compressor = comp;
+            controls.outputDecibels = outDb;
+            auto single = makePerformer();
+            single->setControls(controls);
+            single->noteOn(0, 64, 90);
+            const auto sOut = render(*single, 0.4);
+            double singleRms = std::sqrt(energy(sOut, 0.05, 0.3) / (0.3 * rate));
+
+            auto chord = makePerformer();
+            chord->setControls(controls);
+            for (int n : {40, 47, 52, 56, 59, 64})
+                chord->noteOn(0, n, 127);
+            const auto cOut = render(*chord, 0.4);
+            double chordRms = std::sqrt(energy(cOut, 0.05, 0.3) / (0.3 * rate));
+            float chordPeak = 0.0f;
+            for (float v : cOut)
+                chordPeak = std::max(chordPeak, std::abs(v));
+            return std::array<double, 3> {singleRms, chordRms, chordPeak};
+        };
+        const auto dry = playSingleAndChord(0.0);
+        const auto comp = playSingleAndChord(0.65);
+        const auto hot = playSingleAndChord(1.0, 12.0);
+        const double singleLiftDb = 20.0 * std::log10(comp[0] / dry[0]);
+        const double dryGapDb = 20.0 * std::log10(dry[1] / dry[0]);
+        const double compGapDb = 20.0 * std::log10(comp[1] / comp[0]);
+        std::printf("compressor: single-note sustain %+.2f dB, chord/single gap %.2f dB -> %.2f dB, "
+                    "+12 dB peak %.2f V\n",
+                    singleLiftDb, dryGapDb, compGapDb, hot[2]);
+        check(singleLiftDb > 1.8, "the clean DI compressor lifts single-note sustain");
+        check(compGapDb < dryGapDb - 1.5,
+              "the clean DI compressor narrows the chord-to-single-note dynamic spread");
+        check(hot[2] < 9.51, "the high-headroom ceiling keeps +12 dB 6-string strums below 0 dBFS");
     }
 }
 

@@ -375,6 +375,26 @@ constexpr double latchedVibratoSemitones = 0.34;
 constexpr double memberBendSemitones = 48.0;
 constexpr double maximumFingerBend = 4.0;
 
+// Clean DI optical/FET studio compressor after the guitar's passive circuit
+// and before the output trim: a 10 ms attack lets each note's initial pick
+// snap through before clamping the peak, a 120 ms release rides the sustain
+// without ripple on the low E (82.4 Hz), and a soft knee above 0.85 V (-21.4
+// dBFS at the interface) eases into a 3.6:1 ratio with automatic makeup gain
+// (up to +6.6 dB) so single-note lines and chords sit at a balanced DI level
+// with clean headroom.
+constexpr double compressorAttackSeconds = 0.010;
+constexpr double compressorReleaseSeconds = 0.120;
+constexpr double compressorSmoothSeconds = 0.005;
+constexpr double compressorThresholdVolts = 0.85;
+constexpr double compressorKneeWidth = 1.2;
+constexpr double compressorExponent = -0.72;
+constexpr double compressorMakeup = 1.15;
+// High-headroom safety ceiling in jack volts (where 10 V is 0 dBFS in the
+// host): strictly linear up to 7.0 V (-3.1 dBFS), then a C1-continuous tanh
+// knee asymptotically bounded at 9.5 V (-0.45 dBFS).
+constexpr double headroomKneeVolts = 7.0;
+constexpr double headroomMarginVolts = 2.5;
+
 // The string's wave impedance at standard tension, kg/s.
 double impedance(int s) noexcept
 {
@@ -459,6 +479,9 @@ StratPerformer::StratPerformer() : guitar(std::make_unique<StratEngine>()) {}
 void StratPerformer::prepare(double rate)
 {
     sampleRate = rate;
+    compressorAttack = std::exp(-1.0 / (compressorAttackSeconds * rate));
+    compressorRelease = std::exp(-1.0 / (compressorReleaseSeconds * rate));
+    compressorSmooth = 1.0 - std::exp(-1.0 / (compressorSmoothSeconds * rate));
     guitar->prepare(rate);
     reset();
     setControls(current);
@@ -501,6 +524,8 @@ void StratPerformer::reset() noexcept
     pendingCount = eventCount = 0;
     delayedHead = delayedCount = 0;
     now = 0;
+    compressorEnvelope = 0.0;
+    compressorMix = compressorTarget;
     applyPalm();
 }
 
@@ -521,11 +546,15 @@ void StratPerformer::setControls(const StratControls& controls) noexcept
     current.pick = clamp(controls.pick, 0.0, 1.0);
     current.palmMute = clamp(controls.palmMute, 0.0, 1.0);
     current.strumSeconds = clamp(controls.strumSeconds, 0.0, 0.040);
+    current.compressor = clamp(controls.compressor, 0.0, 1.0);
     current.outputDecibels = clamp(controls.outputDecibels, -24.0, 12.0);
     current.hum = clamp(controls.hum, 0.0, 1.0);
     current.mainsHz = controls.mainsHz < 55.0 ? 50.0 : 60.0;
     guitar->setControls(current.circuit);
     guitar->setHum(current.hum, current.mainsHz);
+    compressorTarget = current.compressor;
+    if (now == 0)
+        compressorMix = compressorTarget;
     outputGain = std::pow(10.0, current.outputDecibels / 20.0);
     applyPalm();
 }
@@ -1764,7 +1793,44 @@ void StratPerformer::render(float* out, int samples) noexcept
             chunk = delayed[static_cast<size_t>(delayedHead)].time - now;
         guitar->process(out + done, static_cast<int>(chunk));
         for (int i = 0; i < chunk; ++i)
-            out[done + i] = static_cast<float>(out[done + i] * outputGain);
+        {
+            double v = out[done + i];
+            if (compressorMix != compressorTarget)
+            {
+                compressorMix += compressorSmooth * (compressorTarget - compressorMix);
+                if (compressorTarget == 0.0 && compressorMix < 1e-5)
+                    compressorMix = 0.0;
+                else if (compressorTarget == 1.0 && compressorMix > 1.0 - 1e-5)
+                    compressorMix = 1.0;
+            }
+            const double absV = std::abs(v);
+            const double coeff = absV > compressorEnvelope ? compressorAttack : compressorRelease;
+            compressorEnvelope = coeff * compressorEnvelope + (1.0 - coeff) * absV;
+            if (compressorEnvelope < 1e-30)
+                compressorEnvelope = 0.0;
+            if (compressorMix > 0.0)
+            {
+                double reduction = 1.0;
+                const double over = compressorEnvelope / compressorThresholdVolts;
+                if (over > 1.0)
+                {
+                    const double t = clamp((over - 1.0) / compressorKneeWidth, 0.0, 1.0);
+                    const double knee = t * t * (3.0 - 2.0 * t);
+                    reduction = std::pow(over, compressorExponent * knee);
+                }
+                const double wetGain = reduction * (1.0 + compressorMakeup * compressorMix);
+                v *= 1.0 + compressorMix * (wetGain - 1.0);
+            }
+            v *= outputGain;
+            const double absOut = std::abs(v);
+            if (absOut > headroomKneeVolts)
+            {
+                const double compressed = headroomKneeVolts
+                    + headroomMarginVolts * std::tanh((absOut - headroomKneeVolts) / headroomMarginVolts);
+                v = v < 0.0 ? -compressed : compressed;
+            }
+            out[done + i] = static_cast<float>(v);
+        }
         done += static_cast<int>(chunk);
         now += chunk;
     }

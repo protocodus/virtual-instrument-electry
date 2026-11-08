@@ -17,6 +17,7 @@ struct StratControls
     double pick = 0.5;            // plectrum, 0 thin to 1 heavy
     double palmMute = 0.5;        // palm pressure while Palm mute is on, 0 to 1
     double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040
+    double compressor = 0.0;      // clean DI studio compressor after the circuit, 0 off to 1 full
     double outputDecibels = 0.0;  // -24 to +12
     double hum = 0.0;             // mains hum in the coils, 0 none to 1 as recorded
     double mainsHz = 50.0;        // 50 or 60
@@ -29,8 +30,8 @@ struct StratControls
     {
         return circuit == o.circuit && pickMetres == o.pickMetres && pick == o.pick
             && palmMute == o.palmMute && strumSeconds == o.strumSeconds
-            && outputDecibels == o.outputDecibels && hum == o.hum && mainsHz == o.mainsHz
-            && lookahead == o.lookahead;
+            && compressor == o.compressor && outputDecibels == o.outputDecibels
+            && hum == o.hum && mainsHz == o.mainsHz && lookahead == o.lookahead;
     }
 };
 
@@ -271,6 +272,12 @@ private:
     StratControls current;
     double sampleRate = 48000.0;
     double outputGain = 1.0;
+    double compressorTarget = 0.0;
+    double compressorMix = 0.0;
+    double compressorSmooth = 0.0;
+    double compressorAttack = 0.0;
+    double compressorRelease = 0.0;
+    double compressorEnvelope = 0.0;
     Articulation latched = Articulation::sustain;
     Stroke strokes = Stroke::alternate;
     bool damping = false;

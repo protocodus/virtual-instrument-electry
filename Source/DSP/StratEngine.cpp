@@ -654,8 +654,9 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
             if (humming)
             {
                 const float h = hum();
-                for (float& e : emf)
-                    e += h;
+                emf[0] += h;
+                emf[1] -= 0.90f * h;
+                emf[2] += h;
             }
             jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
             continue;
@@ -667,8 +668,9 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
             if (humming)
             {
                 const float h = hum();
-                for (float& e : emf)
-                    e += h;
+                emf[0] += h;
+                emf[1] -= 0.90f * h;
+                emf[2] += h;
             }
             jackWrite = (jackWrite + 1) & mask;
             jackHistory[static_cast<size_t>(jackWrite)]

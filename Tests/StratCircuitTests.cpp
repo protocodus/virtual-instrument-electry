@@ -59,7 +59,8 @@ Selection selectionFor(Position position)
 Complex analogResponse(const StratCircuit::Controls& controls, int input,
                        Complex s,
                        double contactOhms = StratCircuit::contactOhms,
-                       double potEndOhms = StratCircuit::potEndOhms)
+                       double potEndOhms = StratCircuit::potEndOhms,
+                       double eddyOhms = StratCircuit::eddyOhms)
 {
     const Selection selection = selectionFor(controls.position);
     if (!selection.coil[input])
@@ -67,7 +68,8 @@ Complex analogResponse(const StratCircuit::Controls& controls, int input,
 
     const Complex coilSeries = StratCircuit::coilOhms
         + s * StratCircuit::coilHenries;
-    const Complex winding = 1.0 / (s * StratCircuit::coilFarads);
+    const Complex winding = 1.0
+        / (s * StratCircuit::coilFarads + (eddyOhms > 0.0 ? 1.0 / eddyOhms : 0.0));
     const Complex theveninImpedance
         = coilSeries * winding / (coilSeries + winding);
     const Complex theveninGain = winding / (coilSeries + winding);
@@ -305,6 +307,21 @@ void testDeterminism()
     check(first == second, "the same input gives the same bits");
 }
 
+void testEddyCurrentDamping()
+{
+    StratCircuit::Controls controls;
+    controls.position = Position::bridge;
+    controls.volume = 1.0;
+    const Complex s(0.0, 2.0 * pi * 5060.0);
+    const double withEddy = std::abs(analogResponse(controls, 2, s));
+    const double lossless = std::abs(analogResponse(controls, 2, s, StratCircuit::contactOhms,
+                                                    StratCircuit::potEndOhms, 0.0));
+    const double dampingDb = 20.0 * std::log10(lossless / withEddy);
+    std::printf("bridge 5.06 kHz resonance: Alnico 5 eddy loss damps peak by %.2f dB\n", dampingDb);
+    check(dampingDb > 2.5 && dampingDb < 5.0,
+          "Alnico 5 pole eddy-current shunt damps the un-toned bridge LC resonance");
+}
+
 } // namespace
 
 int main()
@@ -316,6 +333,7 @@ int main()
     testConventionsAreInaudible();
     testMovingControls();
     testDeterminism();
+    testEddyCurrentDamping();
     if (failures == 0)
         std::printf("StratCircuit: all checks passed\n");
     return failures == 0 ? 0 : 1;
