@@ -513,6 +513,12 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     const double waveSpeed = 2.0 * intonedOpen * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
     characteristicImpedance = spec->kilogramsPerMetre * waveSpeed;
+    // Hard ff strokes (MIDI velocity >= 100, accounting for ~1.25x dispersion
+    // crest factor at the fret end) drive the downward wave past the clearance
+    // to the adjacent fret crown, grazing it on the negative half-cycle; an
+    // open string at the nut sits higher than a fretted one.
+    const double grazeForce = fret > 0.0 ? 2.75 : 3.20;
+    fretGrazeVelocity = static_cast<float>(grazeForce / (2.0 * characteristicImpedance));
     topShortfall = 2.0 * inPlaneShortening * samplesPerMetre;
 
     // A string swinging with energy E is stretched along its speaking length
@@ -721,8 +727,12 @@ void StratString::placeDampers() noexcept
             d.next = static_cast<float>(at - d.position);
         }
         // A dashpot of resistance R on a string of impedance Z passes
-        // 2Z / (2Z + R) of the local velocity and absorbs the rest.
-        d.absorption = r > 0.0 ? static_cast<float>(r / (2.0 + r)) : 0.0f;
+        // 2Z / (2Z + R) of the local velocity and absorbs the rest; when split
+        // between two adjacent samples (d.next > 0), scale by 1 / (near^2 + next^2)
+        // so the interpolated node sees the exact same physical impedance R.
+        const double near = 1.0 - static_cast<double>(d.next);
+        const double share = near * near + static_cast<double>(d.next) * d.next;
+        d.absorption = r > 0.0 ? static_cast<float>(r / ((2.0 + r) * share)) : 0.0f;
     }
 }
 
@@ -1039,12 +1049,18 @@ float StratString::arriveAtFret(Plane& plane, double readAt) noexcept
         y = plane.wrapState;
     }
     const float a = allpassCoefficient;
-    for (float& state : plane.allpassState)
-    {
-        const float w = y - a * state;
-        y = a * w + state;
-        state = w;
-    }
+    float s0 = plane.allpassState[0];
+    float s1 = plane.allpassState[1];
+    float s2 = plane.allpassState[2];
+    float s3 = plane.allpassState[3];
+    const float w0 = y - a * s0; y = a * w0 + s0;
+    const float w1 = y - a * s1; y = a * w1 + s1;
+    const float w2 = y - a * s2; y = a * w2 + s2;
+    const float w3 = y - a * s3; y = a * w3 + s3;
+    plane.allpassState[0] = w0;
+    plane.allpassState[1] = w1;
+    plane.allpassState[2] = w2;
+    plane.allpassState[3] = w3;
     return y;
 }
 
@@ -1222,7 +1238,16 @@ float StratString::arrive() noexcept
     // planes alike.
     const float topArriving = arriveAtFret(top, readAt - topShortfall + neckDelay);
     leaveFret(top, onFret() ? -topArriving : -fingerEnd * topArriving);
-    arrivingAtNeck = arriveAtFret(poles, readAt);
+    float polesArriving = arriveAtFret(poles, readAt);
+    if (onFret() && polesArriving < -fretGrazeVelocity)
+    {
+        // Unilateral fret-crown graze on hard ff attacks: downward excursions
+        // past the adjacent fret clearance are softly limited by the crown.
+        const float excess = -polesArriving - fretGrazeVelocity;
+        const float margin = 0.35f * fretGrazeVelocity;
+        polesArriving = -(fretGrazeVelocity + margin * std::tanh(excess / margin));
+    }
+    arrivingAtNeck = polesArriving;
     return arrivingAtNeck;
 }
 
@@ -1313,11 +1338,14 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
     }
     if (fingerActive)
     {
-        // The finger presses toward the poles; what it stirs along the top
-        // is left out.
+        // The finger presses mostly toward the poles and stirs a smaller share
+        // along the top as it slides across the wraps and skin.
         const float u = static_cast<float>(fingerForce() / (2.0 * characteristicImpedance));
         if (u != 0.0f)
+        {
             inject(poles, fingerTap, u);
+            inject(top, fingerTap, 0.35f * topDrive * u);
+        }
     }
 
     if (dampers[0].absorption != 0.0f || dampers[1].absorption != 0.0f)

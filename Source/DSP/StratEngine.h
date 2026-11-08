@@ -113,6 +113,8 @@ private:
     std::array<float, stringCount> steel {};
     std::array<float, stringCount> gapSteps {};
     std::array<std::array<float, coilCount>, stringCount> swing {};
+    std::array<std::array<float, coilCount>, stringCount> swingTop {};
+    std::array<std::array<float, coilCount>, stringCount> bendSteps {};
     float swingLeak = 1.0f;
     float swingSteps = 0.0f; // table steps per (m/s) sample of swing
     double stringRate = 96000.0; // the strings', coils' and circuit's rate

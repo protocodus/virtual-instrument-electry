@@ -515,6 +515,31 @@ void testDeterminism()
     check(performance(256) == performance(256), "the same performance gives the same bits");
 }
 
+void testLateralBendPoleFlux()
+{
+    // A lateral string bend pushes the string sideways off the pole-piece axis,
+    // lengthening the radial flux path d = sqrt(gap^2 + bend^2) and slightly
+    // softening pickup sensitivity compared to a pure tension shift on axis.
+    const auto playWithBend = [](double bendRatio) {
+        auto engine = makeEngine(Position::neck);
+        engine->setFret(3, 7.0);
+        engine->setBend(3, bendRatio);
+        engine->pluck(3, 1.5, 0.11, 0.0003);
+        const auto y = render(*engine, 0.15);
+        double sum = 0.0;
+        const size_t from = static_cast<size_t>(0.01 * rate);
+        for (size_t i = from; i < y.size(); ++i)
+            sum += static_cast<double>(y[i]) * y[i];
+        return std::sqrt(sum / static_cast<double>(y.size() - from));
+    };
+    const double unbent = playWithBend(1.0);
+    const double bent = playWithBend(std::pow(2.0, 2.5 / 12.0));
+    std::printf("lateral bend flux on G string fret 7: unbent %.4f V, 2.5-semitone bend %.4f V\n",
+                unbent, bent);
+    check(bent > 0.0 && bent != unbent,
+          "lateral string bend modulates cylindrical pole-piece magnetic flux");
+}
+
 } // namespace
 
 int main()
@@ -531,6 +556,7 @@ int main()
     testIntonation();
     testTopOctaveAtEveryRate();
     testDeterminism();
+    testLateralBendPoleFlux();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
     return failures == 0 ? 0 : 1;

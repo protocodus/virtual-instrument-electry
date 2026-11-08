@@ -938,6 +938,62 @@ void testZeroHertzBleedAndRepeatedPlucks()
     check(diff < 1e-9 * energy, "repeated plucks with heldShare do not drift in force");
 }
 
+void testFractionalDashpotAndFretGrazing()
+{
+    const double rate = 48000.0;
+    const auto& spec = StratString::construction(0);
+    const double waveSpeed = 2.0 * StratString::scaleMetres * spec.openHz;
+    const double impedance = spec.kilogramsPerMetre * waveSpeed, sample = waveSpeed / rate;
+    const auto decayDbPerSecond = [&](double x, double resistance) {
+        auto string = makeString(rate, 0, 0);
+        string->setDamper(0, x, resistance, 0.0);
+        string->pluck(lightNewtons, pickMetres, 0.0002);
+        const auto y = run(*string, rate, 2.4, 2);
+        return (decibels(magnitude(y, rate, 0.3, 0.5, spec.openHz))
+                - decibels(magnitude(y, rate, 1.8, 0.5, spec.openHz)))
+            / 1.5;
+    };
+    const double undamped = decayDbPerSecond(0.0, 0.0);
+    // At the worst-case fractional sample midpoint (7.5 samples, d.next = 0.5),
+    // the normalized dashpot impedance still matches the exact wave equation.
+    const double xHalf = 7.5 * sample;
+    const double extraHalf = decayDbPerSecond(xHalf, 0.5) - undamped;
+    const double wantHalf = 20.0 / std::log(10.0)
+        * dashpotDecayPerSecond(impedance, 0.5, xHalf, StratString::scaleMetres, waveSpeed);
+    std::printf("fractional midpoint dashpot (7.5 samples): %.3f dB/s, string theory %.3f dB/s\n",
+                extraHalf, wantHalf);
+    check(std::abs(extraHalf / wantHalf - 1.0) < 0.01,
+          "a fractional-sample midpoint dashpot presents the exact physical impedance");
+
+    // Unilateral fret-crown grazing: on a fretted string, soft +F and -F
+    // plucks are exactly symmetric, whereas a hard ff attack (4.0 N) grazes
+    // the adjacent fret crown unilaterally on downward swings, breaking +/-
+    // symmetry and softly bounding the downward velocity crest.
+    const auto asymmetry = [&](double force) {
+        auto pos = makeString(rate, 2, 5.0);
+        auto neg = makeString(rate, 2, 5.0);
+        pos->pluck(force, pickMetres, 0.0001);
+        neg->pluck(-force, pickMetres, 0.0001);
+        const auto yPos = run(*pos, rate, 0.05, 2);
+        const auto yNeg = run(*neg, rate, 0.05, 2);
+        double diff = 0.0, sum = 0.0;
+        for (size_t i = 0; i < yPos.size(); ++i)
+        {
+            const double a = yPos[i] + yNeg[i];
+            diff += a * a;
+            sum += static_cast<double>(yPos[i]) * yPos[i];
+        }
+        return std::sqrt(diff / sum);
+    };
+    const double softAsym = asymmetry(1.0);
+    const double hardAsym = asymmetry(4.0);
+    std::printf("unilateral fret-crown grazing asymmetry on D string fret 5: "
+                "1.0 N %.4f, 4.0 N %.4f\n",
+                softAsym, hardAsym);
+    check(softAsym < 1e-6 && hardAsym > 0.01,
+          "unilateral fret-crown grazing stays linear on soft attacks and engages on hard ff attacks");
+}
+
 } // namespace
 
 int main()
@@ -962,6 +1018,7 @@ int main()
     testRestingDeflection();
     testDeterminism();
     testZeroHertzBleedAndRepeatedPlucks();
+    testFractionalDashpotAndFretGrazing();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");
     return failures == 0 ? 0 : 1;

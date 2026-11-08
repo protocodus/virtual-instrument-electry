@@ -290,8 +290,10 @@ private:
     std::int64_t armStart = 0, armLength = 0;
     std::int64_t lastArmMessage = -1;
     double wheel = 0.0;        // the mod wheel, 0 to 1
+    double wheelTarget = 0.0;
     double palmOffset = 0.0;   // this stroke's palm pressure off the Palm control
     double vibratoDepth = 0.0;
+    double vibratoTarget = 0.0;
     double vibratoPhase = 0.0;
     double vibratoCycleHz = 0.0;   // this cycle's rate and depth
     double vibratoCycleDepth = 1.0;

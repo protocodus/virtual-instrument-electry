@@ -1331,6 +1331,50 @@ void testLookaheadAndEventInvariants()
         check(heavy > medium + 1.0 && medium > thin + 1.0,
               "a heavier pick gauge brightens the wound-string attack transient");
     }
+
+    // 8. Pick position (StratControls::pickMetres) combines comb-filter node
+    // placement with boundary-stiffness slip speed: picking near the bridge
+    // (0.040 m) produces a markedly brighter upper-register attack than over
+    // the neck (0.180 m).
+    {
+        const auto pickBrightness = [](double metres) {
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.pickMetres = metres;
+            p->setControls(controls);
+            p->noteOn(0, 50, 100, 2); // Open D3
+            const auto y = render(*p, 0.06);
+            const double f0 = StratString::construction(2).openHz;
+            double high = 0.0;
+            for (int n = 10; n <= 20; ++n)
+                high += std::pow(10.0, 0.1 * level(y, 0.002, 0.03, n * f0));
+            return 10.0 * std::log10(high) - level(y, 0.002, 0.03, f0);
+        };
+        const double bridgePick = pickBrightness(0.040);
+        const double neckPick = pickBrightness(0.180);
+        std::printf("pick position on D3 (10th-20th partials re f0): bridge %.1f dB, neck %.1f dB\n",
+                    bridgePick, neckPick);
+        check(bridgePick > neckPick + 4.0,
+              "picking near the bridge saddle produces a crisper, brighter attack than over the neck");
+    }
+
+    // 9. Legato pull-off hooks the string in the opposed horizontal plane,
+    // contrasting with a downward hammer-on.
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 26, 1); // Legato
+        p->noteOn(0, 62, 100, 3); // G string, 7th fret
+        render(*p, 0.08);
+        p->noteOn(0, 64, 100, 3); // Hammer-on to 9th fret
+        render(*p, 0.02);
+        const bool hammerOpposed = p->engine().planesOpposed(3);
+        render(*p, 0.06);
+        p->noteOn(0, 62, 100, 3); // Pull-off back to 7th fret
+        render(*p, 0.02);
+        const bool pullOpposed = p->engine().planesOpposed(3);
+        check(!hammerOpposed && pullOpposed,
+              "a hammer-on strikes in the vertical plane while a pull-off hooks laterally");
+    }
 }
 
 int main()

@@ -506,8 +506,8 @@ void StratPerformer::reset() noexcept
         strings[static_cast<size_t>(s)] = StringState {};
     }
     channelBend.fill(0.0);
-    wheel = palmOffset = 0.0;
-    vibratoDepth = vibratoPhase = 0.0;
+    wheel = wheelTarget = palmOffset = 0.0;
+    vibratoDepth = vibratoTarget = vibratoPhase = 0.0;
     vibratoCycleHz = vibratoHz;
     vibratoCycleDepth = 1.0;
     vibratoHold = 0;
@@ -641,8 +641,15 @@ void StratPerformer::dispatch(const Midi& m) noexcept
     case MidiKind::noteOn: playNoteOn(m.channel, m.note, m.velocity, m.string); break;
     case MidiKind::noteOff: playNoteOff(m.channel, m.note); break;
     case MidiKind::bend: playPitchBend(m.channel, m.value); break;
-    case MidiKind::wheel: wheel = m.value; applyPalm(); break;
-    case MidiKind::pressure: vibratoDepth = m.value; break;
+    case MidiKind::wheel:
+        wheelTarget = m.value;
+        wheel = now == 0 ? m.value : wheel + 0.35 * (wheelTarget - wheel);
+        applyPalm();
+        break;
+    case MidiKind::pressure:
+        vibratoTarget = m.value;
+        vibratoDepth = now == 0 ? m.value : vibratoDepth + 0.35 * (vibratoTarget - vibratoDepth);
+        break;
     case MidiKind::pedal: playSustain(m.value > 0.5); break;
     }
 }
@@ -1085,11 +1092,12 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
         if (fret > 0)
             startVibrato();
         // A hammer-on strikes just inside the speaking length at the new fret
-        // crown; a pull-off flicks at the old fret crown inside the new
-        // speaking length.
+        // crown; a pull-off hooks laterally at the old fret crown inside the
+        // new speaking length and brushes the fingertip callous across the string.
         const double place = nextPlace();
+        const bool pullOff = fret < from;
         double at = 0.0;
-        if (fret > from)
+        if (!pullOff)
         {
             const double crown = guitar->fretMetres(s, fret);
             const double span = guitar->fretMetres(s, std::max(0, fret - 1)) - crown;
@@ -1098,9 +1106,22 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
         else
         {
             at = guitar->fretMetres(s, std::max(from, 1.0));
+            const double noise = current.releaseNoise > 0.0 && !damping
+                ? 0.65 * releaseBrushNewtons * (2.0 * current.releaseNoise) * handScale(rubScatter)
+                : 0.0;
+            const auto brushLength = static_cast<std::int64_t>(0.008 * sampleRate);
+            if (noise > 0.0 && brushLength > 0)
+            {
+                st.releasing = true;
+                st.releaseAt = at;
+                st.releaseStart = now;
+                st.releaseLength = brushLength;
+                st.rubNewtons = noise;
+            }
         }
         const double force = legatoShare * velocityForce(p.velocity);
-        guitar->pluck(s, nextStrokeUp ? -force : force, at, fingerReleaseSeconds);
+        guitar->pluck(s, nextStrokeUp ? -force : force, at,
+                      (pullOff ? 1.25 : 1.0) * fingerReleaseSeconds, 0.0, pullOff);
         st.place = place;
         st.slide = false;
     }
@@ -1297,7 +1318,7 @@ void StratPerformer::startStroke() noexcept
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
     steadyStroke = lastStroke < 0;
     strokePick = pickScatterMetres * nextScatter();
-    const bool palmDown = wheel > 0.0;
+    const bool palmDown = std::max(wheel, wheelTarget) > 0.0;
     palmOffset = palmDown && !steadyStroke ? palmScatter * normalDraw(press) : 0.0;
     if (palmDown)
         applyPalm();
@@ -1375,14 +1396,20 @@ void StratPerformer::startStroke() noexcept
         // A finger the hand sent ahead is on its fret already.
         const bool pressed = st.prepared == notes[i].note && st.fretted && st.fret == fret;
         const double place = pressed ? st.place : nextPlace();
-        // The pick crosses every string between, muted ones included.
+        // The pick crosses every string between, muted ones included; across a
+        // multi-string chord strum the wrist imparts slightly more momentum to
+        // the leading strings of the stroke than the trailing ones.
         const int crossed = strokeUp ? last - s : s - first;
+        const int span = std::max(last - first, 1);
+        const double strumArc = !steadyStroke && count >= 3
+            ? 1.0 + 0.04 * (1.0 - 2.0 * static_cast<double>(crossed) / static_cast<double>(span))
+            : 1.0;
         Event e;
         e.time = now + static_cast<std::int64_t>(crossing[static_cast<size_t>(crossed)] * sampleRate);
         e.kind = EventKind::strike;
         e.string = s;
         e.fret = dead ? 0.0 : fret;
-        e.force = sign * strokeForce(notes[i].velocity);
+        e.force = sign * strumArc * strokeForce(notes[i].velocity);
         e.touchMetres = dead ? fingerMetres(*guitar, s, fret, place) : 0.0;
         e.touchResistance = dead ? fingerResistance : 0.0;
         e.touchWidth = dead ? fingerWidth : 0.0;
@@ -1649,9 +1676,20 @@ void StratPerformer::runEvent(const Event& e) noexcept
     st.struckAt = now;
     guitar->setBend(s, st.bend);
     const double force = std::abs(e.force);
+    // An upstroke catches the string from the treble side at a slightly steeper
+    // wrist angle, striking 2.5 mm nearer the bridge with a slightly crisper
+    // release than a downstroke.
+    const bool upstroke = e.force < 0.0 && !steadyStroke;
     if (fingers)
         pickAt = clamp(pickAt + fingerOffsetMetres, 0.025, 0.250);
-    guitar->pluck(s, e.force, pickAt, releaseSeconds(s, force),
+    else if (upstroke)
+        pickAt = clamp(pickAt - 0.0025, 0.025, 0.250);
+    // Near the bridge saddle the string's transverse boundary stiffness is
+    // higher so the pick slips off more crisply; over the neck it yields longer.
+    const double boundaryYield = std::pow(clamp(current.pickMetres / 0.109, 0.35, 2.2), 0.22);
+    const double relSeconds
+        = boundaryYield * (upstroke && !fingers ? 0.92 : 1.0) * releaseSeconds(s, force);
+    guitar->pluck(s, e.force, pickAt, relSeconds,
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
     if (e.slideFrets > 0.0 && !damping)
     {
@@ -1706,6 +1744,19 @@ void StratPerformer::startVibrato() noexcept
 
 void StratPerformer::controlUpdate() noexcept
 {
+    if (wheel != wheelTarget)
+    {
+        wheel += 0.35 * (wheelTarget - wheel);
+        if (std::abs(wheelTarget - wheel) < 1e-4)
+            wheel = wheelTarget;
+        applyPalm();
+    }
+    if (vibratoDepth != vibratoTarget)
+    {
+        vibratoDepth += 0.35 * (vibratoTarget - vibratoDepth);
+        if (std::abs(vibratoTarget - vibratoDepth) < 1e-4)
+            vibratoDepth = vibratoTarget;
+    }
     if (armLength > 0)
     {
         const double u = static_cast<double>(now - armStart) / static_cast<double>(armLength);
@@ -1753,7 +1804,14 @@ void StratPerformer::controlUpdate() noexcept
             else
                 st.fret = st.slideFrom + (st.slideTo - st.slideFrom) * u * u * (3.0 - 2.0 * u);
             if (stopped(st.fret) != before)
-                guitar->setFret(s, stopped(st.fret));
+            {
+                const double nextFret = stopped(st.fret);
+                if (nextFret > 0.0)
+                    guitar->press(s, nextFret, 0.12 * StratEngine::actionMetres(nextFret),
+                                  0.25 * pressSeconds, 0.5);
+                else
+                    guitar->setFret(s, nextFret);
+            }
             // The pressing finger rubs along the string as it goes.
             const double travel
                 = std::abs(guitar->fretMetres(s, st.slideTo) - guitar->fretMetres(s, st.slideFrom));

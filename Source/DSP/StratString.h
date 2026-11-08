@@ -307,6 +307,7 @@ private:
     double restPitch = 1.0;
     double samplesPerMetre = 0.0;
     double characteristicImpedance = 0.0;
+    float fretGrazeVelocity = 100.0f;
     int leftLength = 0;       // rail L, integer
     int leftTarget = 0;       // where a glide is taking it
     // The whole loop in samples less the fret-end filters' phase delay;

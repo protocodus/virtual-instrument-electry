@@ -322,6 +322,8 @@ void StratEngine::reset() noexcept
         strings[static_cast<size_t>(s)].reset();
         quietSamples[static_cast<size_t>(s)] = quietLimit[static_cast<size_t>(s)];
         swing[static_cast<size_t>(s)] = {};
+        swingTop[static_cast<size_t>(s)] = {};
+        bendSteps[static_cast<size_t>(s)] = {};
     }
     neck.reset();
     circuit.reset();
@@ -442,6 +444,21 @@ void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
 {
     tremolo.setBend(stringIndex, pitchRatio);
     bridgeMoved = true;
+    if (stringIndex >= 0 && stringIndex < stringCount)
+    {
+        // A finger bend pulls the string sideways across the fretboard and over
+        // the cylindrical pole pieces: a whole-tone bend (pitchRatio ~ 1.122)
+        // displaces the string laterally by ~1-1.5 mm over the coils.
+        const double r = pitchRatio > 1.0 ? pitchRatio : 1.0;
+        const double lateralMetres = 0.0022 * std::sqrt(std::min(r * r - 1.0, 1.0));
+        const double speaking = fretMetres(stringIndex, pending[static_cast<size_t>(stringIndex)].fret);
+        for (int c = 0; c < coilCount; ++c)
+        {
+            const double share = speaking > 0.0 ? std::min(coilMetres(c, stringIndex) / speaking, 1.0) : 0.0;
+            bendSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
+                = static_cast<float>(lateralMetres * share / fluxStepMetres);
+        }
+    }
 }
 
 void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge,
@@ -466,9 +483,14 @@ void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromB
     // coils, which read the string's distance from their poles, take it
     // here: the string under them already stands that far aside.
     const double held = strokeMetresPerSecond > 0.0 ? heldShare * forceNewtons : forceNewtons;
+    const double topSign = opposedPlanes ? -1.0 : 1.0;
     for (int c = 0; c < coilCount; ++c)
-        swing[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)] += static_cast<float>(
-            string.restingDeflection(held, coilMetres(c, stringIndex)) * stringRate);
+    {
+        const double rest = string.restingDeflection(held, coilMetres(c, stringIndex)) * stringRate;
+        swing[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)] += static_cast<float>(rest);
+        swingTop[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
+            += static_cast<float>(topSign * rest);
+    }
     quietSamples[static_cast<size_t>(stringIndex)] = 0;
 }
 
@@ -568,10 +590,22 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
             const float u = alongTop[static_cast<size_t>(c)];
             quiet = quiet && scalarAbs(v) < quietVelocity && scalarAbs(u) < quietVelocity;
             float& y = swing[k][static_cast<size_t>(c)];
+            float& x = swingTop[k][static_cast<size_t>(c)];
             y = y * swingLeak + v;
+            x = x * swingLeak + u;
+            // Cylindrical pole-piece field: acrossShare already calibrates the
+            // co-planar swing; as the two planes beat into an elliptical orbit
+            // (orbit != 0) or a finger bend pulls the string laterally off the
+            // pole axis (bend != 0), the radial offset lengthens the effective
+            // pole distance and modulates the horizontal sensitivity.
+            constexpr float invPoleSteps = 1.0f / 80.0f;
+            const float dy = swingSteps * y;
+            const float topSign = strings[k].planesOpposed() ? -1.0f : 1.0f;
+            const float orbit = swingSteps * (x - topSign * y);
+            const float bend = bendSteps[k][static_cast<size_t>(c)];
             // A string driven onto the poles reads as touching them,
             // and one far off as at the table's end.
-            float d = gapSteps[k] - swingSteps * y;
+            float d = gapSteps[k] - dy + 0.5f * (orbit * orbit + bend * bend) * invPoleSteps;
             d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
             const int i = static_cast<int>(d);
             const float t = d - static_cast<float>(i);
