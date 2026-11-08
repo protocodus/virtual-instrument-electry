@@ -646,8 +646,10 @@ void testTensionModulation()
     // the stretch is given back.
     const double rate = 48000.0, x = pickMetres, length = StratString::scaleMetres;
     const std::pair<int, double> strings[] = {{0, 0.0185}, {5, 0.010}};
-    for (const auto& [s, inches] : strings)
+    for (const auto& pair : strings)
     {
+        const int s = pair.first;
+        const double inches = pair.second;
         const auto& spec = StratString::construction(s);
         const double tension = spec.kilogramsPerMetre * std::pow(2.0 * length * spec.openHz, 2.0);
         const double diameter = inches * 0.0254;

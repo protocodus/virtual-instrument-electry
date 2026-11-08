@@ -589,7 +589,10 @@ double StratPerformer::releaseSeconds(int s, double force) const noexcept
     const double ratio = thickness / mediumThickness;
     const double stiffness = mediumStiffness * ratio * ratio * ratio;
     const double tip = 0.5 * pi * std::sqrt(mediumTipKilograms * ratio / stiffness);
-    return impedance(s) * gripDepth / force + tip;
+    // A thinner, more flexible pick yields deeper along the string before
+    // slipping off; at the medium reference gauge (pick = 0.5, ratio = 1)
+    // this equals the calibrated gripDepth.
+    return impedance(s) * (gripDepth / ratio) / force + tip;
 }
 
 // The mod wheel lowers the palm onto the strings across all play modes: off at
@@ -1074,14 +1077,28 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     st.bendSemitones = 0.0; // the finger lets the bend down as it moves on
     if (latched == Articulation::legato)
     {
-        guitar->setFret(s, fret);
+        if (fret > from)
+            guitar->press(s, fret, StratEngine::actionMetres(fret), 0.5 * pressSeconds,
+                          handScale(landingScatter));
+        else
+            guitar->setFret(s, fret);
         if (fret > 0)
             startVibrato();
-        // A hammer-on strikes at the new fret, a pull-off flicks at the old;
-        // the finger then on the string lands where it lands.
+        // A hammer-on strikes just inside the speaking length at the new fret
+        // crown; a pull-off flicks at the old fret crown inside the new
+        // speaking length.
         const double place = nextPlace();
-        const double at = fret > from ? fingerMetres(*guitar, s, fret, place)
-                                      : fingerMetres(*guitar, s, from, st.place);
+        double at = 0.0;
+        if (fret > from)
+        {
+            const double crown = guitar->fretMetres(s, fret);
+            const double span = guitar->fretMetres(s, std::max(0, fret - 1)) - crown;
+            at = crown - 0.25 * place * span;
+        }
+        else
+        {
+            at = guitar->fretMetres(s, std::max(from, 1.0));
+        }
         const double force = legatoShare * velocityForce(p.velocity);
         guitar->pluck(s, nextStrokeUp ? -force : force, at, fingerReleaseSeconds);
         st.place = place;

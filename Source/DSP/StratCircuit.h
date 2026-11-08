@@ -115,6 +115,16 @@ private:
     std::array<double, stateCount * inputCount> currentInput {};
     std::array<double, stateCount> state {};
     std::array<double, inputCount> lastInput {};
+    // Connected-subspace bookkeeping for fast exact state updates: only coils
+    // and tone capacitors joined to node X by the 5-way switch couple to the
+    // output; disconnected coils evolve as isolated 2-state tanks and
+    // disconnected tone capacitors hold their charge.
+    std::array<int, stateCount> activeRows {};
+    int activeCount = 0;
+    std::array<int, inputCount> activeCoils {};
+    int activeCoilCount = 0;
+    std::array<bool, inputCount> connectedCoil {};
+    std::array<bool, 2> connectedTone {};
 };
 
 } // namespace electry

@@ -77,6 +77,12 @@ constexpr double roughHz = 2000.0;
 // quarter-cosine stroke would: fitted in StratPerformer so the ticks sit at
 // the recordings' level.
 constexpr double landingShare = 0.55;
+// When a pick slips off a wound string, its bevelled edge (~0.55 mm) skims
+// across two to four wrap ridges (0.15-0.35 mm pitch) during the release,
+// adding a zero-mean wrap-ridge ripple to the release slope that restores the
+// 2.5 to 5 kHz plectrum edge on wound strings (StratPerformer.cpp).
+constexpr double pickBevelMetres = 0.00055;
+constexpr double pickWrapDepth = 0.028;
 
 double clamp(double value, double low, double high) noexcept
 {
@@ -298,6 +304,7 @@ void StratString::reset() noexcept
         plane->allpassState.fill(0.0f);
         plane->historySum = 0.0;
         plane->dcMean = 0.0f;
+        plane->loopTapPosition = -1.0;
     }
     ownNeck.reset();
     skipped = -1;
@@ -305,6 +312,7 @@ void StratString::reset() noexcept
     force = forceStart = forceEnd = 0.0;
     releaseLength = releasePosition = 0;
     stickRemaining = 0;
+    stickRelease = 0.0;
     forceHeld = blockedForce = 0.0;
     injected.fill(0.0f);
     stretch = stretchStep = 0.0;
@@ -762,7 +770,15 @@ void StratString::measureStretch() noexcept
         * std::max(0.0, historySquares - poles.historySum * poles.historySum / period);
     // A semitone at most, far past any pick: the loop must stay inside its rails.
     const double target = std::min(stretchSamplesPerJoule * energy, 0.06 * sampleRate / fundamental);
-    stretchStep = (target - stretch) / controlPeriod;
+    if (std::abs(target - stretch) < 1e-12)
+    {
+        stretch = target;
+        stretchStep = 0.0;
+    }
+    else
+    {
+        stretchStep = (target - stretch) / controlPeriod;
+    }
 }
 
 void StratString::clearLeft(int fromPosition, int toPosition) noexcept
@@ -823,6 +839,7 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
     // Held at the force from the start: relative to that deflected rest the
     // release is a step of -F, which a point on a string meets with
     // impedance 2Z, sending -F / 2Z both ways.
+    stickRelease = 0.0;
     startRelease(force, force - forceNewtons, releaseSeconds);
 }
 
@@ -940,8 +957,14 @@ float StratString::rubbing() noexcept
 
 float StratString::readRight(const Plane& plane, const Tap& tap) const noexcept
 {
-    const int index = write - tap.base;
-    return tap.weight[0] * plane.right[static_cast<size_t>(index & railMask)]
+    const int index = (write - tap.base) & railMask;
+    if (index >= 3)
+    {
+        const float* r = plane.right.data() + index;
+        return tap.weight[0] * r[0] + tap.weight[1] * r[-1]
+             + tap.weight[2] * r[-2] + tap.weight[3] * r[-3];
+    }
+    return tap.weight[0] * plane.right[static_cast<size_t>(index)]
          + tap.weight[1] * plane.right[static_cast<size_t>((index - 1) & railMask)]
          + tap.weight[2] * plane.right[static_cast<size_t>((index - 2) & railMask)]
          + tap.weight[3] * plane.right[static_cast<size_t>((index - 3) & railMask)];
@@ -949,7 +972,14 @@ float StratString::readRight(const Plane& plane, const Tap& tap) const noexcept
 
 float StratString::readRight(const Plane& plane, const LoopTap& tap) const noexcept
 {
-    const int index = write - tap.base;
+    const int index = (write - tap.base) & railMask;
+    if (index >= 7)
+    {
+        const float* r = plane.right.data() + index;
+        const float* w = tap.weight;
+        return ((((((w[0] * r[0] + w[1] * r[-1]) + w[2] * r[-2]) + w[3] * r[-3])
+                  + w[4] * r[-4]) + w[5] * r[-5]) + w[6] * r[-6]) + w[7] * r[-7];
+    }
     float sum = 0.0f;
     for (int k = 0; k < 8; ++k)
         sum += tap.weight[k] * plane.right[static_cast<size_t>((index - k) & railMask)];
@@ -958,8 +988,14 @@ float StratString::readRight(const Plane& plane, const LoopTap& tap) const noexc
 
 float StratString::readLeft(const Plane& plane, const Tap& tap) const noexcept
 {
-    const int index = write + leftOffset + tap.base;
-    return tap.weight[0] * plane.left[static_cast<size_t>(index & railMask)]
+    const int index = (write + leftOffset + tap.base) & railMask;
+    if (index <= railMask - 3)
+    {
+        const float* l = plane.left.data() + index;
+        return tap.weight[0] * l[0] + tap.weight[1] * l[1]
+             + tap.weight[2] * l[2] + tap.weight[3] * l[3];
+    }
+    return tap.weight[0] * plane.left[static_cast<size_t>(index)]
          + tap.weight[1] * plane.left[static_cast<size_t>((index + 1) & railMask)]
          + tap.weight[2] * plane.left[static_cast<size_t>((index + 2) & railMask)]
          + tap.weight[3] * plane.left[static_cast<size_t>((index + 3) & railMask)];
@@ -1051,6 +1087,21 @@ void StratString::damp(Plane& plane) noexcept
             l0 -= near * v;
             r1 -= d.next * v;
             l1 -= d.next * v;
+            continue;
+        }
+        const int rStart = (write - d.position) & railMask;
+        const int lStart = (write + leftOffset + d.position) & railMask;
+        if (rStart >= d.count - 1 && lStart + d.count <= railSize)
+        {
+            float* rPtr = plane.right.data() + rStart;
+            float* lPtr = plane.left.data() + lStart;
+            const float a = d.absorption;
+            for (int i = 0; i < d.count; ++i)
+            {
+                const float v = a * (rPtr[-i] + lPtr[i]);
+                rPtr[-i] -= v;
+                lPtr[i] -= v;
+            }
             continue;
         }
         for (int k = d.position; k < d.position + d.count; ++k)
@@ -1238,7 +1289,13 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         // electric library hold 71 to 79.
         ++releasePosition;
         const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);
-        force = forceStart + (forceEnd - forceStart) * (1.0 - std::cos(0.5 * pi * u));
+        double shape = 1.0 - std::cos(0.5 * pi * u);
+        if (stickRelease > 0.0 && spec->wrapMetres > 0.0)
+        {
+            const double wraps = pickBevelMetres / spec->wrapMetres;
+            shape += pickWrapDepth * std::sin(pi * u) * std::sin(2.0 * pi * wraps * u * u);
+        }
+        force = forceStart + (forceEnd - forceStart) * shape;
     }
     // One-pole DC blocker on the force.
     blockedForce = force - forceHeld + blockCoefficient * blockedForce;
@@ -1263,8 +1320,11 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
             inject(poles, fingerTap, u);
     }
 
-    damp(poles);
-    damp(top);
+    if (dampers[0].absorption != 0.0f || dampers[1].absorption != 0.0f)
+    {
+        damp(poles);
+        damp(top);
+    }
 
     for (int k = 0; k < tapCount; ++k)
     {

@@ -1305,6 +1305,32 @@ void testLookaheadAndEventInvariants()
               "the clean DI compressor narrows the chord-to-single-note dynamic spread");
         check(hot[2] < 9.51, "the high-headroom ceiling keeps +12 dB 6-string strums below 0 dBFS");
     }
+
+    // 7. Pick gauge (StratControls::pick) shapes plectrum stiffness and
+    // grip-slide release across wound and plain strings: a heavy pick (1.0)
+    // produces a brighter 2-5 kHz attack on the wound low E than a thin pick (0.0).
+    {
+        const auto attackTop = [](double pickGauge) {
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.pick = pickGauge;
+            p->setControls(controls);
+            p->noteOn(0, 40, 100); // Open low E (.046w)
+            const auto y = render(*p, 0.05);
+            const double f0 = StratString::construction(0).openHz;
+            double high = 0.0;
+            for (int n = 28; n <= 45; ++n)
+                high += std::pow(10.0, 0.1 * level(y, 0.002, 0.025, n * f0));
+            return 10.0 * std::log10(high) - level(y, 0.002, 0.025, 2.0 * f0);
+        };
+        const double thin = attackTop(0.0);
+        const double medium = attackTop(0.5);
+        const double heavy = attackTop(1.0);
+        std::printf("pick gauge on open E2 (2.3-3.7 kHz vs 2nd partial): thin %.1f, medium %.1f, heavy %.1f dB\n",
+                    thin, medium, heavy);
+        check(heavy > medium + 1.0 && medium > thin + 1.0,
+              "a heavier pick gauge brightens the wound-string attack transient");
+    }
 }
 
 int main()

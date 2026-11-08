@@ -88,10 +88,10 @@ int main(int argc, char** argv)
     if (pick > 0.0)
         controls.pickMetres = pick;
     controls.lookahead = lookahead;
-    controls.hum = hum;
-    if (palm >= 0.0)
-        controls.palmMute = palm;
+    (void)hum;
     performer.setControls(controls);
+    if (palm >= 0.0)
+        performer.modWheel(palm);
 
     const double end = (midi.empty() ? 0.0 : midi.back().seconds) + tail;
     const auto total = static_cast<std::int64_t>(end * rate) + performer.latencySamples();

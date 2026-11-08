@@ -212,6 +212,26 @@ void StratCircuit::updateCoefficients() noexcept
     // squarings lose six digits (1e-6 against 4e-11 relative, checked
     // against SciPy's expm).
     const Wiring wiring = wiringFor(current.position);
+    activeCount = 0;
+    activeCoilCount = 0;
+    for (int k = 0; k < 3; ++k)
+    {
+        connectedCoil[static_cast<size_t>(k)] = wiring.coil[k];
+        if (wiring.coil[k])
+        {
+            activeCoils[static_cast<size_t>(activeCoilCount++)] = k;
+            activeRows[static_cast<size_t>(activeCount++)] = k;
+            activeRows[static_cast<size_t>(activeCount++)] = 3 + k;
+        }
+    }
+    for (int t = 0; t < 2; ++t)
+    {
+        connectedTone[static_cast<size_t>(t)] = wiring.tone[t];
+        if (wiring.tone[t])
+            activeRows[static_cast<size_t>(activeCount++)] = 6 + t;
+    }
+    activeRows[static_cast<size_t>(activeCount++)] = 8;
+
     const double volume = audioTaper(current.volume);
 
     double coilConductance[3];
@@ -294,18 +314,62 @@ double StratCircuit::process(double neck, double middle,
 {
     const double input[inputCount] = {neck, middle, bridge};
     std::array<double, stateCount> next {};
-    for (int row = 0; row < stateCount; ++row)
+
+    // Connected subspace (selected coils, active tone caps, and jack node 8).
+    for (int i = 0; i < activeCount; ++i)
     {
+        const int row = activeRows[static_cast<size_t>(i)];
+        const double* phiRow = &phi[static_cast<size_t>(row * stateCount)];
         double sum = 0.0;
-        for (int column = 0; column < stateCount; ++column)
-            sum += phi[row * stateCount + column] * state[column];
-        for (int k = 0; k < inputCount; ++k)
-            sum += previousInput[row * inputCount + k] * lastInput[k]
-                + currentInput[row * inputCount + k] * input[k];
+        for (int j = 0; j < activeCount; ++j)
+        {
+            const int column = activeRows[static_cast<size_t>(j)];
+            sum += phiRow[column] * state[static_cast<size_t>(column)];
+        }
+        const int inBase = row * inputCount;
+        for (int c = 0; c < activeCoilCount; ++c)
+        {
+            const int k = activeCoils[static_cast<size_t>(c)];
+            sum += previousInput[static_cast<size_t>(inBase + k)] * lastInput[static_cast<size_t>(k)]
+                + currentInput[static_cast<size_t>(inBase + k)] * input[k];
+        }
         // Silence decays toward subnormal values, which are slow on most
         // processors; nothing audible lives below 1e-30 V.
-        next[row] = scalarAbs(sum) < 1e-30 ? 0.0 : sum;
+        next[static_cast<size_t>(row)] = scalarAbs(sum) < 1e-30 ? 0.0 : sum;
     }
+
+    // Disconnected coils still track their own 2-state tank so switching to
+    // them mid-note needs no state mapping.
+    for (int k = 0; k < inputCount; ++k)
+    {
+        if (connectedCoil[static_cast<size_t>(k)])
+            continue;
+        const double s0 = state[static_cast<size_t>(k)];
+        const double s1 = state[static_cast<size_t>(3 + k)];
+        const double u0 = lastInput[static_cast<size_t>(k)];
+        const double u1 = input[k];
+        if (s0 != 0.0 || s1 != 0.0 || u0 != 0.0 || u1 != 0.0)
+        {
+            const int r0 = k;
+            const int r1 = 3 + k;
+            const double sum0 = phi[static_cast<size_t>(r0 * stateCount + r0)] * s0
+                + phi[static_cast<size_t>(r0 * stateCount + r1)] * s1
+                + previousInput[static_cast<size_t>(r0 * inputCount + k)] * u0
+                + currentInput[static_cast<size_t>(r0 * inputCount + k)] * u1;
+            const double sum1 = phi[static_cast<size_t>(r1 * stateCount + r0)] * s0
+                + phi[static_cast<size_t>(r1 * stateCount + r1)] * s1
+                + previousInput[static_cast<size_t>(r1 * inputCount + k)] * u0
+                + currentInput[static_cast<size_t>(r1 * inputCount + k)] * u1;
+            next[static_cast<size_t>(r0)] = scalarAbs(sum0) < 1e-30 ? 0.0 : sum0;
+            next[static_cast<size_t>(r1)] = scalarAbs(sum1) < 1e-30 ? 0.0 : sum1;
+        }
+    }
+
+    // Disconnected tone capacitors have zero conductance to node X (phi = 1).
+    for (int t = 0; t < 2; ++t)
+        if (!connectedTone[static_cast<size_t>(t)])
+            next[static_cast<size_t>(6 + t)] = state[static_cast<size_t>(6 + t)];
+
     state = next;
     for (int k = 0; k < inputCount; ++k)
         lastInput[k] = input[k];
