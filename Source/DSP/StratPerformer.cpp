@@ -212,6 +212,10 @@ constexpr double liftSeconds = 0.015;
 // not measured; drawing within the fit is voiced.
 constexpr double shortestLiftSeconds = 0.010, longestLiftSeconds = 0.030;
 constexpr double softestLift = 1.0, firmestLift = 4.0;
+// As a finger releases a note it unsticks and brushes off the string over the
+// lift (scaled by StratControls::releaseNoise, 0 silent to 1 full).
+constexpr double releaseBrushMetres = 0.0025;
+constexpr double releaseBrushNewtons = 0.16;
 
 // A harmonic touch has to absorb, not reflect: a rigid point at the node
 // splits the string into two halves whose motion turns back into the
@@ -544,14 +548,11 @@ void StratPerformer::setControls(const StratControls& controls) noexcept
     current = controls;
     current.pickMetres = clamp(controls.pickMetres, 0.025, 0.250);
     current.pick = clamp(controls.pick, 0.0, 1.0);
-    current.palmMute = clamp(controls.palmMute, 0.0, 1.0);
     current.strumSeconds = clamp(controls.strumSeconds, 0.0, 0.040);
+    current.releaseNoise = clamp(controls.releaseNoise, 0.0, 1.0);
     current.compressor = clamp(controls.compressor, 0.0, 1.0);
     current.outputDecibels = clamp(controls.outputDecibels, -24.0, 12.0);
-    current.hum = clamp(controls.hum, 0.0, 1.0);
-    current.mainsHz = controls.mainsHz < 55.0 ? 50.0 : 60.0;
     guitar->setControls(current.circuit);
-    guitar->setHum(current.hum, current.mainsHz);
     compressorTarget = current.compressor;
     if (now == 0)
         compressorMix = compressorTarget;
@@ -591,20 +592,25 @@ double StratPerformer::releaseSeconds(int s, double force) const noexcept
     return impedance(s) * gripDepth / force + tip;
 }
 
-// The mod wheel lowers the palm onto the strings: its resistance grows as the
-// wheel's square, to Palm mute's at the top, so the lower half of the wheel
-// is the palm's lightest touches and the upper half rests it to the Palm
-// control's press. The square is a playing law, not a measurement.
+// The mod wheel lowers the palm onto the strings across all play modes: off at
+// 0, touching with the measured lightest palm rest at 0.1, and pressing harder
+// up to the heaviest measured palm mute at 1.0.
 void StratPerformer::applyPalm() noexcept
 {
-    const double share = latched == Articulation::palmMute ? 1.0 : wheel * wheel;
-    const double pressure = clamp(current.palmMute + palmOffset, 0.0, 1.0);
+    if (wheel <= 0.0)
+    {
+        for (int s = 0; s < StratEngine::stringCount; ++s)
+            guitar->setDamper(s, 0, palmMetres, 0.0, palmWidth);
+        return;
+    }
+    const double engage = std::min(wheel / 0.1, 1.0);
+    const double pressure = clamp((wheel - 0.1) / 0.9 + palmOffset, 0.0, 1.0);
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         const double rest = palmRestPerSecond * StratString::construction(s).kilogramsPerMetre;
         const double resistance
             = rest * std::pow(palmPressedResistance / rest, pressure);
-        guitar->setDamper(s, 0, palmMetres, share * resistance, palmWidth);
+        guitar->setDamper(s, 0, palmMetres, engage * resistance, palmWidth);
     }
 }
 
@@ -756,12 +762,13 @@ void StratPerformer::release(int s) noexcept
     cancelEvents(s, EventKind::leaveString);
     // The fretting finger lets go of the fret but stays on the string.
     const double rest = st.fret, place = st.place;
-    guitar->setDamper(s, 1, fingerMetres(*guitar, s, rest, place), fingerResistance, fingerWidth);
+    const double at = fingerMetres(*guitar, s, rest, place);
+    guitar->setDamper(s, 1, at, fingerResistance, fingerWidth);
+    const double lift = steadyStroke
+        ? liftSeconds
+        : logBetween(shortestLiftSeconds, longestLiftSeconds, uniformDraw(fretHand));
     if (st.fret > 0.0)
     {
-        const double lift = steadyStroke
-            ? liftSeconds
-            : logBetween(shortestLiftSeconds, longestLiftSeconds, uniformDraw(fretHand));
         const double flesh = steadyStroke
             ? fingerResistance
             : logBetween(softestLift, firmestLift, uniformDraw(fretHand));
@@ -772,6 +779,12 @@ void StratPerformer::release(int s) noexcept
         leave.string = s;
         schedule(leave);
     }
+    const double noise = current.releaseNoise > 0.0 && !damping
+        ? releaseBrushNewtons * (2.0 * current.releaseNoise) * handScale(rubScatter)
+        : 0.0;
+    const auto brushLength = static_cast<std::int64_t>(lift * sampleRate);
+    if (noise > 0.0 && brushLength > 0)
+        guitar->rub(s, at, releaseBrushMetres / lift, noise);
     // The finger lets the string go still bent, as a player mutes a bend or
     // a vibrato where it is: dropping it here retuned the ringing string by
     // up to a whole tone in one step, a click and a downward swoop at every
@@ -788,6 +801,14 @@ void StratPerformer::release(int s) noexcept
     st.place = place;
     st.prepared = prepared;
     st.preparedDue = preparedDue;
+    if (noise > 0.0 && brushLength > 0)
+    {
+        st.releasing = true;
+        st.releaseAt = at;
+        st.releaseStart = now;
+        st.releaseLength = brushLength;
+        st.rubNewtons = noise;
+    }
     // The hand that lets a note go lies across the free strings with it
     // until it next picks. On IDMT-SMT-Guitar's Stratocaster fret runs
     // (dataset 2: frets 0 to 20 on every string, 126 releases with the other
@@ -840,6 +861,8 @@ void StratPerformer::dampStrings(bool down) noexcept
         cancelEvents(s, EventKind::leaveString);
         cancelEvents(s, EventKind::shift);
         cancelEvents(s, EventKind::press);
+        if (st.releasing)
+            guitar->rub(s, st.releaseAt, 0.0, 0.0);
         guitar->setDamper(s, 1, fingerMetres(*guitar, s, hand), fingerResistance, fingerWidth);
         if (st.fret > 0.0)
             guitar->setFret(s, 0.0);
@@ -1042,6 +1065,11 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     cancelEvents(s, EventKind::leaveString);
     cancelEvents(s, EventKind::shift);
     cancelEvents(s, EventKind::press);
+    if (st.releasing)
+    {
+        guitar->rub(s, st.releaseAt, 0.0, 0.0);
+        st.releasing = false;
+    }
     guitar->setDamper(s, 1, 0.0, 0.0);
     st.bendSemitones = 0.0; // the finger lets the bend down as it moves on
     if (latched == Articulation::legato)
@@ -1252,7 +1280,7 @@ void StratPerformer::startStroke() noexcept
         < static_cast<std::int64_t>(alternateWithinSeconds * sampleRate);
     steadyStroke = lastStroke < 0;
     strokePick = pickScatterMetres * nextScatter();
-    const bool palmDown = latched == Articulation::palmMute || wheel > 0.0;
+    const bool palmDown = wheel > 0.0;
     palmOffset = palmDown && !steadyStroke ? palmScatter * normalDraw(press) : 0.0;
     if (palmDown)
         applyPalm();
@@ -1436,7 +1464,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
             }
         }
     }
-    const bool fretting = style == Articulation::sustain || style == Articulation::palmMute
+    const bool fretting = style == Articulation::sustain
         || style == Articulation::pinch || style == Articulation::vibrato;
     if (count == 0 || !fretting || damped)
         return;
@@ -1529,6 +1557,11 @@ void StratPerformer::runEvent(const Event& e) noexcept
             return;
         if (e.kind == EventKind::shift)
         {
+            if (st.releasing)
+            {
+                guitar->rub(s, st.releaseAt, 0.0, 0.0);
+                st.releasing = false;
+            }
             st.shifting = true;
             st.rubNewtons = shiftNewtons * handScale(rubScatter);
             st.shiftFrom = e.from;
@@ -1540,6 +1573,9 @@ void StratPerformer::runEvent(const Event& e) noexcept
         {
             cancelEvents(s, EventKind::leaveString);
             cancelEvents(s, EventKind::liftTouch);
+            if (st.releasing)
+                guitar->rub(s, st.releaseAt, 0.0, 0.0);
+            st.releasing = false;
             if (st.shifting)
                 guitar->rub(s, st.shiftTo, 0.0, 0.0);
             st.shifting = false;
@@ -1557,6 +1593,11 @@ void StratPerformer::runEvent(const Event& e) noexcept
     cancelEvents(s, EventKind::leaveString);
     cancelEvents(s, EventKind::shift);
     cancelEvents(s, EventKind::press);
+    if (st.releasing)
+    {
+        guitar->rub(s, st.releaseAt, 0.0, 0.0);
+        st.releasing = false;
+    }
     if (damping || e.pinch || e.touchWidth > 0.0 || e.touchResistance == 0.0)
         cancelEvents(s, EventKind::liftTouch);
     double pickAt = clamp(current.pickMetres + pickLine[s] + e.pickOffset, 0.025, 0.250);
@@ -1719,6 +1760,23 @@ void StratPerformer::controlUpdate() noexcept
                 const double travel = st.shiftTo - st.shiftFrom;
                 guitar->rub(s, st.shiftFrom + travel * reach(u),
                             std::abs(travel) * sampleRate / st.shiftLength * reachSpeed(u),
+                            st.rubNewtons);
+            }
+        }
+        if (st.releasing)
+        {
+            const double u = st.releaseLength > 0
+                ? static_cast<double>(now - st.releaseStart) / static_cast<double>(st.releaseLength)
+                : 1.0;
+            if (u >= 1.0)
+            {
+                guitar->rub(s, st.releaseAt, 0.0, 0.0);
+                st.releasing = false;
+            }
+            else
+            {
+                guitar->rub(s, st.releaseAt,
+                            releaseBrushMetres * sampleRate / st.releaseLength * 6.0 * u * (1.0 - u),
                             st.rubNewtons);
             }
         }

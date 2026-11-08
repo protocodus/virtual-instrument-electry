@@ -271,7 +271,6 @@ void StratEngine::prepare(double sampleRate) noexcept
     oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
     // The strings, the coils over them and the circuit run at this rate.
     stringRate = sampleRate * oversampling;
-    setHum(humAmount, humMainsHz);
     for (int s = 0; s < stringCount; ++s)
     {
         StratString& string = strings[static_cast<size_t>(s)];
@@ -318,8 +317,6 @@ void StratEngine::prepare(double sampleRate) noexcept
 
 void StratEngine::reset() noexcept
 {
-    humCos = 1.0;
-    humSin = 0.0;
     for (int s = 0; s < stringCount; ++s)
     {
         strings[static_cast<size_t>(s)].reset();
@@ -586,57 +583,6 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
     }
 }
 
-// Mains hum. A single coil hears the room's alternating field as it hears
-// the strings; the Strat's three are alike and wound the same way, so none of
-// the five positions cancels it. Between the notes of IDMT-SMT-Guitar's
-// Strat fret runs (dataset 2, recorded in Germany) it stands at 50 Hz and its
-// odd harmonics, 68.7 dB under the loudest note at 50 Hz, then +1.3, -2.7,
-// -7.0, -7.2 and -14.3 dB from that at 150 to 550 Hz, the even ones 20 dB
-// and more under their neighbours. The coils' EMF carries it, the same in
-// each, so the selector, Volume and Tones act on it as on the strings.
-// humEmfVolts at amount 1 puts it there against this model's loudest note
-// of the same fret run, played at velocity 90 on the A string.
-namespace
-{
-constexpr double humEmfVolts = 0.955e-3;
-constexpr double humShape[6] = {0.0, 1.3, -2.7, -7.0, -7.2, -14.3};
-} // namespace
-
-void StratEngine::setHum(double amount, double mainsHz) noexcept
-{
-    amount = amount < 0.0 ? 0.0 : (amount > 1.0 ? 1.0 : amount);
-    humAmount = amount;
-    humMainsHz = mainsHz;
-    humming = amount > 0.0;
-    for (int k = 0; k < humHarmonics; ++k)
-        humVolts[static_cast<size_t>(k)]
-            = static_cast<float>(amount * humEmfVolts * std::pow(10.0, humShape[k] / 20.0));
-    const double w = 2.0 * pi * mainsHz / stringRate;
-    humStepCos = std::cos(w);
-    humStepSin = std::sin(w);
-}
-
-float StratEngine::hum() noexcept
-{
-    const double c = humCos * humStepCos - humSin * humStepSin;
-    const double s = humSin * humStepCos + humCos * humStepSin;
-    // Hold the rotor on the unit circle.
-    const double r = 1.5 - 0.5 * (c * c + s * s);
-    humCos = c * r;
-    humSin = s * r;
-    // sin(k w) for k = 1, 3, 5, ...: sin((k + 2) w) = 2 cos(2 w) sin(k w) - sin((k - 2) w).
-    const double twice = 2.0 * (2.0 * humCos * humCos - 1.0);
-    double before = -humSin, now = humSin, sum = 0.0;
-    for (int k = 0; k < humHarmonics; ++k)
-    {
-        sum += humVolts[static_cast<size_t>(k)] * now;
-        const double next = twice * now - before;
-        before = now;
-        now = next;
-    }
-    return static_cast<float>(sum);
-}
-
 void StratEngine::process(float* jackVolts, int samples) noexcept
 {
     constexpr int mask = halfbandHistory - 1;
@@ -651,13 +597,6 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
         {
             float emf[coilCount] {0.0f, 0.0f, 0.0f};
             stepStrings(emf);
-            if (humming)
-            {
-                const float h = hum();
-                emf[0] += h;
-                emf[1] -= 0.90f * h;
-                emf[2] += h;
-            }
             jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
             continue;
         }
@@ -665,13 +604,6 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
         {
             float emf[coilCount] {0.0f, 0.0f, 0.0f};
             stepStrings(emf);
-            if (humming)
-            {
-                const float h = hum();
-                emf[0] += h;
-                emf[1] -= 0.90f * h;
-                emf[2] += h;
-            }
             jackWrite = (jackWrite + 1) & mask;
             jackHistory[static_cast<size_t>(jackWrite)]
                 = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));

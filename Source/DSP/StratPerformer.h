@@ -15,12 +15,10 @@ struct StratControls
     StratCircuit::Controls circuit {};
     double pickMetres = 0.109;    // pick position from the bridge, mean over the strings, 0.025 to 0.250
     double pick = 0.5;            // plectrum, 0 thin to 1 heavy
-    double palmMute = 0.5;        // palm pressure while Palm mute is on, 0 to 1
     double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040
+    double releaseNoise = 0.5;    // finger-lift release noise, 0 silent to 1 full
     double compressor = 0.0;      // clean DI studio compressor after the circuit, 0 off to 1 full
     double outputDecibels = 0.0;  // -24 to +12
-    double hum = 0.0;             // mains hum in the coils, 0 none to 1 as recorded
-    double mainsHz = 50.0;        // 50 or 60
     // Play everything lookaheadSeconds late, so the fretting hand can reach
     // each note before it is picked: it lands on the fret, sliding along
     // the string from the last one when it was there (StratPerformer).
@@ -29,32 +27,31 @@ struct StratControls
     bool operator==(const StratControls& o) const noexcept
     {
         return circuit == o.circuit && pickMetres == o.pickMetres && pick == o.pick
-            && palmMute == o.palmMute && strumSeconds == o.strumSeconds
+            && strumSeconds == o.strumSeconds && releaseNoise == o.releaseNoise
             && compressor == o.compressor && outputDecibels == o.outputDecibels
-            && hum == o.hum && mainsHz == o.mainsHz && lookahead == o.lookahead;
+            && lookahead == o.lookahead;
     }
 };
 
 // MIDI to a guitarist's hands. Notes 40 to 85 sound at concert pitch on the
 // six strings and 21 frets. Keyswitches below them:
-//   C1 to F#1 (24 to 30) latch Sustain (ordinary notes), Palm mute, Mute (a
-//     dead note), Hammer-on (and pull-off), Slide, Harmonic and Pinch
-//     harmonic;
+//   C1 to F#1 (24 to 30) latch Sustain (ordinary notes), Mute (a dead note),
+//     Hammer-on (and pull-off), Slide, Harmonic, Pinch harmonic and Bend
+//     (struck a whole tone low and bent up to the note);
 //   G1, G#1 and A1 (31 to 33) latch Downstrokes, Upstrokes and Alternate
 //     strokes (down from rest, alternating while the hand keeps moving);
 //   A#1 (34), held, lays the fretting hand across all six strings: it stops
 //     what rings, and strokes under it are muted;
 //   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back;
-//   C2 to D#2 (36 to 39) latch Bend (struck a whole tone low and bent up to
-//     the note), Slide in (slid up into the note from below), Vibrato (a
-//     fretted note the hand rocks as channel pressure's median player does)
-//     and Half bend (struck a semitone low), articulations like C1 to F#1,
-//     which they take over and give back.
+//   C2 to D2 (36 to 38) latch Slide in (slid up into the note from below),
+//     Vibrato (a fretted note the hand rocks as channel pressure's median
+//     player does) and Half bend (struck a semitone low), articulations like
+//     C1 to F#1, which they take over and give back.
 // Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
-// the picking hand's palm on the strings, from off to Palm mute's press at the
-// top; channel pressure adds fretting-hand vibrato; the sustain pedal lets
-// released notes ring.
+// the picking hand's palm on the strings across all play modes, from off to
+// a full palm mute at the top; channel pressure adds fretting-hand vibrato;
+// the sustain pedal lets released notes ring.
 //
 // Events take effect where they are called: render up to an event's sample,
 // then send it; with the lookahead on, latencySamples() later. prepare()
@@ -70,7 +67,6 @@ public:
     enum class Articulation : std::uint8_t
     {
         sustain,
-        palmMute,
         deadNote,
         legato,
         slide,
@@ -83,9 +79,9 @@ public:
     };
     static constexpr int firstArticulationKey = 24;
     static constexpr int articulationCount = 7;
-    // Bend, Slide in, Vibrato and Half bend, on the keys above the finger key.
+    // Slide in, Vibrato and Half bend, on the keys above the finger key.
     static constexpr int firstGestureKey = 36;
-    static constexpr int gestureCount = 4;
+    static constexpr int gestureCount = 3;
 
     enum class Stroke : std::uint8_t
     {
@@ -160,6 +156,10 @@ private:
         bool shifting = false;
         double shiftFrom = 0.0, shiftTo = 0.0;
         std::int64_t shiftStart = 0, shiftLength = 0;
+        // The fingertip brushing off the string as it releases a note.
+        bool releasing = false;
+        double releaseAt = 0.0;
+        std::int64_t releaseStart = 0, releaseLength = 0;
         // The note the fretting hand has gone ahead to, -1 none.
         int prepared = -1;
         std::int64_t preparedDue = 0;

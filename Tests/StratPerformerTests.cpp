@@ -440,7 +440,7 @@ void testLegatoAndSlide()
 {
     // Hammer-on: the next note sounds on the same string without a pick.
     auto p = makePerformer();
-    p->noteOn(0, 27, 1);
+    p->noteOn(0, 26, 1);
     p->noteOn(0, 69, 100);
     render(*p, 0.2);
     int s = -1;
@@ -456,7 +456,7 @@ void testLegatoAndSlide()
     // Slide: the finger travels, then rests on the target in tune.
     int middle = -1;
     auto q = makePerformer();
-    q->noteOn(0, 28, 1);
+    q->noteOn(0, 27, 1);
     q->noteOn(0, 62, 100);
     render(*q, 0.2);
     for (int k = 0; k < 6; ++k)
@@ -513,7 +513,7 @@ void testHarmonics()
     {
         const int note = t[0];
         auto p = makePerformer();
-        p->noteOn(0, 29, 1);
+        p->noteOn(0, 28, 1);
         p->noteOn(0, note, 110, t[1]);
         const auto y = render(*p, 1.0);
         int s = -1;
@@ -559,7 +559,7 @@ void testPinch()
         const auto pluck = [note](bool pinch) {
             auto p = makePerformer();
             if (pinch)
-                p->noteOn(0, StratPerformer::firstArticulationKey + 6, 1);
+                p->noteOn(0, StratPerformer::firstArticulationKey + 5, 1);
             p->noteOn(0, note, 110);
             const auto y = render(*p, 0.8);
             int s = 0;
@@ -593,7 +593,9 @@ void testPinch()
 
 void testPalm()
 {
-    // What the palm adds to a partial, dB/s between two windows, at a pressure.
+    // What the palm (controlled by the mod wheel across all play modes) adds
+    // to a partial, dB/s between two windows, at a pressure (0 = lightest rest
+    // at wheel 0.1, 1 = heaviest press at wheel 1.0).
     // Played softly: a hard note starts sharp and settles (StratString's
     // tension modulation), and its level at the partial's resting frequency
     // would read low early; at velocity 100 the open G's third partial then
@@ -604,11 +606,8 @@ void testPalm()
         for (int palm = 0; palm < 2; ++palm)
         {
             auto p = makePerformer();
-            electry::StratControls controls;
-            controls.palmMute = pressure;
-            p->setControls(controls);
             if (palm == 1)
-                p->noteOn(0, 25, 1);
+                p->modWheel(0.1 + 0.9 * pressure);
             p->noteOn(0, note, 20);
             const auto y = render(*p, to + window);
             int s = 0;
@@ -639,9 +638,7 @@ void testPalm()
                 middle, heavy);
     check(light < middle && middle < heavy, "a harder palm damps more");
     // Its heaviest mutes took the high E's fundamental at fret 5 down at 405
-    // and 490 dB/s more than an open-handed note. (This replaces a check that
-    // the default palm took 10 dB off the low E by 0.4 s, set for the voiced
-    // palm the fit found 3 to 12 times too heavy.)
+    // and 490 dB/s more than an open-handed note.
     const double pressed = addedDecay(69, 1, 1.0, 0.03, 0.08, 0.02);
     std::printf("full palm on the high E's fret 5: %.0f dB/s\n", pressed);
     check(pressed > 365.0 && pressed < 540.0, "a full palm damps as the recorded heaviest mutes");
@@ -649,26 +646,25 @@ void testPalm()
 
 void testWheelAndPressure()
 {
-    // The mod wheel lays the palm down: off at the bottom, Palm mute's at the
-    // top, a lighter touch between.
-    const auto take = [](int how, double wheel) {
+    // The mod wheel lays the palm down across all play modes: off at the
+    // bottom, a lighter touch in the middle, and full palm mute at the top.
+    const auto take = [](double wheel, bool harmonic = false) {
         auto p = makePerformer();
-        if (how == 1)
-            p->noteOn(0, 25, 1);
-        if (how == 2)
-            p->modWheel(wheel);
-        p->noteOn(0, 45, 90);
+        if (harmonic)
+            p->noteOn(0, 28, 1);
+        p->modWheel(wheel);
+        p->noteOn(0, harmonic ? 52 : 45, 90);
         return render(*p, 0.6);
     };
-    const auto open = take(0, 0.0), muted = take(1, 0.0), top = take(2, 1.0), bottom = take(2, 0.0),
-               half = take(2, 0.5);
-    check(top == muted, "the mod wheel at the top mutes as Palm mute does");
-    check(bottom == open, "the mod wheel at the bottom leaves the strings alone");
+    const auto open = take(0.0), half = take(0.4), top = take(1.0);
     const double late = energy(open, 0.4, 0.2), lateHalf = energy(half, 0.4, 0.2),
-                 lateMuted = energy(muted, 0.4, 0.2);
+                 lateMuted = energy(top, 0.4, 0.2);
     std::printf("open A, its last 0.2 s: half wheel %.1f dB, full wheel %.1f dB from open\n",
                 10.0 * std::log10(lateHalf / late), 10.0 * std::log10(lateMuted / late));
     check(lateMuted < lateHalf && lateHalf < late, "the palm mutes more as the wheel rises");
+    const auto harmOpen = take(0.0, true), harmMuted = take(0.8, true);
+    check(energy(harmMuted, 0.3, 0.2) < 0.1 * energy(harmOpen, 0.3, 0.2),
+          "the mod wheel palm-mutes across play modes including harmonics");
 
     // Channel pressure rocks fretted notes; an open string has no finger to rock it.
     const auto rocked = [](int note, double pressure) {
@@ -722,7 +718,7 @@ void testDeadNotes()
     for (int note = openNote[0] + 3; note <= openNote[5] + 14; note += 2)
     {
         auto p = makePerformer();
-        p->noteOn(0, 26, 1);
+        p->noteOn(0, 25, 1);
         p->noteOn(0, note, 100);
         const auto y = render(*p, 0.15);
         int s = 0;
@@ -852,9 +848,9 @@ std::vector<float> performance(int block, bool lookahead = false)
         {0, [](StratPerformer& q) { for (int n : {40, 47, 52, 56, 59, 64}) q.noteOn(0, n, 100); }},
         {9000, [](StratPerformer& q) { q.channelPressure(0.8); q.modWheel(0.3); q.pitchBend(0, -0.3); }},
         {14001, [](StratPerformer& q) { for (int n : {40, 47, 52, 56, 59, 64}) q.noteOff(0, n); }},
-        {14001, [](StratPerformer& q) { q.noteOn(0, 28, 1); q.noteOn(0, 62, 90); }},
+        {14001, [](StratPerformer& q) { q.noteOn(0, 27, 1); q.noteOn(0, 62, 90); }},
         {20000, [](StratPerformer& q) { q.noteOn(0, 66, 90); }},
-        {33333, [](StratPerformer& q) { q.noteOn(0, 29, 1); q.noteOn(0, 64, 120); }},
+        {33333, [](StratPerformer& q) { q.noteOn(0, 28, 1); q.noteOn(0, 64, 120); }},
         {45000, [](StratPerformer& q) { q.allNotesOff(); }},
     };
     size_t done = 0;
@@ -1049,39 +1045,38 @@ void testFrettingHandScatter()
     check(spread > 3.0 && spread < 9.0, "every landing ticks at its own level");
 }
 
-// The coils' hum: off, silence; on, the mains line and its odd harmonics,
-// at 50 or 60 Hz, and RWRP cancellation in the parallel positions (2 and 4).
-void testHum()
+// Release noise: the fingertip brushing off a string as a note is released,
+// scaled by StratControls::releaseNoise from 0 (silent) to 1 (full).
+void testReleaseNoise()
 {
-    const auto lines = [](double hum, double mains,
-                          electry::StratCircuit::Position pos = electry::StratCircuit::Position::neck) {
+    const auto releaseEnergy = [](double amount) {
         auto p = makePerformer();
         electry::StratControls controls;
-        controls.circuit.position = pos;
-        controls.hum = hum;
-        controls.mainsHz = mains;
+        controls.releaseNoise = amount;
         p->setControls(controls);
-        const auto y = render(*p, 0.5);
-        return std::array<double, 3> {level(y, 0.1, 0.4, mains), level(y, 0.1, 0.4, 2.0 * mains),
-                                      level(y, 0.1, 0.4, 3.0 * mains)};
+        // Play a high fretted note, let it decay under the palm until quiet,
+        // then release the key to isolate the finger-lift release brush.
+        p->modWheel(1.0);
+        p->noteOn(0, 76, 10);
+        render(*p, 1.0);
+        p->modWheel(0.0);
+        render(*p, 0.1);
+        p->noteOff(0, 76);
+        const auto y = render(*p, 0.05);
+        return 10.0 * std::log10(energy(y, 0.0, 0.03) + 1e-30);
     };
-    const auto off = lines(0.0, 50.0), fifty = lines(1.0, 50.0), sixty = lines(1.0, 60.0);
-    const auto inBetween = lines(1.0, 50.0, electry::StratCircuit::Position::middleNeck);
-    std::printf("hum: 50 Hz %.1f dB (pos 4: %.1f dB), 100 Hz %.1f, 150 Hz %.1f; at 60 Hz mains %.1f, %.1f, %.1f\n",
-                fifty[0], inBetween[0], fifty[1], fifty[2], sixty[0], sixty[1], sixty[2]);
-    check(off[0] < -250.0, "no hum, no line");
-    check(fifty[0] > off[0] + 200.0 && fifty[2] > fifty[0] - 3.0 && fifty[1] < fifty[0] - 40.0,
-          "the coils hum at the mains frequency and its odd harmonics");
-    check(std::abs(sixty[0] - fifty[0]) < 1.0, "60 Hz mains hums as loud");
-    check(inBetween[0] < fifty[0] - 18.0,
-          "the RWRP middle coil cancels mains hum in the parallel in-between positions");
+    const double silent = releaseEnergy(0.0), half = releaseEnergy(0.5), full = releaseEnergy(1.0);
+    std::printf("release noise (0, 0.5, 1.0): %.1f, %.1f, %.1f dB\n", silent, half, full);
+    check(half > silent + 4.5 && full > half + 4.5 && full > silent + 9.5,
+          "releaseNoise scales the finger-lift release brush from silent to full");
 }
 
 } // namespace
 
-// Bend, Slide in and Vibrato (C2 to D2): a bend is struck a whole tone low
-// on the note's string and pushed up to it; a slide in starts three frets
-// low and lands on the note's fret; the Vibrato key rocks a fretted note.
+// Bend, Slide in, Vibrato and Half bend (F#1 and C2 to D2): a bend is struck
+// a whole tone low on the note's string and pushed up to it; a slide in starts
+// three frets low and lands on the note's fret; the Vibrato key rocks a
+// fretted note.
 void testGestureKeys()
 {
     const auto stringOf = [](const StratPerformer& p, int note) {
@@ -1096,8 +1091,8 @@ void testGestureKeys()
     };
 
     auto p = makePerformer();
-    p->noteOn(0, 36, 1);
-    check(p->articulation() == StratPerformer::Articulation::bend, "C2 latches Bend");
+    p->noteOn(0, 30, 1);
+    check(p->articulation() == StratPerformer::Articulation::bend, "F#1 latches Bend");
     p->noteOn(0, 69, 100);
     render(*p, 0.002);
     int s = stringOf(*p, 69);
@@ -1115,8 +1110,8 @@ void testGestureKeys()
     }
 
     auto q = makePerformer();
-    q->noteOn(0, 37, 1);
-    check(q->articulation() == StratPerformer::Articulation::slideIn, "C#2 latches Slide in");
+    q->noteOn(0, 36, 1);
+    check(q->articulation() == StratPerformer::Articulation::slideIn, "C2 latches Slide in");
     q->noteOn(0, 70, 100);
     render(*q, 0.005);
     s = stringOf(*q, 70);
@@ -1129,13 +1124,13 @@ void testGestureKeys()
 
     // An open string's note has nowhere below to come from: it plays plain.
     auto r = makePerformer();
-    r->noteOn(0, 36, 1);
+    r->noteOn(0, 30, 1);
     r->noteOn(0, 40, 100);
     render(*r, 0.3);
     check(r->stringNote(0) == 40 && r->stringFret(0) == 0, "a bend below the low E plays it plain");
     // A note whose shift lands on an open string comes up from its first fret.
     auto u = makePerformer();
-    u->noteOn(0, 37, 1);
+    u->noteOn(0, 36, 1);
     u->noteOn(0, 67, 100);
     render(*u, 0.005);
     s = stringOf(*u, 67);
@@ -1148,12 +1143,12 @@ void testGestureKeys()
         v->noteOn(0, 66, 90);
         return render(*v, 0.6);
     };
-    check(rocked(38) != rocked(24), "the Vibrato key rocks a fretted note");
+    check(rocked(37) != rocked(24), "the Vibrato key rocks a fretted note");
     auto v = makePerformer();
+    v->noteOn(0, 37, 1);
+    check(v->articulation() == StratPerformer::Articulation::vibrato, "C#2 latches Vibrato");
     v->noteOn(0, 38, 1);
-    check(v->articulation() == StratPerformer::Articulation::vibrato, "D2 latches Vibrato");
-    v->noteOn(0, 39, 1);
-    check(v->articulation() == StratPerformer::Articulation::halfBend, "D#2 latches Half bend");
+    check(v->articulation() == StratPerformer::Articulation::halfBend, "D2 latches Half bend");
     v->noteOn(0, 69, 100);
     render(*v, 0.002);
     s = stringOf(*v, 69);
@@ -1219,7 +1214,7 @@ void testLookaheadAndEventInvariants()
         controls.lookahead = true;
         auto bendPerf = makePerformer();
         bendPerf->setControls(controls);
-        bendPerf->noteOn(0, 36, 1); // C2: Bend gesture
+        bendPerf->noteOn(0, 30, 1); // F#1: Bend
         bendPerf->noteOn(0, 69, 100);
         const auto bendOut = render(*bendPerf, 0.045); // before 50 ms latency expires
         float bendPrePick = 0.0f;
@@ -1229,7 +1224,7 @@ void testLookaheadAndEventInvariants()
 
         auto vibPerf = makePerformer();
         vibPerf->setControls(controls);
-        vibPerf->noteOn(0, 38, 1); // D2: Vibrato gesture
+        vibPerf->noteOn(0, 37, 1); // C#2: Vibrato gesture
         vibPerf->noteOn(0, 60, 100);
         const auto vibOut = render(*vibPerf, 0.045);
         float vibPrePick = 0.0f;
@@ -1244,7 +1239,7 @@ void testLookaheadAndEventInvariants()
     {
         const auto harmonicTail = [](bool releaseEarly) {
             auto p = makePerformer();
-            p->noteOn(0, 29, 1); // Harmonic
+            p->noteOn(0, 28, 1); // Harmonic
             p->noteOn(0, 76, 110, 5); // 12th-fret harmonic on high E (touch lasts 200 ms)
             render(*p, 0.08);
             if (releaseEarly)
@@ -1336,7 +1331,7 @@ int main()
     testBlockPartition();
     testLookahead();
     testFrettingHandScatter();
-    testHum();
+    testReleaseNoise();
     testLookaheadAndEventInvariants();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
