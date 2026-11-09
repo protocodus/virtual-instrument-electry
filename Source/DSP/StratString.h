@@ -337,6 +337,7 @@ private:
     // often.
     double historySquares = 0.0;
     float dcPole = 0.0f;
+    float dcBleed = 0.0f;
     int historyLength = 0;
     int recountCountdown = 0;
     void measureStretch() noexcept;

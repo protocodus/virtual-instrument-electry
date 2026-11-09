@@ -333,7 +333,11 @@ void StratString::prepare(double rate, int stringIndex, int updateSamples) noexc
 
     // 5 Hz, an octave under the lowest note the tremolo can dive to.
     blockCoefficient = std::exp(-2.0 * pi * 5.0 / sampleRate);
-    dcPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * 3.5 / sampleRate));
+    // The saddle's 0 Hz bleed (arrive): its low-pass corner, and the bleed per
+    // sample of the period that damps the loop critically.
+    constexpr double dcHz = 3.5;
+    dcPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * dcHz / sampleRate));
+    dcBleed = static_cast<float>(0.25 * 2.0 * pi * dcHz / sampleRate);
     roughPole = static_cast<float>(1.0 - std::exp(-2.0 * pi * roughHz / sampleRate));
 
     tuned = false;
@@ -1342,7 +1346,20 @@ float StratString::arrive() noexcept
     // decaying only at the open fundamental's T60; low-passing the period mean
     // at 3.5 Hz and bleeding it at the saddle takes out that standing constant
     // without touching the partials.
-    constexpr float meanBleed = 0.25f;
+    //
+    // The loop meets the bleed once a period and sums it, so the slope falls
+    // at the bleed times f0 a second against the low-pass's lagging mean: a
+    // second-order loop. A fixed 0.25 a period rang at 2.7 Hz on the open
+    // low E to 7.6 Hz at A4 (damping 0.5 to 0.2), and the coils,
+    // reading the string's distance through the flux law, played that swing
+    // on every note as a tremolo: the envelope strayed 0.4 to 1.1 dB from a
+    // smooth decay over 60 to 600 ms, every partial together, where the Strat
+    // recorded direct strays 0.04 to 0.12 (IDMT-SMT-Guitar dataset 1, neck
+    // pickup: the open low E, D and high E, A3 on the G, A4 on the high E).
+    // Scaled by the period, the bleed takes w / 4 a second on every note,
+    // which damps the loop critically: the slope goes in about 0.1 s without
+    // swinging back, and those notes stray 0.06 to 0.18 dB.
+    const float meanBleed = dcBleed * static_cast<float>(historyLength);
     const float invLength = historyLength > 0 ? 1.0f / static_cast<float>(historyLength) : 0.0f;
     for (Plane* plane : {&poles, &top})
     {

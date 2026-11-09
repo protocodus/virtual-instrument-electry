@@ -1060,22 +1060,28 @@ void testZeroHertzBleedAndRepeatedPlucks()
     check(peak < 1e-8f, "a muted low E sheds its 0 Hz standing slope within 1.8 s");
 
     // Repeated strokes with heldShare > 0 re-centre their force reference on
-    // each pluck, so the 500th stroke after silence matches the first.
-    auto fresh = makeString(rate, 3, 5);
-    fresh->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
-    const std::vector<float> first = run(*fresh, rate, 0.05, 0);
-
-    auto repeated = makeString(rate, 3, 5);
-    for (int k = 0; k < 500; ++k)
-        repeated->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
-    // Let the 500th pluck's held force settle and reset the rails, then pluck
-    // once more and compare the driven onset against a single settled pluck.
-    run(*repeated, rate, 0.5, 0);
-    repeated->setDamper(0, 0.10, 5.0, 0.05);
-    run(*repeated, rate, 0.5, 0);
-    repeated->setDamper(0, 0.10, 0.0, 0.0);
-    repeated->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
-    const std::vector<float> afterMany = run(*repeated, rate, 0.05, 0);
+    // each pluck, so a stroke after 500 of them matches one after a single
+    // stroke, the same settle and the same mute between. Compared with a
+    // fresh string instead, the check also needed what the first note leaves
+    // after 0.5 s of mute to stand 90 dB under the next stroke, which 2.4.1's
+    // underdamped saddle bleed met and the critically damped one does not
+    // (80 dB): one stroke and 500 missed it alike, so that measured the
+    // bleed, not drift. Neither form fails with 2.4.1's re-centring taken
+    // out (forceHeld -= forceEnd), so this guards many strokes against one
+    // rather than that fix.
+    const auto settledPluck = [&](int strokes) {
+        auto played = makeString(rate, 3, 5);
+        for (int k = 0; k < strokes; ++k)
+            played->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
+        run(*played, rate, 0.5, 0);
+        played->setDamper(0, 0.10, 5.0, 0.05);
+        run(*played, rate, 0.5, 0);
+        played->setDamper(0, 0.10, 0.0, 0.0);
+        played->pluck(2.0, pickMetres, 0.0003, 1.5, false, 0.42);
+        return run(*played, rate, 0.05, 0);
+    };
+    const std::vector<float> first = settledPluck(1);
+    const std::vector<float> afterMany = settledPluck(500);
     double diff = 0.0, energy = 0.0;
     for (size_t i = 0; i < first.size(); ++i)
     {
