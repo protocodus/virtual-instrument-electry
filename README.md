@@ -57,6 +57,15 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.5 — 2026-11-09 — The same Strat for less CPU
+
+The Strat sounds exactly as in 2.4.4, every sample of the seven Rack patch
+demos identical, and its heaviest blocks cost about a tenth less: a chord's
+retune fits each string's dispersion with its partials' sines taken once, a
+palm or finger damps both planes in one vectorisable pass, and a string asked
+again for the tuning it already has skips the work. See the
+[measurements](Docs/benchmarks/strat-cpu-2026-11-09.md#evening-follow-up-worst-blocks-245).
+
 ### 2.4.4 — 2026-11-09 — No tremolo on the Strat's notes, and a steeper velocity curve
 
 Every Strat note swelled and dipped together at 2.5 to 8 Hz over its first
