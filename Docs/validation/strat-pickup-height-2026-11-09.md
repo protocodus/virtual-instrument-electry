@@ -127,6 +127,13 @@ not a listening test.
 
 ## Limits
 
+Where the keyboard changes string, the two Strats disagree. Each open string
+against the same pitch fretted on the string below it (frets 4–5, neck
+pickup) reads 1.8 to 5.9 dB quieter on the IDMT Strat and within 1.5 dB on
+EGFxSet's. The model sits between them; the height moves it 0.6 to 0.9 dB
+toward the IDMT Strat (mean error 3.3 to 2.5 dB there, 1.6 to 1.8 dB on
+EGFxSet's). This is left to the guitars' own difference.
+
 EGFxSet's takes differ from position to position, so its coil differences
 hold only over many notes; the absolute balance between the coils (how much
 louder its neck pickup is at the same fret) depends on how that guitar's
