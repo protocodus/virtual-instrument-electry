@@ -24,8 +24,6 @@ public:
 
     // Coil centre under a string, metres from that string's saddle.
     static double coilMetres(int coil, int stringIndex) noexcept;
-    // Induced volts per m/s of the string under a coil, for a small swing.
-    static double coilCoupling(int stringIndex) noexcept;
 
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;

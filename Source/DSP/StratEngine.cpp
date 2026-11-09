@@ -197,12 +197,6 @@ double StratEngine::coilMetres(int coil, int stringIndex) noexcept
     return bridgeBassMetres + (bridgeTrebleMetres - bridgeBassMetres) * across;
 }
 
-double StratEngine::coilCoupling(int stringIndex) noexcept
-{
-    return steelCoupling(stringIndex) * poleBalance(stringIndex)
-        * fluxSlope(gapMetres(stringIndex)) / fluxSlope(gapBassMetres);
-}
-
 // The guitar is set up so its fretted notes play in tune with its open
 // strings. The fretting finger sharpens every fretted note by its stretch
 // (fretPressMetres, the action's stretch on top): the low E 15 to 21 cents,
