@@ -443,33 +443,51 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
     designedStiffness = stiffnessNow;
     int upper = static_cast<int>(4000.0 / f0);
     upper = upper > 15 ? 15 : upper;
-    const double ideal = f0 / std::sqrt(1.0 + stiffnessNow);
-    const double w1 = 2.0 * pi * f0 / sampleRate;
-    const double zero = lossZero, pole = lossPole;
-    const auto error = [&](double a) {
-        const double base = sampleRate / f0 - lossPhaseDelay(w1, zero, pole) + std::arg(wrapResponse(w1)) / w1
-            - dispersionSections * allpassPhaseDelay(w1, a);
-        double sum = 0.0;
-        for (int n = 2; n <= upper; ++n)
-        {
-            const double fn = n * ideal * std::sqrt(1.0 + stiffnessNow * n * n);
-            if (fn > 0.45 * sampleRate)
-                break;
-            const double wn = 2.0 * pi * fn / sampleRate;
-            const double loop = base + lossPhaseDelay(wn, zero, pole) - std::arg(wrapResponse(wn)) / wn
-                + dispersionSections * allpassPhaseDelay(wn, a);
-            // A loop delay off by d samples puts partial n off by d/loop of
-            // its frequency.
-            const double relative = loop / (n * sampleRate / fn) - 1.0;
-            sum += relative * relative;
-        }
-        return sum;
-    };
     if (upper < 2)
     {
         allpassCoefficient = 0.0f;
         return;
     }
+    const double ideal = f0 / std::sqrt(1.0 + stiffnessNow);
+    const double w1 = 2.0 * pi * f0 / sampleRate;
+    const double zero = lossZero, pole = lossPole;
+    // Only the allpass phase changes during the coefficient search. Keep
+    // the string/loss phases and target periods once per fit, rather than
+    // recomputing them for all 42 trials. Store loss and wrap separately:
+    // the original (base + loss) - wrap + dispersion association matters.
+    const double fundamentalDelay = sampleRate / f0 - lossPhaseDelay(w1, zero, pole)
+        + std::arg(wrapResponse(w1)) / w1;
+    struct Partial
+    {
+        double omega, lossDelay, wrapDelay, period;
+    };
+    std::array<Partial, 14> partials {};
+    int partialCount = 0;
+    for (int n = 2; n <= upper; ++n)
+    {
+        const double fn = n * ideal * std::sqrt(1.0 + stiffnessNow * n * n);
+        if (fn > 0.45 * sampleRate)
+            break;
+        const double wn = 2.0 * pi * fn / sampleRate;
+        partials[static_cast<size_t>(partialCount++)] = {
+            wn, lossPhaseDelay(wn, zero, pole), std::arg(wrapResponse(wn)) / wn,
+            n * sampleRate / fn};
+    }
+    const auto error = [&](double a) {
+        const double base = fundamentalDelay - dispersionSections * allpassPhaseDelay(w1, a);
+        double sum = 0.0;
+        for (int k = 0; k < partialCount; ++k)
+        {
+            const Partial& partial = partials[static_cast<size_t>(k)];
+            const double loop = base + partial.lossDelay - partial.wrapDelay
+                + dispersionSections * allpassPhaseDelay(partial.omega, a);
+            // A loop delay off by d samples puts partial n off by d/loop of
+            // its frequency.
+            const double relative = loop / partial.period - 1.0;
+            sum += relative * relative;
+        }
+        return sum;
+    };
     double low = -0.95, high = 0.0;
     constexpr double golden = 0.6180339887498949;
     double x1 = high - golden * (high - low), x2 = low + golden * (high - low);
