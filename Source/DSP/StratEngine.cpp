@@ -323,7 +323,9 @@ void StratEngine::reset() noexcept
         quietSamples[static_cast<size_t>(s)] = quietLimit[static_cast<size_t>(s)];
         swing[static_cast<size_t>(s)] = {};
         swingTop[static_cast<size_t>(s)] = {};
-        bendSteps[static_cast<size_t>(s)] = {};
+        // reset clears motion, not the held fret and bend. Keep the pickup
+        // geometry consistent with the bridge's retained tension.
+        updateBendGeometry(s);
     }
     neck.reset();
     circuit.reset();
@@ -404,6 +406,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     }
     strings[static_cast<size_t>(stringIndex)].setTuning(
         fret, tremolo.tensionRatio(stringIndex));
+    updateBendGeometry(stringIndex);
 }
 
 void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
@@ -445,19 +448,22 @@ void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
     tremolo.setBend(stringIndex, pitchRatio);
     bridgeMoved = true;
     if (stringIndex >= 0 && stringIndex < stringCount)
+        updateBendGeometry(stringIndex);
+}
+
+void StratEngine::updateBendGeometry(int stringIndex) noexcept
+{
+    // A finger bend pulls the string sideways across the fretboard and over
+    // the cylindrical pole pieces: a whole-tone bend (pitchRatio ~ 1.122)
+    // displaces the string laterally by ~1-1.5 mm over the coils.
+    const double r = tremolo.bendRatio(stringIndex);
+    const double lateralMetres = 0.0022 * std::sqrt(std::min(r * r - 1.0, 1.0));
+    const double speaking = fretMetres(stringIndex, pending[static_cast<size_t>(stringIndex)].fret);
+    for (int c = 0; c < coilCount; ++c)
     {
-        // A finger bend pulls the string sideways across the fretboard and over
-        // the cylindrical pole pieces: a whole-tone bend (pitchRatio ~ 1.122)
-        // displaces the string laterally by ~1-1.5 mm over the coils.
-        const double r = pitchRatio > 1.0 ? pitchRatio : 1.0;
-        const double lateralMetres = 0.0022 * std::sqrt(std::min(r * r - 1.0, 1.0));
-        const double speaking = fretMetres(stringIndex, pending[static_cast<size_t>(stringIndex)].fret);
-        for (int c = 0; c < coilCount; ++c)
-        {
-            const double share = speaking > 0.0 ? std::min(coilMetres(c, stringIndex) / speaking, 1.0) : 0.0;
-            bendSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
-                = static_cast<float>(lateralMetres * share / fluxStepMetres);
-        }
+        const double share = speaking > 0.0 ? std::min(coilMetres(c, stringIndex) / speaking, 1.0) : 0.0;
+        bendSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
+            = static_cast<float>(lateralMetres * share / fluxStepMetres);
     }
 }
 
@@ -534,6 +540,7 @@ void StratEngine::applyPending() noexcept
             continue;
         strings[static_cast<size_t>(s)].setTuning(p.fret, tremolo.tensionRatio(s),
                                                   p.glide);
+        updateBendGeometry(s);
         p.changed = false;
         p.glide = false;
     }
@@ -593,19 +600,27 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
             float& x = swingTop[k][static_cast<size_t>(c)];
             y = y * swingLeak + v;
             x = x * swingLeak + u;
-            // Cylindrical pole-piece field: acrossShare already calibrates the
-            // co-planar swing; as the two planes beat into an elliptical orbit
-            // (orbit != 0) or a finger bend pulls the string laterally off the
-            // pole axis (bend != 0), the radial offset lengthens the effective
-            // pole distance and modulates the horizontal sensitivity.
+            // One scalar flux potential along the fixed, measured sensitivity
+            // axis: d = gap - acrossShare (y + inPlaneHeard x). Above the
+            // existing displacement observer's leak corner, its derivative
+            // follows v + inPlaneHeard u, the velocity used below; the leak
+            // retains the low-frequency stabilization, not exact DC flux.
+            // The pickup belongs to the guitar, not the latest
+            // stroke: subtracting +/-y from x according to that stroke's tilt
+            // changed its field instantly even on a zero-force repick.
+            //
+            // The bend offset remains the existing quasistatic gap estimate.
+            // Dynamic transverse curvature would require a measured 2-D flux
+            // surface and its full gradient. The former orbit-only correction
+            // was neither; it changed distance without the corresponding EMF.
             constexpr float invPoleSteps = 1.0f / 80.0f;
             const float dy = swingSteps * y;
-            const float topSign = strings[k].planesOpposed() ? -1.0f : 1.0f;
-            const float orbit = swingSteps * (x - topSign * y);
+            const float dx = swingSteps * x;
             const float bend = bendSteps[k][static_cast<size_t>(c)];
             // A string driven onto the poles reads as touching them,
             // and one far off as at the table's end.
-            float d = gapSteps[k] - dy + 0.5f * (orbit * orbit + bend * bend) * invPoleSteps;
+            float d = gapSteps[k] - dy - inPlaneHeard * dx
+                + 0.5f * bend * bend * invPoleSteps;
             d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
             const int i = static_cast<int>(d);
             const float t = d - static_cast<float>(i);
@@ -613,7 +628,16 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
                 + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
             emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
         }
+        const bool wasSounding = quietSamples[k] < quietLimit[k];
         quietSamples[k] = quiet ? std::min(quietSamples[k] + 1, quietLimit[k]) : 0;
+        if (wasSounding && quietSamples[k] == quietLimit[k])
+        {
+            // No physical motion remains. Do not freeze the leaky displacement
+            // observer's tiny integration residual while skipping a string:
+            // otherwise the next stroke starts at a different pickup gap.
+            swing[k] = {};
+            swingTop[k] = {};
+        }
     }
 }
 

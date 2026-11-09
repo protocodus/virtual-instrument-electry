@@ -96,6 +96,7 @@ private:
         bool changed = false;
     };
     void applyPending() noexcept;
+    void updateBendGeometry(int stringIndex) noexcept;
     // One sample of every sounding string, and of every string while the
     // neck moves, summed into each coil's EMF.
     void stepStrings(float (&emf)[coilCount]) noexcept;

@@ -36,6 +36,10 @@ public:
     // A finger holds this string bent to `pitchRatio` times the pitch it
     // would have unbent. 1 lifts it.
     void setBend(int stringIndex, double pitchRatio) noexcept;
+    double bendRatio(int stringIndex) const noexcept
+    {
+        return bend[static_cast<std::size_t>(stringIndex)];
+    }
     // A fretting finger stretches this string by `metres` as it presses it
     // onto the fret; 0 lifts it. Its tension rises by its axial stiffness
     // times that.

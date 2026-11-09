@@ -314,6 +314,8 @@ void StratString::reset() noexcept
     stickRemaining = 0;
     stickRelease = 0.0;
     forceHeld = blockedForce = 0.0;
+    topBlockedForce = pendingTopForce = 0.0;
+    topDrive = 1.0f;
     injected.fill(0.0f);
     stretch = stretchStep = 0.0;
     stretchCountdown = 0;
@@ -324,6 +326,7 @@ void StratString::reset() noexcept
     rubSpeed = rubTarget = rubStep = rubNewtons = 0.0f;
     rubRemaining = 0;
     rubPhase = 0.0;
+    rubNoise = rubNoiseSeed;
     rubRough = 0.0f;
     pressPosition = pressLength = 0;
 }
@@ -507,18 +510,11 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
 {
     const bool fretMoved = newFret != fret;
     fret = newFret;
-    tension = tensionRatio;
     const double openNow = spec->openHz * restPitch * std::sqrt(tensionRatio);
     fundamental = openNow * intonedOpen / fretMetres(fret);
     const double waveSpeed = 2.0 * intonedOpen * openNow;
     samplesPerMetre = sampleRate / waveSpeed;
     characteristicImpedance = spec->kilogramsPerMetre * waveSpeed;
-    // Hard ff strokes (MIDI velocity >= 100, accounting for ~1.25x dispersion
-    // crest factor at the fret end) drive the downward wave past the clearance
-    // to the adjacent fret crown, grazing it on the negative half-cycle; an
-    // open string at the nut sits higher than a fretted one.
-    const double grazeForce = fret > 0.0 ? 2.75 : 3.20;
-    fretGrazeVelocity = static_cast<float>(grazeForce / (2.0 * characteristicImpedance));
     topShortfall = 2.0 * inPlaneShortening * samplesPerMetre;
 
     // A string swinging with energy E is stretched along its speaking length
@@ -617,6 +613,12 @@ double StratString::lastUsablePosition() const noexcept
 void StratString::setTaps(const std::array<double, tapCount>& metresFromBridge) noexcept
 {
     tapMetres = metresFromBridge;
+    // The lumped end filters consume some propagation delay. At the highest
+    // frets the neck coil can lie beyond the stored rail even while it is
+    // physically before the fret. Keep the read inside the live string;
+    // correcting that spatial approximation needs distributed filter phase,
+    // not an unchecked read or arbitrary rescaling of every physical port.
+    // See Docs/validation/2026-11-09-strat-model-audit.md.
     for (int k = 0; k < tapCount; ++k)
         taps[static_cast<size_t>(k)] = tapAt(
             clamp(positionSamples(tapMetres[static_cast<size_t>(k)]), 1.0,
@@ -650,6 +652,9 @@ void StratString::placeDampers() noexcept
     const double z = characteristicImpedance;
     for (Damper& d : dampers)
     {
+        // A finite contact can replace a fractional harmonic touch. Its
+        // new width must not inherit the old point's interpolation weight.
+        d.next = 0.0f;
         const double at = clamp(positionSamples(d.metres), 1.0, lastUsablePosition());
         const int last = static_cast<int>(lastUsablePosition());
         d.count = std::clamp(static_cast<int>(std::lround(positionSamples(d.width))), 1, last);
@@ -685,7 +690,6 @@ void StratString::placeDampers() noexcept
             continue;
         }
         d.position = static_cast<int>(std::lround(at));
-        d.next = 0.0f;
         // On its sample point the dashpot gets the resistance that loses as
         // much each period at the second partial as R would at its true
         // place. A palm 20 mm from the saddle is two samples along a high E at
@@ -726,13 +730,18 @@ void StratString::placeDampers() noexcept
             d.position = static_cast<int>(at);
             d.next = static_cast<float>(at - d.position);
         }
-        // A dashpot of resistance R on a string of impedance Z passes
-        // 2Z / (2Z + R) of the local velocity and absorbs the rest; when split
-        // between two adjacent samples (d.next > 0), scale by 1 / (near^2 + next^2)
-        // so the interpolated node sees the exact same physical impedance R.
+        // A collocated fractional contact reads with weights w and applies
+        // its force with the same weights. If p = w dot (r + l), injecting
+        // -w F/(2Z) changes the contact's midpoint velocity to
+        // p - (w dot w) F/(2Z). Solving F = R v gives
+        // F/(2Z) = [r / (2 + r (w dot w))] p, r = R/Z. This is passive
+        // and reduces to the ordinary point scatter on a sample. Dividing
+        // the integer-point absorption by w dot w instead doubles the
+        // effective R halfway between samples, so the same finger damps
+        // adjacent notes differently merely because the grid moves.
         const double near = 1.0 - static_cast<double>(d.next);
         const double share = near * near + static_cast<double>(d.next) * d.next;
-        d.absorption = r > 0.0 ? static_cast<float>(r / ((2.0 + r) * share)) : 0.0f;
+        d.absorption = r > 0.0 ? static_cast<float>(r / (2.0 + r * share)) : 0.0f;
     }
 }
 
@@ -812,6 +821,7 @@ void StratString::pluck(double forceNewtons, double metresFromBridge,
     // A release or a contact still running completes first; re-centre the
     // reference on forceEnd so heldShare offsets do not accumulate across
     // strokes while keeping (force - forceHeld) continuous.
+    pendingTopForce += topDrive * (forceEnd - force);
     forceHeld -= forceEnd;
     force = forceEnd = 0.0;
     topDrive = opposedPlanes ? -1.0f : 1.0f;
@@ -1238,22 +1248,19 @@ float StratString::arrive() noexcept
     // planes alike.
     const float topArriving = arriveAtFret(top, readAt - topShortfall + neckDelay);
     leaveFret(top, onFret() ? -topArriving : -fingerEnd * topArriving);
-    float polesArriving = arriveAtFret(poles, readAt);
-    if (onFret() && polesArriving < -fretGrazeVelocity)
-    {
-        // Unilateral fret-crown graze on hard ff attacks: downward excursions
-        // past the adjacent fret clearance are softly limited by the crown.
-        const float excess = -polesArriving - fretGrazeVelocity;
-        const float margin = 0.35f * fretGrazeVelocity;
-        polesArriving = -(fretGrazeVelocity + margin * std::tanh(excess / margin));
-    }
-    arrivingAtNeck = polesArriving;
+    // A crown collision depends on local displacement and actual clearance,
+    // not a travelling wave's velocity at the termination. In particular
+    // there is no following crown above the guitar's last fret. Leave the
+    // bare string symmetric until a positioned, passive contact is supplied;
+    // the former one-sided velocity clip invented a collision without one.
+    arrivingAtNeck = arriveAtFret(poles, readAt);
     return arrivingAtNeck;
 }
 
 void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardPoles,
                         std::array<float, tapCount>& alongTop) noexcept
 {
+    const double forceBefore = force;
     float fretMotion = 0.0f;
     if (pressPosition < pressLength)
     {
@@ -1324,27 +1331,37 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
     }
     // One-pole DC blocker on the force.
     blockedForce = force - forceHeld + blockCoefficient * blockedForce;
+    // Linearity of the blocker: sum each oriented stroke's force changes,
+    // then filter them. Turning a new pick cannot reverse the old pick's
+    // stored tail, especially when a soft repick follows a hard stroke.
+    topBlockedForce = pendingTopForce + topDrive * (force - forceBefore)
+        + blockCoefficient * topBlockedForce;
+    pendingTopForce = 0.0;
     forceHeld = force;
     if (std::abs(blockedForce) < 1e-9)
         blockedForce = 0.0;
+    if (std::abs(topBlockedForce) < 1e-9)
+        topBlockedForce = 0.0;
     const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
+    const float topVelocity = static_cast<float>(topBlockedForce / (2.0 * characteristicImpedance));
     injected = {v, injected[0], injected[1]};
     // The stroke drives both planes as hard, the top in its own sense;
     // StratEngine weighs what the pickup hears of each.
     if (v != 0.0f)
-    {
         inject(poles, pick, v);
-        inject(top, pick, topDrive * v);
-    }
+    if (topVelocity != 0.0f)
+        inject(top, pick, topVelocity);
     if (fingerActive)
     {
         // The finger presses mostly toward the poles and stirs a smaller share
-        // along the top as it slides across the wraps and skin.
+        // along the top as it slides across the wraps and skin. This contact
+        // has a fixed direction of its own; the picking hand's latest tilt
+        // cannot turn the fretting hand's ongoing force.
         const float u = static_cast<float>(fingerForce() / (2.0 * characteristicImpedance));
         if (u != 0.0f)
         {
             inject(poles, fingerTap, u);
-            inject(top, fingerTap, 0.35f * topDrive * u);
+            inject(top, fingerTap, 0.35f * u);
         }
     }
 

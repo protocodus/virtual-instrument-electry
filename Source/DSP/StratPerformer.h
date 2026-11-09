@@ -237,6 +237,7 @@ private:
                 std::array<int, 6>& stringFor) const noexcept;
     void schedule(const Event& e) noexcept;
     void cancelEvents(int stringIndex, EventKind kind) noexcept;
+    bool strikeQueued(int stringIndex) const noexcept;
     bool queue(const Midi& m) noexcept;
     void dispatch(const Midi& m) noexcept;
     void playNoteOn(int channel, int note, int velocity, int stringIndex) noexcept;

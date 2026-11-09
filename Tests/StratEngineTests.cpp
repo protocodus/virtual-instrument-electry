@@ -515,6 +515,28 @@ void testDeterminism()
     check(performance(256) == performance(256), "the same performance gives the same bits");
 }
 
+void testPickupFieldDoesNotFollowThePick()
+{
+    // The pole's field is a function of string position. Changing the next
+    // pick's tilt with ZERO force leaves both planes' position and velocity
+    // unchanged, so it must leave the voltage unchanged too. This catches a
+    // field coordinate rotated by the last gesture instead of fixed in the
+    // guitar, independently of any tonal or recording comparison.
+    for (int s : {0, 3, 5})
+    {
+        auto unchanged = makeEngine(Position::neck), turned = makeEngine(Position::neck);
+        for (StratEngine* engine : {unchanged.get(), turned.get()})
+        {
+            engine->pluck(s, 2.5, 0.13, 0.0002);
+            render(*engine, 0.02);
+        }
+        unchanged->pluck(s, 0.0, 0.13, 0.0002, 0.0, false);
+        turned->pluck(s, 0.0, 0.13, 0.0002, 0.0, true);
+        check(render(*unchanged, 0.1) == render(*turned, 0.1),
+              "turning a force-free pick cannot change the pickup field");
+    }
+}
+
 void testLateralBendPoleFlux()
 {
     // A lateral string bend pushes the string sideways off the pole-piece axis,
@@ -540,6 +562,41 @@ void testLateralBendPoleFlux()
           "lateral string bend modulates cylindrical pole-piece magnetic flux");
 }
 
+void testBendGeometryLifecycle()
+{
+    // The same held fret and bend define the same physical configuration.
+    // Restating an unchanged bend after a fret change or reset must do
+    // nothing; in particular, it must not repair stale pickup geometry.
+    for (int s : {0, 3, 5})
+    {
+        constexpr double bend = 1.122462048309373;
+        auto fretFirst = makeEngine(Position::neck), bendFirst = makeEngine(Position::neck);
+        for (StratEngine* engine : {fretFirst.get(), bendFirst.get()})
+        {
+            engine->setFret(s, 5.0);
+            engine->setBend(s, bend);
+            render(*engine, 0.02);
+            engine->setFret(s, 12.0);
+        }
+        bendFirst->setBend(s, bend);
+        for (StratEngine* engine : {fretFirst.get(), bendFirst.get()})
+        {
+            render(*engine, 0.02);
+            engine->pluck(s, 1.5, 0.11, 0.0003);
+        }
+        check(render(*fretFirst, 0.1) == render(*bendFirst, 0.1),
+              "changing fret updates the pickup geometry of an unchanged bend");
+
+        for (StratEngine* engine : {fretFirst.get(), bendFirst.get()})
+            engine->reset();
+        bendFirst->setBend(s, bend); // restating the same held bend is a no-op
+        for (StratEngine* engine : {fretFirst.get(), bendFirst.get()})
+            engine->pluck(s, 1.5, 0.11, 0.0003);
+        check(render(*fretFirst, 0.1) == render(*bendFirst, 0.1),
+              "reset retains the pickup geometry of a held bend");
+    }
+}
+
 } // namespace
 
 int main()
@@ -556,7 +613,9 @@ int main()
     testIntonation();
     testTopOctaveAtEveryRate();
     testDeterminism();
+    testPickupFieldDoesNotFollowThePick();
     testLateralBendPoleFlux();
+    testBendGeometryLifecycle();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
     return failures == 0 ? 0 : 1;

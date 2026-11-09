@@ -12,6 +12,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <vector>
@@ -275,6 +276,137 @@ void testFingerKey()
     check(p->isFingerPlucking(), "B1 latches finger plucking");
     p->noteOn(0, StratPerformer::firstStrokeKey, 1);
     check(!p->isFingerPlucking(), "G1 takes the pick back");
+}
+
+void testNewNoteOwnsAQueuedString()
+{
+    struct Case { int string, before, note; };
+    constexpr std::array<Case, 4> cases {{{5,64,64}, {5,64,65}, {3,55,55}, {3,55,57}}};
+    std::array<std::vector<float>, cases.size()> picked;
+    for (int articulation : {24, 26, 27}) // sustain, legato, slide
+        for (size_t index = 0; index < cases.size(); ++index)
+        {
+            const Case c = cases[index];
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.strumSeconds = 0.040;
+            p->setControls(controls);
+            p->noteOn(0, 40, 100, 0);
+            p->noteOn(0, c.before, 100, c.string); // reached by the slow strum later
+            render(*p, 0.010);
+            p->noteOn(0, articulation, 1);
+            p->noteOn(0, c.note, 100, c.string); // a new stroke takes it first
+            const auto first = render(*p, 0.010);
+            if (articulation == 24)
+                picked[index] = first;
+            else
+                check(first == picked[index],
+                      "a queued note cannot start a legato line before its picked onset");
+            check(p->engine().isDriven(c.string),
+                  "taking an unstruck queued string supplies a replacement pluck");
+            const double pitch = p->engine().fundamentalHz(c.string);
+            render(*p, 0.250);
+            check(p->stringNote(c.string) == c.note
+                      && p->stringFret(c.string) == c.note - openNote[c.string],
+                  "a later note retains ownership past a superseded strum's due time");
+            check(p->engine().fundamentalHz(c.string) == pitch,
+                  "a superseded queued strike cannot retune the string's current note");
+            check(p->stringNote(0) == 40,
+                  "legato honors the explicit string instead of stealing an older line");
+            check(energy(first, 0.0, 0.01) > 0.0,
+                  "replacing a queued note produces sound");
+        }
+}
+
+void testFirstUpstrokePickPosition()
+{
+    // A downstroke at L/3 has a third-partial pluck null. The explicit
+    // upstroke catches 2.5 mm nearer the bridge, so its null must move even
+    // on the very first stroke. This spatial-mode oracle does not depend
+    // on fitting an attack centroid or a new release-time constant.
+    for (int fret : {0, 5, 12})
+    {
+        double notch[2] {};
+        for (int up = 0; up < 2; ++up)
+        {
+            auto p = makePerformer();
+            electry::StratControls controls;
+            controls.circuit.position = electry::StratCircuit::Position::bridge;
+            controls.pickMetres = p->engine().fretMetres(5, fret) / 3.0 - 0.012;
+            p->setControls(controls);
+            p->noteOn(0, StratPerformer::firstStrokeKey + up, 1);
+            p->noteOn(0, 64 + fret, 1, 5);
+            const auto y = render(*p, 0.25);
+            const double hz = p->engine().fundamentalHz(5);
+            const double b = StratString::construction(5).stiffness * std::pow(2.0, fret / 6.0);
+            const auto partial = [&](int h) {
+                return level(y, 0.02, 0.2,
+                             h * hz * std::sqrt((1.0 + b * h * h) / (1.0 + b)));
+            };
+            notch[up] = partial(3) - 0.5 * (partial(2) + partial(4));
+        }
+        check(notch[1] > notch[0] + 10.0,
+              "the first explicit upstroke moves the spatial pluck null");
+    }
+}
+
+void testGestureBoundsAtEveryHostRate()
+{
+    // The shipping wrapper accepts these rates. Exercise valid MIDI extremes
+    // and overlapping queued gestures through the public performer, with
+    // guard samples around irregular host blocks. This is a bounds/finite
+    // check, not a claim that a 48-semitone MPE bend is a playable guitar bend.
+    for (double hostRate : {44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0})
+    {
+        auto p = std::make_unique<StratPerformer>();
+        p->prepare(hostRate);
+        std::uint32_t random = 0x19791957u;
+        const auto draw = [&]() {
+            random ^= random << 13;
+            random ^= random >> 17;
+            random ^= random << 5;
+            return random;
+        };
+        bool valid = true;
+        for (int event = 0; event < 2048; ++event)
+        {
+            const int note = static_cast<int>(draw() % 128u);
+            const int channel = static_cast<int>(draw() % 16u);
+            switch (draw() % 10u)
+            {
+                case 0: case 1: case 2:
+                    p->noteOn(channel, note, 1 + static_cast<int>(draw() % 127u));
+                    break;
+                case 3: p->noteOff(channel, note); break;
+                case 4: p->pitchBend(channel, (draw() & 1u) ? 1.0 : -1.0); break;
+                case 5: p->modWheel((draw() & 1u) ? 1.0 : 0.0); break;
+                case 6: p->sustain((draw() & 1u) != 0); break;
+                case 7: p->channelPressure((draw() & 1u) ? 1.0 : 0.0); break;
+                case 8:
+                {
+                    auto controls = p->controls();
+                    controls.lookahead = (draw() & 1u) != 0;
+                    controls.strumSeconds = (draw() & 1u) ? 0.040 : 0.0;
+                    controls.pickMetres = (draw() & 1u) ? 0.025 : 0.250;
+                    controls.pick = (draw() & 1u) ? 1.0 : 0.0;
+                    controls.circuit.position = static_cast<electry::StratCircuit::Position>(draw() % 5u);
+                    p->setControls(controls);
+                    break;
+                }
+                case 9: p->allNotesOff(); break;
+            }
+            constexpr float sentinel = 12345.0f;
+            std::array<float, 259> out;
+            out.fill(sentinel);
+            const int count = 1 + static_cast<int>(draw() % 257u);
+            p->render(out.data() + 1, count);
+            valid = valid && out[0] == sentinel && out[static_cast<size_t>(count + 1)] == sentinel;
+            for (int i = 1; i <= count; ++i)
+                valid = valid && std::isfinite(out[static_cast<size_t>(i)])
+                    && std::abs(out[static_cast<size_t>(i)]) <= 9.501f;
+        }
+        check(valid, "extreme valid gestures stay finite and inside their host buffers");
+    }
 }
 
 // A#1 held lays the fretting hand across the strings: a chord the pedal holds
@@ -1382,6 +1514,9 @@ int main()
     testChordShapes();
     testStrums();
     testStrokeKeys();
+    testNewNoteOwnsAQueuedString();
+    testFirstUpstrokePickPosition();
+    testGestureBoundsAtEveryHostRate();
     testFingerKey();
     testDampAll();
     testReleaseAndPedal();

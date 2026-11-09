@@ -51,7 +51,10 @@ std::unique_ptr<StratString> makeString(double rate, int index, double fret)
 // Velocity under each tap for `seconds`, from tap `tap`.
 std::vector<float> run(StratString& string, double rate, double seconds, int tap)
 {
-    std::vector<float> out(static_cast<size_t>(seconds * rate));
+    // Decimal durations such as 0.7 s at 44.1 kHz can multiply to one ULP
+    // below an integer. Truncation then leaves a spectral window one sample
+    // beyond the allocation, even though its requested end is 0.7 s too.
+    std::vector<float> out(static_cast<size_t>(std::llround(seconds * rate)));
     std::array<float, StratString::tapCount> taps {};
     std::array<float, StratString::tapCount> alongTop {};
     for (float& sample : out)
@@ -68,6 +71,11 @@ double magnitude(const std::vector<float>& x, double rate, double startSeconds,
 {
     const int start = static_cast<int>(startSeconds * rate);
     const int length = static_cast<int>(lengthSeconds * rate);
+    const bool inside = start >= 0 && length > 0
+        && static_cast<size_t>(start + length) <= x.size();
+    check(inside, "the spectral measurement window is inside its rendered audio");
+    if (!inside)
+        return 0.0;
     std::complex<double> sum = 0.0;
     const std::complex<double> step = std::polar(1.0, -2.0 * pi * f / rate);
     std::complex<double> phasor = std::polar(1.0, -2.0 * pi * f * start / rate);
@@ -434,6 +442,146 @@ void testOpposedPlanes()
     }
     check(polesSame, "the tilt leaves the swing toward the poles as it is");
     check(topMirrored && topMoves, "the other tilt sends the swing along the top the other way");
+}
+
+void testRepickTiltKeepsThePreviousForce()
+{
+    // Turning a pick that applies no new force cannot reverse any part of
+    // the preceding stroke. In particular, the first stroke's 5 Hz blocked
+    // force is still settling 20 ms later. Also interrupt its release and
+    // its push: completing that old contact belongs to its OLD tilt.
+    const double rate = 48000.0;
+    for (double stroke : {0.0, 1.5})
+        for (int wait : {1, 960})
+        {
+            auto alike = makeString(rate, 1, 5), opposed = makeString(rate, 1, 5);
+            alike->pluck(1.5, pickMetres, 0.0008, stroke);
+            opposed->pluck(1.5, pickMetres, 0.0008, stroke);
+            run(*alike, rate, wait / rate, 0);
+            run(*opposed, rate, wait / rate, 0);
+            alike->pluck(0.0, pickMetres, 0.0002, 0.0, false);
+            opposed->pluck(0.0, pickMetres, 0.0002, 0.0, true);
+            std::array<float, StratString::tapCount> pa {}, ta {}, po {}, to {};
+            bool same = true;
+            for (int i = 0; i < 4800; ++i)
+            {
+                alike->process(pa, ta);
+                opposed->process(po, to);
+                same = same && pa == po && ta == to;
+            }
+            check(same, "a new tilt cannot turn the previous stroke's remaining force");
+        }
+}
+
+void testDamperGeometryHasNoHistory()
+{
+    // A harmonic touch is a fractional point, whereas the finger laid over
+    // it at key-up covers a finite span. The resulting contact must be the
+    // same whether or not a fractional point was configured before it.
+    // This is reachable when a harmonic is released before its touch lifts.
+    for (double rate : {48000.0, 96000.0})
+        for (int s : {0, 5})
+        {
+            auto touched = makeString(rate, s, 0), plain = makeString(rate, s, 0);
+            touched->setDamper(1, 0.29, 0.5);
+            for (StratString* string : {touched.get(), plain.get()})
+            {
+                string->setDamper(1, 0.07, 2.0, 0.025);
+                string->pluck(lightNewtons, pickMetres, 0.0002);
+            }
+            check(run(*touched, rate, 0.1, 0) == run(*plain, rate, 0.1, 0),
+                  "a finite finger contact forgets a preceding fractional point");
+        }
+}
+
+double dashpotDecayPerSecond(double impedance, double resistance, double x,
+                             double length, double waveSpeed);
+
+void testFractionalContactResistance()
+{
+    // Farther than L/8 from the saddle, placeDampers uses the fractional
+    // contact rather than its near-saddle spring correction. The previous
+    // 7.5-sample fixture was in that near-saddle branch and did not exercise
+    // fractional scattering at all. A weak contact's extra fundamental
+    // decay follows the complex wave-equation root independently of the
+    // interpolation's alignment; a half-grid point must not double R.
+    for (double rate : {48000.0, 96000.0})
+    {
+        const auto& spec = StratString::construction(0);
+        const double speed = 2.0 * StratString::scaleMetres * spec.openHz;
+        const double impedance = spec.kilogramsPerMetre * speed;
+        for (double fraction : {0.0, 0.5})
+        {
+            const double x = (std::floor(0.29 * rate / speed) + fraction) * speed / rate;
+            const auto loss = [&](double resistance) {
+                auto string = makeString(rate, 0, 0);
+                string->setDamper(1, x, resistance);
+                string->pluck(lightNewtons, pickMetres, 0.0002);
+                const auto y = run(*string, rate, 1.3, 2);
+                return (decibels(magnitude(y, rate, 0.2, 0.2, spec.openHz))
+                        - decibels(magnitude(y, rate, 1.0, 0.2, spec.openHz))) / 0.8;
+            };
+            const double free = loss(0.0);
+            for (double resistance : {0.001, 0.005})
+            {
+                const double actual = loss(resistance) - free;
+                const double expected = 20.0 / std::log(10.0)
+                    * dashpotDecayPerSecond(impedance, resistance, x,
+                                             StratString::scaleMetres, speed);
+                std::printf("%.0f Hz fractional contact %.1f: %.3f dB/s, theory %.3f\n",
+                            rate, fraction, actual, expected);
+                check(std::abs(actual / expected - 1.0) < 0.03,
+                      "fractional contacts retain their physical resistance between samples");
+            }
+        }
+    }
+}
+
+void testResetRubbing()
+{
+    auto used = makeString(48000.0, 0, 0), fresh = makeString(48000.0, 0, 0);
+    used->rub(0.1, 0.5, 1.0);
+    run(*used, 48000.0, 0.037, 0);
+    used->reset();
+    used->rub(0.1, 0.5, 1.0);
+    fresh->rub(0.1, 0.5, 1.0);
+    check(run(*used, 48000.0, 0.1, 0) == run(*fresh, 48000.0, 0.1, 0),
+          "reset restarts the deterministic finger roughness");
+}
+
+void testFingerForceDoesNotFollowThePick()
+{
+    // The fretting hand has its own contact direction. A pick with zero
+    // force cannot turn that contact merely by changing the picking hand's
+    // tilt, including while the finger rides the string's wraps.
+    for (int s : {0, 5})
+        for (int phase : {0, 1, 2}) // beginning, running, and easing off
+        {
+            auto alike = makeString(48000.0, s, 5), opposed = makeString(48000.0, s, 5);
+            for (StratString* string : {alike.get(), opposed.get()})
+            {
+                string->rub(0.1, 0.5, 1.0);
+                if (phase > 0)
+                    run(*string, 48000.0, 0.01, 0);
+                if (phase == 2)
+                {
+                    string->rub(0.1, 0.0, 1.0);
+                    run(*string, 48000.0, 5.0 / 48000.0, 0);
+                }
+            }
+            alike->pluck(0.0, pickMetres, 0.0002, 0.0, false);
+            opposed->pluck(0.0, pickMetres, 0.0002, 0.0, true);
+            bool same = true, moving = false;
+            for (int i = 0; i < 4800; ++i)
+            {
+                std::array<float, StratString::tapCount> pa {}, ta {}, po {}, to {};
+                alike->process(pa, ta);
+                opposed->process(po, to);
+                same = same && pa == po && ta == to;
+                moving = moving || ta[0] != 0.0f;
+            }
+            check(same && moving, "a force-free pick cannot turn the fretting finger's excitation");
+        }
 }
 
 void testNeck()
@@ -938,7 +1086,7 @@ void testZeroHertzBleedAndRepeatedPlucks()
     check(diff < 1e-9 * energy, "repeated plucks with heldShare do not drift in force");
 }
 
-void testFractionalDashpotAndFretGrazing()
+void testNearSaddleMidpointDashpot()
 {
     const double rate = 48000.0;
     const auto& spec = StratString::construction(0);
@@ -954,8 +1102,9 @@ void testFractionalDashpotAndFretGrazing()
             / 1.5;
     };
     const double undamped = decayDbPerSecond(0.0, 0.0);
-    // At the worst-case fractional sample midpoint (7.5 samples, d.next = 0.5),
-    // the normalized dashpot impedance still matches the exact wave equation.
+    // Halfway between samples near the saddle, the spring correction for
+    // the rounded point still matches the wave equation. This is NOT the
+    // fractional scatter branch; testFractionalContactResistance covers it.
     const double xHalf = 7.5 * sample;
     const double extraHalf = decayDbPerSecond(xHalf, 0.5) - undamped;
     const double wantHalf = 20.0 / std::log(10.0)
@@ -965,33 +1114,32 @@ void testFractionalDashpotAndFretGrazing()
     check(std::abs(extraHalf / wantHalf - 1.0) < 0.01,
           "a fractional-sample midpoint dashpot presents the exact physical impedance");
 
-    // Unilateral fret-crown grazing: on a fretted string, soft +F and -F
-    // plucks are exactly symmetric, whereas a hard ff attack (4.0 N) grazes
-    // the adjacent fret crown unilaterally on downward swings, breaking +/-
-    // symmetry and softly bounding the downward velocity crest.
-    const auto asymmetry = [&](double force) {
-        auto pos = makeString(rate, 2, 5.0);
-        auto neg = makeString(rate, 2, 5.0);
-        pos->pluck(force, pickMetres, 0.0001);
-        neg->pluck(-force, pickMetres, 0.0001);
-        const auto yPos = run(*pos, rate, 0.05, 2);
-        const auto yNeg = run(*neg, rate, 0.05, 2);
-        double diff = 0.0, sum = 0.0;
-        for (size_t i = 0; i < yPos.size(); ++i)
+    // The old combined fixture only asserted that a hard positive pluck
+    // sounded different from a negative one. That mirrored the velocity
+    // limiter; it did not establish that a string met a physical crown.
+}
+
+void testBareStringPolarity()
+{
+    // The bare string and yielding neck are symmetric about rest; tension
+    // modulation depends on energy, so reversing the applied force reverses
+    // the entire waveform even at a hard attack. A unilateral crown contact
+    // would require an explicitly positioned obstacle and its clearance.
+    // The 21st fret is the instrument's last: no following crown exists there.
+    for (double fret : {0.0, 5.0, 21.0})
+        for (double force : {1.0, 4.0})
         {
-            const double a = yPos[i] + yNeg[i];
-            diff += a * a;
-            sum += static_cast<double>(yPos[i]) * yPos[i];
+            auto positive = makeString(48000.0, 2, fret);
+            auto negative = makeString(48000.0, 2, fret);
+            positive->pluck(force, pickMetres, 0.0001);
+            negative->pluck(-force, pickMetres, 0.0001);
+            const auto a = run(*positive, 48000.0, 0.1, 2);
+            const auto b = run(*negative, 48000.0, 0.1, 2);
+            bool mirrored = true;
+            for (size_t i = 0; i < a.size(); ++i)
+                mirrored = mirrored && a[i] == -b[i];
+            check(mirrored, "a bare string cannot invent a one-sided velocity collision");
         }
-        return std::sqrt(diff / sum);
-    };
-    const double softAsym = asymmetry(1.0);
-    const double hardAsym = asymmetry(4.0);
-    std::printf("unilateral fret-crown grazing asymmetry on D string fret 5: "
-                "1.0 N %.4f, 4.0 N %.4f\n",
-                softAsym, hardAsym);
-    check(softAsym < 1e-6 && hardAsym > 0.01,
-          "unilateral fret-crown grazing stays linear on soft attacks and engages on hard ff attacks");
 }
 
 } // namespace
@@ -1006,6 +1154,11 @@ int main()
     testRub();
     testSecondPlane();
     testOpposedPlanes();
+    testRepickTiltKeepsThePreviousForce();
+    testDamperGeometryHasNoHistory();
+    testFractionalContactResistance();
+    testResetRubbing();
+    testFingerForceDoesNotFollowThePick();
     testNeck();
     testPerSecondLoss();
     testNodes();
@@ -1018,7 +1171,8 @@ int main()
     testRestingDeflection();
     testDeterminism();
     testZeroHertzBleedAndRepeatedPlucks();
-    testFractionalDashpotAndFretGrazing();
+    testNearSaddleMidpointDashpot();
+    testBareStringPolarity();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");
     return failures == 0 ? 0 : 1;

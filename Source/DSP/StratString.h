@@ -61,7 +61,7 @@ private:
 // their ends differ only by the in-plane speaking length (inPlaneShortening),
 // so each partial is a pair a fraction of a hertz apart that the pickup hears
 // beating (StratEngine reads both). Toward the poles the neck also yields
-// under the fret, in one resonance near 420 Hz (StratString.cpp), and the
+// under the fret, through the neck's two modes (StratString.cpp), and the
 // strings that share it reach one another through it (StratNeck).
 class StratString
 {
@@ -129,6 +129,8 @@ public:
     // resistance in kg/s, ends it instead of the fret, which the neck then no
     // longer feels, until the string is put back on a fret (0).
     void setFingerEnd(double kilogramsPerSecond) noexcept;
+    // The nut of an open string is a rigid termination too; false only
+    // while the released string ends on the fingertip's flesh.
     bool onFret() const noexcept { return !lifted; }
 
     // The fretting finger's own force on the string where it touches it,
@@ -216,6 +218,7 @@ public:
     bool isDriven() const noexcept
     {
         return stickRemaining > 0 || releasePosition < releaseLength || blockedForce != 0.0
+            || topBlockedForce != 0.0 || pendingTopForce != 0.0
             || fingerActive || pressPosition < pressLength;
     }
 
@@ -300,14 +303,12 @@ private:
 
     // Fret end.
     double fret = 0.0;
-    double tension = 1.0;
     double fundamental = 0.0;
     double intonedOpen = scaleMetres;
     double saddleSetback = 0.0;
     double restPitch = 1.0;
     double samplesPerMetre = 0.0;
     double characteristicImpedance = 0.0;
-    float fretGrazeVelocity = 100.0f;
     int leftLength = 0;       // rail L, integer
     int leftTarget = 0;       // where a glide is taking it
     // The whole loop in samples less the fret-end filters' phase delay;
@@ -404,6 +405,12 @@ private:
     std::array<float, 3> injected {};
     double forceHeld = 0.0;
     double blockedForce = 0.0;
+    // Each stroke's tilt applies only to that stroke's force change. The
+    // previous stroke's high-pass tail keeps its own direction when the
+    // next pick turns; pendingTopForce completes an interrupted old contact
+    // in its old direction before the next one starts.
+    double topBlockedForce = 0.0;
+    double pendingTopForce = 0.0;
     double blockCoefficient = 0.0;
     void placeDampers() noexcept;
     double lastUsablePosition() const noexcept;
@@ -417,7 +424,8 @@ private:
     float rubNewtons = 0.0f;
     int rubRemaining = 0;
     double rubPhase = 0.0;
-    std::uint32_t rubNoise = 0x2545F491u; // xorshift32
+    static constexpr std::uint32_t rubNoiseSeed = 0x2545F491u;
+    std::uint32_t rubNoise = rubNoiseSeed; // xorshift32
     float rubRough = 0.0f;
     float rubbing() noexcept;
     double pressDepth = 0.0;

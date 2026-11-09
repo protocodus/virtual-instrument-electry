@@ -752,14 +752,9 @@ void StratPerformer::playNoteOff(int channel, int note) noexcept
         if (st.note != note || st.channel != channel || !st.keyDown)
             continue;
         st.keyDown = false;
-        bool struck = true;
-        for (int e = 0; e < eventCount; ++e)
-            struck = struck
-                && !(events[static_cast<size_t>(e)].kind == EventKind::strike
-                     && events[static_cast<size_t>(e)].string == s);
         if (pedal)
             st.sustained = true;
-        else if (struck)
+        else if (!strikeQueued(s))
             release(s);
         return;
     }
@@ -1049,15 +1044,33 @@ void StratPerformer::cancelEvents(int stringIndex, EventKind kind) noexcept
     eventCount = keep;
 }
 
+bool StratPerformer::strikeQueued(int stringIndex) const noexcept
+{
+    for (int i = 0; i < eventCount; ++i)
+        if (events[static_cast<size_t>(i)].string == stringIndex
+            && events[static_cast<size_t>(i)].kind == EventKind::strike)
+            return true;
+    return false;
+}
+
 bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
 {
     // The line continues on the string it is ringing on.
     int s = -1;
     std::uint64_t latest = 0;
+    const bool requestedString = p.string >= 0 && p.string < StratEngine::stringCount
+        && p.note >= openNote[p.string] && p.note - openNote[p.string] <= frets;
     for (int k = 0; k < StratEngine::stringCount; ++k)
     {
+        // A tab's explicit playable string is the same constraint as in
+        // assign(). An older line on another string cannot steal that note.
+        if (requestedString && k != p.string)
+            continue;
         const StringState& st = strings[static_cast<size_t>(k)];
-        if (st.order > latest && guitar->isSounding(k))
+        // Sympathetic motion can make a string sound before a queued strum
+        // has struck its owned note. That note cannot yet start a legato
+        // line: fall back to picking the new note instead.
+        if (st.order > latest && !strikeQueued(k) && guitar->isSounding(k))
         {
             latest = st.order;
             s = k;
@@ -1135,6 +1148,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
         st.slideLength = static_cast<std::int64_t>(
             (slideBaseSeconds + slideSecondsPerFret * std::abs(fret - from)) * sampleRate);
     }
+    cancelEvents(s, EventKind::strike);
     st.note = p.note;
     st.channel = p.channel;
     st.keyDown = true;
@@ -1189,6 +1203,7 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     if (string < 0)
         return false;
 
+    cancelEvents(string, EventKind::strike);
     cancelEvents(string, EventKind::liftTouch);
     cancelEvents(string, EventKind::leaveString);
     cancelEvents(string, EventKind::shift);
@@ -1418,6 +1433,9 @@ void StratPerformer::startStroke() noexcept
         e.slideFrets = latched == Articulation::slideIn ? rise : 0.0;
         e.bendSemitones
             = latched == Articulation::bend || latched == Articulation::halfBend ? rise : 0.0;
+        // A later note can take a string before a slow strum reaches it.
+        // The old strike must not retune or excite the new note's string.
+        cancelEvents(s, EventKind::strike);
         schedule(e);
 
         st = StringState {};
@@ -1679,7 +1697,9 @@ void StratPerformer::runEvent(const Event& e) noexcept
     // An upstroke catches the string from the treble side at a slightly steeper
     // wrist angle, striking 2.5 mm nearer the bridge with a slightly crisper
     // release than a downstroke.
-    const bool upstroke = e.force < 0.0 && !steadyStroke;
+    // The event owns its stroke direction, including the first stroke and
+    // a string reached after another stroke has already been scheduled.
+    const bool upstroke = e.force < 0.0;
     if (fingers)
         pickAt = clamp(pickAt + fingerOffsetMetres, 0.025, 0.250);
     else if (upstroke)

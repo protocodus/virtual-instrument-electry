@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.2 — 2026-11-09 — Consistent Strat attacks, contacts and queued notes
+
+Repicks keep the previous stroke's force and pickup field in their original
+directions, fractional harmonic touches retain their specified resistance,
+and an early harmonic release correctly becomes a finite finger contact.
+The first explicit upstroke uses its upstroke geometry, and a newer note
+taking a string cancels an obsolete delayed strum. Held bends keep their
+pickup geometry across fret changes and resets. The unsupported velocity
+clip formerly standing in for a fret collision is removed; actual fret
+contact still needs a positioned displacement/clearance model. See the
+[physical audit and keyboard validation](Docs/validation/2026-11-09-strat-model-audit.md).
+
 ### 2.4.1 — 2026-11-08 — Clean string silence, lookahead chords and vibrato handoffs
 
 Muted and released Stratocaster strings now fall to digital silence within two
