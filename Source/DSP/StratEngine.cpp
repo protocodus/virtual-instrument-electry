@@ -24,7 +24,9 @@ constexpr double bridgeTrebleMetres = 0.036;
 // side and 6/64 in on the treble side, set with the string held at the last
 // fret, and taken as one gap per string between them; the vintage pole
 // stagger follows the 7.25 in fingerboard radius, so it keeps the middle
-// strings at about the same gap.
+// strings at about the same gap. Held at any lower fret, or open, the string
+// runs higher over every coil (StratEngine::updateCoilGeometry).
+constexpr double gapSetFret = 21.0;
 constexpr double gapBassMetres = 8.0 / 64.0 * 0.0254;
 constexpr double gapTrebleMetres = 6.0 / 64.0 * 0.0254;
 
@@ -76,8 +78,11 @@ constexpr double lowEVoltsPerMetrePerSecond = 1.0;
 // within 2.2 dB of it. The '62 reference, another guitar, puts its open D,
 // G and high E 1.3, 6.2 and 8.8 dB over on the first reckoning. Nothing
 // here says which part of the pickup or the stroke makes the difference, so
-// it stands with the poles, as one per string.
-constexpr double poleBalanceDb[StratString::stringCount] = {0.0, 1.55, 2.0, 5.8, 5.15, 5.2};
+// it stands with the poles, as one per string. The string's rest height
+// following its fret (StratEngine::updateCoilGeometry) reads the treble
+// strings up to 0.25 dB further under the low E over those sessions' frets
+// and coils (neck 0-12, middle 0-20), which these restore.
+constexpr double poleBalanceDb[StratString::stringCount] = {0.0, 1.6, 2.1, 5.95, 5.35, 5.45};
 
 double poleBalance(int stringIndex) noexcept
 {
@@ -111,11 +116,16 @@ double steelCoupling(int stringIndex) noexcept
 // 200 ms, and +0.1 dB over all four; 0.4 leaves them 1.9 dB short. It was
 // 0.268 while the stroke pushed the string from nothing: with the share the
 // pick now holds at rest (StratPerformer) that leaves them 5.4 dB short.
-// A string swinging along the body over a round pole also gives
-// second-order flux, and it rests 1 to 2 mm above the set gap at the low
-// frets; the share stands for both. Which way a stroke leans is not
-// measured: a downstroke (positive force) leans toward the poles here.
-constexpr double acrossShare = 0.5;
+// The string rests above the set gap below the last fret (1.8 mm over the
+// neck coil open, 1.0 at the 12th: StratEngine::updateCoilGeometry), where
+// the flux law bends less; 0.58 reads the four marks as 0.5 did with every
+// string at the set gap, each within 0.4 dB and their mean within 0.05 (one
+// partial picker, Hann windows at 0 and 180 ms, read on model and
+// recording alike). A string swinging along the body over a round pole
+// also gives second-order flux; the share stands for that too. Which way a
+// stroke leans is not measured: a downstroke (positive force) leans toward
+// the poles here.
+constexpr double acrossShare = 0.58;
 
 // What the coil hears of the string's swing along the top, against its swing
 // toward the poles, the stroke driving both as hard (StratString): the pole
@@ -274,7 +284,6 @@ void StratEngine::prepare(double sampleRate) noexcept
         string.prepare(stringRate, s, controlPeriod * oversampling);
         string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
-        gapSteps[static_cast<size_t>(s)] = static_cast<float>(gapMetres(s) / fluxStepMetres);
         // Two loops of the open string slackened to a quarter of its
         // tension, the longest the string can be.
         quietLimit[static_cast<size_t>(s)] = static_cast<int>(
@@ -319,7 +328,7 @@ void StratEngine::reset() noexcept
         swingTop[static_cast<size_t>(s)] = {};
         // reset clears motion, not the held fret and bend. Keep the pickup
         // geometry consistent with the bridge's retained tension.
-        updateBendGeometry(s);
+        updateCoilGeometry(s);
     }
     neck.reset();
     circuit.reset();
@@ -400,7 +409,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     }
     strings[static_cast<size_t>(stringIndex)].setTuning(
         fret, tremolo.tensionRatio(stringIndex));
-    updateBendGeometry(stringIndex);
+    updateCoilGeometry(stringIndex);
 }
 
 void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
@@ -442,22 +451,43 @@ void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
     tremolo.setBend(stringIndex, pitchRatio);
     bridgeMoved = true;
     if (stringIndex >= 0 && stringIndex < stringCount)
-        updateBendGeometry(stringIndex);
+        updateCoilGeometry(stringIndex);
 }
 
-void StratEngine::updateBendGeometry(int stringIndex) noexcept
+void StratEngine::updateCoilGeometry(int stringIndex) noexcept
 {
     // A finger bend pulls the string sideways across the fretboard and over
     // the cylindrical pole pieces: a whole-tone bend (pitchRatio ~ 1.122)
     // displaces the string laterally by ~1-1.5 mm over the coils.
     const double r = tremolo.bendRatio(stringIndex);
     const double lateralMetres = 0.0022 * std::sqrt(std::min(r * r - 1.0, 1.0));
-    const double speaking = fretMetres(stringIndex, pending[static_cast<size_t>(stringIndex)].fret);
+    const double fret = pending[static_cast<size_t>(stringIndex)].fret;
+    const double speaking = fretMetres(stringIndex, fret);
+    // The string runs straight from the saddle to the crown of the fret that
+    // stops it, or to the nut, at the action's heights (actionMetres); the
+    // gap is set with it held at the last fret, where it passes lowest over
+    // the coils. Open, it stands 1.8, 1.1 and 0.5 mm higher over the neck,
+    // middle and bridge coils (the low E), which the flux law reads 5.1, 3.2
+    // and 1.6 dB quieter; at the 12th fret 2.9, 1.8 and 0.9 dB. The Strat
+    // recorded direct climbs the neck so: each note's level below 1.2 kHz
+    // over 10 to 260 ms, against this model's at one stroke, rose 2.6 dB over
+    // frets 0-12 with every string at the set gap (IDMT-SMT-Guitar dataset 1,
+    // neck pickup, 78 notes; 1.8 to 3.5 over 90 % of resamples) and 0.6 with
+    // it here (-0.3 to 1.4); dataset 2's fret runs, recorded apart and read
+    // through the middle coil (126 notes, frets 0-20), rose 4.3 and 1.6 dB.
+    const double saddle = actionMetres(1e9);
+    const double end = fret > 0.0 ? 0.0 : actionMetres(0.0);
+    const double setSpeaking = fretMetres(stringIndex, gapSetFret);
     for (int c = 0; c < coilCount; ++c)
     {
-        const double share = speaking > 0.0 ? std::min(coilMetres(c, stringIndex) / speaking, 1.0) : 0.0;
+        const double x = coilMetres(c, stringIndex);
+        const double share = speaking > 0.0 ? std::min(x / speaking, 1.0) : 0.0;
         bendSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
             = static_cast<float>(lateralMetres * share / fluxStepMetres);
+        const double raised = fret >= gapSetFret ? 0.0
+            : (end - saddle) * share + saddle * std::min(x / setSpeaking, 1.0);
+        gapSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
+            = static_cast<float>((gapMetres(stringIndex) + raised) / fluxStepMetres);
     }
 }
 
@@ -534,7 +564,7 @@ void StratEngine::applyPending() noexcept
             continue;
         strings[static_cast<size_t>(s)].setTuning(p.fret, tremolo.tensionRatio(s),
                                                   p.glide);
-        updateBendGeometry(s);
+        updateCoilGeometry(s);
         p.changed = false;
         p.glide = false;
     }
@@ -613,7 +643,7 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
             const float bend = bendSteps[k][static_cast<size_t>(c)];
             // A string driven onto the poles reads as touching them,
             // and one far off as at the table's end.
-            float d = gapSteps[k] - dy - inPlaneHeard * dx
+            float d = gapSteps[k][static_cast<size_t>(c)] - dy - inPlaneHeard * dx
                 + 0.5f * bend * bend * invPoleSteps;
             d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
             const int i = static_cast<int>(d);

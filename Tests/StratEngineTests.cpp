@@ -562,6 +562,63 @@ void testLateralBendPoleFlux()
           "lateral string bend modulates cylindrical pole-piece magnetic flux");
 }
 
+// Novak et al.'s flux law (StratEngine.cpp), restated: the coil's
+// sensitivity at a string's distance from the poles.
+double fluxSlope(double gap)
+{
+    constexpr double length = 0.01298, radius = 0.00277;
+    const auto term = [](double x) {
+        const double base = radius * radius + x * x;
+        return (x * x + 3.0 * radius * radius) / (3.0 * base * std::cbrt(base));
+    };
+    return term(gap + length) - term(gap);
+}
+
+void testStringHeightFollowsFret()
+{
+    // The gap is set with the string held at the last fret; lower down it
+    // runs higher over the coils, the more so the nearer the neck. A light
+    // pluck on the low E, open and at the 12th fret, read by the neck and the
+    // bridge coils: their fundamental's ratio, less the mode shape's, moves
+    // between the two frets by what the flux law gives at the string's
+    // heights on its straight line from saddle to nut or fret crown.
+    constexpr int s = 0;
+    constexpr double setGap = 8.0 / 64.0 * 0.0254;
+    double shift[2] = {};
+    double predicted[2] = {};
+    for (int i = 0; i < 2; ++i)
+    {
+        const double fret = i == 0 ? 0.0 : 12.0;
+        double ratio = 0.0, shape = 0.0, gaps = 0.0;
+        for (Position position : {Position::neck, Position::bridge})
+        {
+            auto engine = makeEngine(position);
+            engine->setFret(s, fret);
+            render(*engine, 0.01);
+            engine->pluck(s, lightNewtons, 0.13, 0.0003);
+            const auto y = render(*engine, 0.3);
+            const double sign = position == Position::neck ? 1.0 : -1.0;
+            ratio += sign * level(y, 0.05, 0.2, engine->fundamentalHz(s));
+            const int coil = position == Position::neck ? 0 : 2;
+            const double x = StratEngine::coilMetres(coil, s);
+            const double speaking = engine->fretMetres(s, fret);
+            const double saddle = StratEngine::actionMetres(1e9);
+            const double end = fret > 0.0 ? 0.0 : StratEngine::actionMetres(0.0);
+            const double height = saddle + (end - saddle) * x / speaking;
+            const double lowest = saddle * (1.0 - x / engine->fretMetres(s, 21.0));
+            shape += sign * 20.0 * std::log10(std::sin(pi * x / speaking));
+            gaps += sign * 20.0 * std::log10(fluxSlope(setGap + height - lowest) / fluxSlope(setGap));
+        }
+        shift[i] = ratio - shape;
+        predicted[i] = gaps;
+    }
+    const double moved = shift[1] - shift[0], expected = predicted[1] - predicted[0];
+    std::printf("low E, neck against bridge coil from open to fret 12: %+.2f dB, the string's "
+                "heights give %+.2f\n", moved, expected);
+    check(expected > 1.0, "the neck coil gains on the bridge coil up the neck");
+    check(std::abs(moved - expected) < 0.5, "the coils read the string at its fret's height");
+}
+
 void testBendGeometryLifecycle()
 {
     // The same held fret and bend define the same physical configuration.
@@ -616,6 +673,7 @@ int main()
     testPickupFieldDoesNotFollowThePick();
     testLateralBendPoleFlux();
     testBendGeometryLifecycle();
+    testStringHeightFollowsFret();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
     return failures == 0 ? 0 : 1;

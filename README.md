@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.3 — 2026-11-09 — The Strat's pickups hear the string where it runs
+
+The pickups are set with the string held at the last fret, so below it the
+string runs higher over them, most of all over the neck pickup: open, it
+reads there 5 dB quieter than at the set gap. Notes now get louder up the
+neck as on a Strat recorded direct, which rose 2.6 dB more than the model
+over frets 0–12 and 4.3 dB more over 0–20 in two sessions, against 0.6 and
+1.6 dB now. At the low frets the neck pickup plays about 4 dB quieter, the
+middle 2.5 and the bridge 1; the coils' bark and the strings' balance keep
+their fitted strength. Strat rendering is about 18 % faster with identical
+output. See the [pickup height validation](Docs/validation/strat-pickup-height-2026-11-09.md).
+
 ### 2.4.2 — 2026-11-09 — Consistent Strat attacks, contacts and queued notes
 
 Repicks keep the previous stroke's force and pickup field in their original
@@ -1459,6 +1471,14 @@ chords waver 1.54 and 1.46 dB at 1–2.5 and 2.5–6 kHz, the model 1.93 and
 1.92). A support that yields toward the poles only below its own resonance
 would level the split off; it is not modelled or measured yet
 ([open work](Docs/plans/twin-split-2026-11-07.md)).
+
+The Strat's velocity response is voiced, not fitted: full force against the
+ordinary stroke waits for velocity-layered recordings of a Strat played
+direct, which neither recorded session has (one dynamic each). With the pick's
+tip springing clear in a fixed time, the plain strings brighten much less
+with velocity than the wound ones: from velocity 20 to 127 the high E's
+2–6 kHz rises 1.5 dB against its lows below 1.2 kHz, the low E's 9.6
+(fret 5, first 100 ms). Whether a real high E does more is not measured.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

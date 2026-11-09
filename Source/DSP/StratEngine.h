@@ -94,7 +94,8 @@ private:
         bool changed = false;
     };
     void applyPending() noexcept;
-    void updateBendGeometry(int stringIndex) noexcept;
+    // The string's place over each coil at its fret and bend.
+    void updateCoilGeometry(int stringIndex) noexcept;
     // One sample of every sounding string, and of every string while the
     // neck moves, summed into each coil's EMF.
     void stepStrings(float (&emf)[coilCount]) noexcept;
@@ -106,11 +107,12 @@ private:
     std::array<int, stringCount> quietLimit {};
     // The coil reads velocity times the flux law's slope at the string's
     // distance from the poles: steel[s] times fluxTable at that distance in
-    // table steps, which is the gap less the swing across the coil.
+    // table steps, which is the gap at the string's fret less the swing
+    // across the coil.
     static constexpr int fluxTableSize = 257;
     std::array<float, fluxTableSize> fluxTable {};
     std::array<float, stringCount> steel {};
-    std::array<float, stringCount> gapSteps {};
+    std::array<std::array<float, coilCount>, stringCount> gapSteps {};
     std::array<std::array<float, coilCount>, stringCount> swing {};
     std::array<std::array<float, coilCount>, stringCount> swingTop {};
     std::array<std::array<float, coilCount>, stringCount> bendSteps {};
