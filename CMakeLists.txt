@@ -628,6 +628,10 @@ if(BUILD_TESTING)
         add_test(NAME Electry.ParameterMatrix COMMAND ElectryParameterMatrixTests --rotation)
         set_tests_properties(Electry.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 1800)
 
+        # U11: every parameter reaches held and new notes after long play.
+        add_test(NAME Electry.ParameterReach COMMAND ElectryParameterMatrixTests --reach --jobs 4)
+        set_tests_properties(Electry.ParameterReach PROPERTIES LABELS unit TIMEOUT 1800)
+
         # One demo per factory rig (G3) and the More demos (G3d), played
         # through the processor itself.
         find_package(Threads REQUIRED)

@@ -9,6 +9,9 @@
 #include "ParameterMatrix.h"
 
 #include <cmath>
+#include <initializer_list>
+#include <stdexcept>
+#include <string>
 #include <thread>
 
 namespace
@@ -54,6 +57,56 @@ public:
         limits.silenceFloor *= gain;
         limits.dcLimit *= gain;
         return limits;
+    }
+
+    // U11. FX is off by default and no rig turns it on, so the effects are
+    // tested with it on.
+    protocodus::matrix::ReachRule ReachFor(std::size_t index, float) const override
+    {
+        using protocodus::matrix::Reach;
+        const auto parameters = Parameters();
+        const auto at = [&](const char* name) {
+            for (std::size_t i = 0; i < parameters.size(); ++i)
+                if (parameters[i].name == name)
+                    return i;
+            throw std::runtime_error(std::string("no parameter named ") + name);
+        };
+        const std::string& name = parameters[index].name;
+        const auto is = [&](std::initializer_list<const char*> names) {
+            for (const char* n : names)
+                if (name == n)
+                    return true;
+            return false;
+        };
+        // Read where a pluck starts: each string keeps the pluck it was given.
+        if (is({ "Pick position", "Pick hardness", "Velocity response", "Strum spread" }))
+            return { Reach::NewNotes, "the pick's contact at each new pluck" };
+        if (name == "Bend time")
+            return { Reach::NewNotes, "the travel of the next bend; the held chord is not bent" };
+        if (name == "FX enabled")
+            return { Reach::Held, "", { { at("Distortion"), 0.5f } } };
+        if (is({ "Distortion", "Amp simulation", "Compressor", "Delay", "Room" }))
+            return { Reach::Held, "", { { fxEnabled, 1.0f } } };
+        if (name == "Amp voice")
+            return { Reach::Held, "", { { fxEnabled, 1.0f }, { at("Amp simulation"), 1.0f } } };
+        if (name == "FX oversampling")
+            return { Reach::Held, "", { { fxEnabled, 1.0f }, { at("Distortion"), 1.0f } } };
+        // Only the Palm Mute style's heel reads it (handT60 in
+        // ElectryEngine.cpp); Mute pressure damps through its own law.
+        if (name == "Mute tightness")
+            return { Reach::Exempt, "the Palm Mute style's tightness, which a keyswitch starts; the phrase plays none" };
+        if (name == "Resonance depth")
+            return { Reach::Exempt, "how far the mod wheel pushes the resonance; the phrase does not move it" };
+        if (name == "Tremolo picking rate")
+            return { Reach::Exempt, "the repick rate of tremolo picking, which a keyswitch starts; the phrase plays none" };
+        // Each sits 30-60 dB under the strings on any chord.
+        if (name == "Body resonance")
+            return { Reach::Exempt, "the body's EMF, far under the strings' on the probe chord" };
+        if (name == "Artifacts")
+            return { Reach::Exempt, "hardware ring and saddle buzz, far under the strings on the probe chord" };
+        if (is({ "Pick noise", "Finger noise", "Release noise" }))
+            return { Reach::Exempt, "contact noise far under the strings on the probe chord" };
+        return {};
     }
 
 private:
