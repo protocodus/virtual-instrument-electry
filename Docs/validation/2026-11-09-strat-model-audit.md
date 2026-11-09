@@ -1,6 +1,6 @@
 # Strat model audit, 9 November 2026
 
-Work in progress for the five-hour instrument review. Baseline: `eef9db8`
+Five-hour instrument review. Baseline: `eef9db8`
 (2.4.1), after checking the initially supplied checkout against upstream.
 The shipping Reason path uses `StratPerformer`/`StratEngine`; the JUCE plugin
 still uses the separate `ElectryPerformer`/`ElectryEngine`. They are validated
@@ -59,15 +59,17 @@ separately. No listening preference is inferred from spectral measurements.
   A queued, unstruck note cannot start a legato/slide line merely because
   preparation or sympathetic motion has made its string move: it falls
   back to a picked onset. Released sounding tails retain their prior
-  eligibility.
+  eligibility. Legato and slide also honor a valid, reachable explicit string
+  request, so an older low-string line cannot steal a replacement intended
+  for a still-queued higher string.
 
-## Whole-keyboard measurements so far
+## Whole-keyboard measurements
 
 Fresh Strat performers, 48 kHz, 256-sample blocks, three seconds held,
 notes 40–85, velocities 1/24/50/77/100/127, neck/middle/bridge: 828 renders
 per variant. Baseline, corrected pickup, and removed crown proxy are all
-finite and audible, with no early-RMS velocity inversions. MIDI outside the
-pitched range and silent keyswitches require separate routing classification.
+finite and non-silent, with no early-RMS velocity inversions. The routing checks
+below separately classify unassigned MIDI keys and intentionally silent keyswitches.
 
 The first four contact/state corrections leave all 828 isolated first-pluck
 renders byte-identical to baseline. Their intended differences occur on
@@ -108,6 +110,16 @@ outside the live string; uniformly rescaling every port redistributes the
 lumped dispersion without establishing the correct local two-wave phase.
 A distributed spatial dispersion model remains necessary to resolve this,
 and the survey does not claim perfect rate invariance or no limitations.
+
+The tension observer also retains a calibrated one-plane approximation:
+`measureStretch()` estimates excess length from the poles-plane history,
+although a normal pick drives both transverse planes. Simply summing the top
+plane would approximately double the calibrated attack-pitch contribution;
+the force mapping and two-plane energy model need to be reidentified together.
+This review does not claim to resolve total two-plane stretch energy. Likewise,
+large stiffness changes can refit the dispersion allpass coefficient while
+retaining its direct-form state. A normalized energy-preserving transition
+needs a separate control-trajectory qualification before replacing that model.
 
 All 49 existing DSP unit/audio gates pass. The latest focused string,
 engine, and performer suites also pass after the new regressions, including
@@ -150,7 +162,7 @@ also reports noise cleaning. These are useful listening references, not
 interchangeable physical measurement chains.
 
 Palm and dead-note checks use 230 additional renders per variant (46 notes,
-ordinary/up/dead and palm 0/0.75/1). With the corrected model, the 2–4 kHz
+ordinary with palm 0, upstroke, dead-note, and palm 0.75/1). With the corrected model, the 2–4 kHz
 attack band does rise under the strongest palm, e.g. −58.1 to −45.3 dBFS
 on G3 over 0–35 ms, while total attack RMS falls from −26.0 to −27.4 dBFS.
 The largest later relative-band jumps occur near −90 dBFS absolute. A
@@ -164,11 +176,49 @@ whole-band residuals are dominated by subaudio, rather than the alleged
 not an audibility measure. No uncalibrated 65 mm/multiple-finger mute is
 added on that evidence. Levels use the shipping host's 10 V reference.
 
-## Remaining validation
+## Validation and evidence
 
-Final routing and legacy-engine surveys, articulation measurements, final
-full suites and plugin gates, version ledger, and the final profiling phase
-are pending. Scratch binaries, source snapshots, raw renders, scripts, and
-stage-by-stage metrics are in `/workspace/scratch/electry-2026-11-09/`.
-Final comparison audio must use `eef9db8` versus the final candidate, with
-identical score/rate/seed/controls and separately recorded level matching.
+The acoustic checkpoint is `03635993628238606adb6d70586584bb69e9f2b2`
+(2.4.2). Routing, legacy and forced-string/rate surveys, articulation
+measurements, final acoustic unit/sanitizer suites, the version ledger,
+and all six Linux plugin gates are complete. Those gates cover processor,
+factory/more audio, editor rendering, and VST3/CLAP artifacts. The final
+forced-string eligibility fix is included in the acoustic checkpoint and
+the frozen pre-optimization library.
+
+The pickup CPU checkpoint is `6c9d0102871c2abfa5c93dea462a217c7d636d68`. Shared pickup
+addressing preserves 131,072 direct reader cases and all 58,668,170 mono frames
+of the factory parity matrix exactly. Native factory CPU improves 3.4–11.0%
+in aggregate against the acoustic checkpoint, and 5.3–12.4% against the original,
+over six rate/block groups. Individual measurements and sporadic callback
+overruns are retained in the [CPU report](../benchmarks/strat-cpu-2026-11-09.md);
+the VM measurements are not a hard real-time guarantee. The separate legacy
+plugin CPU-budget gate also passes.
+
+The final source checkpoint is `620a3098d92b77e3e93d308359669fab396bbe37`. A full
+callback audit exposed repeated five-note chord work over the 192 kHz/64-frame
+duration. Bounded profiles identified repeated phase calculations inside the
+dispersion fit. Computing those invariant terms once reduces the two profiled
+callbacks' instructions by 50.4–52.6%, preserving 6,984 independent coefficient
+cases and all 56 factory renders exactly. Final `620a309` passes all 49 DSP
+gates again, the strict C++17 target, all three rebuilt sanitizer suites and the
+reader boundary oracle, and all six rebuilt Linux plugin/artifact/UI gates.
+The parent review also passes its source-exact native wrapper contract and
+strict Clang 19 x86-64/AArch64 compilation. ARM compilation is not ARM execution
+or Reason SDK acceptance. Final quiet native timing reduces aggregate CPU
+against `eef9db8` by 7.39% for all seven factory patches at 48 kHz/64 and 10.31%
+for Quack Rhythm at 192 kHz/64. The hoist adds 3.25%/3.96% savings over `6c9d010`.
+The 14 repeated chord-event medians fall from 375–502 µs to 203–288 µs, below
+the 333.3 µs duration; raw matched overruns fall from 42/42 to 3/42. Sporadic
+overruns remain, so this is not a universal real-time guarantee. The earlier
+six-group timing table remains specific to `6c9d010`; the final follow-up is
+a separate, smaller comparison with raw paired callback data retained.
+Scratch binaries, source snapshots, raw renders, scripts, and stage metrics
+are in `/workspace/scratch/electry-2026-11-09/`. Final comparison audio uses
+`eef9db8` versus `620a309`, with identical score/rate/seed/controls and recorded
+constant level matching. All three pairs (factory Init, alternating repicks,
+short harmonics) prove byte identity from acoustic `0363599` to final output.
+Independent file-level audit confirms finite audio, positive scalar matching,
+RMS agreement within 1.98e−8 dB, and a worst 4× reconstructed peak of
+−1.0000007 dBFS. The preview keys and level/source ledgers preserve raw levels;
+no listening preference has been inferred from these checks.
