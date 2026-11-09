@@ -154,6 +154,12 @@ level, follows the force):
 
 ## Checks
 
+`Electry.StratEngine` now checks that a note decays without a slow swell
+(`testNoSlowSwell`: the RMS of 20 ms frame levels less a quadratic over 60 to
+600 ms, under 0.45 dB on A3, the open high E and A4). The recorded Strat
+strays 0.20, 0.18 and 0.07 dB by that measure, 2.4.3 0.72, 0.99 and 0.64,
+2.4.4 0.27, 0.22 and 0.20.
+
 `cmake --build build-dsp` (Release, GCC, `-O3`) and `ctest --test-dir
 build-dsp`: every `unit` and `audio` test passes, and `ElectryDSPCxx17`
 builds. The `perf` tier (`Electry.CpuBudget`) and the plug-in's audio and
