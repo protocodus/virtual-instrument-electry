@@ -82,7 +82,7 @@ contact still needs a positioned displacement/clearance model. Pickup reads
 share spatial addressing between the two vibration planes without changing
 their samples. Dispersion fits reuse their fixed phase terms to reduce dense
 chord work; factory-score CPU measurements improve in aggregate. See the
-[physical audit and keyboard validation](Docs/validation/2026-11-09-strat-model-audit.md)
+[physical audit and keyboard validation](Docs/validation/strat-model-audit-2026-11-09.md)
 and the [CPU measurements and limits](Docs/benchmarks/strat-cpu-2026-11-09.md).
 
 ### 2.4.1 — 2026-11-08 — Clean string silence, lookahead chords and vibrato handoffs

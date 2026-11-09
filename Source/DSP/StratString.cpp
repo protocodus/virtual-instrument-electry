@@ -685,7 +685,7 @@ void StratString::setTaps(const std::array<double, tapCount>& metresFromBridge) 
     // physically before the fret. Keep the read inside the live string;
     // correcting that spatial approximation needs distributed filter phase,
     // not an unchecked read or arbitrary rescaling of every physical port.
-    // See Docs/validation/2026-11-09-strat-model-audit.md.
+    // See Docs/validation/strat-model-audit-2026-11-09.md.
     for (int k = 0; k < tapCount; ++k)
         taps[static_cast<size_t>(k)] = tapAt(
             clamp(positionSamples(tapMetres[static_cast<size_t>(k)]), 1.0,
