@@ -44,6 +44,32 @@ pickup setting is not annotated; its open notes match the middle coil's comb
 best (`StratEngine.cpp`, pole balance), and both readings are shown. Its
 remaining +1.6 dB is not explained here.
 
+### A second Strat through each pickup
+
+EGFxSet's clean set (an American Stratocaster recorded direct, CC BY 4.0;
+fetched, never committed) plays every string at frets 0–22 through each of
+the five switch positions, each position a separate take. Frets 0–21 of the
+neck, middle and bridge positions, 132 notes each, rendered through the same
+positions and measured as above:
+
+| Rise left over frets 0–21 | 2.4.2 | 2.4.3 |
+| --- | --- | --- |
+| neck | +0.85 (−0.31 to +1.99) | −4.08 (−5.13 to −3.01) |
+| middle | −0.29 (−1.50 to +0.82) | −3.26 (−4.42 to −2.20) |
+| bridge | −2.36 (−3.57 to −1.24) | −3.52 (−4.69 to −2.42) |
+| neck against bridge | +3.21 (+2.49 to +3.96) | −0.55 (−1.26 to +0.19) |
+| middle against bridge | +2.07 (+1.35 to +2.77) | +0.27 (−0.47 to +0.99) |
+| neck against middle | +1.14 (+0.23 to +2.17) | −0.82 (−1.71 to +0.19) |
+
+Read one coil at a time, this player's notes rise less up the neck than the
+model's on every pickup, by about 3.5 dB over 21 frets with the height and
+2.4 dB at the bridge coil even without it, where the height matters least:
+something common to all three pickups, the hand or the strings, that the IDMT
+sessions do not show. Read as one coil against another, which leaves out
+whatever all three share, 2.4.2 misses all three differences and 2.4.3 meets
+them within their intervals. The height is a difference between the coils
+before it is anything else, so this is the reading that tests it.
+
 ## Refits that keep the earlier fits
 
 - **Flux-law share (`acrossShare`, 0.5 to 0.58).** A string resting higher
@@ -101,8 +127,9 @@ not a listening test.
 
 ## Limits
 
-No recording here reads one string through more than one pickup, so the
-coils' balance against each other follows from the geometry and the set
-gaps alone. The fret is the string's target fret during a glide, as for the
+EGFxSet's takes differ from position to position, so its coil differences
+hold only over many notes; the absolute balance between the coils (how much
+louder its neck pickup is at the same fret) depends on how that guitar's
+pickups were set, which is not documented, and is not compared here. The fret is the string's target fret during a glide, as for the
 bend geometry. Between the nut and the 1st fret the end height steps from
 the nut's 0.35 mm to the crown's 0, 0.09 mm over the neck coil.

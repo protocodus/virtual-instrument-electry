@@ -475,6 +475,12 @@ void StratEngine::updateCoilGeometry(int stringIndex) noexcept
     // neck pickup, 78 notes; 1.8 to 3.5 over 90 % of resamples) and 0.6 with
     // it here (-0.3 to 1.4); dataset 2's fret runs, recorded apart and read
     // through the middle coil (126 notes, frets 0-20), rose 4.3 and 1.6 dB.
+    // EGFxSet's clean American Stratocaster, recorded through each pickup
+    // (CC BY 4.0, frets 0-21), gives the coils' difference whatever its
+    // player's hand did up the neck: its neck coil against its bridge coil
+    // rose 3.2 dB more over frets 0-21 than the set gap gave, and -0.6 dB
+    // here; middle against bridge 2.1 and 0.3, neck against middle 1.1 and
+    // -0.8.
     const double saddle = actionMetres(1e9);
     const double end = fret > 0.0 ? 0.0 : actionMetres(0.0);
     const double setSpeaking = fretMetres(stringIndex, gapSetFret);

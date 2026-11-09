@@ -64,7 +64,9 @@ string runs higher over them, most of all over the neck pickup: open, it
 reads there 5 dB quieter than at the set gap. Notes now get louder up the
 neck as on a Strat recorded direct, which rose 2.6 dB more than the model
 over frets 0–12 and 4.3 dB more over 0–20 in two sessions, against 0.6 and
-1.6 dB now. At the low frets the neck pickup plays about 4 dB quieter, the
+1.6 dB now; a second Strat recorded through each pickup has its neck pickup
+gain 3.2 dB on its bridge pickup up the neck that the model lacked, −0.6 dB
+now. At the low frets the neck pickup plays about 4 dB quieter, the
 middle 2.5 and the bridge 1; the coils' bark and the strings' balance keep
 their fitted strength. Strat rendering is about 18 % faster with identical
 output. See the [pickup height validation](Docs/validation/strat-pickup-height-2026-11-09.md).
