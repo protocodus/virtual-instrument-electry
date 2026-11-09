@@ -10,10 +10,9 @@ constexpr double pi = 3.14159265358979323846;
 constexpr int openNote[StratEngine::stringCount] = {40, 45, 50, 55, 59, 64};
 constexpr double scale = StratString::scaleMetres;
 
-// The hand's force on the pick. Velocity reads linearly as force, so the
-// string's deflection and the pickup's output follow it linearly, from the
-// lightest stroke that still slips off the pick at 1/20 of full. The
-// ordinary stroke, velocity 77, is measured by its pitch glide: a string
+// The hand's force on the pick, from the lightest stroke that still slips off
+// the pick at 1/20 of full. The ordinary stroke, velocity 77, is measured by
+// its pitch glide: a string
 // swinging harder is stretched further and starts sharper, by what its
 // steel, length and tension say (StratString::setTuning), so a recording's
 // glide gives its stroke's force. A Strat recorded direct (IDMT-SMT-Guitar
@@ -30,11 +29,28 @@ constexpr double scale = StratString::scaleMetres;
 // stabilizer (StratBridge) the same stroke glides 1.26 times as far (median
 // over the 78 notes, the fundamental's peak over 15 to 60 ms against 0.4 to
 // 0.8 s: 1.95 cents against 1.55), the hand being the same and the guitar
-// stiffer. Full force against the ordinary is voiced until phase 2 fits the
-// reference's velocity layers: 3.0 N holds the low E 4 mm aside at a fifth
-// of its length.
-constexpr double fullForce = 3.0;
+// stiffer.
+//
+// Above the lightest share, force grows as (velocity / 127) to the power
+// velocityExponent, read on the same glide, which grows with the square of
+// the force (within 0.2 cents on this model) and survives a sample library's
+// level normalisation. Over the owner's Clean El Guitar library (pianobook,
+// four velocity layers, each placed at its zone's middle; 21 notes, MIDI 45
+// to 79, glide over 15 to 60 ms against 0.4 to 0.8 s, fitted note by note),
+// the downstrokes give 1.89 (1.48 to 2.44 over 90 % of resamples by
+// note), the upstrokes 1.01 (0.69 to 1.35), both together 1.57 (1.28 to
+// 1.91); the same fit on this model's own renders gives back 0.97. The '62
+// Reissue's layers, heard through an amp that hides their glide, span 6.5
+// and 9.4 dB, as a linear law at their zones' middles does (7.0 and 9.7),
+// which an amp's compression makes a lower bound. Between the linear law
+// and the pooled fit the owner chose by ear the curve halfway, 1.275
+// (Docs/decisions.md, 2026-11-09), inside the upstrokes' interval and at the
+// pooled one's lower edge. The ordinary stroke keeps its measured force, so
+// full force is 3.40 N, against 3.0 for the linear law.
 constexpr double lightestShare = 0.05;
+constexpr double velocityExponent = 1.275;
+constexpr double ordinaryForce = 1.878;
+constexpr int ordinaryVelocity = 77;
 
 // The string leaves the pick in two stages: it slides across the tip's grip
 // depth d at its kink velocity F / Z, taking Z d / F, and the tip then springs
@@ -574,8 +590,11 @@ int StratPerformer::stringFret(int s) const noexcept
 
 double StratPerformer::velocityForce(int velocity) const noexcept
 {
-    const double v = clamp(velocity / 127.0, 0.0, 1.0);
-    return fullForce * (lightestShare + (1.0 - lightestShare) * v);
+    const auto share = [](int vel) {
+        const double v = clamp(vel / 127.0, 0.0, 1.0);
+        return lightestShare + (1.0 - lightestShare) * std::pow(v, velocityExponent);
+    };
+    return ordinaryForce * share(velocity) / share(ordinaryVelocity);
 }
 
 double StratPerformer::releaseSeconds(int s, double force) const noexcept

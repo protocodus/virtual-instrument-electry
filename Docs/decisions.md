@@ -4,6 +4,38 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-09 — the Strat's force grows with velocity to the power 1.275 (between A and B)
+
+Decided: how the Strat's picking force grows with MIDI velocity. The attack's
+pitch glide, which grows with the square of the force and survives a sample
+library's level normalisation, was read on the owner's libraries (details in
+the [validation](validation/strat-velocity-and-bleed-2026-11-09.md)). Over
+F ∝ 0.05 + 0.95 (v/127)^p, Clean El Guitar's downstrokes fit p = 1.89 (1.48
+to 2.44), its upstrokes 1.01 (0.69 to 1.35), both together 1.57 (1.28 to
+1.91); the '62 Reissue's levels, through its amp, span what p = 1 gives, a
+lower bound. Which a player's velocity follows, nothing measured says.
+
+- A: the shipping linear law, p = 1, 3.0 N at velocity 127.
+- B: p = 1.55, the pooled fit.
+- C: p = 1.9, the downstrokes alone.
+
+Every letter kept the ordinary stroke (velocity 77) at its measured 1.88 N.
+Material: single notes at velocity 20, 45, 77, 105 and 127 on the open low E,
+A3 on the G string and A4 on the high E, an accented riff on the A string and
+an E major strum at 35 and 120, neck pickup, 48 kHz, whole-file RMS matched
+(B −1.46 dB, C −2.53 dB). The key was kept apart until the choice.
+
+**The owner chose halfway between A and B by ear** ("between A/B (half)"):
+p = 1.275, so 3.40 N at velocity 127, velocity 20 2.0 dB softer and 127
+1.1 dB louder than A. The exponent is halfway between two measured
+candidates and lies inside the upstrokes' interval and at the pooled fit's
+lower edge; it was chosen by ear, not fitted. A velocity-layered recording of
+a Strat played direct would replace it.
+
+The same set showed a 2.5 to 8 Hz swell on every note, which the owner
+heard as tremolo. That was a bug (the 0 Hz bleed of 2.4.1 ringing), measured
+and fixed, not part of this choice.
+
 ## 2026-11-07 — in tune together, and a fretting hand that never repeats (owner)
 
 The owner's decisions, not listening tests: "we need perfect tuning, i can

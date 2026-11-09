@@ -57,6 +57,21 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.4 — 2026-11-09 — No tremolo on the Strat's notes, and a steeper velocity curve
+
+Every Strat note swelled and dipped together at 2.5 to 8 Hz over its first
+half second, faster on higher notes and deeper on harder strokes, a tremolo
+the recorded Strat does not have: the correction added in 2.4.1 that clears a
+string's leftover 0 Hz slope rang, and the pickups read the swing. It is now
+damped critically on every note: the notes' envelopes stray 0.06 to 0.18 dB
+from a smooth decay where they strayed 0.4 to 1.1 (the recorded Strat 0.04 to
+0.12), and muted and released strings still fall silent within 2.5 s. Picking
+force now grows with velocity to the power 1.275, which the owner chose by ear
+between the linear law and the fit to a velocity-layered sample library's
+attack pitch: velocity 77 plays as before, 20 is 2.0 dB softer and 127 1.1 dB
+louder. See the
+[validation](Docs/validation/strat-velocity-and-bleed-2026-11-09.md).
+
 ### 2.4.3 — 2026-11-09 — The Strat's pickups hear the string where it runs
 
 The pickups are set with the string held at the last fret, so below it the
@@ -1474,9 +1489,11 @@ chords waver 1.54 and 1.46 dB at 1–2.5 and 2.5–6 kHz, the model 1.93 and
 would level the split off; it is not modelled or measured yet
 ([open work](Docs/plans/twin-split-2026-11-07.md)).
 
-The Strat's velocity response is voiced, not fitted: full force against the
-ordinary stroke waits for velocity-layered recordings of a Strat played
-direct, which neither recorded session has (one dynamic each). With the pick's
+The Strat's velocity curve is chosen by ear between measured candidates, not
+fitted: a velocity-layered library's downstrokes ask for force growing with
+velocity to the power 1.9 and its upstrokes for 1.0, and the 1.275 between
+them waits for velocity-layered recordings of a Strat played direct, which
+neither recorded session has (one dynamic each). With the pick's
 tip springing clear in a fixed time, the plain strings brighten much less
 with velocity than the wound ones: from velocity 20 to 127 the high E's
 2–6 kHz rises 1.5 dB against its lows below 1.2 kHz, the low E's 9.6
