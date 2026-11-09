@@ -221,6 +221,91 @@ void testStringBalance()
     check(worst < 6.0, "one stroke on every string comes out as evenly as the recorded Strat's");
 }
 
+// How far a note's level strays from a smooth decay over 60 to 600 ms: the
+// RMS, in dB, of its 20 ms frames' level less a quadratic fitted to them,
+// counted from the first sample at a tenth of the peak.
+double slowSwellDb(const std::vector<float>& y)
+{
+    float peak = 0.0f;
+    for (float v : y)
+        peak = std::max(peak, std::abs(v));
+    size_t onset = 0;
+    while (std::abs(y[onset]) < 0.1f * peak)
+        ++onset;
+    const size_t frame = static_cast<size_t>(0.02 * rate);
+    std::vector<double> t, db;
+    for (size_t i = onset; i + frame <= y.size(); i += frame)
+    {
+        const double centre = (i - onset + 0.5 * frame) / rate;
+        if (centre < 0.06 || centre >= 0.6)
+            continue;
+        double sum = 0.0;
+        for (size_t k = i; k < i + frame; ++k)
+            sum += static_cast<double>(y[k]) * y[k];
+        t.push_back(centre);
+        db.push_back(10.0 * std::log10(sum / frame + 1e-30));
+    }
+    // Least squares a + b t + c t^2, by its normal equations.
+    double m[3][4] = {};
+    for (size_t i = 0; i < t.size(); ++i)
+    {
+        const double p[3] = {1.0, t[i], t[i] * t[i]};
+        for (int r = 0; r < 3; ++r)
+        {
+            for (int c = 0; c < 3; ++c)
+                m[r][c] += p[r] * p[c];
+            m[r][3] += p[r] * db[i];
+        }
+    }
+    for (int r = 0; r < 3; ++r)
+        for (int q = r + 1; q < 3; ++q)
+        {
+            const double f = m[q][r] / m[r][r];
+            for (int c = r; c < 4; ++c)
+                m[q][c] -= f * m[r][c];
+        }
+    double coef[3];
+    for (int r = 2; r >= 0; --r)
+    {
+        coef[r] = m[r][3];
+        for (int c = r + 1; c < 3; ++c)
+            coef[r] -= m[r][c] * coef[c];
+        coef[r] /= m[r][r];
+    }
+    double square = 0.0;
+    for (size_t i = 0; i < t.size(); ++i)
+    {
+        const double d = db[i] - (coef[0] + coef[1] * t[i] + coef[2] * t[i] * t[i]);
+        square += d * d;
+    }
+    return std::sqrt(square / static_cast<double>(t.size()));
+}
+
+void testNoSlowSwell()
+{
+    // A note decays without a slow swell of its whole level. By slowSwellDb
+    // the Strat recorded direct (IDMT-SMT-Guitar dataset 1, neck pickup)
+    // strays 0.20, 0.18 and 0.07 dB on A3 (G string, fret 2), the open high E
+    // and A4 (high E, fret 5); 2.4.3, whose 0 Hz saddle bleed rang at 5 to
+    // 8 Hz there (StratString::arrive), strayed 0.64 to 0.99 here.
+    const int strings[] = {3, 5, 5};
+    const double frets[] = {2.0, 0.0, 5.0};
+    for (int k = 0; k < 3; ++k)
+    {
+        auto engine = makeEngine(Position::neck);
+        const int s = strings[k];
+        engine->setFret(s, frets[k]);
+        const auto& spec = StratString::construction(s);
+        const double z = spec.kilogramsPerMetre * 2.0 * StratString::scaleMetres * spec.openHz;
+        // StratPerformer's ordinary stroke.
+        engine->pluck(s, 1.88, 0.13, 0.0002, 2.0 * 1.88 / (2.0 * z), false, 0.5);
+        const double swell = slowSwellDb(render(*engine, 0.7));
+        std::printf("string %d fret %.0f: level strays %.2f dB from a smooth decay\n", s,
+                    frets[k], swell);
+        check(swell < 0.45, "a note decays without a slow swell of its whole level");
+    }
+}
+
 // Renders the same performance with the host splitting it into blocks of
 // `block` samples; events land at the same absolute samples every time.
 std::vector<float> performance(int block)
@@ -674,6 +759,7 @@ int main()
     testLateralBendPoleFlux();
     testBendGeometryLifecycle();
     testStringHeightFollowsFret();
+    testNoSlowSwell();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
     return failures == 0 ? 0 : 1;
