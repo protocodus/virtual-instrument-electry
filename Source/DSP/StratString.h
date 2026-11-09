@@ -119,7 +119,11 @@ public:
     void setIntonation(double openMetres, double saddleSetbackMetres) noexcept;
     // Where the player's tuner left the open string at rest: its pitch over
     // standard pitch (StratEngine::restPitch). Call it before prepare.
-    void setRestPitch(double ratio) noexcept { restPitch = ratio; }
+    void setRestPitch(double ratio) noexcept
+    {
+        restPitch = ratio;
+        tunedTension = -1.0;
+    }
     // From the saddle to where `fret` stops the string, the nut at fret 0.
     double fretMetres(double fret) const noexcept;
 
@@ -233,6 +237,8 @@ public:
     // stiffness, exposed for the tuning check.
     static constexpr int dispersionSections = 4;
     static double allpassPhaseDelay(double omega, double coefficient) noexcept;
+    static double allpassPhaseDelay(double omega, double sine, double cosine,
+                                    double coefficient) noexcept;
     // The loss filter k (1 + zero z^-1) / (1 + pole z^-1).
     static double lossPhaseDelay(double omega, double zero, double pole) noexcept;
 
@@ -292,7 +298,8 @@ private:
     void clearLeft(int fromPosition, int toPosition) noexcept;
     void clearRight(int fromPosition, int toPosition) noexcept;
     void inject(Plane& plane, const Tap& at, float velocity) noexcept;
-    void damp(Plane& plane) noexcept;
+    // Every damper on both planes.
+    void damp() noexcept;
 
     double sampleRate = 48000.0;
     const Construction* spec = nullptr;
@@ -321,6 +328,10 @@ private:
     int rampRemaining = 0;
     int rampSamples = controlPeriod;
     bool tuned = false;
+    // What the last full setTuning was given and left (setTuning's skip);
+    // a tension of -1 asks for the next one in full.
+    double tunedTension = -1.0;
+    int tunedLeftLength = -1;
     // The in-plane loop's shortfall, samples.
     double topShortfall = 0.0;
 

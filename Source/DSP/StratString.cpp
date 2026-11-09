@@ -214,8 +214,12 @@ const StratString::Construction& StratString::construction(int stringIndex) noex
 
 double StratString::allpassPhaseDelay(double omega, double a) noexcept
 {
-    // (a + z^-1) / (1 + a z^-1)
-    const double s = std::sin(omega), c = std::cos(omega);
+    return allpassPhaseDelay(omega, std::sin(omega), std::cos(omega), a);
+}
+
+double StratString::allpassPhaseDelay(double omega, double s, double c, double a) noexcept
+{
+    // (a + z^-1) / (1 + a z^-1), s and c the sine and cosine of omega
     const double phase = -std::atan2(s, a + c) + std::atan2(a * s, 1.0 + a * c);
     return -phase / omega;
 }
@@ -510,9 +514,11 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
     // the original (base + loss) - wrap + dispersion association matters.
     const double fundamentalDelay = sampleRate / f0 - lossPhaseDelay(w1, zero, pole)
         + std::arg(wrapResponse(w1)) / w1;
+    // The search varies only the coefficient, so each partial's sine and
+    // cosine are taken once too.
     struct Partial
     {
-        double omega, lossDelay, wrapDelay, period;
+        double omega, sine, cosine, lossDelay, wrapDelay, period;
     };
     std::array<Partial, 14> partials {};
     int partialCount = 0;
@@ -523,17 +529,18 @@ void StratString::designDispersion(double stiffnessNow, double f0) noexcept
             break;
         const double wn = 2.0 * pi * fn / sampleRate;
         partials[static_cast<size_t>(partialCount++)] = {
-            wn, lossPhaseDelay(wn, zero, pole), std::arg(wrapResponse(wn)) / wn,
-            n * sampleRate / fn};
+            wn, std::sin(wn), std::cos(wn), lossPhaseDelay(wn, zero, pole),
+            std::arg(wrapResponse(wn)) / wn, n * sampleRate / fn};
     }
+    const double s1 = std::sin(w1), c1 = std::cos(w1);
     const auto error = [&](double a) {
-        const double base = fundamentalDelay - dispersionSections * allpassPhaseDelay(w1, a);
+        const double base = fundamentalDelay - dispersionSections * allpassPhaseDelay(w1, s1, c1, a);
         double sum = 0.0;
         for (int k = 0; k < partialCount; ++k)
         {
             const Partial& partial = partials[static_cast<size_t>(k)];
             const double loop = base + partial.lossDelay - partial.wrapDelay
-                + dispersionSections * allpassPhaseDelay(partial.omega, a);
+                + dispersionSections * allpassPhaseDelay(partial.omega, partial.sine, partial.cosine, a);
             // A loop delay off by d samples puts partial n off by d/loop of
             // its frequency.
             const double relative = loop / partial.period - 1.0;
@@ -570,6 +577,7 @@ void StratString::setIntonation(double openMetres, double saddleSetbackMetres) n
 {
     intonedOpen = openMetres;
     saddleSetback = saddleSetbackMetres;
+    tunedTension = -1.0;
 }
 
 double StratString::fretMetres(double fret) const noexcept
@@ -579,6 +587,15 @@ double StratString::fretMetres(double fret) const noexcept
 
 void StratString::setTuning(double newFret, double tensionRatio, bool glide) noexcept
 {
+    // StratEngine restates every string's tuning whenever the bridge moves,
+    // which a bend on any one string does each control period. Asked again
+    // for what it last set, once its ramp has finished and its rails stand
+    // where that call left them, a full pass would only recompute the same
+    // values, restart a ramp of zero steps and place the same taps: skip it.
+    if (tuned && !glide && newFret == fret && tensionRatio == tunedTension && rampRemaining == 0
+        && leftLength == tunedLeftLength && leftTarget == tunedLeftLength)
+        return;
+    tunedTension = tensionRatio;
     const bool fretMoved = newFret != fret;
     fret = newFret;
     const double openNow = spec->openHz * restPitch * std::sqrt(tensionRatio);
@@ -657,6 +674,7 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
         tuned = true;
         setTaps(tapMetres);
         placeDampers();
+        tunedLeftLength = leftLength;
         return;
     }
 
@@ -671,6 +689,9 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     loopDelayStep = (loopDelayTarget - loopDelay) / rampSamples;
     setTaps(tapMetres);
     placeDampers();
+    // The skip above needs the rails where this call placed the taps: a
+    // left rail still walking to its target has not arrived there yet.
+    tunedLeftLength = leftLength == leftTarget ? leftLength : -1;
 }
 
 double StratString::lastUsablePosition() const noexcept
@@ -1222,8 +1243,30 @@ inline void StratString::inject(Plane& plane, const Tap& at, float v) noexcept
     }
 }
 
-void StratString::damp(Plane& plane) noexcept
+namespace
 {
+// A contact's span on one plane, the right rail read backwards from its last
+// slot against the left read forwards. Each point stands alone, with no
+// reduction, so the compiler may run them in vector lanes and every float
+// stays bit-identical; the rails are separate arrays, which the restrict
+// parameters tell it.
+void dampSpan(float* __restrict right, float* __restrict left, int count, float absorption) noexcept
+{
+    const int last = count - 1;
+    for (int i = 0; i < count; ++i)
+    {
+        const float v = absorption * (right[last - i] + left[i]);
+        right[last - i] -= v;
+        left[i] -= v;
+    }
+}
+} // namespace
+
+void StratString::damp() noexcept
+{
+    // Both planes at once: they share every index, and their four rails are
+    // separate arrays, so each plane's arithmetic is exactly what it would be
+    // alone, in the same order, damper after damper.
     for (const Damper& d : dampers)
     {
         if (d.absorption == 0.0f)
@@ -1232,42 +1275,41 @@ void StratString::damp(Plane& plane) noexcept
         {
             // What the dashpot reads and what it takes, shared alike, so a
             // mode with its node at the point loses nothing.
-            float& r0 = plane.right[static_cast<size_t>((write - d.position) & railMask)];
-            float& l0 = plane.left[static_cast<size_t>((write + leftOffset + d.position) & railMask)];
-            float& r1 = plane.right[static_cast<size_t>((write - d.position - 1) & railMask)];
-            float& l1
-                = plane.left[static_cast<size_t>((write + leftOffset + d.position + 1) & railMask)];
+            const size_t r0 = static_cast<size_t>((write - d.position) & railMask);
+            const size_t l0 = static_cast<size_t>((write + leftOffset + d.position) & railMask);
+            const size_t r1 = static_cast<size_t>((write - d.position - 1) & railMask);
+            const size_t l1 = static_cast<size_t>((write + leftOffset + d.position + 1) & railMask);
             const float near = 1.0f - d.next;
-            const float v = d.absorption * (near * (r0 + l0) + d.next * (r1 + l1));
-            r0 -= near * v;
-            l0 -= near * v;
-            r1 -= d.next * v;
-            l1 -= d.next * v;
+            for (Plane* plane : {&poles, &top})
+            {
+                float* const right = plane->right.data();
+                float* const left = plane->left.data();
+                const float v = d.absorption * (near * (right[r0] + left[l0]) + d.next * (right[r1] + left[l1]));
+                right[r0] -= near * v;
+                left[l0] -= near * v;
+                right[r1] -= d.next * v;
+                left[l1] -= d.next * v;
+            }
             continue;
         }
         const int rStart = (write - d.position) & railMask;
         const int lStart = (write + leftOffset + d.position) & railMask;
         if (rStart >= d.count - 1 && lStart + d.count <= railSize)
         {
-            float* rPtr = plane.right.data() + rStart;
-            float* lPtr = plane.left.data() + lStart;
-            const float a = d.absorption;
-            for (int i = 0; i < d.count; ++i)
-            {
-                const float v = a * (rPtr[-i] + lPtr[i]);
-                rPtr[-i] -= v;
-                lPtr[i] -= v;
-            }
+            const int low = rStart - (d.count - 1);
+            dampSpan(poles.right.data() + low, poles.left.data() + lStart, d.count, d.absorption);
+            dampSpan(top.right.data() + low, top.left.data() + lStart, d.count, d.absorption);
             continue;
         }
-        for (int k = d.position; k < d.position + d.count; ++k)
-        {
-            float& r = plane.right[static_cast<size_t>((write - k) & railMask)];
-            float& l = plane.left[static_cast<size_t>((write + leftOffset + k) & railMask)];
-            const float v = d.absorption * (r + l);
-            r -= v;
-            l -= v;
-        }
+        for (Plane* plane : {&poles, &top})
+            for (int k = d.position; k < d.position + d.count; ++k)
+            {
+                float& r = plane->right[static_cast<size_t>((write - k) & railMask)];
+                float& l = plane->left[static_cast<size_t>((write + leftOffset + k) & railMask)];
+                const float v = d.absorption * (r + l);
+                r -= v;
+                l -= v;
+            }
     }
 }
 
@@ -1517,8 +1559,7 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
 
     if (dampers[0].absorption != 0.0f || dampers[1].absorption != 0.0f)
     {
-        damp(poles);
-        damp(top);
+        damp();
     }
 
     for (int k = 0; k < tapCount; ++k)
