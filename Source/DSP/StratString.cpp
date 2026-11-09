@@ -1042,6 +1042,49 @@ double StratString::neckPhaseDelay(double omega) const noexcept
     return -phase / omega;
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((always_inline))
+#endif
+inline void StratString::readPickupPair(const Tap& tap, float& towardPoles,
+                                      float& alongTop) const noexcept
+{
+    // Both polarizations use the same spatial tap and rail cursor. Share
+    // their addressing and wrap decision, retaining each scalar dot
+    // product's operation order and the final right + left addition.
+    const int r = (write - tap.base) & railMask;
+    const int l = (write + leftOffset + tap.base) & railMask;
+    const float* const w = tap.weight;
+    if (r >= 3 && l <= railMask - 3)
+    {
+        const float* const pr = poles.right.data() + r;
+        const float* const pl = poles.left.data() + l;
+        const float* const tr = top.right.data() + r;
+        const float* const tl = top.left.data() + l;
+        const float pRight = w[0] * pr[0] + w[1] * pr[-1] + w[2] * pr[-2] + w[3] * pr[-3];
+        const float pLeft = w[0] * pl[0] + w[1] * pl[1] + w[2] * pl[2] + w[3] * pl[3];
+        const float tRight = w[0] * tr[0] + w[1] * tr[-1] + w[2] * tr[-2] + w[3] * tr[-3];
+        const float tLeft = w[0] * tl[0] + w[1] * tl[1] + w[2] * tl[2] + w[3] * tl[3];
+        towardPoles = pRight + pLeft;
+        alongTop = tRight + tLeft;
+        return;
+    }
+    // The rare wrap shares its eight masked indices as well.
+    const size_t r0 = static_cast<size_t>(r), r1 = static_cast<size_t>((r - 1) & railMask),
+                 r2 = static_cast<size_t>((r - 2) & railMask), r3 = static_cast<size_t>((r - 3) & railMask);
+    const size_t l0 = static_cast<size_t>(l), l1 = static_cast<size_t>((l + 1) & railMask),
+                 l2 = static_cast<size_t>((l + 2) & railMask), l3 = static_cast<size_t>((l + 3) & railMask);
+    const float pRight = w[0] * poles.right[r0] + w[1] * poles.right[r1]
+        + w[2] * poles.right[r2] + w[3] * poles.right[r3];
+    const float pLeft = w[0] * poles.left[l0] + w[1] * poles.left[l1]
+        + w[2] * poles.left[l2] + w[3] * poles.left[l3];
+    const float tRight = w[0] * top.right[r0] + w[1] * top.right[r1]
+        + w[2] * top.right[r2] + w[3] * top.right[r3];
+    const float tLeft = w[0] * top.left[l0] + w[1] * top.left[l1]
+        + w[2] * top.left[l2] + w[3] * top.left[l3];
+    towardPoles = pRight + pLeft;
+    alongTop = tRight + tLeft;
+}
+
 float StratString::arriveAtFret(Plane& plane, double readAt) noexcept
 {
     if (readAt != plane.loopTapPosition)
@@ -1374,8 +1417,7 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
     for (int k = 0; k < tapCount; ++k)
     {
         const Tap& tap = taps[static_cast<size_t>(k)];
-        towardPoles[static_cast<size_t>(k)] = readRight(poles, tap) + readLeft(poles, tap);
-        alongTop[static_cast<size_t>(k)] = readRight(top, tap) + readLeft(top, tap);
+        readPickupPair(tap, towardPoles[static_cast<size_t>(k)], alongTop[static_cast<size_t>(k)]);
     }
 
     write = (write + 1) & railMask;

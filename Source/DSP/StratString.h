@@ -287,6 +287,7 @@ private:
     float readRight(const Plane& plane, const Tap& tap) const noexcept;
     float readRight(const Plane& plane, const LoopTap& tap) const noexcept;
     float readLeft(const Plane& plane, const Tap& tap) const noexcept;
+    void readPickupPair(const Tap& tap, float& towardPoles, float& alongTop) const noexcept;
     void clearLeft(int fromPosition, int toPosition) noexcept;
     void clearRight(int fromPosition, int toPosition) noexcept;
     void inject(Plane& plane, const Tap& at, float velocity) noexcept;
