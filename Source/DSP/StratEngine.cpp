@@ -590,7 +590,7 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
         if (!running[k])
             continue;
         strings[k].leave(neckVelocity, taps, alongTop);
-        bool quiet = !strings[k].isDriven();
+        bool quiet = true;
         for (int c = 0; c < coilCount; ++c)
         {
             const float v = taps[static_cast<size_t>(c)];
@@ -628,6 +628,9 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
                 + t * (fluxTable[static_cast<size_t>(i + 1)] - fluxTable[static_cast<size_t>(i)]);
             emf[c] += steel[k] * slope * (v + inPlaneHeard * u);
         }
+        // Asked last: a sounding string is rarely quiet at every coil, and
+        // isDriven reads several of the string's fields.
+        quiet = quiet && !strings[k].isDriven();
         const bool wasSounding = quietSamples[k] < quietLimit[k];
         quietSamples[k] = quiet ? std::min(quietSamples[k] + 1, quietLimit[k]) : 0;
         if (wasSounding && quietSamples[k] == quietLimit[k])

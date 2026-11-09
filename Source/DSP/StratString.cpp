@@ -272,6 +272,55 @@ StratString::LoopTap StratString::loopTapAt(double position) noexcept
     return tap;
 }
 
+void StratString::loopTapPair(double first, double second, LoopTap& a, LoopTap& b) noexcept
+{
+    // loopTapAt for both planes at once, lane by lane the same float
+    // arithmetic, laid out so the compiler can run the two lanes together:
+    // while a string's stretch settles both read points move every sample.
+    const double position[2] = {first, second};
+    int base[2];
+    float t[2], w[2][8];
+    for (int k = 0; k < 2; ++k)
+    {
+        base[k] = static_cast<int>(position[k]) - 3;
+        t[k] = static_cast<float>(position[k] - base[k]);
+    }
+    float b1[2], b2[2], b3[2], b4[2], b5[2], b6[2], b7[2];
+    float a0[2], a1[2], a2[2], a3[2], a4[2], a5[2], a6[2];
+    for (int k = 0; k < 2; ++k)
+    {
+        b1[k] = t[k];
+        b2[k] = b1[k] * (t[k] - 1.0f);
+        b3[k] = b2[k] * (t[k] - 2.0f);
+        b4[k] = b3[k] * (t[k] - 3.0f);
+        b5[k] = b4[k] * (t[k] - 4.0f);
+        b6[k] = b5[k] * (t[k] - 5.0f);
+        b7[k] = b6[k] * (t[k] - 6.0f);
+        a6[k] = t[k] - 7.0f;
+        a5[k] = a6[k] * (t[k] - 6.0f);
+        a4[k] = a5[k] * (t[k] - 5.0f);
+        a3[k] = a4[k] * (t[k] - 4.0f);
+        a2[k] = a3[k] * (t[k] - 3.0f);
+        a1[k] = a2[k] * (t[k] - 2.0f);
+        a0[k] = a1[k] * (t[k] - 1.0f);
+        w[k][0] = a0[k] * (-1.0f / 5040.0f);
+        w[k][1] = b1[k] * a1[k] * (1.0f / 720.0f);
+        w[k][2] = b2[k] * a2[k] * (-1.0f / 240.0f);
+        w[k][3] = b3[k] * a3[k] * (1.0f / 144.0f);
+        w[k][4] = b4[k] * a4[k] * (-1.0f / 144.0f);
+        w[k][5] = b5[k] * a5[k] * (1.0f / 240.0f);
+        w[k][6] = b6[k] * a6[k] * (-1.0f / 720.0f);
+        w[k][7] = b7[k] * (1.0f / 5040.0f);
+    }
+    a.base = base[0];
+    b.base = base[1];
+    for (int j = 0; j < 8; ++j)
+    {
+        a.weight[j] = w[0][j];
+        b.weight[j] = w[1][j];
+    }
+}
+
 void StratString::prepare(double rate, int stringIndex, int updateSamples) noexcept
 {
     sampleRate = rate;
@@ -1142,10 +1191,26 @@ void StratString::leaveFret(Plane& plane, float reflected) noexcept
         plane.left[static_cast<size_t>((write + leftOffset + skipped) & railMask)] = reflected;
 }
 
-void StratString::inject(Plane& plane, const Tap& at, float v) noexcept
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((always_inline))
+#endif
+inline void StratString::inject(Plane& plane, const Tap& at, float v) noexcept
 {
-    const int r = write - at.base;
-    const int l = write + leftOffset + at.base;
+    const int r = (write - at.base) & railMask;
+    const int l = (write + leftOffset + at.base) & railMask;
+    if (r >= 3 && l <= railMask - 3)
+    {
+        // The usual case: both spans lie inside their rails, so the masked
+        // indices below are the same four contiguous slots.
+        float* const pr = plane.right.data() + r;
+        float* const pl = plane.left.data() + l;
+        for (int j = 0; j < 4; ++j)
+        {
+            pr[-j] += at.weight[j] * v;
+            pl[j] += at.weight[j] * v;
+        }
+        return;
+    }
     for (int j = 0; j < 4; ++j)
     {
         plane.right[static_cast<size_t>((r - j) & railMask)] += at.weight[j] * v;
@@ -1305,9 +1370,16 @@ float StratString::arrive() noexcept
     stretch += stretchStep;
     // Both planes share the string's tension, and so its stretch.
     const double readAt = loopDelay - stretch - leftLength;
+    const double topAt = readAt - topShortfall + neckDelay;
+    if (topAt != top.loopTapPosition && readAt != poles.loopTapPosition)
+    {
+        top.loopTapPosition = topAt;
+        poles.loopTapPosition = readAt;
+        loopTapPair(topAt, readAt, top.loopTap, poles.loopTap);
+    }
     // The fret does not yield along the top; a finger's end damps both
     // planes alike.
-    const float topArriving = arriveAtFret(top, readAt - topShortfall + neckDelay);
+    const float topArriving = arriveAtFret(top, topAt);
     leaveFret(top, onFret() ? -topArriving : -fingerEnd * topArriving);
     // A crown collision depends on local displacement and actual clearance,
     // not a travelling wave's velocity at the termination. In particular

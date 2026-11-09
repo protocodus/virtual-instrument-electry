@@ -258,6 +258,7 @@ private:
         float weight[8] {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     };
     static LoopTap loopTapAt(double position) noexcept;
+    static void loopTapPair(double first, double second, LoopTap& a, LoopTap& b) noexcept;
 
     // One plane of the swing: its rails and its fret end's filter states.
     struct Plane
