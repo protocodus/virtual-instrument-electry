@@ -512,6 +512,9 @@ void testParameterTextFormatting()
                          "Standard");
     expectParameterText (processor, electry::parameters::fxOversampling, 1.0f,
                          "High");
+    expect (! processor.parameters.getParameter (electry::parameters::fxOversampling)
+                  ->isAutomatable(),
+            "FX oversampling is a setting: a host must not be able to automate it");
     expectParameterText (processor, electry::parameters::fxEnabled, 0.0f, "Off");
     expectParameterText (processor, electry::parameters::fxEnabled, 1.0f, "On");
     expectParameterText (processor, electry::parameters::bendTime, 0.28f, "280 ms");

@@ -255,8 +255,8 @@ void testArtifact (const std::filesystem::path& path)
             oversampling = info;
             require (info.min_value == 0.0 && info.max_value == 1.0
                          && info.default_value == 0.0
-                         && (info.flags & CLAP_PARAM_IS_AUTOMATABLE) != 0,
-                     "CLAP oversampling must be Standard/High, default Standard, automatable; got range "
+                         && (info.flags & CLAP_PARAM_IS_AUTOMATABLE) == 0,
+                     "CLAP oversampling must be Standard/High, default Standard, not automatable; got range "
                          + std::to_string (info.min_value) + ".." + std::to_string (info.max_value)
                          + ", default " + std::to_string (info.default_value)
                          + ", flags " + std::to_string (info.flags));

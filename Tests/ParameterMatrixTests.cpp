@@ -64,7 +64,11 @@ public:
     protocodus::matrix::ReachRule ReachFor(std::size_t index, float) const override
     {
         using protocodus::matrix::Reach;
-        const auto parameters = Parameters();
+        // The matrix indexes the editor-only parameters (FX oversampling)
+        // after the automatable ones.
+        std::vector<protocodus::matrix::Parameter> parameters = Parameters();
+        for (const auto& p : EditorOnlyParameters())
+            parameters.push_back(p);
         const auto at = [&](const char* name) {
             for (std::size_t i = 0; i < parameters.size(); ++i)
                 if (parameters[i].name == name)

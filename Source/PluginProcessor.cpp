@@ -512,10 +512,15 @@ ElectryAudioProcessor::createParameterLayout()
 
     // Append with a newer AU version hint so existing automation indices keep
     // their order in both the published list and AU's version/hash ordering.
+    // Quality is a setting, not a performance control: it selects the rate the
+    // nonlinear blocks run at, so a host may not automate it (owner
+    // requirement, 2026-11-09). The ID, index and range stay, so saved
+    // sessions and the editor's selector are unchanged.
     result.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { fxOversampling, 2 }, "FX oversampling",
         juce::StringArray { "Standard", "High" },
-        static_cast<int> (electry::FxParameters {}.oversampling)));
+        static_cast<int> (electry::FxParameters {}.oversampling),
+        juce::AudioParameterChoiceAttributes().withAutomatable (false)));
 
     result.push_back (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { fxEnabled, 3 }, "FX enabled", false));

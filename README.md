@@ -57,6 +57,16 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.6 — 2026-11-10 — FX Quality is a setting, not an automation target
+
+The plug-in's **Standard / High Quality** selector can no longer be automated
+by a host: it chooses the rate the pedal and amplifier run at, and only
+controls that change the sound at once are automatable. The parameter keeps
+its ID, position and range, so saved sessions load as before and the selector
+in the editor works as it did; it no longer appears among a host's automation
+targets. New instances and factory rigs still start at Standard, the lower of
+the two.
+
 ### 2.4.5 — 2026-11-09 — The same Strat for less CPU
 
 The Strat sounds exactly as in 2.4.4, every sample of the seven Rack patch
