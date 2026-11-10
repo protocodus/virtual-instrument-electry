@@ -422,7 +422,7 @@ void testTremoloRetunes()
     {
         const double fret = s == 3 ? 7.0 : 0.0;
         const double want = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0)
-            * std::sqrt(engine->bridge().tensionRatio(s));
+            * std::sqrt(engine->bridge().pitchTensionRatio(s));
         tuned = tuned && std::abs(engine->fundamentalHz(s) / want - 1.0) < 1e-12;
     }
     check(tuned, "the arm and a bend retune every string through the bridge");

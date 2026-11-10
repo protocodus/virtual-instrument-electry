@@ -450,7 +450,7 @@ void testLegatoAndSlide()
     // Frets stop the string all the way: every control period of the slide
     // it sounds a fret, one after another, and every fret between.
     const auto fretFrom = [&](double hz) {
-        const double open = StratString::construction(s).openHz * std::sqrt(q->engine().bridge().tensionRatio(s));
+        const double open = StratString::construction(s).openHz * std::sqrt(q->engine().bridge().pitchTensionRatio(s));
         return 12.0 * std::log2(hz / open);
     };
     bool fretted = true, inOrder = true;
@@ -473,9 +473,9 @@ void testLegatoAndSlide()
     check(fretted && inOrder && visited == 67 - openNote[s] - from,
           "a slide steps through every fret between");
     // The fretting finger stretches the string (StratEngine::fretPressMetres),
-    // and the bridge's tension ratio carries it.
+    // and the bridge carries it, less what the set-up intonates out of it.
     const double want = StratString::construction(s).openHz * std::pow(2.0, (67 - openNote[s]) / 12.0)
-        * std::sqrt(q->engine().bridge().tensionRatio(s));
+        * std::sqrt(q->engine().bridge().pitchTensionRatio(s));
     check(middle > from && middle < 67 - openNote[s], "a slide's finger passes the frets between");
     check(q->stringNote(s) == 67
               && std::abs(q->engine().fundamentalHz(s) / want - 1.0) < 1e-9,
@@ -733,7 +733,7 @@ void testArmAndBends()
     {
         const double fret = p->stringNote(s) >= 0 ? p->stringFret(s) : 0.0;
         const double want = StratString::construction(s).openHz * std::pow(2.0, fret / 12.0)
-            * std::sqrt(p->engine().bridge().tensionRatio(s));
+            * std::sqrt(p->engine().bridge().pitchTensionRatio(s));
         tuned = tuned && std::abs(p->engine().fundamentalHz(s) / want - 1.0) < 1e-9;
     }
     check(tuned, "every string follows the bridge");
@@ -953,6 +953,36 @@ void testHum()
 
 } // namespace
 
+// Every note 40 to 85 plays at equal temperament, A4 = 440 Hz, on whichever
+// string and fret takes it: the set-up's intonation takes the fretting
+// press out (StratEngine::fretPressMetres), which in 2.0.1 left fretted
+// notes 4 to 13 cents sharp of their open strings.
+void testEqualTemperament()
+{
+    double worst = 0.0;
+    int worstNote = 0;
+    for (int note = StratPerformer::lowestNote; note <= StratPerformer::highestNote; ++note)
+    {
+        auto p = makePerformer();
+        p->noteOn(0, note, 100);
+        render(*p, 0.05);
+        for (int s = 0; s < 6; ++s)
+        {
+            if (p->stringNote(s) != note)
+                continue;
+            const double want = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+            const double cents = 1200.0 * std::log2(p->engine().fundamentalHz(s) / want);
+            if (std::abs(cents) > std::abs(worst))
+            {
+                worst = cents;
+                worstNote = note;
+            }
+        }
+    }
+    std::printf("equal temperament: worst %.4f cents (note %d)\n", worst, worstNote);
+    check(std::abs(worst) < 0.01, "every note plays at equal temperament");
+}
+
 int main()
 {
     testChordShapes();
@@ -975,6 +1005,7 @@ int main()
     testBlockPartition();
     testLookahead();
     testHum();
+    testEqualTemperament();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

@@ -291,6 +291,14 @@ void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
 // comes off the finger's share, so the fit above holds there. Above the
 // 12th fret dataset 2's fret runs read 4.8 cents sharper than the finger's
 // share alone gave (median against each string's open note, frets 13-20).
+//
+// Those sessions' guitars were not intonated for it, and an instrument has
+// to play in tune with the open strings and the rest of a mix: 2.0.1 played
+// every fretted low E 13 cents sharp of its open string. So the string's
+// pitch follows its tension over what its own press alone pulls
+// (StratBridge::pitchTensionRatio), as a set-up guitar's saddle and nut
+// compensation give; the press still loads the plate, so the other strings
+// sag under a chord, and a bend or the arm still pulls from the press.
 const double StratEngine::fretPressMetres = 25.3e-6;
 
 // Fender's vintage setup leaves the strings 0.5 mm over the first fret and
@@ -337,7 +345,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
         return;
     }
     strings[static_cast<size_t>(stringIndex)].setTuning(
-        fret, tremolo.tensionRatio(stringIndex));
+        fret, tremolo.pitchTensionRatio(stringIndex));
 }
 
 void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
@@ -439,7 +447,7 @@ void StratEngine::applyPending() noexcept
         Pending& p = pending[static_cast<size_t>(s)];
         if (!p.changed && !bridgeMoved)
             continue;
-        strings[static_cast<size_t>(s)].setTuning(p.fret, tremolo.tensionRatio(s),
+        strings[static_cast<size_t>(s)].setTuning(p.fret, tremolo.pitchTensionRatio(s),
                                                   p.glide);
         p.changed = false;
         p.glide = false;

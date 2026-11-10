@@ -47,6 +47,17 @@ public:
     {
         return ratio[static_cast<std::size_t>(stringIndex)];
     }
+    // The tension ratio the string's pitch follows: tensionRatio over what
+    // its own fretting press alone pulls at the plate's floating rest. A
+    // set-up guitar is intonated (saddle and nut) so a fretted note plays at
+    // its fret's pitch; the arm, bends and the plate's give under the other
+    // strings' presses still move it.
+    double pitchTensionRatio(int stringIndex) const noexcept
+    {
+        const std::size_t k = static_cast<std::size_t>(stringIndex);
+        return ratio[k] / ownPressRatio(stringIndex, press[k]);
+    }
+    static double ownPressRatio(int stringIndex, double metres) noexcept;
     // Forward tilt of the plate, radians.
     double angle() const noexcept { return plateAngle; }
 

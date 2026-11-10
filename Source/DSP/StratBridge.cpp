@@ -74,6 +74,18 @@ double StratBridge::restTension(int s) noexcept
 
 double StratBridge::saddleHeightMetres() noexcept { return saddleHeight; }
 
+// One string pressed alone, nothing bent, the arm at rest: its tension rises
+// by k p less the plate's give, k h theta with theta = h k p / K_total
+// (solve()).
+double StratBridge::ownPressRatio(int s, double metres) noexcept
+{
+    if (!(metres > 0.0))
+        return 1.0;
+    const double k = axialStiffness(s);
+    const double total = springStiffness() + saddleHeight * saddleHeight * sumStiffness();
+    return 1.0 + k * metres * (1.0 - saddleHeight * saddleHeight * k / total) / restTension(s);
+}
+
 double StratBridge::springStiffness() noexcept
 {
     return springCount * springRate * springLever * springLever;
