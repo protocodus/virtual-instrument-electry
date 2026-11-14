@@ -5097,15 +5097,15 @@ void testEditorRendering()
                                       component->getParentComponent()) != nullptr;
                        }));
     // JUCE exposes each editable knob value as a second native stop. Counting
-    // each knob/value pair once leaves 38 logical controls across the editor,
+    // each knob/value pair once leaves 39 logical controls across the editor,
     // including the FX switch and the ABOUT button.
     expect (editorTabOrder.size() == 65u
                 && editableKnobValueStops == knobs.size()
-                && editorTabOrder.size() - editableKnobValueStops == 38u,
+                && editorTabOrder.size() - editableKnobValueStops == 39u,
             "editor exposed " + std::to_string (editorTabOrder.size())
                 + " native and "
                 + std::to_string (editorTabOrder.size() - editableKnobValueStops)
-                + " logical Tab stops instead of 63 and 38");
+                + " logical Tab stops instead of 65 and 39");
     const auto expectAccessibleChoiceStrip = [&] (const char* componentId)
     {
         auto* strip = findControl (componentId);
