@@ -776,6 +776,30 @@ void testPalm()
     check(pressed > 365.0 && pressed < 540.0, "a full palm damps as the recorded heaviest mutes");
 }
 
+void testPalmPickAttack()
+{
+    // Clean El. Guitar's medium downstrokes on these two training pitches
+    // have little energy in harmonics 5–12 at 8–48 ms (median of three takes,
+    // −56 and −59 dB relative to H1). The model was at −21 and −30 dB.
+    // Keep a margin on the corrected −31 and −43 dB without locking exact spectra.
+    struct Attack { int note; double ceilingDb; };
+    for (const Attack attack : {Attack{44, -26.0}, Attack{55, -36.0}})
+    {
+        auto p = makePerformer();
+        p->modWheel(1.0);
+        p->noteOn(0, attack.note, 68);
+        const auto y = render(*p, 0.055);
+        const double hz = 440.0 * std::pow(2.0, (attack.note - 69) / 12.0);
+        const double fundamental = level(y, 0.008, 0.040, hz);
+        double relativePower = 0.0;
+        for (int n = 5; n <= 12; ++n)
+            relativePower += std::pow(10.0, (level(y, 0.008, 0.040, n * hz) - fundamental) / 10.0);
+        const double upper = 10.0 * std::log10(relativePower);
+        std::printf("palm-muted MIDI %d: harmonics 5–12 %.1f dB re fundamental\n", attack.note, upper);
+        check(upper < attack.ceilingDb, "the upper harmonics recede in a palm-muted pick attack");
+    }
+}
+
 void testWheelAndPressure()
 {
     // The mod wheel lays the palm down across all play modes: off at the
@@ -1527,6 +1551,7 @@ int main()
     testHarmonics();
     testPinch();
     testPalm();
+    testPalmPickAttack();
     testWheelAndPressure();
     testDeadNotes();
     testArmAndBends();

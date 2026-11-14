@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.7 — 2026-11-14 — palm-muted pick attack on the six-string Strat
+
+Pressing the palm onto the strings now lengthens the pick’s release. The change
+is largest on the low strings and tapers toward higher notes and lighter palm
+pressure. Clean El. Guitar recordings supplied the attack reference.
+[Palm-mute measurements](Docs/validation/strat-palm-mute-2026-11-14.md)
+
 ### 2.4.6 — 2026-11-10 — FX Quality is a setting, not an automation target
 
 The plug-in's **Standard / High Quality** selector can no longer be automated

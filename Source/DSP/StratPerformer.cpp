@@ -1726,8 +1726,18 @@ void StratPerformer::runEvent(const Event& e) noexcept
     // Near the bridge saddle the string's transverse boundary stiffness is
     // higher so the pick slips off more crisply; over the neck it yields longer.
     const double boundaryYield = std::pow(clamp(current.pickMetres / 0.109, 0.35, 2.2), 0.22);
-    const double relSeconds
+    double relSeconds
         = boundaryYield * (upstroke && !fingers ? 0.92 : 1.0) * releaseSeconds(s, force);
+    if (!fingers && wheel > 0.0)
+    {
+        // A braced picking hand releases the pick over a longer effective contact.
+        // Fit to the first 48 ms of Clean El. Guitar palm mutes: at full pressure
+        // add a quarter of the struck string's period (3 ms at E2, 0.76 ms at
+        // E4). This keeps the treble attack clearer. Taper the extra duration
+        // toward a light touch; the heel's separately measured damping stays
+        // on the string, including when the wheel moves after this stroke.
+        relSeconds += 0.25 * wheel * wheel / guitar->fundamentalHz(s);
+    }
     guitar->pluck(s, e.force, pickAt, relSeconds,
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare);
     if (e.slideFrets > 0.0 && !damping)
