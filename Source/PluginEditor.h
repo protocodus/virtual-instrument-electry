@@ -265,6 +265,7 @@ private:
     ElectryKnob pickNoiseKnob { "PICK NOISE" };
     ElectryKnob fingerNoiseKnob { "FINGER NOISE" };
     ElectryKnob releaseNoiseKnob { "RELEASE NOISE" };
+    ElectryKnob playerNoiseKnob { "PLAYER FEEL" };
     ElectryKnob artifactsKnob { "MECHANICS" };
 
     ElectryKnob sympatheticKnob { "STRING RING" };

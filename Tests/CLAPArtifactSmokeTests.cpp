@@ -228,7 +228,7 @@ void testArtifact (const std::filesystem::path& path)
              "CLAP does not advertise MIDI input");
 
     const auto* params = extension<clap_plugin_params_t> (plugin.get(), CLAP_EXT_PARAMS);
-    require (params->count (plugin.get()) == 30, "CLAP must expose 30 product parameters");
+    require (params->count (plugin.get()) == 31, "CLAP must expose 31 product parameters");
     std::vector<clap_param_info_t> parameterInfo;
     std::unordered_set<clap_id> parameterIDs;
     clap_param_info_t outputLevel {};
@@ -407,7 +407,7 @@ int main (int argc, char** argv)
     {
         require (argc == 2, "usage: ElectryCLAPArtifactSmokeTests <CLAP binary>");
         testArtifact (std::filesystem::absolute (argv[1]));
-        std::cout << "Electry built CLAP artifact smoke test passed (30 parameters, state restore, MIDI audio)\n";
+        std::cout << "Electry built CLAP artifact smoke test passed (31 parameters, state restore, MIDI audio)\n";
         return 0;
     }
     catch (const std::exception& error)

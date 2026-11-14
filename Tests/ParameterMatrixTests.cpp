@@ -83,7 +83,7 @@ public:
             return false;
         };
         // Read where a pluck starts: each string keeps the pluck it was given.
-        if (is({ "Pick position", "Pick hardness", "Velocity response", "Strum spread" }))
+        if (is({ "Pick position", "Pick hardness", "Velocity response", "Strum spread", "Player Feel" }))
             return { Reach::NewNotes, "the pick's contact at each new pluck" };
         if (name == "Bend time")
             return { Reach::NewNotes, "the travel of the next bend; the held chord is not bent" };

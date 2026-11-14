@@ -49,7 +49,7 @@ struct ParameterExpectation
 // struct, so reading it here too would make the check tautological. This table is
 // the independent statement of what the plug-in promises a new instance, and it is
 // what would have caught the two lists silently drifting apart.
-constexpr std::array<ParameterExpectation, 30> expectedParameters {{
+constexpr std::array<ParameterExpectation, 31> expectedParameters {{
     { electry::parameters::pickupSelector, 2.0f,  1.0e-5f },
     { electry::parameters::pickupType,     0.32f,  1.0e-5f },
     { electry::parameters::tone,           0.70f,  1.0e-5f },
@@ -80,6 +80,7 @@ constexpr std::array<ParameterExpectation, 30> expectedParameters {{
     { electry::parameters::ampModel,        2.0f, 1.0e-5f },
     { electry::parameters::fxOversampling,  0.0f, 1.0e-5f },
     { electry::parameters::fxEnabled,       0.0f, 1.0e-5f },
+    { electry::parameters::playerNoise,     0.0f, 1.0e-5f },
 }};
 
 float parameterValue (const ElectryAudioProcessor& processor, const char* id)
@@ -259,7 +260,7 @@ void testParameterLayoutAndDefaults()
     auto& processor = *processorStorage;
     expect (processor.getParameters().size()
                 == static_cast<int> (expectedParameters.size()),
-            "processor does not expose exactly 30 APVTS parameters");
+            "processor does not expose exactly 31 APVTS parameters");
 
     std::set<std::string> uniqueIds;
     for (std::size_t index = 0; index < expectedParameters.size(); ++index)
@@ -274,7 +275,7 @@ void testParameterLayoutAndDefaults()
                     + std::to_string (index));
         expect (indexed != nullptr
                     && indexed->getVersionHint()
-                           == (index == 29 ? 3 : index == 28 ? 2 : 1),
+                           == (index >= 28 ? static_cast<int> (index) - 26 : 1),
                 std::string ("AU parameter ordering changed for ") + expected.id);
         const auto value = parameterValue (processor, expected.id);
         expect (std::abs (value - expected.defaultValue) <= expected.tolerance,
@@ -4876,7 +4877,7 @@ void testFxEditorToggle()
         }
         auto traversal = editor->createKeyboardFocusTraverser();
         const auto stops = traversal->getAllComponents (editor.get());
-        expect (stops.size() == (enabled ? 63u : 51u)
+        expect (stops.size() == (enabled ? 65u : 53u)
                     && std::find (stops.begin(), stops.end(), toggle) != stops.end(),
                 "FX bypass did not remove only its disabled controls from Tab navigation");
     };
@@ -4987,9 +4988,9 @@ void testEditorRendering()
                     "visible editor control escaped the editor bounds: "
                         + child->getName().toStdString());
     }
-    // Twenty instrument/master knobs plus five FX amount knobs; Amp Voice is a
+    // Twenty-one instrument/master knobs plus five FX amount knobs; Amp Voice is a
     // choice strip and therefore deliberately absent from this knob count.
-    expect (knobs.size() == 25u, "editor did not expose all 25 knob controls");
+    expect (knobs.size() == 26u, "editor did not expose all 26 knob controls");
 
     for (std::size_t first = 0; first < knobs.size(); ++first)
     {
@@ -5098,7 +5099,7 @@ void testEditorRendering()
     // JUCE exposes each editable knob value as a second native stop. Counting
     // each knob/value pair once leaves 38 logical controls across the editor,
     // including the FX switch and the ABOUT button.
-    expect (editorTabOrder.size() == 63u
+    expect (editorTabOrder.size() == 65u
                 && editableKnobValueStops == knobs.size()
                 && editorTabOrder.size() - editableKnobValueStops == 38u,
             "editor exposed " + std::to_string (editorTabOrder.size())
@@ -6277,6 +6278,7 @@ void testStateValidationAndHostParameterFuzz()
     // Missing values use the published default even over a modified patch;
     // duplicate parameters have one deterministic first-value winner.
     setParameterValue (processor, electry::parameters::tone, 0.0f);
+    setParameterValue (processor, electry::parameters::playerNoise, 0.85f);
     juce::ValueTree state { "ELECTRY_STATE" };
     const auto addValue = [&] (const char* id, const juce::var& value)
     {
@@ -6298,6 +6300,8 @@ void testStateValidationAndHostParameterFuzz()
     expect (std::abs (parameterValue (processor, electry::parameters::tone) - 0.70f)
                 < 1.0e-5f,
             "a missing preset parameter inherited the receiving patch");
+    expect (parameterValue (processor, electry::parameters::playerNoise) == 0.0f,
+            "restoring a legacy patch kept the receiving patch's Player Feel");
     expect (parameterValue (processor, electry::parameters::output) == 6.0f,
             "duplicate or overflowing state output did not clamp deterministically");
     expect (parameterValue (processor, electry::parameters::pickupSelector) == 0.0f,

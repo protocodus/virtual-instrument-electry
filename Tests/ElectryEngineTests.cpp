@@ -1353,6 +1353,13 @@ struct ElectryEngineTestAccess
         return -1;
     }
 
+    static float fretPressure(const ElectryEngine& engine, int midiNote)
+    {
+        const int index = stringForNote(engine, midiNote);
+        return index >= 0 ? engine.voices_[static_cast<std::size_t>(index)]
+                                .playerFretPressureSemitones : -1.0f;
+    }
+
     static int chosenString(const ElectryEngine& engine, int midiNote,
                             PlayStyle style,
                             ElectryEngine::ExpressionId expressionId =
@@ -10805,6 +10812,41 @@ void testGuitarBuildRangeIsAudible()
                   << ", level spread " << levelSpreadDb << " dB\n";
     }
 
+}
+
+void testPlayerFeelContactAndFretPressure()
+{
+    auto engine = std::make_unique<ElectryEngine>();
+    engine->prepare(48000.0, 256);
+    struct Result { StereoBuffer attack; float initial; float settled; };
+    const auto play = [&] (int pitch, float amount)
+    {
+        EngineParameters parameters;
+        parameters.pickNoise = parameters.fingerNoise = 0.0f;
+        parameters.playerNoise = amount;
+        engine->setParameters(parameters);
+        engine->reset();
+        engine->noteOn(pitch, 0.85f);
+        StereoBuffer attack(384);
+        renderInto(*engine, attack);
+        const auto initial = TestAccess::fretPressure(*engine, pitch);
+        StereoBuffer tail(9600);
+        renderInto(*engine, tail);
+        return Result {std::move(attack), initial, TestAccess::fretPressure(*engine, pitch)};
+    };
+    const auto openDry = play(28, 0.0f);
+    const auto openFeel = play(28, 1.0f);
+    expect(openDry.initial == 0.0f && openFeel.initial == 0.0f
+               && openFeel.attack.left != openDry.attack.left,
+           "Player Feel did not add picking contact independently of fretting an open string");
+    const auto dry = play(30, 0.0f);
+    const auto fretted = play(30, 1.0f);
+    const auto replay = play(30, 1.0f);
+    expect(dry.initial == 0.0f && fretted.initial > 0.0f && fretted.initial < 0.1f
+               && fretted.settled >= 0.0f && fretted.settled < fretted.initial * 0.2f,
+           "freshly fretted Player Feel pitch failed to ease out within a few cents");
+    expect(fretted.attack.left == replay.attack.left && fretted.attack.left != dry.attack.left,
+           "Player Feel did not produce repeatable, audible contact");
 }
 
 void testNoiseComponentsAndSilence()
@@ -23205,6 +23247,7 @@ int main(int argc, char** argv)
     testMaterialAndControlAudibility();
     testGuitarBuildMacro();
     testGuitarBuildRangeIsAudible();
+    testPlayerFeelContactAndFretPressure();
     testNoiseComponentsAndSilence();
     testStringAllocationAndPolyphony();
     testChordAssignmentIsPermutationInvariant();

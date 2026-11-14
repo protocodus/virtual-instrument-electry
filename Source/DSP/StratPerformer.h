@@ -23,13 +23,16 @@ struct StratControls
     // each note before it is picked: it lands on the fret, sliding along
     // the string from the last one when it was there (StratPerformer).
     bool lookahead = false;
+    bool fingerBendWheel = false; // positive wheel pulls the most recently played string
+    double playerNoise = 0.0;     // extra pick and fretting-hand movement, 0 to 1
 
     bool operator==(const StratControls& o) const noexcept
     {
         return circuit == o.circuit && pickMetres == o.pickMetres && pick == o.pick
             && strumSeconds == o.strumSeconds && releaseNoise == o.releaseNoise
+            && playerNoise == o.playerNoise
             && compressor == o.compressor && outputDecibels == o.outputDecibels
-            && lookahead == o.lookahead;
+            && fingerBendWheel == o.fingerBendWheel && lookahead == o.lookahead;
     }
 };
 
@@ -47,7 +50,9 @@ struct StratControls
 //     Vibrato (a fretted note the hand rocks as channel pressure's median
 //     player does) and Half bend (struck a semitone low), articulations like
 //     C1 to F#1, which they take over and give back.
-// Channel 1's pitch bend is the tremolo arm; pitch bend on channels 2 to 16
+// Channel 1 uses the tremolo arm by default. With fingerBendWheel enabled,
+// positive wheel pulls the most recently struck fretted string by up to a tone
+// and negative wheel still dips the arm. Pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
 // the picking hand's palm on the strings across all play modes, from off to
 // a full palm mute at the top; channel pressure adds fretting-hand vibrato;
@@ -141,6 +146,7 @@ private:
         bool released = false;  // let go, the finger still on it
         bool handResting = false; // free, under the hand that let a note go
         double bend = 1.0;      // finger bend and vibrato, pitch ratio
+        double wheelPull = 0.0, wheelMotion = 0.0; // finger travel in semitones and its smoothed target
         bool slide = false;
         double rubNewtons = 0.0; // the finger's press as it slides or glides
         // Bend: the finger pushes the string up by bendSemitones over
@@ -152,6 +158,7 @@ private:
         std::uint64_t order = 0;
         // Where a released note's finger rests on it, and since when.
         double restFret = 0.0;
+        double extraPressMetres = 0.0; // extra initial string stretch, relaxed after landing
         // The finger gliding along it to the next fret (lookahead).
         bool shifting = false;
         double shiftFrom = 0.0, shiftTo = 0.0;
@@ -264,6 +271,9 @@ private:
     // lifts; as the controls put them on the first stroke after a reset.
     double nextPlace() noexcept;
     double handScale(double logSpread) noexcept;
+    double rubForce(int stringIndex, double newtons) noexcept;
+    void pressForAttack(int stringIndex, double force) noexcept;
+    std::uint32_t playerHand = 0xA511E9B3u;
     // The palm as the Palm mute key, the mod wheel and this stroke's
     // pressure off the Palm control (palmOffset) put it.
     void applyPalm() noexcept;
@@ -287,6 +297,9 @@ private:
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
     // The arm, followed between channel 1's bend messages (playPitchBend).
+    int lastPickedString = -1;
+    double mainWheelPosition = 0.0;
+    double pullRise = 1.0, pullRelease = 1.0;
     double armFrom = 0.0, armTo = 0.0, armNow = 0.0;
     std::int64_t armStart = 0, armLength = 0;
     std::int64_t lastArmMessage = -1;

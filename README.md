@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.4.8 — 2026-11-14 — player feel and string bends
+
+Player Feel varies pick contact and the pressure of a fresh fretting finger.
+The six-string Strat also varies friction on wound-string shifts and releases.
+Its optional Finger wheel mode pulls the last fretted string upward by up to
+two semitones. Lowering the wheel below center still dips the tremolo arm.
+
 ### 2.4.7 — 2026-11-14 — palm-muted pick attack on the six-string Strat
 
 Pressing the palm onto the strings now lengthens the pick’s release. The change
@@ -1376,7 +1383,7 @@ current `testGuitarBuildRangeIsAudible` therefore measures the six complete anch
 while the lower-level material tests state the instrument they measure instead
 of inheriting the default.
 
-### 30 host parameters
+### 31 host parameters
 
 Electry is unreleased, so this development parameter layout makes no
 compatibility promise to earlier snapshots. It exposes one Guitar Build
@@ -1430,6 +1437,7 @@ this field migrate to on; factory rig selection preserves its current value.
 | 28 | `ampModel` | Amp voice | American Clean / British Crunch / **Modern High-Gain**; switches the complete amp, output dynamics, transformer and six-section speaker/cabinet voice, with legacy development states defaulting to Modern |
 | 29 | `fxOversampling` | FX oversampling | **Standard (0)** / High (1); Standard uses one fewer nonlinear oversampling stage, while saved states missing the field migrate to High |
 | 30 | `fxEnabled` | FX enabled | **Off (0)** / On (1); bypasses the complete FX chain with a 5 ms crossfade and retains its settings; older states missing the field migrate to On |
+| 31 | `playerNoise` | Player Feel | 0–100%, default 0%. Adds pick-edge and fingertip contact, plus a small fretting-pressure pitch rise that settles after the finger lands. |
 
 ### References and claim boundaries
 

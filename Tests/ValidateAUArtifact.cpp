@@ -272,9 +272,9 @@ int main(int argc, char** argv)
                                         &parameterBytes,
                                         &parameterListWritable),
                "get AU parameter-list size")
-        || parameterBytes != 30 * sizeof(AudioUnitParameterID))
+        || parameterBytes != 31 * sizeof(AudioUnitParameterID))
     {
-        std::cerr << "error: AU does not expose exactly 30 global parameters\n";
+        std::cerr << "error: AU does not expose exactly 31 global parameters\n";
         AudioUnitUninitialize(unit);
         AudioComponentInstanceDispose(unit);
         return 1;
@@ -533,7 +533,7 @@ int main(int argc, char** argv)
                    "verify restored AU parameter")
             || std::abs(restoredValue - savedParameterValues[i]) > tolerance)
         {
-            std::cerr << "error: serialised AU state did not restore all 30 parameters\n";
+            std::cerr << "error: serialised AU state did not restore all 31 parameters\n";
             AudioUnitUninitialize(unit);
             AudioComponentInstanceDispose(unit);
             return 1;

@@ -36,6 +36,8 @@ public:
     // often for a smooth gesture. Any fret above 0 is pressed, which
     // stretches the string by fretPressMetres (StratBridge::setPress).
     void setFret(int stringIndex, double fret, bool glide = false) noexcept;
+    // Excess axial length held by the fretting finger beyond the calibrated press.
+    void setExtraFretPress(int stringIndex, double metres) noexcept;
     // The fretting finger lets the string up off its fret: until the next
     // setFret the flesh, of this resistance in kg/s, ends the string there.
     void liftFromFret(int stringIndex, double kilogramsPerSecond) noexcept;

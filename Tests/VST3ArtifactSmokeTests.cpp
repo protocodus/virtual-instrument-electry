@@ -71,7 +71,7 @@ std::vector<juce::AudioProcessorParameter*> findProductParameters (
     }
 
     expect (result.size() == Size,
-            "VST3 does not expose the exact unique 30-parameter Electry surface");
+            "VST3 does not expose the exact unique 31-parameter Electry surface");
     return result;
 }
 } // namespace
@@ -125,7 +125,7 @@ int main (int argc, char** argv)
                 && plugin->getTotalNumOutputChannels() == 2,
             "instantiated VST3 is not a zero-input, stereo instrument");
 
-    const std::array<juce::String, 30> expectedParameterNames {
+    const std::array<juce::String, 31> expectedParameterNames {
         "Pickup selector", "Pickup type", "Tone", "Guitar build",
         "Body resonance", "String age", "Pick position", "Pick hardness",
         "Pick noise", "Finger noise", "Release noise", "Mute tightness",
@@ -133,13 +133,14 @@ int main (int argc, char** argv)
         "Output mode", "Distortion", "Amp simulation", "Compressor",
         "Delay", "Room", "Sympathetic ring", "Mute pressure",
         "Strum spread", "Resonance depth", "Tremolo picking rate", "Amp voice",
-        "FX oversampling", "FX enabled"
+        "FX oversampling", "FX enabled", "Player Feel"
     };
     const auto productParameters = findProductParameters (*plugin,
                                                           expectedParameterNames);
     if (productParameters.size() != expectedParameterNames.size())
         return 1;
-    auto* const fxEnabled = productParameters.back();
+    constexpr std::size_t fxEnabledIndex = 29;
+    auto* const fxEnabled = productParameters[fxEnabledIndex];
     expect (fxEnabled->isDiscrete() && fxEnabled->getNumSteps() == 2
                 && fxEnabled->isAutomatable(),
             "VST3 FX enabled must expose an automatable two-state parameter");
@@ -230,7 +231,7 @@ int main (int argc, char** argv)
         // never override an explicit bypass value saved by this version.
         if (restoredProductParameters.size() == expectedParameterNames.size())
         {
-            auto* const restoredFxEnabled = restoredProductParameters.back();
+            auto* const restoredFxEnabled = restoredProductParameters[fxEnabledIndex];
             restoredFxEnabled->setValueNotifyingHost (0.0f);
             flushParameters (*restored);
             expect (std::abs (restoredFxEnabled->getValue()) < 1.0e-6f,
@@ -284,6 +285,6 @@ int main (int argc, char** argv)
 
     if (failures == 0)
         std::cout << "Electry built VST3 artifact smoke test passed "
-                     "(30 product parameters; JUCE wrapper parameters excluded)\n";
+                     "(31 product parameters; JUCE wrapper parameters excluded)\n";
     return failures == 0 ? 0 : 1;
 }

@@ -1991,6 +1991,8 @@ ElectryAudioProcessorEditor::ElectryAudioProcessorEditor (ElectryAudioProcessor&
     setup (pickNoiseKnob, pickNoise, "Plectrum contact and scrape level");
     setup (fingerNoiseKnob, fingerNoise, "Fretting-hand contact level");
     setup (releaseNoiseKnob, releaseNoise, "String damping noise at note end");
+    setup (playerNoiseKnob, playerNoise,
+           "Pick-edge and fingertip contact, with a brief pitch rise as fretted notes land");
     setup (artifactsKnob, artifacts,
            "Amount of subtle deterministic hardware ring, fret buzz, and incidental collision");
     setup (sympatheticKnob, sympathetic,
@@ -2421,11 +2423,11 @@ void ElectryAudioProcessorEditor::resized()
 
     const int secondaryContentWidth = juce::jmax (0, secondaryRow.getWidth() - 24);
     const int buildWidth = juce::roundToInt (
-        static_cast<float> (secondaryContentWidth) * 0.14f);
+        static_cast<float> (secondaryContentWidth) * 0.11f);
     auto buildArea = secondaryRow.removeFromLeft (buildWidth);
     secondaryRow.removeFromLeft (juce::jmin (12, secondaryRow.getWidth()));
     const int detailWidth = juce::roundToInt (
-        static_cast<float> (secondaryContentWidth) * 0.39f);
+        static_cast<float> (secondaryContentWidth) * 0.42f);
     auto detailArea = secondaryRow.removeFromLeft (detailWidth);
     secondaryRow.removeFromLeft (juce::jmin (12, secondaryRow.getWidth()));
     auto effectsArea = secondaryRow;
@@ -2444,7 +2446,8 @@ void ElectryAudioProcessorEditor::resized()
           { &pickNoiseKnob, KnobTier::detail },
           { &fingerNoiseKnob, KnobTier::detail },
           { &releaseNoiseKnob, KnobTier::detail },
-          { &artifactsKnob, KnobTier::detail } },
+          { &artifactsKnob, KnobTier::detail },
+          { &playerNoiseKnob, KnobTier::detail } },
         4);
 
     auto effectsInner = effectsArea.reduced (12, 8);

@@ -295,6 +295,7 @@ struct EngineParameters
     // the way in. The shipping default puts it at 40 cents, which is where
     // the fixed excursion this control replaced sat.
     float vibratoDepth { 0.30f };
+    float playerNoise { 0.0f };    // pick-edge contact and fretting-pressure variation
 };
 
 // The plug-in exposes the structural coordinates above as one playable path.
@@ -1396,6 +1397,7 @@ private:
         // Repeated picks on its existing key owner do not land that finger
         // again, even after the audible string has retired.
         bool frettingContactPending { false };
+        float playerFretPressureSemitones { 0.0f };
 
         float palmImpactState { 0.0f };
         float palmImpactVel { 0.0f };
@@ -2087,6 +2089,7 @@ private:
     double hostSampleRate_ { 48000.0 };
     double sampleRate_ { 48000.0 };
     float inverseSampleRate_ { 1.0f / 48000.0f };
+    float playerPressureRetention_ { 0.0f };
     // The stopping hand's 125 us release-average half-width in whole internal
     // samples, rounded once in prepare() rather than per read.
     float releaseSpreadSamples_ { 6.0f };

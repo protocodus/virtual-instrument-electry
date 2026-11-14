@@ -41,6 +41,7 @@ inline constexpr auto tremoloRate    = "tremoloRate";
 inline constexpr auto resonanceDepth = "resonanceDepth";
 inline constexpr auto ampModel       = "ampModel";
 inline constexpr auto fxOversampling = "fxOversampling";
+inline constexpr auto playerNoise    = "playerNoise";
 inline constexpr auto fxEnabled      = "fxEnabled";
 } // namespace electry::parameters
 
@@ -191,6 +192,7 @@ private:
         std::atomic<float>* resonanceDepth = nullptr;
         std::atomic<float>* ampModel = nullptr;
         std::atomic<float>* fxOversampling = nullptr;
+        std::atomic<float>* playerNoise = nullptr;
         std::atomic<float>* fxEnabled = nullptr;
     } parameterPointers;
 

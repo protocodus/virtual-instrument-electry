@@ -1533,8 +1533,135 @@ void testLookaheadAndEventInvariants()
     }
 }
 
+void testFingerWheel()
+{
+    auto p = makePerformer();
+    auto config = p->controls();
+    config.fingerBendWheel = true;
+    p->setControls(config);
+    p->noteOn(0, 60, 90, 2);
+    render(*p, .080);
+    p->noteOn(0, 67, 90, 4);
+    render(*p, .080);
+    const auto cents = [&](int s) {
+        return 1200.0 * std::log2(p->engine().bridge().bendRatio(s));
+    };
+    p->pitchBend(0, 1.0);
+    render(*p, .004);
+    const double start = cents(4);
+    render(*p, .030);
+    const double moving = cents(4);
+    render(*p, .200);
+    check(start >= 0.0 && start < 20.0 && moving > 80.0 && moving < 180.0
+          && std::abs(cents(4) - 200.0) < .1 && cents(2) == 0.0,
+          "finger wheel progressively pulls the last fretted string to pitch");
+    p->pitchBend(0, 0.0);
+    render(*p, .008);
+    check(cents(4) > 100.0 && cents(4) < 199.0, "finger unloads gradually on a wheel release");
+    render(*p, .160);
+    check(std::abs(cents(4)) < .1, "finger release settles on the fret");
+    p->noteOn(0, 40, 90, 0);
+    render(*p, .050);
+    p->pitchBend(0, 1.0);
+    render(*p, .180);
+    check(cents(4) == 0.0 && cents(0) == 0.0, "an open note cannot transfer the pull to an older fretted note");
+    p->pitchBend(0, -.22);
+    render(*p, .150);
+    check(p->engine().bridge().tensionRatio(0) < 1.0, "negative finger-mode wheel still dips the arm");
+    p->pitchBend(0, .7);
+    render(*p, .150);
+    config.fingerBendWheel = false;
+    p->setControls(config);
+    render(*p, .180);
+    check(p->engine().bridge().tensionRatio(0) > 1.0, "changing bend mode routes the held wheel to the bridge");
+    std::printf("finger bend wheel: 4ms %.2f cents, 34ms %.2f cents\n", start, moving);
+}
+
+void testPlayerNoise()
+{
+    const auto setup = [](double noise) {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.playerNoise = noise;
+        p->setControls(c);
+        return p;
+    };
+    auto dry = setup(-0.5), wet = setup(2.0);
+    check(dry->controls().playerNoise == 0.0 && wet->controls().playerNoise == 1.0
+              && !(dry->controls() == wet->controls()),
+          "player noise is normalized and participates in the controls snapshot");
+    const auto idle = render(*wet, 0.1);
+    check(std::all_of(idle.begin(), idle.end(), [](float x) { return x == 0.0f; }),
+          "the moving hands are silent at rest");
+
+    // The force of a fretted attack stretches its own string. A lighter
+    // stroke or a lower setting reduces the rise; the finger then settles.
+    const auto excessCents = [&](int string, int fret, int velocity, double amount, bool harmonic) {
+        auto a = setup(0.0), b = setup(amount);
+        if (harmonic)
+        {
+            a->noteOn(0, 28, 90);
+            b->noteOn(0, 28, 90);
+        }
+        a->noteOn(0, openNote[string] + fret, velocity, string);
+        b->noteOn(0, openNote[string] + fret, velocity, string);
+        std::array<double, 2> cents {};
+        const double duration[] = {0.007, 0.105};
+        for (size_t i = 0; i < cents.size(); ++i)
+        {
+            render(*a, duration[i]);
+            render(*b, duration[i]);
+            cents[i] = 1200.0 * std::log2(b->engine().fundamentalHz(string)
+                                          / a->engine().fundamentalHz(string));
+        }
+        return cents;
+    };
+    const auto soft = excessCents(0, 5, 45, 0.45, false);
+    const auto hard = excessCents(0, 5, 119, 0.45, false);
+    const auto full = excessCents(0, 5, 127, 1.0, false);
+    const auto open = excessCents(0, 0, 119, 1.0, false);
+    const auto harmonic = excessCents(0, 12, 119, 1.0, true);
+    std::printf("Player Noise fret pressure at 7 ms: soft %.2f, firm %.2f cents (45%%); full %.2f; settled %.4f\n",
+                soft[0], hard[0], full[0], full[1]);
+    check(soft[0] > 0.0 && soft[0] < hard[0] && hard[0] < full[0] && full[0] < 9.0
+              && std::abs(full[1]) < 0.001 && open[0] == 0.0 && harmonic[0] == 0.0,
+          "fretting force produces a small, bounded and relaxing rise only on stopped notes");
+
+    const auto phrase = [&](double amount, int block) {
+        auto player = setup(amount);
+        auto controls = player->controls();
+        controls.lookahead = true;
+        player->setControls(controls);
+        std::vector<float> signal;
+        for (int note : {43, 47, 45, 48})
+        {
+            player->noteOn(0, note, 95, 0);
+            auto hit = render(*player, 0.12, block);
+            player->noteOff(0, note);
+            auto lift = render(*player, 0.085, block);
+            signal.insert(signal.end(), hit.begin(), hit.end());
+            signal.insert(signal.end(), lift.begin(), lift.end());
+        }
+        return signal;
+    };
+    const auto a = phrase(0.0, 97);
+    const auto b = phrase(0.45, 97);
+    check(b == phrase(0.45, 251), "pick and finger gestures are deterministic across host block sizes");
+    double difference = 0.0, energy = 0.0;
+    for (size_t i = 0; i < a.size(); ++i)
+    {
+        difference += (a[i] - b[i]) * (a[i] - b[i]);
+        energy += a[i] * a[i];
+    }
+    const double relative = 10.0 * std::log10(difference / energy);
+    std::printf("Player Noise played low-string phrase at 45%%: difference %.1f dB relative to original\n", relative);
+    check(std::isfinite(relative) && relative > -38.0,
+          "player noise audibly changes a played phrase at a moderate setting");
+}
+
 int main()
 {
+    testFingerWheel();
     testChordShapes();
     testStrums();
     testStrokeKeys();
@@ -1562,6 +1689,7 @@ int main()
     testLookahead();
     testFrettingHandScatter();
     testReleaseNoise();
+    testPlayerNoise();
     testLookaheadAndEventInvariants();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");

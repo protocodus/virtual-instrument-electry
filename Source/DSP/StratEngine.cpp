@@ -412,6 +412,21 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     updateCoilGeometry(stringIndex);
 }
 
+void StratEngine::setExtraFretPress(int stringIndex, double metres) noexcept
+{
+    if (stringIndex < 0 || stringIndex >= stringCount)
+        return;
+    Pending& p = pending[static_cast<size_t>(stringIndex)];
+    if (p.fret <= 0.0)
+        return;
+    const double stretch = fretPressMetres + actionStretchMetres(p.fret) + metres;
+    if (stretch != tremolo.pressMetres(stringIndex))
+    {
+        tremolo.setPress(stringIndex, stretch);
+        p.changed = true; // the stabilized bridge leaves the other five strings in tune
+    }
+}
+
 void StratEngine::rub(int stringIndex, double metresFromBridge, double speed,
                       double newtons) noexcept
 {

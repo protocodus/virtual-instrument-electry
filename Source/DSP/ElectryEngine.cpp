@@ -905,6 +905,7 @@ EngineParameters ElectryEngine::sanitise(const EngineParameters& parameters) noe
     result.pickPosition = clampUnit(parameters.pickPosition, defaults.pickPosition);
     result.pickHardness = clampUnit(parameters.pickHardness, defaults.pickHardness);
     result.pickNoise = clampUnit(parameters.pickNoise, defaults.pickNoise);
+    result.playerNoise = clampUnit(parameters.playerNoise, defaults.playerNoise);
     result.fingerNoise = clampUnit(parameters.fingerNoise, defaults.fingerNoise);
     result.releaseNoise = clampUnit(parameters.releaseNoise, defaults.releaseNoise);
     result.muteDamping = clampUnit(parameters.muteDamping, defaults.muteDamping);
@@ -1829,6 +1830,7 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     oversamplingFactor_ = hostSampleRate_ <= 96000.0 ? 2 : 1;
     sampleRate_ = hostSampleRate_ * static_cast<double>(oversamplingFactor_);
     inverseSampleRate_ = static_cast<float>(1.0 / sampleRate_);
+    playerPressureRetention_ = std::exp(-controlPeriod * inverseSampleRate_ / 0.090f);
     releaseSpreadSamples_ = std::round(0.000125f * static_cast<float>(sampleRate_));
 
     // 14 ms continuous-parameter smoothing and a 4 ms pickup selector fade,
@@ -4646,9 +4648,8 @@ void ElectryEngine::configureVoicePitch(Voice& voice, bool forceDelayJump,
                     : expressionPitchBendSemitones_[expressionIndex])
              + expressionMasterPitchBendSemitones_[expressionIndex];
     }
-    const float semitones = legatoOffset
-                          + bend
-                          + vibrato;
+    const float semitones = legatoOffset + bend + vibrato
+                          + voice.playerFretPressureSemitones;
     const float unclampedF0 = voice.baseFrequency * std::exp2(semitones / 12.0f);
     if (voice.legatoUsesLengthTrajectory)
         voice.slideUnclampedFrequency = unclampedF0;
@@ -6204,6 +6205,29 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
     const float fingerControl = std::pow(parameters.fingerNoise, 0.75f);
     const float pickNoiseLevel = pickControl * (0.12f + 0.63f * profile.noise);
     float noiseLevel = pickNoiseLevel;
+    if (parameters.playerNoise > 0.0f)
+    {
+        // Reuse each stroke's seeded contact offset. This keeps the same
+        // gesture deterministic and leaves the legacy random streams intact.
+        const float contact = clampf(0.5f + voice.strokeContactOffsetMetres / 0.024f,
+                                     0.0f, 1.0f);
+        if (plectrumContact)
+            noiseLevel += parameters.playerNoise * (0.040f + 0.16f * contact)
+                        * profile.noise;
+        if (voice.frettingContactPending && voice.fret > 0
+            && voice.playStyle != PlayStyle::Harmonics && voice.playStyle != PlayStyle::Dead)
+        {
+            // A freshly placed fingertip pulls a stopped string slightly sharp.
+            // Pressure relaxes after landing, independent of wheel or MPE bends.
+            voice.playerFretPressureSemitones = parameters.playerNoise
+                * (0.018f + 0.055f * contact) * profile.amplitude;
+            noiseLevel += parameters.playerNoise * (0.020f + 0.055f * contact)
+                        * profile.noise;
+            configureVoicePitch(voice, false);
+        }
+    }
+    if (voice.fret == 0 || voice.playStyle == PlayStyle::Harmonics || voice.playStyle == PlayStyle::Dead)
+        voice.playerFretPressureSemitones = 0.0f;
     // The plectrum scrapes on each stroke, but a finger already holding its
     // fret does not land again when B0/E6 or a repeated Note On repicks it.
     // Its own Hammer/Slide contact is voiced separately below.
@@ -7447,6 +7471,8 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
         0.32f, 1.25f);
     if (! sameHeldFinger)
         seedVibratoFinger(voice);
+    if (! sameHeldFinger)
+        voice.playerFretPressureSemitones = 0.0f;
     voice.ageSamples = 0;
     voice.releaseMotionPeak = voice.outputEnergy;
     // Per-note, for the same reason ageSamples is: the relax factor is
@@ -8357,6 +8383,12 @@ void ElectryEngine::configurePickupFilters() noexcept
 
 void ElectryEngine::updateVoiceControl(Voice& voice) noexcept
 {
+    if (voice.playerFretPressureSemitones > 0.0f)
+    {
+        voice.playerFretPressureSemitones *= playerPressureRetention_;
+        if (voice.playerFretPressureSemitones < 1.0e-5f)
+            voice.playerFretPressureSemitones = 0.0f;
+    }
     const auto snapStalledDelay = [] (PolarisationLoop& loop)
     {
         if (loop.currentDelay == loop.targetDelay)
@@ -9815,6 +9847,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         smoothTowards(s.pickPosition, t.pickPosition);
         smoothTowards(s.pickHardness, t.pickHardness);
         smoothTowards(s.pickNoise, t.pickNoise);
+        smoothTowards(s.playerNoise, t.playerNoise);
         smoothTowards(s.fingerNoise, t.fingerNoise);
         smoothTowards(s.releaseNoise, t.releaseNoise);
         smoothTowards(s.muteDamping, t.muteDamping);

@@ -289,6 +289,7 @@ ElectryAudioProcessor::ElectryAudioProcessor()
     parameterPointers.pickHardness   = parameters.getRawParameterValue (pickHardness);
     parameterPointers.pickNoise      = parameters.getRawParameterValue (pickNoise);
     parameterPointers.fingerNoise    = parameters.getRawParameterValue (fingerNoise);
+    parameterPointers.playerNoise    = parameters.getRawParameterValue (playerNoise);
     parameterPointers.releaseNoise   = parameters.getRawParameterValue (releaseNoise);
     parameterPointers.muteDamping    = parameters.getRawParameterValue (muteDamping);
     parameterPointers.bendTime       = parameters.getRawParameterValue (bendTime);
@@ -524,6 +525,11 @@ ElectryAudioProcessor::createParameterLayout()
 
     result.push_back (std::make_unique<juce::AudioParameterBool> (
         juce::ParameterID { fxEnabled, 3 }, "FX enabled", false));
+
+    result.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { playerNoise, 4 }, "Player Feel",
+        juce::NormalisableRange<float> { 0.0f, 1.0f, 0.001f },
+        engineDefaults.playerNoise, percentAttributes()));
 
     return { result.begin(), result.end() };
 }
@@ -1266,6 +1272,7 @@ void ElectryAudioProcessor::updateEngineParameters() noexcept
     next.pickHardness = valueOf (parameterPointers.pickHardness);
     next.pickNoise = valueOf (parameterPointers.pickNoise);
     next.fingerNoise = valueOf (parameterPointers.fingerNoise);
+    next.playerNoise = valueOf (parameterPointers.playerNoise);
     next.releaseNoise = valueOf (parameterPointers.releaseNoise);
     next.muteDamping = valueOf (parameterPointers.muteDamping);
     next.bendTimeSeconds = valueOf (parameterPointers.bendTime, 0.04f, 2.0f, 0.28f);
@@ -1506,7 +1513,7 @@ void ElectryAudioProcessor::getStateInformation (juce::MemoryBlock& destinationD
 
 void ElectryAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // Our state is one root plus 30 flat parameter elements (a few KB).
+    // Our state is one root plus the flat parameter elements (a few KB).
     // Bound work before JUCE's recursive XML parser sees a corrupted host
     // chunk, and disallow entity declarations which our writer never emits.
     constexpr int maximumStateBytes = 1024 * 1024;
