@@ -230,7 +230,19 @@ juce::AudioParameterFloatAttributes morphAttributes (const char* lowName,
                 return juce::String (juce::roundToInt (value * 100.0f)) + "% "
                      + high;
             })
-        .withValueFromStringFunction (percentValue);
+        // The ends show a name, not a number, so they read back by name:
+        // percentValue alone turned "Single coil" into 0 (Humbucker), which
+        // clap-validator's param-conversions check rejects.
+        .withValueFromStringFunction (
+            [low, high] (const juce::String& text)
+            {
+                const auto trimmed = text.trim();
+                if (trimmed.equalsIgnoreCase (low))
+                    return 0.0f;
+                if (trimmed.equalsIgnoreCase (high))
+                    return 1.0f;
+                return percentValue (trimmed);
+            });
 }
 
 juce::AudioParameterFloatAttributes guitarBuildAttributes()

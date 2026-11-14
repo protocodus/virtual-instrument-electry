@@ -626,6 +626,28 @@ void testParameterTextParsing()
     expectParameterValueForText (processor, electry::parameters::guitarBuild,
                                  "50%", 0.5f, 1.0e-3f,
                                  "guitarBuild percentage");
+
+    // Pickup type's ends show a name, not a percentage; each name reads back
+    // to its own end (percentValue alone read "Single coil" as Humbucker).
+    expectParameterValueForText (processor, electry::parameters::pickupType,
+                                 "Single coil", 1.0f, 1.0e-4f, "pickupType \"Single coil\"");
+    expectParameterValueForText (processor, electry::parameters::pickupType,
+                                 "Humbucker", 0.0f, 1.0e-4f, "pickupType \"Humbucker\"");
+    expectParameterValueForText (processor, electry::parameters::pickupType,
+                                 "40% Single coil", 0.4f, 1.0e-4f, "pickupType \"40% Single coil\"");
+
+    // clap-validator's param-conversions check: at each end and at the
+    // default, a value shown as text and read back shows the same text again.
+    for (auto* parameter : processor.getParameters())
+    {
+        for (const float value : { 0.0f, 1.0f, parameter->getDefaultValue() })
+        {
+            const auto text = parameter->getText (value, 1024);
+            const auto again = parameter->getText (parameter->getValueForText (text), 1024);
+            expect (again == text, (parameter->getName (64) + ": '" + text + "' reads back as '"
+                                    + again + "'").toStdString());
+        }
+    }
 }
 
 void testStateRoundTrip()
