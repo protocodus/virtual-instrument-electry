@@ -1163,8 +1163,7 @@ void sameClockLargeReplacementChokesOnlyTheActualFretChange()
 {
     for (const bool pickingHandRepick : {false, true})
     {
-        // Zero seed gives an immediate public command, so no hidden
-        // performance pre-roll can postpone the repick beyond the handoff.
+        // Zero strum spread requests immediate contact during the handoff.
         auto engine = makeEngine(48000, 2, electry::PlayStyle::Sustain, 0, 0);
         engine->noteOn(47, .85f);
         render(*engine, 9600);

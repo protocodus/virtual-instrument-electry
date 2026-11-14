@@ -202,9 +202,6 @@ constexpr float polarisationCouplingReferenceRate = 96000.0f;
 constexpr float bridgeCouplingGain = 6.0e-5f;
 constexpr float bridgeCouplingRowSumBound = 0.25f;
 
-// The strum. Three constants, all of them about the wrist rather than the
-// string.
-//
 // `strumReAnchorSeconds` is the pre-roll a scalar note stream carries while a
 // later call may still reveal a different chord edge. Without it the first
 // arrival has already sounded and no causal scheduler can put a later arrival
@@ -222,24 +219,6 @@ constexpr double strumReAnchorSeconds = 0.020;
 // crossings to take 0.70 of the first gives `1 / sqrt(1 + 6u) = 0.70`, so
 // `u = 1/(6*0.49) - 1/6`.
 constexpr float strumAcceleration = 0.173469388f;
-
-// How much of that the wrist does not repeat. The acceleration is a property
-// of one stroke and is drawn once per chord; the per-crossing draw is what is
-// left over, and it is small for a reason the shape itself sets - adjacent
-// crossings differ by only 3 to 8 %, so a per-gap jitter of the same size
-// would erase the compression rather than humanise it.
-constexpr float strumAccelerationSigma = 0.15f;
-constexpr float strumCrossingSigma = 0.005f;
-
-// A second real metal rhythm take is not sample-locked to the first. Across
-// 1,844 four-way matched energy-rise onsets in the CC-BY HiMMP "In Solitude"
-// raw rhythm DIs, the six pairwise median differences span about 6-8 ms (with
-// roughly 12-18 ms 90th percentiles). That conventional six-string corpus is
-// not an eight-string calibration target, so Double deliberately takes only
-// its tight edge: one bounded 0-6 ms causal offset, drawn once per picked
-// wrist stroke. A zero variation seed skips the draw and the delay exactly.
-constexpr float performanceDelayMeanSeconds = 0.003f;
-constexpr float performanceDelaySigmaSeconds = 0.001f;
 
 constexpr float steelDensity = 7850.0f;      // kg/m^3
 constexpr float steelYoungModulus = 2.0e11f; // Pa
@@ -2003,9 +1982,8 @@ void ElectryEngine::reset()
     chordContactOccurred_ = false;
     chordReanchorsTremolo_ = true;
     chordFirstNoteOnClock_ = -(1ll << 40);
-    chordSequence_ = variationSeed_;
+    chordSequence_ = 0;
     chordStrokeVariationState_ = 0u;
-    chordPerformanceDelaySamples_ = 0;
     strumPreRollSamples_ = 0;
     chordTravelSamples_.fill(0);
     chordTravelSpeedScales_.fill(1.0f);
@@ -3028,9 +3006,7 @@ void ElectryEngine::noteOnInternal(int midiNote, float velocity,
         const std::int64_t onset = chordFirstNoteOnClock_
                                  + static_cast<std::int64_t>(strumPreRollSamples_)
                                  + static_cast<std::int64_t>(
-                                       strumTravelSamples(std::max(0, crossings)))
-                                 + static_cast<std::int64_t>(
-                                       chordPerformanceDelaySamples_);
+                                       strumTravelSamples(std::max(0, crossings)));
         startDelaySamples = static_cast<int>(
             std::max<std::int64_t>(0, onset - engineClock_));
     }
@@ -5634,22 +5610,6 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
     chordTravelSamples_.fill(0);
     chordTravelSpeedScales_.fill(1.0f);
 
-    chordPerformanceDelaySamples_ = 0;
-    if (variationSeed_ != 0)
-    {
-        // Keep timing independent of the strum-ramp draws below. Three bounded
-        // uniforms have unit variance and cannot leave +/-3 sigma, hence the
-        // explicit 0-6 ms contract without clipping or wall-clock randomness.
-        std::uint32_t timingState = hash32(
-            static_cast<std::uint32_t>(chordSequence_ * 2246822519u)
-            ^ 0x6d2b79f5u);
-        const float delaySeconds = performanceDelayMeanSeconds
-            + performanceDelaySigmaSeconds * sumThreeUniforms(timingState);
-        chordPerformanceDelaySamples_ = std::max(
-            0, static_cast<int>(std::lround(
-                   delaySeconds * static_cast<float>(sampleRate_))));
-    }
-
     if (! (spreadSeconds > 0.0f))
     {
         // No spread, no travel and no pre-roll: the chord is one block again,
@@ -5659,26 +5619,12 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
     }
     strumPreRollSamples_ = completeChord ? 0 : strumReAnchorSamples_;
 
-    // The wrist's motion for this one stroke. It is drawn from the chord
-    // counter alone, so every string of the chord reads the same ramp and the
-    // same MIDI still renders the same audio.
-    std::uint32_t state = hash32(
-        static_cast<std::uint32_t>(chordSequence_ * 2891336453u) ^ 0x7feb352du);
-    const auto normal = [&state] { return sumThreeUniforms(state); };
-
-    // Three uniforms sum to unit variance and cannot leave +/-3 sigma, so the
-    // acceleration stays between 0.55 and 1.45 of nominal and the ramp cannot
-    // invert.
-    const float acceleration = strumAcceleration
-                             * (1.0f + strumAccelerationSigma * normal());
-
     std::array<float, stringCount - 1> gaps {};
     float total = 0.0f;
     for (int k = 0; k < stringCount - 1; ++k)
     {
         gaps[static_cast<std::size_t>(k)] =
-            (1.0f + strumCrossingSigma * normal())
-            / std::sqrt(1.0f + acceleration * static_cast<float>(k));
+            1.0f / std::sqrt(1.0f + strumAcceleration * static_cast<float>(k));
         total += gaps[static_cast<std::size_t>(k)];
     }
 
@@ -5705,9 +5651,8 @@ void ElectryEngine::beginChordStroke(int stringIndex, bool strokeIsUp,
     }
 
     // Strum Spread states the time the pick takes per string, so the ramp is
-    // normalised to it: whatever shape the draws gave it, seven crossings
-    // still take seven times the knob. The acceleration redistributes the
-    // stroke, it does not lengthen it.
+    // normalized so seven crossings take seven times the knob value.
+    // Both players follow this trajectory on every stroke.
     const float scale = spreadSeconds * static_cast<float>(sampleRate_)
                       * static_cast<float>(stringCount - 1)
                       / std::max(1.0e-6f, total);
@@ -5745,14 +5690,7 @@ void ElectryEngine::reAnchorChordStroke(int stringIndex) noexcept
         voice.strokeTravelSpeedScale = strumTravelSpeedScale(moved);
         const std::int64_t onset = chordFirstNoteOnClock_
                                  + static_cast<std::int64_t>(strumPreRollSamples_)
-                                 + static_cast<std::int64_t>(strumTravelSamples(moved))
-                                 + static_cast<std::int64_t>(
-                                       plectrumContacts(
-                                           voice.pendingRepick.active
-                                               ? voice.pendingRepick.playStyle
-                                               : voice.playStyle,
-                                           false)
-                                           ? chordPerformanceDelaySamples_ : 0);
+                                 + static_cast<std::int64_t>(strumTravelSamples(moved));
         voice.startDelaySamples = static_cast<int>(
             std::max<std::int64_t>(1, onset - engineClock_));
         if (voice.refretQueued)

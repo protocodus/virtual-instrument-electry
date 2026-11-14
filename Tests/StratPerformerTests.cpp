@@ -149,24 +149,14 @@ std::array<int, 6> onsets(StratPerformer& p, int samples)
     return first;
 }
 
-// A stroke after the first from rest: the strings in `order` sound one after
-// another, each gap within the hand's scatter of the pace (StratPerformer.cpp:
-// 2.5 deviations of 0.29 either way).
 bool paced(const std::array<int, 6>& onset, std::initializer_list<int> order, int pace)
 {
-    int previous = -1;
+    int expected = 0;
     for (int s : order)
     {
-        const int t = onset[static_cast<size_t>(s)];
-        if (previous >= 0)
-        {
-            const double gap = t - previous;
-            if (gap < 0.48 * pace || gap > 2.08 * pace)
-                return false;
-        }
-        else if (t != 0)
+        if (onset[static_cast<size_t>(s)] != expected)
             return false;
-        previous = t;
+        expected += pace;
     }
     return true;
 }
@@ -197,11 +187,6 @@ void testStrums()
         q->noteOn(0, n, 100);
     const auto up = onsets(*q, 12 * pace);
     check(paced(up, {5, 4, 3, 2, 1}, pace), "a stroke that follows quickly goes up, high to low");
-    bool even = true;
-    for (int s = 1; s < 5; ++s)
-        even = even && up[static_cast<size_t>(s)] - up[static_cast<size_t>(s + 1)] == pace;
-    check(!even, "the hand crosses the strings of a later stroke unevenly");
-
     // After a pause the hand starts down again.
     auto r = makePerformer();
     r->setControls(controls);
@@ -211,6 +196,53 @@ void testStrums()
         r->noteOn(0, n, 100);
     const auto again = onsets(*r, 12 * pace);
     check(paced(again, {0, 1, 2, 3, 4}, pace), "after a pause the next stroke goes down");
+}
+
+// Measure the actual string drive, not the level or brightest point of an
+// attack. Open strings exclude anticipatory fretting noises from the probe.
+void testPickTiming()
+{
+    for (const bool lookahead : {false, true})
+        for (const double feel : {0.0, 0.25, 1.0})
+            for (const double spread : {0.0, 0.00325})
+            {
+                auto p = makePerformer();
+                electry::StratControls controls;
+                controls.playerNoise = feel;
+                controls.lookahead = lookahead;
+                controls.strumSeconds = spread;
+                p->setControls(controls);
+                const int latency = p->latencySamples();
+
+                // Unaligned MIDI offsets on successive strings, including a
+                // repick. A nonzero strum setting leaves each single on time.
+                for (const int s : {0, 2})
+                {
+                    render(*p, 0.037, 17);
+                    p->noteOn(0, openNote[s], 90, s);
+                    const auto first = onsets(*p, latency + 1);
+                    check(first[static_cast<size_t>(s)] == latency,
+                          "single strokes keep their MIDI frames at every Player Feel setting");
+                    p->noteOff(0, openNote[s]);
+                }
+                // isDriven includes the DC-blocked pick tail. Let that force
+                // expire before using it to observe a repick on the same string.
+                render(*p, 1.7);
+                p->noteOn(0, openNote[0], 100, 0);
+                check(onsets(*p, latency + 1)[0] == latency,
+                      "a repick keeps its MIDI frame at every Player Feel setting");
+                render(*p, 0.073, 31);
+
+                // Force the direction and skip a string in the shape. Only
+                // distance crossed and explicit strum pace affect the offset.
+                p->noteOn(0, StratPerformer::firstStrokeKey, 1);
+                for (const int s : {1, 3, 4})
+                    p->noteOn(0, openNote[s], 100, s);
+                const auto chord = onsets(*p, latency + static_cast<int>(std::lround(3 * spread * rate)) + 1);
+                for (const int s : {1, 3, 4})
+                    check(chord[static_cast<size_t>(s)] == latency + std::lround((s - 1) * spread * rate),
+                          "a chord has only the explicit strum distance at every Player Feel setting");
+            }
 }
 
 // The stroke keyswitches: G1 latches downstrokes, G#1 upstrokes and A1 the
@@ -1664,6 +1696,7 @@ int main()
     testFingerWheel();
     testChordShapes();
     testStrums();
+    testPickTiming();
     testStrokeKeys();
     testNewNoteOwnsAQueuedString();
     testFirstUpstrokePickPosition();

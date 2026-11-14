@@ -18,10 +18,9 @@ selector and type, Tone, Body Resonance amount, string age and all
 player/contact controls remain independent. The former four-mode construction
 trajectory is available only in an explicit legacy-comparison build.
 **Output Mode** is one three-choice Mono/Stereo/Double parameter; Double means
-two separately seeded complete engines, one mono performance per channel. The
-second player's picked wrist strokes also carry a deterministic 0-6 ms causal
-timing offset; the primary player and fretting-hand articulations keep their
-established clocks.
+two separately seeded complete engines, one mono performance per channel. Both
+players share MIDI note-on timing and the selected strum trajectory, with
+independent picking contact and timbre.
 
 **Amp Voice** selects American Clean, British Crunch or Modern High-Gain as a
 complete amplifier, output-dynamics, transformer and speaker/cabinet path. It
@@ -136,22 +135,11 @@ contacts; its Rhythm-1 reference and recording alignment can also bias the
 result. The exact receipt replaces an earlier exploratory count whose silence
 gate was not preserved.
 
-This conventional six-string Drop-C corpus establishes that separately played
-metal takes are not sample-locked; it is not an eight-string timing fit. Double
-therefore uses only the tight edge of the evidence: its seeded second engine
-draws one bounded 0-6 ms offset per picked wrist stroke from a three-uniform
-distribution with 3 ms mean and 1 ms standard deviation. Every string crossed
-by a chord shares that player offset, which composes with—not replaces—the
-existing accelerating strum travel. Fresh Hammer contacts and all default-seed
-Mono/Stereo scheduling are unchanged. The offset lives at the engine's physical
-contact boundary, so a released pre-contact note cancels cleanly and a chord
-split across host blocks retains one absolute onset.
-
-A processor-side MIDI queue was rejected because it would duplicate note
-ownership, sustain, keyswitch, repick and panic behavior. A static audio delay
-was rejected because that would be a Haas copy, not a second performance. No
-new knob was added: players still choose only Mono, Stereo or Double. Licensed
-paired eight-string takes remain part of the commissioned listening gate below.
+These measurements describe timing differences in independently played takes.
+Electry leaves those differences to the MIDI performance. Double uses the same
+MIDI clock and explicit strum travel for both engines; its separate seeds
+govern contact and timbre. Licensed paired eight-string takes remain part of
+the commissioned listening gate below.
 
 No public source found combines exact eight-string provenance, raw DI,
 independently performed matched rhythms and explicit commercial

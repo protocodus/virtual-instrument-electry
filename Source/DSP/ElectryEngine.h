@@ -414,10 +414,7 @@ public:
 
     void prepare(double sampleRate, int maxBlockSize);
     void reset();
-    // Selects a deterministic player's contact, timing and strum variation
-    // stream. The default zero preserves the established render contract; a
-    // new seed takes effect at the next reset and never introduces wall-clock
-    // random.
+    // Selects the player's repeatable contact and timbre variation from the next reset.
     void setVariationSeed(std::uint32_t seed) noexcept { variationSeed_ = seed; }
     void setParameters(const EngineParameters& parameters);
     void noteOn(int midiNote, float velocity,
@@ -2181,10 +2178,6 @@ private:
     std::int64_t chordFirstNoteOnClock_ { -(1ll << 40) };
     std::uint64_t chordSequence_ { 0 };
     std::uint32_t chordStrokeVariationState_ { 0u };
-    // A separately seeded player reaches one picked wrist stroke a little
-    // before or after another player. Causality makes this lane the later one;
-    // all strings crossed by the stroke share the same offset.
-    int chordPerformanceDelaySamples_ { 0 };
     int chordWindowSamples_ { 1680 };
     // The causal pre-roll used only while a scalar note stream may still
     // reveal a different chord edge, and the travel time from the anchor to

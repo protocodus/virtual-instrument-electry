@@ -134,15 +134,6 @@ constexpr double pickScatterMetres = 0.006;
 constexpr double pickLine[6] = {-0.020, -0.016, 0.003, 0.007, 0.012, 0.012};
 constexpr double forceScatter = 0.10;
 
-// Nor does the hand cross the strings at an even pace. IDMT-SMT-Guitar's
-// chord strums (dataset 1, 44 downstrokes on each of the Stratocaster and
-// the Ibanez, every string's onset annotated to the millisecond) put each
-// gap from one string to the next off its stroke's own mean pace with a log
-// standard deviation of 0.32 and 0.26 (193 and 198 gaps), at a median pace
-// of 19 and 23 ms. Each gap after the first stroke from rest takes the
-// middle of the two around strumSeconds. Annotation error, if any, is in it.
-constexpr double strumGapScatter = 0.29;
-
 // The palm, fitted to the palm mutes of IDMT-SMT-Guitar's Stratocaster
 // (dataset 2: five increasingly heavy mutes at fret 5 on every string, each
 // against the same string's unmuted fret-5 note, per-partial decay). A point
@@ -542,7 +533,6 @@ void StratPerformer::reset() noexcept
     nextStrokeUp = false;
     tilt = tiltSeed;
     scatter = scatterSeed;
-    pace = paceSeed;
     press = pressSeed;
     fretHand = fretHandSeed;
     playerHand = 0xA511E9B3u;
@@ -1431,12 +1421,6 @@ void StratPerformer::startStroke() noexcept
             last = stringFor[static_cast<size_t>(i)] > last ? stringFor[static_cast<size_t>(i)] : last;
         }
 
-    std::array<double, 6> crossing {};
-    for (int k = 1; k < StratEngine::stringCount; ++k)
-        crossing[static_cast<size_t>(k)] = crossing[static_cast<size_t>(k - 1)]
-            + current.strumSeconds
-                * std::exp(strumGapScatter * (steadyStroke ? 0.0 : normalDraw(pace)));
-
     double lowestFret = frets + 1.0;
     for (int i = 0; i < count; ++i)
     {
@@ -1465,7 +1449,9 @@ void StratPerformer::startStroke() noexcept
             ? 1.0 + 0.04 * (1.0 - 2.0 * static_cast<double>(crossed) / static_cast<double>(span))
             : 1.0;
         Event e;
-        e.time = now + static_cast<std::int64_t>(crossing[static_cast<size_t>(crossed)] * sampleRate);
+        // A single pick lands at the MIDI frame. On a chord, only the chosen
+        // strum speed and number of strings crossed offset each pick.
+        e.time = now + std::llround(crossed * current.strumSeconds * sampleRate);
         e.kind = EventKind::strike;
         e.string = s;
         e.fret = dead ? 0.0 : fret;

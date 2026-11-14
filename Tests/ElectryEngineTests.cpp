@@ -980,12 +980,6 @@ struct ElectryEngineTestAccess
         return -3.0 * period / (rate * std::log10(perRoundTrip));
     }
 
-    static int chordPerformanceDelaySamples(
-        const ElectryEngine& engine) noexcept
-    {
-        return engine.chordPerformanceDelaySamples_;
-    }
-
     static double minimumSupportedSampleRate() noexcept
     {
         return ElectryEngine::minimumSupportedSampleRate;
@@ -18570,7 +18564,7 @@ void testSeededPlayerTiming()
     constexpr double sampleRate = 48000.0;
     constexpr std::uint32_t secondPlayerSeed = 0x9e3779b9u;
 
-    const auto makeEngine = [] (std::uint32_t seed, float spreadSeconds = 0.0f)
+    const auto makeEngine = [] (std::uint32_t seed, float spreadSeconds, float feel = 0.0f)
     {
         auto engine = std::make_unique<ElectryEngine>();
         engine->setVariationSeed(seed);
@@ -18579,123 +18573,47 @@ void testSeededPlayerTiming()
         parameters.artifactAmount = 0.0f;
         parameters.sympatheticAmount = 0.0f;
         parameters.strumSpreadSeconds = spreadSeconds;
+        parameters.playerNoise = feel;
         engine->setParameters(parameters);
         engine->reset();
         return engine;
     };
 
-    // The established/default player has no hidden onset offset. This is the
-    // exact bypass that keeps every Mono/Stereo render on its old clock.
-    auto primary = makeEngine(0u);
-    primary->noteOn(28, 0.9f);
-    expect(TestAccess::chordPerformanceDelaySamples(*primary) == 0
-               && TestAccess::snapshot(*primary, 0).startDelaySamples == 0,
-           "the default player acquired a hidden timing delay");
-
-    const auto timingSequence = [&] (std::uint32_t seed)
+    // A complete host chord starts at its timestamp. Every crossing keeps
+    // exactly the same sample across players, Player Feel settings and strokes.
+    constexpr std::array<ElectryEngine::NoteOnEvent, 3> chordEvents {{
+        { 28, 0.9f }, { 40, 0.9f }, { 45, 0.9f }
+    }};
+    for (const float spread : { 0.0f, 0.017f })
     {
-        auto engine = makeEngine(seed);
-        std::array<int, 64> delays {};
-        const int maximumDelay = static_cast<int>(std::lround(
-            0.006 * TestAccess::internalSampleRate(*engine)));
-        for (std::size_t attack = 0; attack < delays.size(); ++attack)
-        {
-            engine->noteOn(28, 0.9f);
-            const int delay = TestAccess::chordPerformanceDelaySamples(*engine);
-            delays[attack] = delay;
-            const int stringIndex = TestAccess::stringForNote(*engine, 28);
-            expect(delay >= 0 && delay <= maximumDelay,
-                   "the second player's timing draw left the 0-6 ms bound ("
-                       + std::to_string(delay) + " of "
-                       + std::to_string(maximumDelay) + " internal samples)");
-            expect(stringIndex >= 0
-                       && TestAccess::snapshot(*engine, stringIndex)
-                              .startDelaySamples == delay,
-                   "a zero-spread pick did not receive its player's timing draw");
-
-            // More than the maximum delay, at the host rate: the pending pick
-            // lands before its matching release and the next stroke begins on
-            // a later engine clock.
-            StereoBuffer contact(static_cast<int>(0.008 * sampleRate));
-            renderInto(*engine, contact);
-            engine->noteOff(28);
-            StereoBuffer gap(static_cast<int>(0.008 * sampleRate));
-            renderInto(*engine, gap);
-        }
-        return delays;
-    };
-
-    const auto firstSequence = timingSequence(secondPlayerSeed);
-    const auto repeatedSequence = timingSequence(secondPlayerSeed);
-    const auto otherPlayerSequence = timingSequence(0x243f6a88u);
-    expect(firstSequence == repeatedSequence,
-           "the second player's timing stream was not deterministic");
-    const auto [minimumDelay, maximumDelay] = std::minmax_element(
-        firstSequence.begin(), firstSequence.end());
-    expect(*minimumDelay != *maximumDelay,
-           "the second player's per-stroke timing never moved");
-    expect(firstSequence != otherPlayerSequence,
-           "different players received the same timing stream");
-
-    // One wrist stroke crosses a chord: it has one player offset, then any
-    // requested strum travel. Canonical chord batching must not draw once per
-    // string.
-    auto chord = makeEngine(secondPlayerSeed);
-    const std::array<ElectryEngine::NoteOnEvent, 3> chordEvents {
-        ElectryEngine::NoteOnEvent { 28, 0.9f },
-        ElectryEngine::NoteOnEvent { 40, 0.9f },
-        ElectryEngine::NoteOnEvent { 45, 0.9f }
-    };
-    chord->noteOnChord(chordEvents);
-    const int chordDelay = TestAccess::chordPerformanceDelaySamples(*chord);
-    for (const int note : { 28, 40, 45 })
-    {
-        const int stringIndex = TestAccess::stringForNote(*chord, note);
-        expect(stringIndex >= 0
-                   && TestAccess::snapshot(*chord, stringIndex)
-                          .startDelaySamples == chordDelay,
-               "one block chord received more than one player-timing offset");
+        std::array<int, chordEvents.size()> expected {};
+        for (const auto seed : { 0u, secondPlayerSeed, 0x243f6a88u })
+            for (const float feel : { 0.0f, 0.25f, 1.0f })
+            {
+                auto engine = makeEngine(seed, spread, feel);
+                for (int repeat = 0; repeat < 3; ++repeat)
+                {
+                    engine->noteOnChord(chordEvents);
+                    for (std::size_t i = 0; i < chordEvents.size(); ++i)
+                    {
+                        const int string = TestAccess::stringForNote(
+                            *engine, chordEvents[i].midiNote);
+                        expect(string >= 0, "missing string in picked chord");
+                        const int delay = TestAccess::snapshot(*engine, string).startDelaySamples;
+                        if (seed == 0 && feel == 0.0f && repeat == 0)
+                            expected[i] = delay;
+                        expect(delay == expected[i],
+                               "a player's seed or feel shifted a strum crossing");
+                        if (spread == 0.0f || i == 0)
+                            expect(delay == 0, "hidden delay on a MIDI-timed chord");
+                    }
+                    StereoBuffer held(6000);
+                    renderInto(*engine, held);
+                    for (const auto& event : chordEvents)
+                        engine->noteOff(event.midiNote);
+                }
+            }
     }
-
-    // Re-anchoring a strum against a later-discovered low edge recomputes its
-    // absolute onset. It must retain, rather than drop or double, the same
-    // player offset on every picked member.
-    constexpr float spreadSeconds = 0.020f;
-    auto strummed = makeEngine(secondPlayerSeed, spreadSeconds);
-    strummed->noteOn(50, 0.9f); // provisional middle-string anchor
-    const int strumPlayerDelay =
-        TestAccess::chordPerformanceDelaySamples(*strummed);
-    strummed->noteOn(28, 0.9f); // the real low edge, delivered at the same clock
-    const int preRoll = static_cast<int>(std::lround(
-        spreadSeconds * TestAccess::internalSampleRate(*strummed)));
-    int firstStringDelay = std::numeric_limits<int>::max();
-    for (int stringIndex = 0; stringIndex < ElectryEngine::stringCount;
-         ++stringIndex)
-    {
-        const auto snapshot = TestAccess::snapshot(*strummed, stringIndex);
-        if (snapshot.active)
-            firstStringDelay = std::min(firstStringDelay,
-                                        snapshot.startDelaySamples);
-    }
-    expect(std::abs(firstStringDelay - preRoll - strumPlayerDelay) <= 1,
-           "strum re-anchoring lost or duplicated the player timing offset ("
-               + std::to_string(firstStringDelay) + " vs "
-               + std::to_string(preRoll + strumPlayerDelay) + ")");
-
-    // A key lifted before the delayed physical contact never produces a late
-    // phantom pick. This is the ownership edge a processor-side MIDI delay
-    // would otherwise have to duplicate.
-    auto cancelled = makeEngine(secondPlayerSeed);
-    cancelled->noteOn(28, 0.9f);
-    expect(TestAccess::snapshot(*cancelled, 0).startDelaySamples > 0,
-           "the cancellation fixture did not receive a timing delay");
-    cancelled->noteOff(28);
-    StereoBuffer cancelledAudio(static_cast<int>(0.020 * sampleRate));
-    renderInto(*cancelled, cancelledAudio);
-    expect(cancelled->getActiveVoiceCount() == 0
-               && peakAbs(cancelledAudio.left) == 0.0f
-               && peakAbs(cancelledAudio.right) == 0.0f,
-           "a released pre-contact player delay produced a late attack");
 
     // Hammer/tap timing belongs to the fretting hand. A separate player's
     // plectrum pocket must not delay a fresh hammer articulation.
@@ -18704,8 +18622,7 @@ void testSeededPlayerTiming()
     hammer->noteOn(45, 0.9f);
     const int hammerString = TestAccess::stringForNote(*hammer, 45);
     const auto hammerContact = TestAccess::snapshot(*hammer, hammerString);
-    expect(hammerString >= 0 && hammerContact.startDelaySamples == 0
-               && TestAccess::chordPerformanceDelaySamples(*hammer) == 0,
+    expect(hammerString >= 0 && hammerContact.startDelaySamples == 0,
            "the wrist scheduler delayed a fresh Hammer contact");
     expect(! hammerContact.excitationInContact
                && hammerContact.contactFeedbackGain == 1.0f,
@@ -19077,7 +18994,7 @@ void testStrumTravelFollowsStroke()
     // speeds up as it goes. Three things follow, and none of them held before:
     // the edge is set by the stroke rather than by whichever note-on the host
     // sent first, the crossing intervals compress instead of lying on a
-    // straight line, and no two strokes lay the same ramp down twice.
+    // straight line, and the same strum follows the same clock on every take.
     constexpr double sampleRate = 48000.0;
     constexpr double internalRate = sampleRate * 2.0;   // the engine's own clock
     constexpr float spread = 0.012f;
@@ -19205,31 +19122,6 @@ void testStrumTravelFollowsStroke()
             expect(delay == 0,
                    "a chord at zero spread carried a strum offset or a "
                    "pre-roll (" + std::to_string(delay) + ")");
-    }
-
-    // 6. The wrist does not lay the same ramp down twice. Two strums of the
-    //    same chord 12 s apart - long enough that the strings have decayed and
-    //    nothing else is shared - must differ somewhere by at least one
-    //    internal sample. The offsets were previously a pure function of the
-    //    spread and the string index, so the two were identical.
-    {
-        std::unique_ptr<ElectryEngine> engine;
-        makeEngine(engine, spread, PickStyle::Down);
-        const std::vector<int> chord { 28, 35, 40, 45, 50, 55, 59, 64 };
-        const auto first = strum(*engine, chord);
-        for (const int note : chord)
-            engine->noteOff(note);
-        StereoBuffer decay(static_cast<int>(12.0 * sampleRate));
-        renderInto(*engine, decay);
-        const auto second = strum(*engine, chord);
-        int largest = 0;
-        for (int s = 0; s < ElectryEngine::stringCount; ++s)
-            largest = std::max(largest,
-                               std::abs(second[static_cast<std::size_t>(s)]
-                                        - first[static_cast<std::size_t>(s)]));
-        expect(largest >= 1,
-               "two strums of the same chord laid down the same ramp ("
-                   + std::to_string(largest) + " internal samples apart)");
     }
 
     // 7/9. The block-straddling case, pinned in absolute onsets. One chord's

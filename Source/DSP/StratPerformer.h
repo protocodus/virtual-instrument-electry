@@ -263,7 +263,6 @@ private:
     double strokeForce(int velocity) noexcept;
     static constexpr std::uint32_t scatterSeed = 0x85EBCA6Bu;
     static constexpr std::uint32_t wobbleSeed = 0xC2B2AE35u;
-    static constexpr std::uint32_t paceSeed = 0x27D4EB2Fu;
     static constexpr std::uint32_t pressSeed = 0x165667B1u;
     static constexpr std::uint32_t fretHandSeed = 0xD3A2646Cu;
     // The fretting hand's scatter (StratPerformer.cpp): where a finger lands
@@ -319,7 +318,6 @@ private:
     bool nextStrokeUp = false;
     std::uint32_t tilt = tiltSeed; // the picking hand's tilt from stroke to stroke
     std::uint32_t scatter = scatterSeed; // and its place and push
-    std::uint32_t pace = paceSeed;       // and its pace from string to string
     std::uint32_t press = pressSeed;     // and the palm's from stroke to stroke
     std::uint32_t fretHand = fretHandSeed; // and the fretting hand's
     double strokePick = 0.0;    // this stroke's pick offset from the control

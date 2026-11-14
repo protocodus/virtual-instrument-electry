@@ -141,9 +141,6 @@ std::unique_ptr<Engine> makeEngine(double rate, int stringIndex,
     parameters.artifactAmount = parameters.sympatheticAmount = parameters.bodyResonance = 0;
     parameters.pickHardness = hardness;
     engine->setParameters(parameters);
-    // Zero seed has no performer pre-roll; delayed travel is tested below
-    // independently so the Contact endpoint can be observed exactly here.
-    engine->setVariationSeed(0);
     engine->prepare(rate, 64);
     engine->setSoloStringMask(static_cast<std::uint8_t>(1u << stringIndex));
     engine->noteOn(Engine::firstPlayStyleKeyswitchNote + static_cast<int>(style), 1);

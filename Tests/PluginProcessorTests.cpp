@@ -4622,12 +4622,9 @@ void testOutputModeAudioField()
             "Double did not render two distinct Electry performances");
     expect (doubled.leftHash == mono.leftHash,
             "Double changed the established primary-engine performance");
-    expect (doubled.leftOnset == mono.leftOnset
-                && doubled.rightOnset > doubled.leftOnset
-                && doubled.rightOnset - doubled.leftOnset
-                       <= static_cast<int> (std::ceil (0.006 * sampleRate)) + 2,
-            "Double did not preserve the primary onset and bound the second "
-            "player to 0-6 ms (L " + std::to_string (doubled.leftOnset)
+    expect (mono.leftOnset >= 0 && doubled.leftOnset == mono.leftOnset
+                && doubled.rightOnset == doubled.leftOnset,
+            "Double shifted a MIDI attack (L " + std::to_string (doubled.leftOnset)
                 + ", R " + std::to_string (doubled.rightOnset) + ")");
     expect (doubled.leftRms > doubled.rightRms * 0.70
                 && doubled.rightRms > doubled.leftRms * 0.70,
