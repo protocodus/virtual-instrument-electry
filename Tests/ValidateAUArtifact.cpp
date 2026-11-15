@@ -88,9 +88,23 @@ bool verifyFxEnabledContract(AudioUnit unit,
                              const std::vector<AudioUnitParameterID>& parameterIDs,
                              AudioUnitParameterID& fxEnabledID)
 {
+    // AU orders the exported list by version hint before parameter hash
+    // (JUCE's AU wrapper sorts the hashed IDs, then stable-sorts them by
+    // hint), so every newer hint follows all older automation slots. The
+    // version-3 FX enabled boolean follows every hint-1 and hint-2 slot, and
+    // Player Feel, appended with hint 4 in 2.4.8, follows it: FX enabled sits
+    // directly before Player Feel, which is last. Reordering either would move
+    // a slot hosts already recall automation by.
+    const auto isAutomatable = [](const AudioUnitParameterInfo& info) {
+        return (info.flags & kAudioUnitParameterFlag_IsReadable) != 0
+            && (info.flags & kAudioUnitParameterFlag_IsWritable) != 0
+            && (info.flags & kAudioUnitParameterFlag_NonRealTime) == 0;
+    };
     int matches = 0;
-    for (const auto id : parameterIDs)
+    int playerFeelMatches = 0;
+    for (std::size_t index = 0; index < parameterIDs.size(); ++index)
     {
+        const auto id = parameterIDs[index];
         AudioUnitParameterInfo info {};
         UInt32 infoBytes = sizeof(info);
         if (!check(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterInfo,
@@ -102,29 +116,44 @@ bool verifyFxEnabledContract(AudioUnit unit,
         if ((info.flags & kAudioUnitParameterFlag_HasCFNameString) != 0
             && info.cfNameString != nullptr)
             CFRelease(info.cfNameString);
+        if (name == "Player Feel")
+        {
+            ++playerFeelMatches;
+            if (index + 1 != parameterIDs.size()
+                || std::abs(info.defaultValue) > 1.0e-6f
+                || !isAutomatable(info))
+            {
+                std::cerr << "error: AU Player Feel must be the last parameter, "
+                             "automatable, default 0\n";
+                return false;
+            }
+            continue;
+        }
         if (name != "FX enabled")
             continue;
 
         ++matches;
         fxEnabledID = id;
-        // AU orders the exported list by version hint before parameter hash.
-        // The new version-3 boolean must follow every older automation slot.
-        if (id != parameterIDs.back()
+        if (index + 2 != parameterIDs.size()
             || info.unit != kAudioUnitParameterUnit_Boolean
             || std::abs(info.minValue) > 1.0e-6f
             || std::abs(info.maxValue - 1.0f) > 1.0e-6f
             || std::abs(info.defaultValue) > 1.0e-6f
-            || (info.flags & kAudioUnitParameterFlag_IsReadable) == 0
-            || (info.flags & kAudioUnitParameterFlag_IsWritable) == 0
-            || (info.flags & kAudioUnitParameterFlag_NonRealTime) != 0)
+            || !isAutomatable(info))
         {
-            std::cerr << "error: AU FX enabled must be appended, boolean, automatable, default Off\n";
+            std::cerr << "error: AU FX enabled must directly precede Player Feel, "
+                         "boolean, automatable, default Off\n";
             return false;
         }
     }
     if (matches != 1)
     {
         std::cerr << "error: AU must expose exactly one FX enabled parameter\n";
+        return false;
+    }
+    if (playerFeelMatches != 1)
+    {
+        std::cerr << "error: AU must expose exactly one Player Feel parameter\n";
         return false;
     }
     return expectParameterValue(unit, fxEnabledID, 0.0f);
