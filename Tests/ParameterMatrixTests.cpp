@@ -61,7 +61,7 @@ public:
 
     // U11. FX is off by default and no rig turns it on, so the effects are
     // tested with it on.
-    protocodus::matrix::ReachRule ReachFor(std::size_t index, float) const override
+    protocodus::matrix::ReachRule ReachFor(std::size_t index, float value) const override
     {
         using protocodus::matrix::Reach;
         // The matrix indexes the editor-only parameters (FX oversampling)
@@ -87,6 +87,25 @@ public:
             return { Reach::NewNotes, "the pick's contact at each new pluck" };
         if (name == "Bend time")
             return { Reach::NewNotes, "the travel of the next bend; the held chord is not bent" };
+        // Double (Output mode at 1) puts a second, independent take on the
+        // right channel. ElectryPerformer::setEngineParameters resets that
+        // take's engine when Double comes on, so its strings start silent and
+        // its per-stroke contact draws (drawStrokeVariation, keyed to its own
+        // note count since the reset) restart at its seed, while T's take has
+        // played the whole long phrase and draws that many notes on. On probe 1
+        // the two takes are picked with different contacts: the run's right
+        // channel is as far from T's (1.21 dB) as from R's (1.53 dB; R to T
+        // 1.30 dB), and the left channel, the first take, is bit-identical in
+        // all three. Until 2.4.9 the second take also lagged each picked
+        // stroke by 3 +/- 1 ms, which the run shared with T: that shared lag
+        // is what brought probe 1 towards T (the 2.4.8 engine passes, by the
+        // averaged spectrum, 0.47 from 0.68 dB). With the lag removed nothing
+        // history-free is left to compare. Probe 1 must still move from R, the
+        // held chord must follow, and probes 2 and 3 are checked as usual.
+        if (name == "Output mode" && value > 0.75f)
+            return { Reach::Held, "", {},
+                     "Double's second take starts afresh when Double comes on (silent strings, contact draws "
+                     "from its seed), while T's has played the long phrase" };
         if (name == "FX enabled")
             return { Reach::Held, "", { { at("Distortion"), 0.5f } } };
         if (is({ "Distortion", "Amp simulation", "Compressor", "Delay", "Room" }))
