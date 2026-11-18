@@ -2342,6 +2342,7 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
 
     struct Score
     {
+        int soloMisses { 0 };
         int expressionBindingMisses { 0 };
         int heldBindingMisses { 0 };
         int soundingBindingMisses { 0 };
@@ -2363,6 +2364,10 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
 
     const auto better = [] (const Score& candidate, const Score& incumbent)
     {
+        // Every note a soloed string can take goes there before any other
+        // consideration (the solo keyswitches, chooseString).
+        if (candidate.soloMisses != incumbent.soloMisses)
+            return candidate.soloMisses < incumbent.soloMisses;
         if (candidate.expressionBindingMisses
             != incumbent.expressionBindingMisses)
             return candidate.expressionBindingMisses
@@ -2538,6 +2543,8 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
             score.occupiedStrings += occupied;
             score.heldSteals += heldNoteCounts_[index] > 0
                              && ! heldMatch && ! expressionMatch;
+            score.soloMisses += soloStringMask_ != 0
+                && (soloStringMask_ & (1u << stringIndex)) == 0;
             if (occupied && ! expressionMatch && ! heldMatch && ! soundingMatch)
             {
                 const bool releasing = voice.releasing
@@ -2648,8 +2655,6 @@ void ElectryEngine::noteOnChord(const NoteOnEvent* events, std::size_t count)
         for (int stringIndex = 0; stringIndex < stringCount; ++stringIndex)
         {
             const unsigned int stringBit = 1u << stringIndex;
-            if (soloStringMask_ != 0 && (soloStringMask_ & stringBit) == 0)
-                continue;
             const int fret = midiNote
                            - specs[static_cast<std::size_t>(stringIndex)].openMidiNote;
             if ((usedStrings & stringBit) != 0 || fret < 0 || fret > fretCount)
@@ -3236,11 +3241,28 @@ float ElectryEngine::performedFret(const Voice& voice) noexcept
 int ElectryEngine::chooseString(int midiNote, PlayStyle playStyle,
                                 ExpressionId expressionId) const noexcept
 {
-    const auto& specs = stringSpecs();
-    const auto stringAllowed = [this] (int stringIndex)
+    // A soloed string held by an earlier key is still taken, as a player
+    // re-frets the string a line is on; that is what keeps a soloed line on
+    // its string when the keys overlap.
+    if (soloStringMask_ != 0)
     {
-        return soloStringMask_ == 0
-            || (soloStringMask_ & (1u << stringIndex)) != 0;
+        const int s = chooseStringAmong(midiNote, playStyle, expressionId,
+                                        soloStringMask_);
+        if (s >= 0)
+            return s;
+    }
+    return chooseStringAmong(midiNote, playStyle, expressionId,
+                             (1u << stringCount) - 1u);
+}
+
+int ElectryEngine::chooseStringAmong(int midiNote, PlayStyle playStyle,
+                                     ExpressionId expressionId,
+                                     unsigned allowedStrings) const noexcept
+{
+    const auto& specs = stringSpecs();
+    const auto stringAllowed = [allowedStrings] (int stringIndex)
+    {
+        return (allowedStrings & (1u << stringIndex)) != 0;
     };
     const auto fretOn = [&specs, midiNote] (int stringIndex)
     {

@@ -1586,11 +1586,13 @@ void testSoloStringProcessorKeyswitches()
     expect (processor.getStringVisualState (0).sounding,
             "same-sample solo keyswitch did not condition attack to string 0");
 
-    // On same sample: play note 76 (open string 1, unplayable on string 8) while string 8 is soloed
+    // Note 76 (open string 1) is out of soloed string 8's range: the solo
+    // falls back to the other strings (owner, 2026-11-18), so it sounds on
+    // string 1 as it would without the solo.
     midi.addEvent (juce::MidiMessage::noteOn (1, 76, (juce::uint8) 110), 0);
     render();
-    expect (! processor.getStringVisualState (7).sounding,
-            "unplayable note 76 sounded on string 7 despite solo string 8 active");
+    expect (processor.getStringVisualState (7).sounding,
+            "note 76, out of solo string 8's range, did not fall back to string 1");
     expect (processor.getStringVisualState (0).sounding,
             "playing unplayable note 76 interrupted active note on string 0");
 

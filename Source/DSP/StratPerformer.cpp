@@ -739,6 +739,16 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringI
         dampStrings(true);
         return;
     }
+    if (note >= firstSoloKey && note < soloClearKey)
+    {
+        solo ^= static_cast<std::uint8_t>(1u << (note - firstSoloKey));
+        return;
+    }
+    if (note == soloClearKey)
+    {
+        solo = 0;
+        return;
+    }
     const int top = latched == Articulation::harmonic ? highestNote + 10 : highestNote;
     if (note < lowestNote || note > top || pendingCount >= maxPending)
         return;
@@ -1084,34 +1094,50 @@ bool StratPerformer::strikeQueued(int stringIndex) const noexcept
 bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
 {
     // The line continues on the string it is ringing on.
-    int s = -1;
-    std::uint64_t latest = 0;
     const bool requestedString = p.string >= 0 && p.string < StratEngine::stringCount
         && p.note >= openNote[p.string] && p.note - openNote[p.string] <= frets;
-    for (int k = 0; k < StratEngine::stringCount; ++k)
-    {
-        // A tab's explicit playable string is the same constraint as in
-        // assign(). An older line on another string cannot steal that note.
-        if (requestedString && k != p.string)
-            continue;
-        const StringState& st = strings[static_cast<size_t>(k)];
-        // Sympathetic motion can make a string sound before a queued strum
-        // has struck its owned note. That note cannot yet start a legato
-        // line: fall back to picking the new note instead.
-        if (st.order > latest && !strikeQueued(k) && guitar->isSounding(k))
+    // The latest line among `mask`'s strings, -1 none.
+    const auto latestLine = [&](unsigned mask) {
+        int line = -1;
+        std::uint64_t latest = 0;
+        for (int k = 0; k < StratEngine::stringCount; ++k)
         {
-            latest = st.order;
-            s = k;
+            // A tab's explicit playable string is the same constraint as in
+            // assign(). An older line on another string cannot steal that note.
+            if ((requestedString && k != p.string) || ((mask >> k) & 1u) == 0)
+                continue;
+            const StringState& st = strings[static_cast<size_t>(k)];
+            // Sympathetic motion can make a string sound before a queued strum
+            // has struck its owned note. That note cannot yet start a legato
+            // line: fall back to picking the new note instead.
+            if (st.order > latest && !strikeQueued(k) && guitar->isSounding(k))
+            {
+                latest = st.order;
+                line = k;
+            }
         }
-    }
-    if (s < 0)
+        return line;
+    };
+    const auto reaches = [&](int k) {
+        return k >= 0 && p.note >= openNote[k] && p.note - openNote[k] <= frets;
+    };
+    // A soloed string's line takes the note first, if it reaches it.
+    int s = solo != 0 ? latestLine(solo) : -1;
+    if (!reaches(s))
+        s = latestLine(0x3Fu);
+    if (!reaches(s))
         return false;
     const int fret = p.note - openNote[s];
-    if (fret < 0 || fret > frets)
-        return false;
 
     StringState& st = strings[static_cast<size_t>(s)];
-    const double from = st.fret;
+    // A key let go before this note, even in the same frame as a sequencer's
+    // back-to-back notes, has already run release(): the finger came up off
+    // its fret and st.fret reads 0. It still rests where it was (restFret),
+    // and that is where the hammer, pull-off or slide starts. Reading 0 here
+    // slid every such note up from the nut and took every pull-off for a
+    // hammer-on from the open string.
+    const bool lifted = st.note < 0 && st.released;
+    const double from = lifted ? st.restFret : st.fret;
     cancelEvents(s, EventKind::liftTouch);
     cancelEvents(s, EventKind::leaveString);
     cancelEvents(s, EventKind::shift);
@@ -1168,6 +1194,11 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     }
     else
     {
+        // The lifted finger goes back down where it rests before it glides;
+        // until the slide crosses its first fret nothing else would stop the
+        // string there (StratEngine::liftFromFret).
+        if (lifted)
+            guitar->setFret(s, from);
         st.slide = true;
         st.rubNewtons = rubForce(s, slideNewtons);
         st.slideFrom = from;
@@ -1215,24 +1246,29 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
         string = p.string;
         partial = partialOn(string);
     }
-    for (int k = 2; k <= 6 && string < 0; ++k)
-        for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
-            if (partialOn(s) == k)
+    // The soloed strings first, then all of them.
+    for (const unsigned mask : {static_cast<unsigned>(solo), 0x3Fu})
+    {
+        for (int k = 2; k <= 6 && string < 0; ++k)
+            for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
+                if (((mask >> s) & 1u) != 0 && partialOn(s) == k)
+                {
+                    string = s;
+                    partial = k;
+                }
+        if (string < 0)
+            for (int s = StratEngine::stringCount - 1; s >= 0 && string < 0; --s)
             {
-                string = s;
-                partial = k;
+                const int f = p.note - 12 - openNote[s];
+                if (((mask >> s) & 1u) != 0 && f >= 1 && f <= frets
+                    && !strings[static_cast<size_t>(s)].keyDown)
+                {
+                    string = s;
+                    partial = 2;
+                    fret = f;
+                }
             }
-    if (string < 0)
-        for (int s = StratEngine::stringCount - 1; s >= 0 && string < 0; --s)
-        {
-            const int f = p.note - 12 - openNote[s];
-            if (f >= 1 && f <= frets && !strings[static_cast<size_t>(s)].keyDown)
-            {
-                string = s;
-                partial = 2;
-                fret = f;
-            }
-        }
+    }
     if (string < 0)
         return false;
 
@@ -1270,8 +1306,17 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
 }
 
 void StratPerformer::assign(const Pending* notes, int count, const std::array<bool, 6>& held,
-                            std::array<int, 6>& stringFor) const noexcept
+                            std::uint8_t soloMask, std::array<int, 6>& stringFor) const noexcept
 {
+    // A solo outweighs every preference of the hand's below (their sum over
+    // six notes stays under 350), so a note leaves the soloed strings only
+    // when none of them can take it: out of their range, or each taken by
+    // another note of the same chord. A soloed string an earlier key holds
+    // is re-fretted, as a player moves a line along its string, though a
+    // free soloed string comes first. Leaving a note out must still cost
+    // more than leaving the solo.
+    const double offSolo = soloMask != 0 ? 400.0 : 0.0;
+    const double leftOut = 100.0 + offSolo;
     // Every way of putting the notes on distinct strings, lowest note first,
     // scored as a hand would find it: frets inside a four-fret span around
     // the hand, open strings in the low positions, no held string taken, low
@@ -1284,6 +1329,8 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
     const auto noteCost = [&](int s, int fret, const Pending& p) {
         const int note = p.note;
         double c = held[static_cast<size_t>(s)] ? 20.0 : 0.0;
+        if (((soloMask >> s) & 1u) == 0)
+            c += offSolo;
         // A string asked for, if it can play the note, outweighs every
         // preference of the hand's.
         if (p.string >= 0 && p.string < StratEngine::stringCount && p.string != s
@@ -1333,7 +1380,7 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
         }
         // Left out, if no string can take it.
         trial[static_cast<size_t>(i)] = -1;
-        self(self, i + 1, cost + 100.0);
+        self(self, i + 1, cost + leftOut);
         for (int s = 0; s < StratEngine::stringCount; ++s)
         {
             const int fret = notes[i].note - openNote[s];
@@ -1412,7 +1459,7 @@ void StratPerformer::startStroke() noexcept
     std::array<bool, 6> held {};
     for (int s = 0; s < StratEngine::stringCount; ++s)
         held[static_cast<size_t>(s)] = strings[static_cast<size_t>(s)].keyDown;
-    assign(notes, count, held, stringFor);
+    assign(notes, count, held, solo, stringFor);
     int first = StratEngine::stringCount, last = -1;
     for (int i = 0; i < count; ++i)
         if (stringFor[static_cast<size_t>(i)] >= 0)
@@ -1516,6 +1563,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
     // The articulation and the damping hand as they will stand then.
     Articulation style = latched;
     bool damped = damping;
+    std::uint8_t soloMask = solo;
     Pending notes[6];
     int count = 0;
     std::array<bool, 6> held {};
@@ -1535,6 +1583,10 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
                 style = static_cast<Articulation>(articulationCount + m.note - firstGestureKey);
             else if (m.note == dampKey)
                 damped = true;
+            else if (m.note >= firstSoloKey && m.note < soloClearKey)
+                soloMask ^= static_cast<std::uint8_t>(1u << (m.note - firstSoloKey));
+            else if (m.note == soloClearKey)
+                soloMask = 0;
             else if (m.time == due && !m.prepared && m.note >= lowestNote && m.note <= highestNote
                      && count < 6)
             {
@@ -1572,7 +1624,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
         }
 
     std::array<int, 6> stringFor {};
-    assign(notes, count, held, stringFor);
+    assign(notes, count, held, soloMask, stringFor);
     const auto press = static_cast<std::int64_t>(pressSeconds * sampleRate);
     const std::int64_t latest = due - static_cast<std::int64_t>(pickGapSeconds * sampleRate);
     for (int i = 0; i < count; ++i)

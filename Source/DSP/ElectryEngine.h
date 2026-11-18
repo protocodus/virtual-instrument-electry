@@ -2039,8 +2039,14 @@ private:
     void silenceVoice(Voice& voice) noexcept;
     // Preserve identity and explicit legato first; ordinary notes prefer
     // unused strings, then the lowest fret even when every string is reserved.
+    // With strings soloed, the choice is made among them first; the other
+    // strings take only a note none of them can reach.
     int chooseString(int midiNote, PlayStyle playStyle,
                      ExpressionId expressionId) const noexcept;
+    // chooseString among `allowedStrings`, -1 if none can play the note.
+    int chooseStringAmong(int midiNote, PlayStyle playStyle,
+                          ExpressionId expressionId,
+                          unsigned allowedStrings) const noexcept;
     // `Voice::fret` is the written destination during a glide; allocation
     // decisions need the fractional fret under the finger at this event.
     [[nodiscard]] static float performedFret(

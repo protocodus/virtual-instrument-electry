@@ -4601,16 +4601,21 @@ void testSoloStringKeyswitches()
     expect(engine.getActiveVoiceCount() == 1,
            "in-range note did not create a voice");
 
-    // Out-of-range note 64 (E4, open string 1, fret 36 on string 8) must be ignored / dropped.
+    // Note 64 (E4, fret 36 on string 8) is out of the soloed string's
+    // range: a solo prefers its strings and falls back to the others for
+    // what they cannot play (owner, 2026-11-18), so it plays where it would
+    // without the solo.
     engine.noteOn(64, 0.8f);
-    expect(TestAccess::stringForNote(engine, 64) == -1,
-           "out-of-range note 64 was assigned to a string despite solo mask");
-    expect(engine.getActiveVoiceCount() == 1,
-           "out-of-range note 64 created a voice on another string");
+    expect(TestAccess::stringForNote(engine, 64) == 7,
+           "out-of-range note 64 did not fall back to the string it plays without solo");
+    expect(engine.getActiveVoiceCount() == 2,
+           "out-of-range note 64 did not sound beside the soloed note");
 
     // Note 40 on string 8 is still ringing undisturbed.
     expect(TestAccess::stringForNote(engine, 40) == 0,
-           "ignoring note 64 interrupted active note on solo string");
+           "the fallback note interrupted the active note on the solo string");
+    engine.noteOff(64);
+
 
     // Note Off for note 40 releases it.
     engine.noteOff(40);
@@ -4644,12 +4649,32 @@ void testSoloStringKeyswitches()
     expect(engine.getActiveVoiceCount() == 2,
            "multi-string solo did not allocate two voices");
 
-    // Now try note 64 (E4): cannot fit on either string 8 or 7.
+    // Now try note 64 (E4): cannot fit on either string 8 or 7, so it falls
+    // back to the other strings.
     engine.noteOn(64, 0.8f);
-    expect(TestAccess::stringForNote(engine, 64) == -1,
-           "out-of-range note was played on multi-string solo");
-    expect(engine.getActiveVoiceCount() == 2,
-           "out-of-range note created extra voice");
+    expect(TestAccess::stringForNote(engine, 64) == 7,
+           "out-of-range note did not fall back on multi-string solo");
+    expect(engine.getActiveVoiceCount() == 3,
+           "out-of-range note did not sound beside the soloed notes");
+
+    // A chord fills the free soloed strings first: with strings 6 and 5
+    // (indices 2 and 3) soloed, three notes they can all reach put two on
+    // them and the third elsewhere.
+    engine.reset();
+    engine.setSoloStringMask((1u << 2) | (1u << 3));
+    {
+        const ElectryEngine::NoteOnEvent chord[] = {{52, 0.8f}, {55, 0.8f}, {59, 0.8f}};
+        engine.noteOnChord(chord, 3);
+        int onSolo = 0, placed = 0;
+        for (const int note : {52, 55, 59})
+        {
+            const int string = TestAccess::stringForNote(engine, note);
+            placed += string >= 0;
+            onSolo += string == 2 || string == 3;
+        }
+        expect(placed == 3 && onSolo == 2,
+               "a chord did not fill the soloed strings before the others");
+    }
 
     // 4. Ringing notes on non-soloed strings are NOT muted.
     engine.reset();

@@ -1565,6 +1565,143 @@ void testLookaheadAndEventInvariants()
     }
 }
 
+// A sequencer's back-to-back notes: the old key lets go in the same frame the
+// new one goes down, in either order, or a moment before it. The move starts
+// from the fret the finger was on, not from the nut.
+void testBackToBackLegato()
+{
+    for (int order = 0; order < 3; ++order)
+    {
+        const auto move = [order](StratPerformer& p, int from, int to) {
+            if (order == 0)
+            {
+                p.noteOn(0, to, 100, 3);
+                p.noteOff(0, from);
+            }
+            else
+            {
+                p.noteOff(0, from);
+                if (order == 2)
+                    render(p, 0.03);
+                p.noteOn(0, to, 100, 3);
+            }
+        };
+        auto p = makePerformer();
+        p->noteOn(0, 26, 1); // Hammer-on
+        p->noteOn(0, 62, 100, 3); // G string, 7th fret
+        render(*p, 0.08);
+        move(*p, 62, 64); // hammer to the 9th
+        render(*p, 0.02);
+        const bool hammerOpposed = p->engine().planesOpposed(3);
+        render(*p, 0.06);
+        move(*p, 64, 62); // pull back to the 7th
+        render(*p, 0.02);
+        check(p->stringNote(3) == 62 && !hammerOpposed && p->engine().planesOpposed(3),
+              "a back-to-back pull-off hooks the string from the fret it leaves");
+
+        auto q = makePerformer();
+        q->noteOn(0, 27, 1); // Slide
+        q->noteOn(0, 62, 100, 3);
+        render(*q, 0.08);
+        const double start = q->engine().fundamentalHz(3);
+        move(*q, 62, 67);
+        double lowest = start;
+        for (int i = 0; i < 100; ++i)
+        {
+            render(*q, 0.004);
+            lowest = std::min(lowest, q->engine().fundamentalHz(3));
+        }
+        check(q->stringNote(3) == 67 && lowest > 0.999 * start,
+              "a back-to-back slide goes up from its own fret, never back to the nut");
+    }
+}
+
+// C0 to F0 solo the strings: notes go to a soloed string first, to the others
+// only when no soloed string can take them.
+void testSoloStrings()
+{
+    const auto stringOf = [](const StratPerformer& p, int note) {
+        for (int k = 0; k < 6; ++k)
+            if (p.stringNote(k) == note)
+                return k;
+        return -1;
+    };
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 12, 1); // solo the low E
+        p->noteOn(0, 59, 100);
+        render(*p, 0.05);
+        check(p->soloStrings() == 1 && stringOf(*p, 59) == 0 && p->stringFret(0) == 19,
+              "a soloed string takes a note another string would play open");
+    }
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 17, 1); // solo the high E
+        p->noteOn(0, 40, 100);
+        render(*p, 0.05);
+        check(stringOf(*p, 40) == 0, "a note below the soloed string's range plays on another");
+    }
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 15, 1); // solo the G
+        p->noteOn(0, 62, 100);
+        render(*p, 0.05);
+        p->noteOn(0, 67, 100); // overlapping keys: the line stays on the G
+        render(*p, 0.05);
+        check(stringOf(*p, 67) == 3 && stringOf(*p, 62) < 0,
+              "an overlapping note re-frets the soloed string its line is on");
+    }
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 15, 1); // the G and the B
+        p->noteOn(0, 16, 1);
+        p->noteOn(0, 64, 100);
+        p->noteOn(0, 67, 100);
+        p->noteOn(0, 71, 100);
+        render(*p, 0.1);
+        const int a = stringOf(*p, 64), b = stringOf(*p, 67), c = stringOf(*p, 71);
+        const int onSolo = (a == 3 || a == 4) + (b == 3 || b == 4) + (c == 3 || c == 4);
+        check(a >= 0 && b >= 0 && c >= 0 && onSolo == 2,
+              "a chord fills the soloed strings and the rest plays on the others");
+    }
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 12, 1);
+        p->noteOn(0, 12, 1); // pressed again: unsoloed
+        const bool toggled = p->soloStrings() == 0;
+        p->noteOn(0, 13, 1);
+        p->noteOn(0, 14, 1);
+        p->noteOn(0, 18, 1); // clear
+        check(toggled && p->soloStrings() == 0, "a solo key toggles its string and F#0 clears them");
+    }
+    {
+        // Hammer-on: the line on the soloed string goes on, though a newer
+        // line rings on another string.
+        auto p = makePerformer();
+        p->noteOn(0, 16, 1); // solo the B
+        p->noteOn(0, 26, 1); // Hammer-on
+        p->noteOn(0, 62, 100); // B string, 3rd fret
+        render(*p, 0.05);
+        p->noteOn(0, 60, 100, 3); // the G's 5th fret, asked for
+        render(*p, 0.05);
+        p->noteOn(0, 63, 100); // hammer on the B, not the newer G
+        render(*p, 0.02);
+        check(stringOf(*p, 63) == 4, "legato continues the soloed string's line first");
+    }
+    {
+        // Read ahead: the lookahead's fretting hand sees a solo key sent
+        // with the notes.
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.lookahead = true;
+        p->setControls(c);
+        p->noteOn(0, 12, 1);
+        p->noteOn(0, 59, 100);
+        render(*p, 0.15);
+        check(stringOf(*p, 59) == 0, "the lookahead plays a soloed note where the solo puts it");
+    }
+}
+
 void testFingerWheel()
 {
     auto p = makePerformer();
@@ -1707,6 +1844,8 @@ int main()
     testRestingHand();
     testReleaseLift();
     testLegatoAndSlide();
+    testBackToBackLegato();
+    testSoloStrings();
     testGestureKeys();
     testHarmonics();
     testPinch();

@@ -57,6 +57,23 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.5.0 — 2026-11-18 — Legato from the fret, and string solo on the Strat
+
+On the Strat, a hammer-on, pull-off or slide whose previous note ends where
+it starts, as a sequencer's back-to-back notes do, now moves from the fret
+that note was on. Until now the finger had already let go, so every slide
+ran up from the nut and every pull-off played as a hammer-on from the open
+string; only notes that overlapped were legato.
+
+The Strat gains string-solo keyswitches: C0 to F0 (notes 12 to 17) toggle
+the low E to the high E string, and F#0 (18) clears them. While a string is
+soloed every note goes to a soloed string first, re-fretting it when an
+earlier key holds it, and to the others only when no soloed string can reach
+it or a chord has more notes than soloed strings. The
+plug-in's eight-string solo keys (C1 to G#1) now work the same way: a note
+the soloed strings cannot take plays where it would without the solo,
+instead of being dropped.
+
 ### 2.4.9 — 2026-11-14 — MIDI pick timing
 
 Both players in Double mode strike on the same schedule. On both guitar
@@ -492,7 +509,7 @@ accessibility title uses its complete host parameter name (for example,
 
 ### Keyswitches, playable range and repick triggers
 
-MIDI notes 24..31 are solo-string keyswitches in Octave 1 (C1..G1) corresponding to physical strings 8..1 (lowest E1 to highest E4), and note 32 (G#1) is Solo Clear (All Strings). These are prominently indicated directly on the on-screen keyboard with labels `S8` through `S1` and `CLR`, dynamically highlighted when active. When any solo string keyswitch is active (either held in HOLD mode or latched in LATCH mode), played notes and chords are voiced only on those active strings; notes outside their playable 22-fret range are ignored without sounding. Voices already sounding or decaying on unselected strings continue ringing naturally.
+MIDI notes 24..31 are solo-string keyswitches in Octave 1 (C1..G1) corresponding to physical strings 8..1 (lowest E1 to highest E4), and note 32 (G#1) is Solo Clear (All Strings). These are prominently indicated directly on the on-screen keyboard with labels `S8` through `S1` and `CLR`, dynamically highlighted when active. When any solo string keyswitch is active (either held in HOLD mode or latched in LATCH mode), played notes and chords go to those strings first, a free soloed string before one an earlier key holds, which is re-fretted as a player moves a line along its string. Only a note none of them can reach (outside their 22-fret range), or a chord's notes beyond the number of soloed strings, go to the other strings, where they would have gone without the solo, so nothing is dropped. Hammer and Slide continue a line on a soloed string before any other. Voices already sounding or decaying on unselected strings continue ringing naturally.
 
 | MIDI note | Key | Solo string keyswitch |
 | --- | --- | --- |
@@ -597,7 +614,7 @@ contacts and silent held-key owners still reserve theirs. If every playable stri
 fret wins before release status and age break ties. A complete chord batch
 preserves the same ownership and legato priorities, then minimizes occupied
 strings and total fret height before considering hand reach and movement.
-String-solo keyswitches constrain every choice to the selected strings.
+String-solo keyswitches put every note on the selected strings first and use the others only for what those cannot take.
 The fretting hand still tracks the selected shape for gestures and
 articulations: its index finger covers four further frets, it moves when the
 shape lies outside its span, and it relaxes to the nut when the phrase ends.

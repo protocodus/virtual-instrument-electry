@@ -49,7 +49,12 @@ struct StratControls
 //   C2 to D2 (36 to 38) latch Slide in (slid up into the note from below),
 //     Vibrato (a fretted note the hand rocks as channel pressure's median
 //     player does) and Half bend (struck a semitone low), articulations like
-//     C1 to F#1, which they take over and give back.
+//     C1 to F#1, which they take over and give back;
+//   C0 to F0 (12 to 17) solo the low E to the high E string, each press
+//     toggling its string, and F#0 (18) clears the solo. While any string is
+//     soloed, every note goes to a soloed string that can play it, a free
+//     one first; only a note none of them can reach, or a chord's notes
+//     beyond them, go to the other strings, as they would without the solo.
 // Channel 1 uses the tremolo arm by default. With fingerBendWheel enabled,
 // positive wheel pulls the most recently struck fretted string by up to a tone
 // and negative wheel still dips the arm. Pitch bend on channels 2 to 16
@@ -98,6 +103,9 @@ public:
     static constexpr int strokeCount = 3;
     static constexpr int dampKey = firstStrokeKey + strokeCount;
     static constexpr int fingerKey = dampKey + 1;
+    static constexpr int firstSoloKey = 12;
+    static constexpr int soloClearKey = firstSoloKey + StratEngine::stringCount;
+    static_assert(soloClearKey < firstArticulationKey, "the solo keys sit below the articulations");
 
     StratPerformer();
     void prepare(double sampleRate);
@@ -126,6 +134,8 @@ public:
     Stroke stroke() const noexcept { return strokes; }
     bool isDamping() const noexcept { return damping; }
     bool isFingerPlucking() const noexcept { return fingers; }
+    // Bit s set: string s (0 the low E) is soloed.
+    std::uint8_t soloStrings() const noexcept { return solo; }
     const StratEngine& engine() const noexcept { return *guitar; }
     // The note a string is playing, or -1.
     int stringNote(int stringIndex) const noexcept;
@@ -240,8 +250,9 @@ private:
     bool playOnSoundingString(const Pending& p) noexcept;
     bool playHarmonic(const Pending& p, double force) noexcept;
     // held: the strings a key holds through the stroke.
+    // soloMask: the strings soloed when the notes are picked.
     void assign(const Pending* notes, int count, const std::array<bool, 6>& held,
-                std::array<int, 6>& stringFor) const noexcept;
+                std::uint8_t soloMask, std::array<int, 6>& stringFor) const noexcept;
     void schedule(const Event& e) noexcept;
     void cancelEvents(int stringIndex, EventKind kind) noexcept;
     bool strikeQueued(int stringIndex) const noexcept;
@@ -292,6 +303,7 @@ private:
     Stroke strokes = Stroke::alternate;
     bool damping = false;
     bool fingers = false; // plucking with the fingers, not the pick
+    std::uint8_t solo = 0;
 
     std::array<StringState, StratEngine::stringCount> strings {};
     std::array<double, 16> channelBend {};
