@@ -57,6 +57,12 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.5.1 — 2026-11-19 — The Strat's string solo lasts while held
+
+The Strat's string-solo keys C0 to F0 no longer latch: a string stays soloed
+only while its key is held, and releasing the key gives the note choice back
+to every string. F#0 still clears them all.
+
 ### 2.5.0 — 2026-11-18 — Legato from the fret, and string solo on the Strat
 
 On the Strat, a hammer-on, pull-off or slide whose previous note ends where

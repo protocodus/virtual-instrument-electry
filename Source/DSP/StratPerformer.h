@@ -50,8 +50,8 @@ struct StratControls
 //     Vibrato (a fretted note the hand rocks as channel pressure's median
 //     player does) and Half bend (struck a semitone low), articulations like
 //     C1 to F#1, which they take over and give back;
-//   C0 to F0 (12 to 17) solo the low E to the high E string, each press
-//     toggling its string, and F#0 (18) clears the solo. While any string is
+//   C0 to F0 (12 to 17) solo the low E to the high E string while held
+//     (not latched), and F#0 (18) clears the solo. While any string is
 //     soloed, every note goes to a soloed string that can play it, a free
 //     one first; only a note none of them can reach, or a chord's notes
 //     beyond them, go to the other strings, as they would without the solo.

@@ -1616,8 +1616,8 @@ void testBackToBackLegato()
     }
 }
 
-// C0 to F0 solo the strings: notes go to a soloed string first, to the others
-// only when no soloed string can take them.
+// C0 to F0, held, solo the strings: notes go to a soloed string first, to the
+// others only when no soloed string can take them.
 void testSoloStrings()
 {
     const auto stringOf = [](const StratPerformer& p, int note) {
@@ -1665,14 +1665,30 @@ void testSoloStrings()
               "a chord fills the soloed strings and the rest plays on the others");
     }
     {
+        // Not latching: a solo lasts while its key is held.
         auto p = makePerformer();
         p->noteOn(0, 12, 1);
-        p->noteOn(0, 12, 1); // pressed again: unsoloed
-        const bool toggled = p->soloStrings() == 0;
         p->noteOn(0, 13, 1);
+        render(*p, 0.01);
+        const bool both = p->soloStrings() == 3;
+        p->noteOff(0, 12);
+        render(*p, 0.01);
+        const bool oneLeft = p->soloStrings() == 2;
+        p->noteOff(0, 13);
+        render(*p, 0.01);
+        const bool released = p->soloStrings() == 0;
+        p->noteOn(0, 12, 1);
+        p->noteOn(0, 12, 1); // pressed again while held: still soloed
+        render(*p, 0.01);
+        const bool notToggled = p->soloStrings() == 1;
         p->noteOn(0, 14, 1);
         p->noteOn(0, 18, 1); // clear
-        check(toggled && p->soloStrings() == 0, "a solo key toggles its string and F#0 clears them");
+        render(*p, 0.01);
+        check(both && oneLeft && released && notToggled && p->soloStrings() == 0,
+              "a solo key solos its string only while held, and F#0 clears them");
+        p->noteOn(0, 59, 100); // after the solo keys let go, the note plays where it would
+        render(*p, 0.05);
+        check(stringOf(*p, 59) != 0, "a released solo no longer steers notes");
     }
     {
         // Hammer-on: the line on the soloed string goes on, though a newer
