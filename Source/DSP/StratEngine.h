@@ -55,6 +55,9 @@ public:
     // The open string's pitch at rest over standard pitch, where the player
     // tuned it (StratEngine.cpp).
     static double restPitch(int stringIndex) noexcept;
+    // The host's master tune, as a pitch ratio over standard: every string
+    // retuned at the tuner. A ringing string follows within a control period.
+    void setMasterTune(double pitchRatio) noexcept;
     // StratString::fretMetres: from the string's saddle to where `fret`
     // stops it, the nut at fret 0, metres.
     double fretMetres(int stringIndex, double fret) const noexcept;
@@ -103,6 +106,7 @@ private:
     void stepStrings(float (&emf)[coilCount]) noexcept;
 
     std::array<StratString, stringCount> strings {};
+    double masterTune = 1.0;
     StratNeck neck;
     std::array<Pending, stringCount> pending {};
     std::array<int, stringCount> quietSamples {};

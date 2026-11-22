@@ -57,6 +57,21 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.6.0 — 2026-11-22 — Every piano key, master tune and resets on the Strat
+
+The Strat now sounds every key from A0 to C8 that is not a keyswitch at its
+own pitch. Notes 21 to 23 and 39 play on the low E with its speaking length
+made longer, 86 to 108 on the high E with it made shorter, each at the
+string's own tension and outside the hand's chord shapes. No guitar has that
+range and none of it is fitted to a recording. Notes 40 to 85 are
+bit-identical to 2.5.1. `setMasterTune` retunes every string by a host's
+master tune, within a control period for a ringing one.
+
+A reset and all-notes-off now let go of held solo keys. Until now a reset
+with one held left that string soloed, because its note-off never came. A
+reset also keeps finger plucking, as it already kept the articulation and
+the stroke that keyswitches latched.
+
 ### 2.5.1 — 2026-11-19 — The Strat's string solo lasts while held
 
 The Strat's string-solo keys C0 to F0 no longer latch: a string stays soloed

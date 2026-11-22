@@ -1844,6 +1844,119 @@ void testPlayerNoise()
           "player noise audibly changes a played phrase at a moderate setting");
 }
 
+// What a reset forgets and what it keeps. It starts the sound and the held
+// keys again: a solo key whose note-off then never comes must not leave its
+// string soloed. What a keyswitch latched stays latched, the fingers as much
+// as the articulation and the stroke.
+void testResetForgetsHeldKeys()
+{
+    auto p = makePerformer();
+    p->noteOn(0, 12, 100); // hold the low E's solo
+    p->noteOn(0, 25, 100); // latch Dead
+    p->noteOn(0, 32, 100); // latch Up
+    p->noteOn(0, 35, 100); // latch the fingers
+    p->reset();
+    check(p->soloStrings() == 0, "a reset lets go of a held solo key");
+    check(p->articulation() == StratPerformer::Articulation::deadNote
+              && p->stroke() == StratPerformer::Stroke::up && p->isFingerPlucking(),
+          "a reset keeps every latched keyswitch, the fingers included");
+    p->noteOn(0, 14, 100);
+    p->allNotesOff();
+    check(p->soloStrings() == 0, "all notes off lets go of a held solo key");
+}
+
+// The frequency in `x` that answers strongest within 120 cents of `wanted`,
+// in cents from it, read over 0.1 to 0.4 s.
+double centsFrom(const std::vector<float>& x, double fs, double wanted)
+{
+    const auto a = static_cast<size_t>(0.1 * fs), b = static_cast<size_t>(0.4 * fs);
+    double best = -1.0, at = 0.0;
+    for (int c = -120; c <= 120; ++c)
+    {
+        const double w = 2.0 * pi * wanted * std::pow(2.0, c / 1200.0) / fs;
+        std::complex<double> sum;
+        for (size_t i = a; i < b; ++i)
+        {
+            const double window = 0.5
+                - 0.5 * std::cos(2.0 * pi * static_cast<double>(i - a) / static_cast<double>(b - a));
+            sum += window * x[i] * std::polar(1.0, -w * static_cast<double>(i - a));
+        }
+        if (std::norm(sum) > best)
+        {
+            best = std::norm(sum);
+            at = c;
+        }
+    }
+    return at;
+}
+
+// Reason Studios' reviewers play any key of a piano. Every one from A0 to C8
+// that is not a keyswitch sounds at its own pitch, those past the guitar's
+// compass on its outer strings with the speaking length scaled to the key.
+void testEveryPianoKey()
+{
+    for (const double fs : {44100.0, 48000.0, 96000.0})
+        for (int note = 21; note <= 108; ++note)
+        {
+            if (note >= 24 && note <= 38)
+                continue; // the keyswitches
+            auto p = std::make_unique<StratPerformer>();
+            p->prepare(fs);
+            p->noteOn(0, note, 100);
+            std::vector<float> x(static_cast<size_t>(0.4 * fs));
+            p->render(x.data(), static_cast<int>(x.size()));
+            float peak = 0.0f;
+            for (const float v : x)
+                peak = std::max(peak, std::abs(v));
+            const double wanted = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+            // A0's 27.5 Hz is too slow for 0.3 s to place it closer: read its
+            // fourth partial, which the string's stiffness barely moves.
+            const int partial = note < 40 ? 4 : 1;
+            const double cents = centsFrom(x, fs, partial * wanted);
+            if (peak < 0.02f || std::abs(cents) > 25.0)
+            {
+                std::printf("key %d at %.0f Hz: peak %.4f, %+.0f cents\n", note, fs,
+                            static_cast<double>(peak), cents);
+                check(false, "every piano key sounds at its own pitch");
+            }
+        }
+}
+
+// A host's master tune moves every string alike and leaves 0 untouched.
+void testMasterTune()
+{
+    const auto play = [](int note, double cents, bool midway) {
+        auto p = makePerformer();
+        if (!midway)
+            p->setMasterTune(cents);
+        p->noteOn(0, note, 100);
+        if (midway)
+        {
+            std::vector<float> lead(2400);
+            p->render(lead.data(), 2400);
+            p->setMasterTune(cents);
+        }
+        std::vector<float> x(static_cast<size_t>(0.5 * rate));
+        p->render(x.data(), static_cast<int>(x.size()));
+        return x;
+    };
+    for (const int note : {40, 57, 76})
+    {
+        const double wanted = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const auto plain = play(note, 0.0, false);
+        const double base = centsFrom(plain, rate, wanted);
+        for (const double tune : {-50.0, 50.0})
+            for (const bool midway : {false, true})
+                check(std::abs(centsFrom(play(note, tune, midway), rate, wanted) - base - tune) < 6.0,
+                      "the master tune moves a string by its cents, struck or ringing");
+        auto untouched = makePerformer();
+        untouched->noteOn(0, note, 100);
+        std::vector<float> x(plain.size());
+        untouched->render(x.data(), static_cast<int>(x.size()));
+        check(x == plain, "a master tune of 0 is bit-identical");
+    }
+}
+
 int main()
 {
     testFingerWheel();
@@ -1862,6 +1975,9 @@ int main()
     testLegatoAndSlide();
     testBackToBackLegato();
     testSoloStrings();
+    testResetForgetsHeldKeys();
+    testEveryPianoKey();
+    testMasterTune();
     testGestureKeys();
     testHarmonics();
     testPinch();

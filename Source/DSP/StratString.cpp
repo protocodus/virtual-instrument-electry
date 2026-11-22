@@ -582,7 +582,11 @@ void StratString::setIntonation(double openMetres, double saddleSetbackMetres) n
 
 double StratString::fretMetres(double fret) const noexcept
 {
-    return fret <= 0.0 ? intonedOpen : scaleMetres * std::pow(2.0, -fret / 12.0) + saddleSetback;
+    if (fret > 0.0)
+        return scaleMetres * std::pow(2.0, -fret / 12.0) + saddleSetback;
+    // Below the nut the open string's own length scales with the key, at its
+    // own tension: the keys under the low E, which no guitar has.
+    return fret < 0.0 ? intonedOpen * std::pow(2.0, -fret / 12.0) : intonedOpen;
 }
 
 void StratString::setTuning(double newFret, double tensionRatio, bool glide) noexcept

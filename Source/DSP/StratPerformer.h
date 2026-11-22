@@ -37,7 +37,10 @@ struct StratControls
 };
 
 // MIDI to a guitarist's hands. Notes 40 to 85 sound at concert pitch on the
-// six strings and 21 frets. Keyswitches below them:
+// six strings and 21 frets. The other keys of a piano, 21 to 23, 39 and 86 to
+// 108, are no guitar's: they sound at their own pitch on the outer strings,
+// the speaking length scaled to the key, picked afresh and outside the
+// hand's shapes. Keyswitches:
 //   C1 to F#1 (24 to 30) latch Sustain (ordinary notes), Mute (a dead note),
 //     Hammer-on (and pull-off), Slide, Harmonic, Pinch harmonic and Bend
 //     (struck a whole tone low and bent up to the note);
@@ -55,6 +58,8 @@ struct StratControls
 //     soloed, every note goes to a soloed string that can play it, a free
 //     one first; only a note none of them can reach, or a chord's notes
 //     beyond them, go to the other strings, as they would without the solo.
+// reset() starts the sound and the held keys again (Damp and the solos) and
+// keeps what the keyswitches latched.
 // Channel 1 uses the tremolo arm by default. With fingerBendWheel enabled,
 // positive wheel pulls the most recently struck fretted string by up to a tone
 // and negative wheel still dips the arm. Pitch bend on channels 2 to 16
@@ -72,6 +77,8 @@ public:
     static constexpr int lowestNote = 40;
     static constexpr int highestNote = 85;
     static constexpr int frets = 21;
+    static constexpr int lowestKey = 21;  // a piano's A0
+    static constexpr int highestKey = 108; // and its C8
     static constexpr double lookaheadSeconds = 0.050;
 
     enum class Articulation : std::uint8_t
@@ -106,6 +113,11 @@ public:
     static constexpr int firstSoloKey = 12;
     static constexpr int soloClearKey = firstSoloKey + StratEngine::stringCount;
     static_assert(soloClearKey < firstArticulationKey, "the solo keys sit below the articulations");
+    static constexpr bool isPlayableKey(int note) noexcept
+    {
+        return note >= lowestKey && note <= highestKey
+            && (note < firstArticulationKey || note >= firstGestureKey + gestureCount);
+    }
 
     StratPerformer();
     void prepare(double sampleRate);
@@ -124,6 +136,9 @@ public:
     // 0 to 1, any channel.
     void channelPressure(double position) noexcept;
     void sustain(bool down) noexcept;
+    // -100 to +100 cents on every string; not played, so never held back by
+    // the lookahead.
+    void setMasterTune(double cents) noexcept;
     void allNotesOff() noexcept;
 
     void render(float* out, int samples) noexcept;

@@ -104,7 +104,8 @@ public:
     void prepare(double sampleRate, int stringIndex, int updateSamples = controlPeriod) noexcept;
     void reset() noexcept;
 
-    // fret: 0 open, fractional while sliding. tensionRatio: tension over
+    // fret: 0 open, fractional while sliding, below 0 a string longer than
+    // the open one (StratPerformer's keys under the low E). tensionRatio: tension over
     // the tuned string's at rest (the tremolo and finger bends). A fret change
     // without glide stops the string there at once; with glide the fret end
     // travels, as a slide does.
@@ -118,13 +119,15 @@ public:
     // from this saddle.
     void setIntonation(double openMetres, double saddleSetbackMetres) noexcept;
     // Where the player's tuner left the open string at rest: its pitch over
-    // standard pitch (StratEngine::restPitch). Call it before prepare.
+    // standard pitch (StratEngine::restPitch), with the host's master tune on
+    // it. A string already sounding follows at the next setTuning.
     void setRestPitch(double ratio) noexcept
     {
         restPitch = ratio;
         tunedTension = -1.0;
     }
-    // From the saddle to where `fret` stops the string, the nut at fret 0.
+    // From the saddle to where `fret` stops the string, the nut at fret 0 and
+    // past it below 0.
     double fretMetres(double fret) const noexcept;
 
     void setTaps(const std::array<double, tapCount>& metresFromBridge) noexcept;

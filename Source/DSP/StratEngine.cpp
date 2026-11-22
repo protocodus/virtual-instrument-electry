@@ -280,7 +280,7 @@ void StratEngine::prepare(double sampleRate) noexcept
         StratString& string = strings[static_cast<size_t>(s)];
         const auto [openMetres, setback] = intonation(s);
         string.setIntonation(openMetres, setback);
-        string.setRestPitch(restPitch(s));
+        string.setRestPitch(restPitch(s) * masterTune);
         string.prepare(stringRate, s, controlPeriod * oversampling);
         string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
@@ -453,6 +453,16 @@ void StratEngine::liftFromFret(int stringIndex, double kilogramsPerSecond) noexc
 {
     if (stringIndex >= 0 && stringIndex < stringCount)
         strings[static_cast<size_t>(stringIndex)].setFingerEnd(kilogramsPerSecond);
+}
+
+void StratEngine::setMasterTune(double pitchRatio) noexcept
+{
+    if (pitchRatio == masterTune)
+        return;
+    masterTune = pitchRatio;
+    for (int s = 0; s < stringCount; ++s)
+        strings[static_cast<size_t>(s)].setRestPitch(restPitch(s) * masterTune);
+    bridgeMoved = true; // restates every string's tuning
 }
 
 void StratEngine::setArm(double position) noexcept

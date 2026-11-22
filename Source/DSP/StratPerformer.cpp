@@ -8,6 +8,22 @@ namespace
 {
 constexpr double pi = 3.14159265358979323846;
 constexpr int openNote[StratEngine::stringCount] = {40, 45, 50, 55, 59, 64};
+
+bool inCompass(int note) noexcept
+{
+    return note >= StratPerformer::lowestNote && note <= StratPerformer::highestNote;
+}
+
+// A key past the compass has one string: the low E made longer or the high E
+// shorter.
+bool stringTakes(int s, int note) noexcept
+{
+    if (note < StratPerformer::lowestNote)
+        return s == 0;
+    if (note > StratPerformer::highestNote)
+        return s == StratEngine::stringCount - 1;
+    return note >= openNote[s] && note - openNote[s] <= StratPerformer::frets;
+}
 constexpr double scale = StratString::scaleMetres;
 
 // The hand's force on the pick, from the lightest stroke that still slips off
@@ -528,7 +544,7 @@ void StratPerformer::reset() noexcept
     wobble = wobbleSeed;
     pedal = false;
     damping = false;
-    fingers = false;
+    solo = 0;
     hand = 2.0;
     nextStrokeUp = false;
     tilt = tiltSeed;
@@ -580,6 +596,11 @@ void StratPerformer::setControls(const StratControls& controls) noexcept
         compressorMix = compressorTarget;
     outputGain = std::pow(10.0, current.outputDecibels / 20.0);
     applyPalm();
+}
+
+void StratPerformer::setMasterTune(double cents) noexcept
+{
+    guitar->setMasterTune(std::pow(2.0, clamp(cents, -100.0, 100.0) / 1200.0));
 }
 
 int StratPerformer::stringNote(int s) const noexcept
@@ -749,8 +770,7 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringI
         solo = 0;
         return;
     }
-    const int top = latched == Articulation::harmonic ? highestNote + 10 : highestNote;
-    if (note < lowestNote || note > top || pendingCount >= maxPending)
+    if (!isPlayableKey(note) || pendingCount >= maxPending)
         return;
     pending[static_cast<size_t>(pendingCount++)] = {note, channel & 15, velocity, stringIndex};
 }
@@ -1055,6 +1075,7 @@ void StratPerformer::allNotesOff() noexcept
     delayedHead = delayedCount = 0;
     pedal = false;
     damping = false;
+    solo = 0;
     for (int s = 0; s < StratEngine::stringCount; ++s)
     {
         const StringState& st = strings[static_cast<size_t>(s)];
@@ -1116,7 +1137,10 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
             // Sympathetic motion can make a string sound before a queued strum
             // has struck its owned note. That note cannot yet start a legato
             // line: fall back to picking the new note instead.
-            if (st.order > latest && !strikeQueued(k) && guitar->isSounding(k))
+            // A key past the compass is no place for a line to move from.
+            const double at = st.note < 0 && st.released ? st.restFret : st.fret;
+            if (st.order > latest && at >= 0.0 && at <= frets && !strikeQueued(k)
+                && guitar->isSounding(k))
             {
                 latest = st.order;
                 line = k;
@@ -1337,6 +1361,8 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
         double c = held[static_cast<size_t>(s)] ? 20.0 : 0.0;
         if (((soloMask >> s) & 1u) == 0)
             c += offSolo;
+        if (!inCompass(note))
+            return c; // no shape of the hand's reaches it
         // A string asked for, if it can play the note, outweighs every
         // preference of the hand's.
         if (p.string >= 0 && p.string < StratEngine::stringCount && p.string != s
@@ -1365,7 +1391,7 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
                 if (trial[static_cast<size_t>(a)] < 0)
                     continue;
                 const int f = notes[a].note - openNote[trial[static_cast<size_t>(a)]];
-                if (f > 0)
+                if (f > 0 && f <= frets)
                 {
                     lowest = f < lowest ? f : lowest;
                     highest = f > highest ? f : highest;
@@ -1390,7 +1416,7 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
         for (int s = 0; s < StratEngine::stringCount; ++s)
         {
             const int fret = notes[i].note - openNote[s];
-            if (used[s] || fret < 0 || fret > frets)
+            if (used[s] || !stringTakes(s, notes[i].note))
                 continue;
             used[s] = true;
             trial[static_cast<size_t>(i)] = s;
@@ -1448,11 +1474,11 @@ void StratPerformer::startStroke() noexcept
             continue;
         if (latched == Articulation::harmonic && playHarmonic(p, sign * strokeForce(p.velocity)))
             continue;
-        if (count < 6 && p.note <= highestNote)
+        if (count < 6)
         {
             wanted[count] = p.note;
             notes[count] = p;
-            if (p.note - below >= lowestNote)
+            if (inCompass(p.note) && p.note - below >= lowestNote)
                 notes[count].note -= below;
             ++count;
         }
@@ -1486,7 +1512,7 @@ void StratPerformer::startStroke() noexcept
         const int target = wanted[i] - openNote[s];
         const int rise = std::min(wanted[i] - notes[i].note, std::max(target - 1, 0));
         const int fret = target - rise;
-        if (fret > frets)
+        if (fret > frets && inCompass(wanted[i]))
             continue;
         const bool dead = latched == Articulation::deadNote;
         StringState& st = strings[static_cast<size_t>(s)];
@@ -1754,6 +1780,10 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (damping || e.pinch || e.touchWidth > 0.0 || e.touchResistance == 0.0)
         cancelEvents(s, EventKind::liftTouch);
     double pickAt = clamp(current.pickMetres + pickLine[s] + e.pickOffset, 0.025, 0.250);
+    // Past the board the speaking length can end before the pick: it keeps
+    // to the bridge's side of the middle, as a player's would.
+    if (e.fret > frets)
+        pickAt = std::min(pickAt, 0.45 * guitar->fretMetres(s, e.fret));
     if (damping)
     {
         // A stroke under the damping hand, which stays.
