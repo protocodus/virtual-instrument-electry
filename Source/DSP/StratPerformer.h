@@ -16,7 +16,7 @@ struct StratControls
     StratCircuit::Controls circuit {};
     double pickMetres = 0.109;    // pick position from the bridge, mean over the strings, 0.025 to 0.250
     double pick = 0.5;            // plectrum, 0 thin to 1 heavy
-    double strumSeconds = 0.008;  // pick travel from one string to the next, 0 to 0.040
+    double strumSeconds = 0.008;  // pick travel from one string to the next at an ordinary stroke, 0 to 0.040
     double releaseNoise = 0.5;    // finger-lift release noise, 0 silent to 1 full
     double compressor = 0.0;      // clean DI studio compressor after the circuit, 0 off to 1 full
     double outputDecibels = 0.0;  // -24 to +12
@@ -85,6 +85,9 @@ public:
     static constexpr int lowestKey = 21;  // a piano's A0
     static constexpr int highestKey = 108; // and its C8
     static constexpr double lookaheadSeconds = 0.050;
+    // The pick's travel from one string to the next on a stroke of this
+    // velocity (the stroke's mean), for a Strum setting: StratPerformer.cpp.
+    static double strumTravelSeconds(double strumSeconds, double velocity) noexcept;
 
     enum class Articulation : std::uint8_t
     {

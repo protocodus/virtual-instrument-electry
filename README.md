@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.10.0 — 2026-11-23 — A harder strum is a faster strum
+
+On the six-string guitar a stroke's velocity now sets how fast the pick
+crosses the strings: Strum is the pace at an ordinary stroke (velocity 77),
+a velocity-127 strum crosses in 0.61 of that time, and a soft one takes at
+most twice as long. Single notes still land on their MIDI frames.
+
 ### 2.9.1 — 2026-11-23 — Chord changes on the right strings, and Alternate in slow strums
 
 On the six-string guitar with Fretting Lookahead on, a chord change could

@@ -166,8 +166,10 @@ bool paced(const std::array<int, 6>& onset, std::initializer_list<int> order, in
 void testStrums()
 {
     electry::StratControls controls;
-    controls.strumSeconds = 0.010;
-    const int pace = static_cast<int>(controls.strumSeconds * rate);
+    // Every stroke here is at velocity 100, which crosses a string in 10 ms
+    // at this setting (strumTravelSeconds).
+    controls.strumSeconds = 0.010 * 100.0 / 77.0;
+    const int pace = static_cast<int>(std::lround(StratPerformer::strumTravelSeconds(controls.strumSeconds, 100) * rate));
 
     // A stroke from rest goes down, low string first, at the strum pace.
     auto p = makePerformer();
@@ -208,6 +210,20 @@ void testStrums()
         r->noteOn(0, n, 100);
     const auto again = onsets(*r, 12 * pace);
     check(paced(again, {0, 1, 2, 3, 4}, pace), "after a rest the next stroke goes down");
+
+    // A harder stroke crosses the strings faster: the setting is the pace at
+    // velocity 77, and a soft stroke is at most twice as slow.
+    const auto lastOnset = [&](int velocity) {
+        auto h = makePerformer();
+        h->setControls(controls);
+        for (int n : {40, 47, 52, 56, 59, 64})
+            h->noteOn(0, n, velocity);
+        return onsets(*h, static_cast<int>(12 * controls.strumSeconds * rate))[5];
+    };
+    const auto across = [&](double factor) { return std::lround(5 * factor * controls.strumSeconds * rate); };
+    check(lastOnset(77) == across(1.0) && lastOnset(127) == across(77.0 / 127.0)
+              && lastOnset(20) == across(2.0) && lastOnset(127) < lastOnset(77),
+          "the stroke's velocity sets its pace across the strings");
 }
 
 // Measure the actual string drive, not the level or brightest point of an
@@ -247,13 +263,14 @@ void testPickTiming()
                 render(*p, 0.073, 31);
 
                 // Force the direction and skip a string in the shape. Only
-                // distance crossed and explicit strum pace affect the offset.
+                // distance crossed, strum pace and velocity affect the offset.
                 p->noteOn(0, StratPerformer::firstStrokeKey, 1);
                 for (const int s : {1, 3, 4})
                     p->noteOn(0, openNote[s], 100, s);
-                const auto chord = onsets(*p, latency + static_cast<int>(std::lround(3 * spread * rate)) + 1);
+                const double travel = StratPerformer::strumTravelSeconds(spread, 100);
+                const auto chord = onsets(*p, latency + static_cast<int>(std::lround(3 * travel * rate)) + 1);
                 for (const int s : {1, 3, 4})
-                    check(chord[static_cast<size_t>(s)] == latency + std::lround((s - 1) * spread * rate),
+                    check(chord[static_cast<size_t>(s)] == latency + std::lround((s - 1) * travel * rate),
                           "a chord has only the explicit strum distance at every Player Feel setting");
             }
 }
@@ -263,8 +280,10 @@ void testPickTiming()
 void testStrokeKeys()
 {
     electry::StratControls controls;
-    controls.strumSeconds = 0.010;
-    const int pace = static_cast<int>(controls.strumSeconds * rate);
+    // Every stroke here is at velocity 100, which crosses a string in 10 ms
+    // at this setting (strumTravelSeconds).
+    controls.strumSeconds = 0.010 * 100.0 / 77.0;
+    const int pace = static_cast<int>(std::lround(StratPerformer::strumTravelSeconds(controls.strumSeconds, 100) * rate));
 
     auto p = makePerformer();
     p->setControls(controls);
@@ -1570,6 +1589,10 @@ void testLookaheadAndEventInvariants()
             electry::StratControls controls;
             controls.compressor = comp;
             controls.outputDecibels = outDb;
+            // The velocity-127 chord crosses its strings 8 ms apart, as it
+            // did before the stroke's velocity set the pace: this measures
+            // the compressor, not the strum.
+            controls.strumSeconds = 0.008 * 127.0 / 77.0;
             auto single = makePerformer();
             single->setControls(controls);
             single->noteOn(0, 64, 90);

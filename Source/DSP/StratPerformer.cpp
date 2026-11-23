@@ -1517,6 +1517,16 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
     search(search, 0, 0.0);
 }
 
+// A harder stroke is a faster hand, and the pick crosses the strings sooner:
+// travel goes as one over the velocity, the Strum setting being the travel
+// at the ordinary stroke (velocity 77). Asked for by the owner (2026-11-23);
+// the law is ours. Below half the ordinary velocity the hand slows no
+// further, so a soft strum is at most twice the setting.
+double StratPerformer::strumTravelSeconds(double strumSeconds, double velocity) noexcept
+{
+    return strumSeconds * ordinaryVelocity / std::max(velocity, 0.5 * ordinaryVelocity);
+}
+
 void StratPerformer::startStroke() noexcept
 {
     // Sort what arrived together, lowest first.
@@ -1575,6 +1585,10 @@ void StratPerformer::startStroke() noexcept
     pendingCount = 0;
     if (count == 0)
         return;
+    double velocity = 0.0;
+    for (int i = 0; i < count; ++i)
+        velocity += notes[i].velocity;
+    const double travel = strumTravelSeconds(current.strumSeconds, velocity / count);
 
     std::array<int, 6> stringFor {};
     std::array<bool, 6> held {};
@@ -1618,8 +1632,9 @@ void StratPerformer::startStroke() noexcept
             : 1.0;
         Event e;
         // A single pick lands at the MIDI frame. On a chord, only the chosen
-        // strum speed and number of strings crossed offset each pick.
-        e.time = now + std::llround(crossed * current.strumSeconds * sampleRate);
+        // strum speed, the stroke's velocity and the strings crossed offset
+        // each pick.
+        e.time = now + std::llround(crossed * travel * sampleRate);
         e.kind = EventKind::strike;
         e.string = s;
         e.fret = dead ? 0.0 : fret;
