@@ -760,14 +760,9 @@ void StratPerformer::playNoteOn(int channel, int note, int velocity, int stringI
         dampStrings(true);
         return;
     }
-    if (note >= firstSoloKey && note < soloClearKey)
+    if (note >= firstSoloKey && note < soloKeyEnd)
     {
         solo |= static_cast<std::uint8_t>(1u << (note - firstSoloKey));
-        return;
-    }
-    if (note == soloClearKey)
-    {
-        solo = 0;
         return;
     }
     if (!isPlayableKey(note) || pendingCount >= maxPending)
@@ -794,7 +789,7 @@ void StratPerformer::playNoteOff(int channel, int note) noexcept
         return;
     }
     // A solo lasts while its key is held.
-    if (note >= firstSoloKey && note < soloClearKey)
+    if (note >= firstSoloKey && note < soloKeyEnd)
     {
         solo &= static_cast<std::uint8_t>(~(1u << (note - firstSoloKey)));
         return;
@@ -1615,10 +1610,8 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
                 style = static_cast<Articulation>(articulationCount + m.note - firstGestureKey);
             else if (m.note == dampKey)
                 damped = true;
-            else if (m.note >= firstSoloKey && m.note < soloClearKey)
+            else if (m.note >= firstSoloKey && m.note < soloKeyEnd)
                 soloMask |= static_cast<std::uint8_t>(1u << (m.note - firstSoloKey));
-            else if (m.note == soloClearKey)
-                soloMask = 0;
             else if (m.time == due && !m.prepared && m.note >= lowestNote && m.note <= highestNote
                      && count < 6)
             {
@@ -1630,7 +1623,7 @@ void StratPerformer::prepareNotes(std::int64_t due) noexcept
         {
             if (m.note == dampKey)
                 damped = false;
-            else if (m.note >= firstSoloKey && m.note < soloClearKey)
+            else if (m.note >= firstSoloKey && m.note < soloKeyEnd)
                 soloMask &= static_cast<std::uint8_t>(~(1u << (m.note - firstSoloKey)));
             for (int s = 0; s < StratEngine::stringCount; ++s)
             {

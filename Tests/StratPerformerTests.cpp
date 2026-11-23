@@ -1681,11 +1681,16 @@ void testSoloStrings()
         p->noteOn(0, 12, 1); // pressed again while held: still soloed
         render(*p, 0.01);
         const bool notToggled = p->soloStrings() == 1;
+        p->noteOff(0, 12);
         p->noteOn(0, 14, 1);
-        p->noteOn(0, 18, 1); // clear
+        p->noteOn(0, 18, 1); // F#0 is no key any more: the solo held on
         render(*p, 0.01);
-        check(both && oneLeft && released && notToggled && p->soloStrings() == 0,
-              "a solo key solos its string only while held, and F#0 clears them");
+        const bool f18Ignored = p->soloStrings() == 4;
+        p->noteOff(0, 18);
+        p->noteOff(0, 14);
+        render(*p, 0.01);
+        check(both && oneLeft && released && notToggled && f18Ignored && p->soloStrings() == 0,
+              "a solo key solos its string only while held, and F#0 does nothing");
         p->noteOn(0, 59, 100); // after the solo keys let go, the note plays where it would
         render(*p, 0.05);
         check(stringOf(*p, 59) != 0, "a released solo no longer steers notes");

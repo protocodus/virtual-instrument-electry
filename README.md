@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.6.1 — 2026-11-23 — no Clear key for the Strat's solos
+
+F#0 (note 18) no longer clears the string solos. It did so while the solos
+latched; since 2.5.1 a solo lasts only while its key is held, so letting the
+key go does the same, and a reset lets go of every solo. Note 18 is now an
+ordinary silent key below the piano.
+
 ### 2.6.0 — 2026-11-22 — Every piano key, master tune and resets on the Strat
 
 The Strat now sounds every key from A0 to C8 that is not a keyswitch at its

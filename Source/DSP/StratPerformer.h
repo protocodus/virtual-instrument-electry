@@ -54,7 +54,8 @@ struct StratControls
 //     player does) and Half bend (struck a semitone low), articulations like
 //     C1 to F#1, which they take over and give back;
 //   C0 to F0 (12 to 17) solo the low E to the high E string while held
-//     (not latched), and F#0 (18) clears the solo. While any string is
+//     (not latched); F#0 (18), which cleared them while solos latched, is no
+//     key since 2.6.1. While any string is
 //     soloed, every note goes to a soloed string that can play it, a free
 //     one first; only a note none of them can reach, or a chord's notes
 //     beyond them, go to the other strings, as they would without the solo.
@@ -111,8 +112,8 @@ public:
     static constexpr int dampKey = firstStrokeKey + strokeCount;
     static constexpr int fingerKey = dampKey + 1;
     static constexpr int firstSoloKey = 12;
-    static constexpr int soloClearKey = firstSoloKey + StratEngine::stringCount;
-    static_assert(soloClearKey < firstArticulationKey, "the solo keys sit below the articulations");
+    static constexpr int soloKeyEnd = firstSoloKey + StratEngine::stringCount; // one past the high E's
+    static_assert(soloKeyEnd < firstArticulationKey, "the solo keys sit below the articulations");
     static constexpr bool isPlayableKey(int note) noexcept
     {
         return note >= lowestKey && note <= highestKey
