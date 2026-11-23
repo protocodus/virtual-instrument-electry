@@ -345,9 +345,12 @@ constexpr double pickGapSeconds = 0.010;
 // and 30 ms voiced before took 47 to 143, 1.3 to 1.8 times too fast.
 constexpr double slideBaseSeconds = 0.008;
 constexpr double slideSecondsPerFret = 0.043;
-// How soon a stroke must follow the last one to go the other way, as a
-// strumming hand keeps moving. Voiced.
-constexpr double alternateWithinSeconds = 0.35;
+// How soon a stroke must follow the last one to go the other way: Alternate
+// alternates through any strumming tempo (a quarter-note strum at 40 bpm is
+// 1.5 s), and a hand that has rested longer starts again on a downstroke.
+// It was 0.35 s, which made a slow strum's Alternate all downstrokes (owner,
+// 2026-11-23). Voiced.
+constexpr double alternateWithinSeconds = 2.0;
 // A strumming player holds the chord's shape between strokes, so its strings
 // ring into the next strum. A sequence lets the keys go a little before it:
 // Electry's Slow Strum demo 37 ms (a 0.95-beat note at 80 bpm), a keyboard
@@ -1417,6 +1420,18 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
     // more than leaving the solo.
     const double offSolo = soloMask != 0 ? 400.0 : 0.0;
     const double leftOut = 100.0 + offSolo;
+    constexpr double preparedBonus = 10.0;
+    // A note the hand has gone ahead for: any other place, left out
+    // included, costs preparedBonus more.
+    const auto preparedSomewhere = [this](int note) {
+        for (const StringState& st : strings)
+            if (st.prepared == note)
+                return true;
+        return false;
+    };
+    const auto preparedElsewhere = [&](int s, int note) {
+        return strings[static_cast<size_t>(s)].prepared != note && preparedSomewhere(note);
+    };
     // Every way of putting the notes on distinct strings, lowest note first,
     // scored as a hand would find it: frets inside a four-fret span around
     // the hand, open strings in the low positions, no held string taken, low
@@ -1438,9 +1453,13 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
         if (p.string >= 0 && p.string < StratEngine::stringCount && p.string != s
             && note >= openNote[p.string] && note - openNote[p.string] <= frets)
             c += 1000.0;
-        // Where the hand has already gone for this note.
-        if (strings[static_cast<size_t>(s)].prepared == note)
-            c -= 10.0;
+        // Where the hand has already gone for this note: every other place
+        // costs more. A charge, not a credit at the prepared string: the
+        // search prunes on partial cost, which is a bound only while no
+        // later note can lower it (a credit let it drop the prepared shape
+        // for one a stretch away, C3 at the low E's 8th fret).
+        if (preparedElsewhere(s, note))
+            c += preparedBonus;
         if (fret == 0)
             return c + (hand <= 5.0 ? 0.0 : 3.0);
         const double low = hand - 1.0, high = hand + 3.0;
@@ -1482,7 +1501,7 @@ void StratPerformer::assign(const Pending* notes, int count, const std::array<bo
         }
         // Left out, if no string can take it.
         trial[static_cast<size_t>(i)] = -1;
-        self(self, i + 1, cost + leftOut);
+        self(self, i + 1, cost + leftOut + (preparedSomewhere(notes[i].note) ? preparedBonus : 0.0));
         for (int s = 0; s < StratEngine::stringCount; ++s)
         {
             const int fret = notes[i].note - openNote[s];

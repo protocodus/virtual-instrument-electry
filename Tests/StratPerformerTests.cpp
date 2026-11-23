@@ -189,15 +189,25 @@ void testStrums()
         q->noteOn(0, n, 100);
     const auto up = onsets(*q, 12 * pace);
     check(paced(up, {5, 4, 3, 2, 1}, pace), "a stroke that follows quickly goes up, high to low");
-    // After a pause the hand starts down again.
+    // A slow strum still alternates: an upstroke 0.75 s on, a quarter at
+    // 80 bpm (owner, 2026-11-23; it was a downstroke past 0.35 s).
+    auto slow = makePerformer();
+    slow->setControls(controls);
+    slow->noteOn(0, 40, 100);
+    render(*slow, 0.75, 1);
+    for (int n : {45, 52, 57, 61, 64})
+        slow->noteOn(0, n, 100);
+    check(paced(onsets(*slow, 12 * pace), {5, 4, 3, 2, 1}, pace),
+          "a slow strum's next stroke still comes back up");
+    // After the hand has rested it starts down again.
     auto r = makePerformer();
     r->setControls(controls);
     r->noteOn(0, 64, 100);
-    render(*r, 0.5, 1);
+    render(*r, 2.5, 1);
     for (int n : {40, 47, 52, 56, 59})
         r->noteOn(0, n, 100);
     const auto again = onsets(*r, 12 * pace);
-    check(paced(again, {0, 1, 2, 3, 4}, pace), "after a pause the next stroke goes down");
+    check(paced(again, {0, 1, 2, 3, 4}, pace), "after a rest the next stroke goes down");
 }
 
 // Measure the actual string drive, not the level or brightest point of an
@@ -531,6 +541,44 @@ void testReleaseAndPedal()
 // as a strumming hand keeps the shape (owner, 2026-11-23: Slow Strum sounded
 // muted at every restrum); let go with no strum after, it stops once the
 // grace runs out, and a single note let go still stops at once.
+// A chord change finds its shape the same with the fretting lookahead as
+// without: the fingers the hand sent ahead are the shape it plays. (The
+// search once pruned the prepared shape away and played C3 at the low E's
+// 8th fret and D3 at its 10th.)
+void testChordChangeShapes()
+{
+    const int G[] = {43, 47, 50, 55, 59, 67}, C[] = {48, 52, 55, 62, 67}, D[] = {50, 57, 62, 66};
+    // Each string's fret after G, C and D, strummed as Slow Strum does:
+    // keys up 37 ms before the next chord.
+    const auto shapes = [&](bool lookahead) {
+        auto p = makePerformer();
+        electry::StratControls controls;
+        controls.lookahead = lookahead;
+        controls.strumSeconds = 0.010;
+        p->setControls(controls);
+        std::array<std::array<int, 6>, 3> fret {};
+        const auto strum = [&](const int* notes, int count, int index) {
+            for (int i = 0; i < count; ++i)
+                p->noteOn(0, notes[i], 100);
+            render(*p, 0.713);
+            for (int s = 0; s < 6; ++s)
+                fret[static_cast<size_t>(index)][static_cast<size_t>(s)]
+                    = p->stringNote(s) >= 0 ? p->stringFret(s) : -1;
+            for (int i = 0; i < count; ++i)
+                p->noteOff(0, notes[i]);
+            render(*p, 0.037);
+        };
+        strum(G, 6, 0);
+        strum(C, 5, 1);
+        strum(D, 4, 2);
+        return fret;
+    };
+    const auto plain = shapes(false), ahead = shapes(true);
+    const std::array<int, 6> c {-1, 3, 2, 0, 3, 3}, d {-1, -1, 0, 2, 3, 2};
+    check(plain == ahead, "the lookahead plays a chord change on the strings it plays without");
+    check(plain[1] == c && plain[2] == d, "C and D take their open shapes after G");
+}
+
 void testStrumHoldsTheShape()
 {
     const int G[] = {43, 47, 50, 55, 59, 67};
@@ -2461,6 +2509,7 @@ int main()
     testDampAll();
     testReleaseAndPedal();
     testStrumHoldsTheShape();
+    testChordChangeShapes();
     testRestingHand();
     testReleaseLift();
     testLegatoAndSlide();

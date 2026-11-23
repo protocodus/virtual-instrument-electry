@@ -57,6 +57,16 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.9.1 — 2026-11-23 — Chord changes on the right strings, and Alternate in slow strums
+
+On the six-string guitar with Fretting Lookahead on, a chord change could
+land on impossible strings: Slow Strum's C played C3 at the low E's 8th fret
+beside open strings, and its D played D3 at the 10th. Chords now take the
+shape the fretting hand went ahead to, the same strings they take with the
+lookahead off. Alternate now keeps alternating for strokes up to 2 s apart,
+so a slow strum goes down and up; before, any stroke more than 0.35 s after
+the last was a downstroke.
+
 ### 2.9.0 — 2026-11-23 — Strums ring on, and a limiter instead of a soft clip
 
 On the six-string guitar, a strummed chord now rings until the next strum
