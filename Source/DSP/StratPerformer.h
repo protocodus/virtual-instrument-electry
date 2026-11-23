@@ -224,7 +224,7 @@ private:
         double pickOffset = 0.0; // the hand's wander this stroke
         std::int64_t due = 0;    // prepare: when the notes are picked
         double from = 0.0, to = 0.0; // shift: fingertip metres from the bridge
-        std::int64_t length = 0;     // shift: samples
+        std::int64_t length = 0;     // shift or press: samples
         double place = 1.0 / 3.0;    // press: where the fingertip lands
         double slideFrets = 0.0;     // strike: frets it slides up after the pick
         double bendSemitones = 0.0;  // strike: how far the finger bends it up
@@ -281,6 +281,7 @@ private:
     void prepareNotes(std::int64_t due) noexcept;
     void unprepare() noexcept;
     void runEvent(const Event& e) noexcept;
+    void stopRub(int stringIndex) noexcept;
     void release(int stringIndex) noexcept;
     void liftRestingHand() noexcept;
     void dampStrings(bool down) noexcept;

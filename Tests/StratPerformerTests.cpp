@@ -1962,6 +1962,410 @@ void testMasterTune()
     }
 }
 
+void testRubStopsOnInterrupt()
+{
+    const auto setup = [] {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.releaseNoise = 1.0;
+        p->setControls(c);
+        return p;
+    };
+    const auto drainAndCheck = [](StratPerformer& p, const char* label) {
+        render(p, 0.01);
+        check(!p.engine().isRubbing(0), label);
+        p.allNotesOff();
+        render(p, 1.0);
+        check(!p.engine().isRubbing(0) && !p.engine().isDriven(0), label);
+    };
+    {
+        auto p = setup();
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.03);
+        p->noteOff(0, 45);
+        render(*p, 0.002);
+        p->noteOn(0, 47, 100, 0);
+        drainAndCheck(*p, "re-picking mid-release does not leave rub active");
+    }
+    {
+        auto p = setup();
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.03);
+        p->noteOff(0, 45);
+        render(*p, 0.002);
+        p->noteOn(0, 28, 1); // Harmonic
+        p->noteOn(0, 47, 100, 0);
+        drainAndCheck(*p, "playing a harmonic mid-release stops rub");
+    }
+    {
+        auto p = setup();
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.03);
+        p->noteOff(0, 45);
+        render(*p, 0.002);
+        p->noteOn(0, 34, 1); // Damp
+        drainAndCheck(*p, "damping mid-release stops rub");
+    }
+    {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.releaseNoise = 0.0;
+        p->setControls(c);
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.04);
+        p->noteOn(0, 27, 1); // Slide
+        p->noteOn(0, 50, 100);
+        render(*p, 0.02);
+        p->allNotesOff();
+        drainAndCheck(*p, "allNotesOff mid-slide with releaseNoise=0 stops rub");
+    }
+}
+
+void testOpenPullOffAndBentLegato()
+{
+    {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.fingerBendWheel = true;
+        p->setControls(c);
+        p->noteOn(0, 26, 1); // Hammer-on / Pull-off
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.05);
+        p->noteOn(0, 40, 100); // Pull off to open E2
+        render(*p, 0.05);
+        p->channelPressure(1.0);
+        p->pitchBend(0, 1.0);
+        render(*p, 0.12);
+        check(p->stringFret(0) == 0 && p->engine().bridge().bendRatio(0) == 1.0,
+              "pull-off to an open string clears fretted state and ignores vibrato/wheel bend");
+    }
+    {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.fingerBendWheel = true;
+        p->setControls(c);
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.05);
+        p->pitchBend(0, 1.0);
+        render(*p, 0.12);
+        p->noteOff(0, 45);
+        render(*p, 0.01);
+        p->noteOn(0, 26, 1);
+        p->pitchBend(0, 0.0);
+        p->noteOn(0, 47, 100);
+        render(*p, 0.06);
+        check(p->engine().bridge().bendRatio(0) == 1.0,
+              "legato onto a previously bent released string resets stale bend");
+    }
+    {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.releaseNoise = 0.0;
+        p->setControls(c);
+        p->noteOn(0, 45, 100, 0);
+        render(*p, 0.04);
+        p->noteOn(0, 27, 1); // Slide down to open E2
+        p->noteOn(0, 40, 100);
+        render(*p, 0.30);
+        p->channelPressure(1.0);
+        render(*p, 0.08);
+        check(p->stringFret(0) == 0 && p->engine().bridge().bendRatio(0) == 1.0,
+              "sliding down to an open string leaves it unfretted");
+    }
+}
+
+void testConnectedLookaheadFretNoise()
+{
+    const auto runPhrase = [](double relNoise, double playNoise, int block) {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.lookahead = true;
+        c.releaseNoise = relNoise;
+        c.playerNoise = playNoise;
+        p->setControls(c);
+        std::vector<float> out;
+        auto append = [&](const std::vector<float>& chunk) {
+            out.insert(out.end(), chunk.begin(), chunk.end());
+        };
+        p->noteOn(0, 12, 1); // solo E2 string
+        p->noteOn(0, 45, 95);
+        append(render(*p, 0.10, block));
+        p->noteOff(0, 45);
+        append(render(*p, 0.025, block)); // 25 ms gap < 35 ms pressSeconds
+        p->noteOn(0, 48, 95);
+        append(render(*p, 0.10, block));
+        return out;
+    };
+    const auto a = runPhrase(0.0, 0.0, 128);
+    const auto b = runPhrase(1.0, 1.0, 128);
+    const auto b2 = runPhrase(1.0, 1.0, 257);
+    double diff = 0.0;
+    for (size_t i = 0; i < a.size(); ++i)
+    {
+        check(std::isfinite(b[i]), "connected lookahead phrase stays finite");
+        const double d = b[i] - a[i];
+        diff += d * d;
+    }
+    check(diff > 1e-6 && b == b2,
+          "tight lookahead transition budgets shift/press noise deterministically across blocks");
+}
+
+void testPickEdgeCases()
+{
+    for (const bool up : {false, true})
+        for (const bool useFingers : {false, true})
+            for (const int note : {85, 108})
+            {
+                auto p = makePerformer();
+                auto c = p->controls();
+                c.pickMetres = 0.250;
+                p->setControls(c);
+                p->noteOn(0, up ? 32 : 31, 1);
+                if (useFingers)
+                    p->noteOn(0, 35, 1);
+                p->noteOn(0, note, 100);
+                const auto x = render(*p, 0.45);
+                float peak = 0.0f;
+                bool ok = true;
+                for (const float v : x)
+                {
+                    if (!std::isfinite(v))
+                        ok = false;
+                    peak = std::max(peak, std::abs(v));
+                }
+                const double wanted = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+                const double cents = centsFrom(x, rate, wanted);
+                check(ok && peak > 0.01f && std::abs(cents) < 25.0,
+                      "high frets and extended upper keys stay in tune across stroke and finger modes");
+            }
+
+    const auto playOpen = [](double gauge, bool useFingers) {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.pick = gauge;
+        p->setControls(c);
+        if (useFingers)
+            p->noteOn(0, 35, 1);
+        p->noteOn(0, 40, 110, 0);
+        return render(*p, 0.08);
+    };
+    const auto thin = playOpen(0.0, false);
+    const auto heavy = playOpen(1.0, false);
+    const auto fing = playOpen(1.0, true);
+    double thinHeavyDiff = 0.0, pickFingerDiff = 0.0;
+    for (size_t i = 0; i < thin.size(); ++i)
+    {
+        thinHeavyDiff += (thin[i] - heavy[i]) * (thin[i] - heavy[i]);
+        pickFingerDiff += (heavy[i] - fing[i]) * (heavy[i] - fing[i]);
+    }
+    check(thinHeavyDiff > 1e-4 && pickFingerDiff > 1e-4,
+          "pick gauge and fingers mode shape the attack distinctly");
+}
+
+void testAllControlsAndKeyswitchesHaveSoundImpact()
+{
+    const auto rmsDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        const size_t n = std::min(a.size(), b.size());
+        double s = 0.0;
+        for (size_t i = 0; i < n; ++i)
+        {
+            const double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
+            s += d * d;
+        }
+        return std::sqrt(s / static_cast<double>(n));
+    };
+    const auto renderControls = [](const electry::StratControls& c, bool chord = false,
+                                   bool bend = false) {
+        auto p = makePerformer();
+        p->setControls(c);
+        p->noteOn(0, 45, 100);
+        if (chord)
+        {
+            p->noteOn(0, 52, 100);
+            p->noteOn(0, 57, 100);
+            p->noteOn(0, 64, 100);
+        }
+        auto x = render(*p, 0.06);
+        if (bend)
+            p->pitchBend(0, 0.8);
+        p->noteOff(0, 45);
+        const auto tail = render(*p, 0.08);
+        x.insert(x.end(), tail.begin(), tail.end());
+        return x;
+    };
+
+    const electry::StratControls base;
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.circuit.position = electry::StratCircuit::Position::bridge; return c; }()))
+              > 1e-3,
+          "pickup switch position has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.circuit.volume = 0.3; return c; }()))
+              > 1e-3,
+          "circuit volume has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.circuit.toneNeck = 0.0; return c; }()))
+              > 1e-3,
+          "neck tone knob has audible impact");
+    {
+        auto midBase = base;
+        midBase.circuit.position = electry::StratCircuit::Position::middle;
+        auto midToned = midBase;
+        midToned.circuit.toneMiddle = 0.0;
+        check(rmsDiff(renderControls(midBase), renderControls(midToned)) > 1e-3,
+              "middle tone knob has audible impact");
+    }
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.pickMetres = 0.22; return c; }()))
+              > 1e-3,
+          "pick position has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.pick = 0.0; return c; }()))
+              > 1e-4,
+          "pick gauge has audible impact");
+    check(rmsDiff(renderControls(base, true),
+                  renderControls([&] { auto c = base; c.strumSeconds = 0.025; return c; }(), true))
+              > 1e-3,
+          "strum speed has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.releaseNoise = 1.0; return c; }()))
+              > 1e-4,
+          "release noise has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.playerNoise = 1.0; return c; }()))
+              > 1e-4,
+          "player noise has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.compressor = 1.0; return c; }()))
+              > 1e-3,
+          "compressor has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.outputDecibels = -6.0; return c; }()))
+              > 1e-3,
+          "output gain has audible impact");
+    check(rmsDiff(renderControls(base, false, true),
+                  renderControls([&] { auto c = base; c.fingerBendWheel = true; return c; }(),
+                                 false, true))
+              > 1e-3,
+          "fingerBendWheel has audible impact");
+    check(rmsDiff(renderControls(base),
+                  renderControls([&] { auto c = base; c.lookahead = true; return c; }()))
+              > 1e-3,
+          "lookahead switch shifts event timing cleanly");
+
+    // Performance controllers and Master Tune
+    {
+        auto p0 = makePerformer(), p1 = makePerformer();
+        p0->noteOn(0, 45, 100);
+        p1->noteOn(0, 45, 100);
+        p1->pitchBend(0, -1.0);
+        check(rmsDiff(render(*p0, 0.15), render(*p1, 0.15)) > 1e-3, "pitch bend arm has audible impact");
+    }
+    {
+        auto p0 = makePerformer(), p1 = makePerformer();
+        p0->noteOn(0, 45, 100);
+        p1->setMasterTune(40.0);
+        p1->noteOn(0, 45, 100);
+        check(rmsDiff(render(*p0, 0.12), render(*p1, 0.12)) > 1e-3, "master tune has audible impact");
+    }
+    {
+        auto p0 = makePerformer(), p1 = makePerformer();
+        p0->noteOn(0, 45, 100);
+        p1->noteOn(0, 45, 100);
+        p1->modWheel(0.9);
+        check(rmsDiff(render(*p0, 0.15), render(*p1, 0.15)) > 1e-3, "mod wheel palm mute has audible impact");
+    }
+    {
+        auto p0 = makePerformer(), p1 = makePerformer();
+        p0->noteOn(0, 47, 100);
+        p1->noteOn(0, 47, 100);
+        p1->channelPressure(1.0);
+        check(rmsDiff(render(*p0, 0.25), render(*p1, 0.25)) > 1e-3, "channel pressure vibrato has audible impact");
+    }
+    {
+        auto p0 = makePerformer(), p1 = makePerformer();
+        p0->noteOn(0, 45, 100);
+        p1->sustain(true);
+        p1->noteOn(0, 45, 100);
+        render(*p0, 0.04);
+        render(*p1, 0.04);
+        p0->noteOff(0, 45);
+        p1->noteOff(0, 45);
+        check(rmsDiff(render(*p0, 0.15), render(*p1, 0.15)) > 1e-3, "sustain pedal has audible impact");
+    }
+
+    // All 21 keyswitch notes (12..17 solos, 24..38 articulations/strokes/damp/fingers)
+    const auto ksRef = [] {
+        auto p = makePerformer();
+        p->noteOn(0, 24, 1); // Sustain
+        p->noteOn(0, 31, 1); // Downstroke
+        p->noteOn(0, 48, 100);
+        auto a = render(*p, 0.05);
+        p->noteOn(0, 52, 100);
+        auto b = render(*p, 0.30);
+        a.insert(a.end(), b.begin(), b.end());
+        return a;
+    }();
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 25, 1); // Mute first
+        p->noteOn(0, 24, 1); // Sustain restores ordinary notes
+        p->noteOn(0, 32, 1); // Upstroke first
+        p->noteOn(0, 31, 1); // Downstroke restores downstrokes
+        p->noteOn(0, 48, 100);
+        auto a = render(*p, 0.05);
+        p->noteOn(0, 52, 100);
+        auto b = render(*p, 0.30);
+        a.insert(a.end(), b.begin(), b.end());
+        check(a == ksRef, "Sustain and Downstroke keyswitches restore normal downstrokes");
+    }
+    for (int key = 25; key <= 38; ++key)
+    {
+        if (key == 31)
+            continue;
+        auto p = makePerformer();
+        if (key == 32 || key == 33 || key == 35)
+        {
+            p->noteOn(0, key, 1);
+            p->noteOn(0, 48, 100);
+            auto a = render(*p, 0.05);
+            p->noteOn(0, 52, 100);
+            auto b = render(*p, 0.30);
+            a.insert(a.end(), b.begin(), b.end());
+            check(rmsDiff(ksRef, a) > 1e-4, "stroke/finger keyswitch impacts audio");
+        }
+        else if (key == 34)
+        {
+            p->noteOn(0, 48, 100);
+            auto a = render(*p, 0.05);
+            p->noteOn(0, 34, 1);
+            auto b = render(*p, 0.30);
+            a.insert(a.end(), b.begin(), b.end());
+            check(rmsDiff(ksRef, a) > 1e-3, "damp keyswitch stops ringing sound");
+        }
+        else
+        {
+            p->noteOn(0, 31, 1);
+            p->noteOn(0, 48, 100);
+            auto a = render(*p, 0.05);
+            p->noteOn(0, key, 1);
+            p->noteOn(0, 52, 100);
+            auto b = render(*p, 0.30);
+            a.insert(a.end(), b.begin(), b.end());
+            check(rmsDiff(ksRef, a) > 1e-4, "articulation/gesture keyswitch impacts audio");
+        }
+    }
+    for (int s = 0; s < 6; ++s)
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 12 + s, 1);
+        p->noteOn(0, openNote[s] + 5, 100);
+        render(*p, 0.02);
+        check((p->soloStrings() & (1u << s)) != 0 && p->stringNote(s) == openNote[s] + 5,
+              "every solo key C0..F0 routes notes onto its soloed string");
+    }
+}
+
 int main()
 {
     testFingerWheel();
@@ -2000,6 +2404,11 @@ int main()
     testReleaseNoise();
     testPlayerNoise();
     testLookaheadAndEventInvariants();
+    testRubStopsOnInterrupt();
+    testOpenPullOffAndBentLegato();
+    testConnectedLookaheadFretNoise();
+    testPickEdgeCases();
+    testAllControlsAndKeyswitchesHaveSoundImpact();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

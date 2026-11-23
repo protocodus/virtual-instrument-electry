@@ -175,7 +175,9 @@ public:
     // under the whole force without a push.
     void pluck(double forceNewtons, double metresFromBridge, double releaseSeconds,
                double strokeMetresPerSecond = 0.0, bool opposedPlanes = false,
-               double heldShare = 0.0) noexcept;
+               double heldShare = 0.0,
+               double contactStiffnessNewtonsPerMetre = contactStiffness,
+               double wrapScrapeScale = 1.0) noexcept;
     // The spring between the hand and the string: fitted with the stroke
     // (StratPerformer's heldShare and pushRatio) to the attacks of two Strats
     // recorded direct. 400 and 1600 N/m leave the neck pickup's first swing
@@ -272,20 +274,17 @@ private:
     // One plane of the swing: its rails and its fret end's filter states.
     struct Plane
     {
-        std::array<float, railSize> right {};
-        std::array<float, railSize> left {};
         float lossInput = 0.0f;
         float lossState = 0.0f;
         float wrapState = 0.0f;
         std::array<float, dispersionSections> allpassState {};
-        double historySum = 0.0;
         float dcMean = 0.0f;
-        LoopTap loopTap;
+        double historySum = 0.0;
         double loopTapPosition = -1.0;
+        LoopTap loopTap;
+        std::array<float, railSize> right {};
+        std::array<float, railSize> left {};
     };
-    // The wave arriving at the fret: the right rail read there, through the
-    // loss and the dispersion.
-    float arriveAtFret(Plane& plane, double readAt) noexcept;
     // Writes the fret's reflection onto the left rail.
     void leaveFret(Plane& plane, float reflected) noexcept;
     // Where the left rail grew this sample, -1 if it did not.
@@ -306,11 +305,6 @@ private:
 
     double sampleRate = 48000.0;
     const Construction* spec = nullptr;
-
-    // Toward the poles: the plane the pick's contact is solved in, the
-    // stretch measured on and the pickup's distance follows.
-    Plane poles;
-    Plane top;
     int write = 0;
 
     // Fret end.
@@ -417,6 +411,8 @@ private:
     double stickLimit = 0.0;
     double stickBase = 0.0;
     double stickRelease = 0.0;
+    double activeContactStiffness = contactStiffness;
+    double activeWrapScrape = 1.0;
     void startRelease(double from, double to, double seconds) noexcept;
     std::array<double, 3> pickOverlap {};
     std::array<float, 3> injected {};
@@ -449,6 +445,12 @@ private:
     double pressLanding = 0.0;
     int pressPosition = 0, pressLength = 0;
     float roughPole = 0.0f;
+
+    // Toward the poles: the plane the pick's contact is solved in, the
+    // stretch measured on and the pickup's distance follows (kept after hot
+    // scalars for L1 data-cache locality).
+    Plane poles;
+    Plane top;
 };
 
 } // namespace electry

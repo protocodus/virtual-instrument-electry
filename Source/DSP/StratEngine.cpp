@@ -334,6 +334,7 @@ void StratEngine::reset() noexcept
     circuit.reset();
     jackHistory.fill(0.0f);
     jackWrite = 0;
+    jackQuiet = halfbandHistory;
     phase = 0;
 }
 
@@ -397,10 +398,7 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
     p.fret = fret;
     const double press = fret > 0.0 ? fretPressMetres + actionStretchMetres(fret) : 0.0;
     if (press != tremolo.pressMetres(stringIndex))
-    {
         tremolo.setPress(stringIndex, press);
-        bridgeMoved = true;
-    }
     if (glide)
     {
         p.glide = true;
@@ -473,10 +471,11 @@ void StratEngine::setArm(double position) noexcept
 
 void StratEngine::setBend(int stringIndex, double pitchRatio) noexcept
 {
+    if (stringIndex < 0 || stringIndex >= stringCount)
+        return;
     tremolo.setBend(stringIndex, pitchRatio);
-    bridgeMoved = true;
-    if (stringIndex >= 0 && stringIndex < stringCount)
-        updateCoilGeometry(stringIndex);
+    pending[static_cast<size_t>(stringIndex)].changed = true;
+    updateCoilGeometry(stringIndex);
 }
 
 void StratEngine::updateCoilGeometry(int stringIndex) noexcept
@@ -513,8 +512,10 @@ void StratEngine::updateCoilGeometry(int stringIndex) noexcept
     {
         const double x = coilMetres(c, stringIndex);
         const double share = speaking > 0.0 ? std::min(x / speaking, 1.0) : 0.0;
-        bendSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
-            = static_cast<float>(lateralMetres * share / fluxStepMetres);
+        constexpr float invPoleSteps = 1.0f / 80.0f;
+        const float bend = static_cast<float>(lateralMetres * share / fluxStepMetres);
+        bendOffset[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
+            = 0.5f * bend * bend * invPoleSteps;
         const double raised = fret >= gapSetFret ? 0.0
             : (end - saddle) * share + saddle * std::min(x / setSpeaking, 1.0);
         gapSteps[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
@@ -533,13 +534,15 @@ void StratEngine::setDamper(int stringIndex, int damper, double metresFromBridge
 
 void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                         double releaseSeconds, double strokeMetresPerSecond,
-                        bool opposedPlanes, double heldShare) noexcept
+                        bool opposedPlanes, double heldShare,
+                        double contactStiffnessNewtonsPerMetre,
+                        double wrapScrapeScale) noexcept
 {
     if (stringIndex < 0 || stringIndex >= stringCount)
         return;
     StratString& string = strings[static_cast<size_t>(stringIndex)];
     string.pluck(forceNewtons, metresFromBridge, releaseSeconds, strokeMetresPerSecond,
-                 opposedPlanes, heldShare);
+                 opposedPlanes, heldShare, contactStiffnessNewtonsPerMetre, wrapScrapeScale);
     // The rails leave out the deflected rest the pluck starts from, so the
     // coils, which read the string's distance from their poles, take it
     // here: the string under them already stands that far aside.
@@ -578,6 +581,12 @@ bool StratEngine::isDriven(int stringIndex) const noexcept
 {
     return stringIndex >= 0 && stringIndex < stringCount
         && strings[static_cast<size_t>(stringIndex)].isDriven();
+}
+
+bool StratEngine::isRubbing(int stringIndex) const noexcept
+{
+    return stringIndex >= 0 && stringIndex < stringCount
+        && strings[static_cast<size_t>(stringIndex)].isRubbing();
 }
 
 bool StratEngine::planesOpposed(int stringIndex) const noexcept
@@ -668,14 +677,12 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
             // Dynamic transverse curvature would require a measured 2-D flux
             // surface and its full gradient. The former orbit-only correction
             // was neither; it changed distance without the corresponding EMF.
-            constexpr float invPoleSteps = 1.0f / 80.0f;
             const float dy = swingSteps * y;
             const float dx = swingSteps * x;
-            const float bend = bendSteps[k][static_cast<size_t>(c)];
             // A string driven onto the poles reads as touching them,
             // and one far off as at the table's end.
             float d = gapSteps[k][static_cast<size_t>(c)] - dy - inPlaneHeard * dx
-                + 0.5f * bend * bend * invPoleSteps;
+                + bendOffset[k][static_cast<size_t>(c)];
             d = d < 0.0f ? 0.0f : (d > fluxTableSize - 1.001f ? fluxTableSize - 1.001f : d);
             const int i = static_cast<int>(d);
             const float t = d - static_cast<float>(i);
@@ -716,20 +723,39 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
             jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
             continue;
         }
+        float sub[2] {};
         for (int k = 0; k < 2; ++k)
         {
             float emf[coilCount] {0.0f, 0.0f, 0.0f};
             stepStrings(emf);
+            const float s = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+            sub[k] = s;
             jackWrite = (jackWrite + 1) & mask;
-            jackHistory[static_cast<size_t>(jackWrite)]
-                = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+            jackHistory[static_cast<size_t>(jackWrite)] = s;
+            jackHistory[static_cast<size_t>(jackWrite + halfbandHistory)] = s;
         }
-        const int middle = jackWrite - centre;
-        float y = 0.5f * jackHistory[static_cast<size_t>(middle & mask)];
+        if (sub[0] == 0.0f && sub[1] == 0.0f)
+        {
+            if (jackQuiet < halfbandHistory)
+                jackQuiet += 2;
+            if (jackQuiet >= halfbandHistory)
+            {
+                jackVolts[i] = 0.0f;
+                continue;
+            }
+        }
+        else
+            jackQuiet = 0;
+        int middle = (jackWrite - centre) & mask;
+        if (middle < centre)
+            middle += halfbandHistory;
+        const float* const hPtr = jackHistory.data() + middle;
+        float y = 0.5f * hPtr[0];
         for (int j = 0; j < halfbandPairs; ++j)
-            y += halfband[static_cast<size_t>(j)]
-                * (jackHistory[static_cast<size_t>((middle + 2 * j + 1) & mask)]
-                   + jackHistory[static_cast<size_t>((middle - 2 * j - 1) & mask)]);
+        {
+            const int offset = 2 * j + 1;
+            y += halfband[static_cast<size_t>(j)] * (hPtr[offset] + hPtr[-offset]);
+        }
         jackVolts[i] = y;
     }
 }

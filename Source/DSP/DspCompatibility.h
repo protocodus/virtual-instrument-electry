@@ -5,14 +5,82 @@
 #include <limits>
 #include <type_traits>
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ELECTRY_FORCE_INLINE __attribute__((always_inline)) inline
+#else
+#define ELECTRY_FORCE_INLINE inline
+#endif
+
 namespace electry
 {
+
+#if defined(__GNUC__) || defined(__clang__)
+// Packed 2-lane SIMD structs keep member alignment at scalar alignment (4 for
+// Float2, 8 for Double2) so x86_64 Jukebox Clang 15 never emits aligned SSE
+// movaps/movapd instructions against 8-aligned heap members.
+struct alignas(4) Float2
+{
+    typedef float Lanes __attribute__((vector_size(8)));
+    Lanes v;
+
+    ELECTRY_FORCE_INLINE static Float2 splat(float x) noexcept { return Float2 { Lanes { x, x } }; }
+    ELECTRY_FORCE_INLINE static Float2 load(float a, float b) noexcept { return Float2 { Lanes { a, b } }; }
+    ELECTRY_FORCE_INLINE float operator[](int i) const noexcept { return v[i]; }
+    ELECTRY_FORCE_INLINE Float2 operator+(Float2 o) const noexcept { return Float2 { v + o.v }; }
+    ELECTRY_FORCE_INLINE Float2 operator-(Float2 o) const noexcept { return Float2 { v - o.v }; }
+    ELECTRY_FORCE_INLINE Float2 operator*(Float2 o) const noexcept { return Float2 { v * o.v }; }
+    ELECTRY_FORCE_INLINE Float2& operator+=(Float2 o) noexcept { v += o.v; return *this; }
+    ELECTRY_FORCE_INLINE Float2& operator-=(Float2 o) noexcept { v -= o.v; return *this; }
+} __attribute__((packed, aligned(4)));
+static_assert(sizeof(Float2) == 8 && alignof(Float2) == 4, "Float2 ABI");
+
+struct alignas(8) Double2
+{
+    typedef double Lanes __attribute__((vector_size(16)));
+    Lanes v;
+
+    ELECTRY_FORCE_INLINE static Double2 splat(double x) noexcept { return Double2 { Lanes { x, x } }; }
+    ELECTRY_FORCE_INLINE static Double2 load(double a, double b) noexcept { return Double2 { Lanes { a, b } }; }
+    ELECTRY_FORCE_INLINE double operator[](int i) const noexcept { return v[i]; }
+    ELECTRY_FORCE_INLINE Double2 operator+(Double2 o) const noexcept { return Double2 { v + o.v }; }
+    ELECTRY_FORCE_INLINE Double2 operator-(Double2 o) const noexcept { return Double2 { v - o.v }; }
+    ELECTRY_FORCE_INLINE Double2 operator*(Double2 o) const noexcept { return Double2 { v * o.v }; }
+    ELECTRY_FORCE_INLINE Double2& operator+=(Double2 o) noexcept { v += o.v; return *this; }
+    ELECTRY_FORCE_INLINE Double2& operator-=(Double2 o) noexcept { v -= o.v; return *this; }
+} __attribute__((packed, aligned(8)));
+static_assert(sizeof(Double2) == 16 && alignof(Double2) == 8, "Double2 ABI");
+#else
+struct Float2
+{
+    float v[2];
+    static Float2 splat(float x) noexcept { return { { x, x } }; }
+    static Float2 load(float a, float b) noexcept { return { { a, b } }; }
+    float operator[](int i) const noexcept { return v[i]; }
+    Float2 operator+(Float2 o) const noexcept { return { { v[0] + o.v[0], v[1] + o.v[1] } }; }
+    Float2 operator-(Float2 o) const noexcept { return { { v[0] - o.v[0], v[1] - o.v[1] } }; }
+    Float2 operator*(Float2 o) const noexcept { return { { v[0] * o.v[0], v[1] * o.v[1] } }; }
+    Float2& operator+=(Float2 o) noexcept { v[0] += o.v[0]; v[1] += o.v[1]; return *this; }
+    Float2& operator-=(Float2 o) noexcept { v[0] -= o.v[0]; v[1] -= o.v[1]; return *this; }
+};
+struct Double2
+{
+    double v[2];
+    static Double2 splat(double x) noexcept { return { { x, x } }; }
+    static Double2 load(double a, double b) noexcept { return { { a, b } }; }
+    double operator[](int i) const noexcept { return v[i]; }
+    Double2 operator+(Double2 o) const noexcept { return { { v[0] + o.v[0], v[1] + o.v[1] } }; }
+    Double2 operator-(Double2 o) const noexcept { return { { v[0] - o.v[0], v[1] - o.v[1] } }; }
+    Double2 operator*(Double2 o) const noexcept { return { { v[0] * o.v[0], v[1] * o.v[1] } }; }
+    Double2& operator+=(Double2 o) noexcept { v[0] += o.v[0]; v[1] += o.v[1]; return *this; }
+    Double2& operator-=(Double2 o) noexcept { v[0] -= o.v[0]; v[1] -= o.v[1]; return *this; }
+};
+#endif
 
 // The embedded host uses C++17 and compiles with -fno-builtin. Keep these
 // scalar operations explicit so they neither need C++20 library headers nor
 // turn into out-of-line libm calls in the sample loop.
 template <typename To, typename From>
-[[nodiscard]] inline To bitCast(const From& from) noexcept
+[[nodiscard]] ELECTRY_FORCE_INLINE To bitCast(const From& from) noexcept
 {
     static_assert(sizeof(To) == sizeof(From), "bitCast sizes must match");
     static_assert(std::is_trivially_copyable<To>::value
@@ -50,7 +118,7 @@ template <> struct FloatBits<double>
 } // namespace detail
 
 template <typename T>
-[[nodiscard]] inline T scalarAbs(T value) noexcept
+[[nodiscard]] ELECTRY_FORCE_INLINE T scalarAbs(T value) noexcept
 {
     if constexpr (std::is_integral<T>::value)
         return value < 0 ? -value : value;
@@ -80,7 +148,7 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] inline T scalarFloor(T value) noexcept
+[[nodiscard]] ELECTRY_FORCE_INLINE T scalarFloor(T value) noexcept
 {
     using Bits = detail::FloatBits<T>;
     using UInt = typename Bits::UInt;

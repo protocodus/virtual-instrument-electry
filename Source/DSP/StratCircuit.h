@@ -125,6 +125,12 @@ private:
     int activeCoilCount = 0;
     std::array<bool, inputCount> connectedCoil {};
     std::array<bool, 2> connectedTone {};
+    // Contiguous column-major packed active subspace matrices (col j, row i)
+    // so paired-row loads walk contiguous addresses without changing sum order.
+    std::array<std::array<double, stateCount>, stateCount> activePhiCol {};
+    std::array<std::array<double, stateCount>, inputCount> activePrevCol {};
+    std::array<std::array<double, stateCount>, inputCount> activeCurrCol {};
+    bool idle = true;
 };
 
 } // namespace electry

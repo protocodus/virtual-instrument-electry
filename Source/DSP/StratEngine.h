@@ -77,7 +77,9 @@ public:
     // StratString::pluck.
     void pluck(int stringIndex, double forceNewtons, double metresFromBridge,
                double releaseSeconds, double strokeMetresPerSecond = 0.0,
-               bool opposedPlanes = false, double heldShare = 0.0) noexcept;
+               bool opposedPlanes = false, double heldShare = 0.0,
+               double contactStiffnessNewtonsPerMetre = StratString::contactStiffness,
+               double wrapScrapeScale = 1.0) noexcept;
 
     double fundamentalHz(int stringIndex) const noexcept;
     // Moving under a pickup, from its own stroke or another's through the
@@ -85,6 +87,8 @@ public:
     bool isSounding(int stringIndex) const noexcept;
     // A pick or a finger is driving it (StratString::isDriven).
     bool isDriven(int stringIndex) const noexcept;
+    // A finger rub is active on the string (StratString::isRubbing).
+    bool isRubbing(int stringIndex) const noexcept;
     // StratString::planesOpposed.
     bool planesOpposed(int stringIndex) const noexcept;
 
@@ -121,7 +125,7 @@ private:
     std::array<std::array<float, coilCount>, stringCount> gapSteps {};
     std::array<std::array<float, coilCount>, stringCount> swing {};
     std::array<std::array<float, coilCount>, stringCount> swingTop {};
-    std::array<std::array<float, coilCount>, stringCount> bendSteps {};
+    std::array<std::array<float, coilCount>, stringCount> bendOffset {};
     float swingLeak = 1.0f;
     float swingSteps = 0.0f; // table steps per (m/s) sample of swing
     double stringRate = 96000.0; // the strings', coils' and circuit's rate
@@ -138,8 +142,9 @@ private:
     static constexpr int halfbandPairs = 16;
     static constexpr int halfbandHistory = 64; // past 4 * halfbandPairs - 1
     std::array<float, halfbandPairs> halfband {};
-    std::array<float, halfbandHistory> jackHistory {};
+    std::array<float, 2 * halfbandHistory> jackHistory {};
     int jackWrite = 0;
+    int jackQuiet = halfbandHistory;
 };
 
 } // namespace electry

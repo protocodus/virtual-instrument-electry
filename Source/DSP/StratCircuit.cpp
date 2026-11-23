@@ -21,13 +21,20 @@ constexpr int n = augmentedSize;
 void multiply(const Matrix& a, const Matrix& b, Matrix& out) noexcept
 {
     for (int row = 0; row < n; ++row)
+    {
+        double* const outRow = &out[row * n];
         for (int column = 0; column < n; ++column)
+            outRow[column] = 0.0;
+        for (int k = 0; k < n; ++k)
         {
-            double sum = 0.0;
-            for (int k = 0; k < n; ++k)
-                sum += a[row * n + k] * b[k * n + column];
-            out[row * n + column] = sum;
+            const double aik = a[row * n + k];
+            if (aik == 0.0)
+                continue;
+            const double* const bRow = &b[k * n];
+            for (int column = 0; column < n; ++column)
+                outRow[column] += aik * bRow[column];
         }
+    }
 }
 
 double oneNorm(const Matrix& a) noexcept
@@ -199,6 +206,7 @@ void StratCircuit::reset() noexcept
 {
     state.fill(0.0);
     lastInput.fill(0.0);
+    idle = true;
 }
 
 void StratCircuit::updateCoefficients() noexcept
@@ -307,34 +315,86 @@ void StratCircuit::updateCoefficients() noexcept
             currentInput[row * inputCount + k] = ramp;
         }
     }
+    for (int j = 0; j < activeCount; ++j)
+    {
+        const int column = activeRows[static_cast<size_t>(j)];
+        for (int i = 0; i < activeCount; ++i)
+        {
+            const int row = activeRows[static_cast<size_t>(i)];
+            activePhiCol[static_cast<size_t>(j)][static_cast<size_t>(i)]
+                = phi[static_cast<size_t>(row * stateCount + column)];
+        }
+    }
+    for (int c = 0; c < activeCoilCount; ++c)
+    {
+        const int k = activeCoils[static_cast<size_t>(c)];
+        for (int i = 0; i < activeCount; ++i)
+        {
+            const int row = activeRows[static_cast<size_t>(i)];
+            activePrevCol[static_cast<size_t>(c)][static_cast<size_t>(i)]
+                = previousInput[static_cast<size_t>(row * inputCount + k)];
+            activeCurrCol[static_cast<size_t>(c)][static_cast<size_t>(i)]
+                = currentInput[static_cast<size_t>(row * inputCount + k)];
+        }
+    }
 }
 
 double StratCircuit::process(double neck, double middle,
                              double bridge) noexcept
 {
+    if (idle && neck == 0.0 && middle == 0.0 && bridge == 0.0)
+        return 0.0;
+
     const double input[inputCount] = {neck, middle, bridge};
     std::array<double, stateCount> next {};
-
-    // Connected subspace (selected coils, active tone caps, and jack node 8).
-    for (int i = 0; i < activeCount; ++i)
+    double activeState[stateCount] {};
+    for (int j = 0; j < activeCount; ++j)
+        activeState[j] = state[static_cast<size_t>(activeRows[static_cast<size_t>(j)])];
+    double prevIn[inputCount] {};
+    double currIn[inputCount] {};
+    for (int c = 0; c < activeCoilCount; ++c)
     {
-        const int row = activeRows[static_cast<size_t>(i)];
-        const double* phiRow = &phi[static_cast<size_t>(row * stateCount)];
-        double sum = 0.0;
+        const int k = activeCoils[static_cast<size_t>(c)];
+        prevIn[c] = lastInput[static_cast<size_t>(k)];
+        currIn[c] = input[k];
+    }
+
+    // Connected subspace: vertical 2-row Double2 keeps each row's exact left-to-right
+    // accumulation order over active columns and active coil inputs.
+    int i = 0;
+    for (; i + 1 < activeCount; i += 2)
+    {
+        Double2 sum = Double2::splat(0.0);
         for (int j = 0; j < activeCount; ++j)
         {
-            const int column = activeRows[static_cast<size_t>(j)];
-            sum += phiRow[column] * state[static_cast<size_t>(column)];
+            const Double2 col = Double2::load(activePhiCol[static_cast<size_t>(j)][static_cast<size_t>(i)],
+                                              activePhiCol[static_cast<size_t>(j)][static_cast<size_t>(i + 1)]);
+            sum += col * Double2::splat(activeState[j]);
         }
-        const int inBase = row * inputCount;
         for (int c = 0; c < activeCoilCount; ++c)
         {
-            const int k = activeCoils[static_cast<size_t>(c)];
-            sum += previousInput[static_cast<size_t>(inBase + k)] * lastInput[static_cast<size_t>(k)]
-                + currentInput[static_cast<size_t>(inBase + k)] * input[k];
+            const Double2 prevW = Double2::load(activePrevCol[static_cast<size_t>(c)][static_cast<size_t>(i)],
+                                                activePrevCol[static_cast<size_t>(c)][static_cast<size_t>(i + 1)]);
+            const Double2 currW = Double2::load(activeCurrCol[static_cast<size_t>(c)][static_cast<size_t>(i)],
+                                                activeCurrCol[static_cast<size_t>(c)][static_cast<size_t>(i + 1)]);
+            sum += prevW * Double2::splat(prevIn[c]) + currW * Double2::splat(currIn[c]);
         }
-        // Silence decays toward subnormal values, which are slow on most
-        // processors; nothing audible lives below 1e-30 V.
+        const int r0 = activeRows[static_cast<size_t>(i)];
+        const int r1 = activeRows[static_cast<size_t>(i + 1)];
+        const double v0 = sum[0];
+        const double v1 = sum[1];
+        next[static_cast<size_t>(r0)] = scalarAbs(v0) < 1e-30 ? 0.0 : v0;
+        next[static_cast<size_t>(r1)] = scalarAbs(v1) < 1e-30 ? 0.0 : v1;
+    }
+    if (i < activeCount)
+    {
+        double sum = 0.0;
+        for (int j = 0; j < activeCount; ++j)
+            sum += activePhiCol[static_cast<size_t>(j)][static_cast<size_t>(i)] * activeState[j];
+        for (int c = 0; c < activeCoilCount; ++c)
+            sum += activePrevCol[static_cast<size_t>(c)][static_cast<size_t>(i)] * prevIn[c]
+                + activeCurrCol[static_cast<size_t>(c)][static_cast<size_t>(i)] * currIn[c];
+        const int row = activeRows[static_cast<size_t>(i)];
         next[static_cast<size_t>(row)] = scalarAbs(sum) < 1e-30 ? 0.0 : sum;
     }
 
@@ -371,8 +431,13 @@ double StratCircuit::process(double neck, double middle,
             next[static_cast<size_t>(6 + t)] = state[static_cast<size_t>(6 + t)];
 
     state = next;
+    bool zeroAll = (neck == 0.0 && middle == 0.0 && bridge == 0.0);
     for (int k = 0; k < inputCount; ++k)
         lastInput[k] = input[k];
+    if (zeroAll)
+        for (double x : state)
+            zeroAll = zeroAll && (x == 0.0);
+    idle = zeroAll;
     return state[8];
 }
 

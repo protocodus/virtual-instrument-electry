@@ -57,6 +57,22 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.6.2 — 2026-11-23 — Strat physical-model fixes and bit-exact CPU optimizations
+
+Fixed continuous rub leaks across interrupted releases, slides, harmonics, damp
+and all-notes-off (`stopRub`), cleared fretted/bend state on open-string
+pull-offs and slides, scaled tightly spaced lookahead finger shifts and presses
+without dropping contacts or wrapping noise near Nyquist, separated finger vs
+plectrum bevel-scrape and contact stiffness across pick gauges, and clamped high
+fret and extended-key strike positions after finger/upstroke offsets.
+
+Applied bit-exact DSP CPU optimizations (`DspCompatibility.h`, hot-first
+`StratString` layout, packed `Float2`/`Double2` SIMD, compact `StratCircuit`
+active subspace with idle skip, mirrored `StratEngine` halfband buffer, and
+single-string `StratBridge::solveString`) verified bit-identical across all 7
+factory patches at 44.1–192 kHz, with ~3.4% native/arm64 and ~8.1% x86_64
+CPU reductions.
+
 ### 2.6.1 — 2026-11-23 — no Clear key for the Strat's solos
 
 F#0 (note 18) no longer clears the string solos. It did so while the solos

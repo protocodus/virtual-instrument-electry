@@ -68,6 +68,7 @@ public:
 
 private:
     void solve() noexcept;
+    void solveString(int stringIndex) noexcept;
 
     double arm = 0.0;
     std::array<double, stringCount> bend {};

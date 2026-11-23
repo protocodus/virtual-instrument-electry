@@ -1,4 +1,5 @@
 #include "StratString.h"
+#include "DspCompatibility.h"
 
 #include <algorithm>
 #include <cmath>
@@ -370,6 +371,8 @@ void StratString::reset() noexcept
     releaseLength = releasePosition = 0;
     stickRemaining = 0;
     stickRelease = 0.0;
+    activeContactStiffness = contactStiffness;
+    activeWrapScrape = 1.0;
     forceHeld = blockedForce = 0.0;
     topBlockedForce = pendingTopForce = 0.0;
     topDrive = 1.0f;
@@ -912,8 +915,14 @@ void StratString::clearRight(int fromPosition, int toPosition) noexcept
 
 void StratString::pluck(double forceNewtons, double metresFromBridge,
                         double releaseSeconds, double strokeMetresPerSecond,
-                        bool opposedPlanes, double heldShare) noexcept
+                        bool opposedPlanes, double heldShare,
+                        double contactStiffnessNewtonsPerMetre,
+                        double wrapScrapeScale) noexcept
 {
+    activeContactStiffness = contactStiffnessNewtonsPerMetre > 0.0
+        ? contactStiffnessNewtonsPerMetre
+        : contactStiffness;
+    activeWrapScrape = wrapScrapeScale > 0.0 ? wrapScrapeScale : 0.0;
     // A release or a contact still running completes first; re-centre the
     // reference on forceEnd so heldShare offsets do not accumulate across
     // strokes while keeping (force - forceHeld) continuous.
@@ -985,15 +994,18 @@ void StratString::rub(double metresFromBridge, double speed, double newtons) noe
 {
     if (speed == 0.0 && !isRubbing())
         return;
-    if (!fingerActive || rubSpeed == 0.0f)
+    if (speed != 0.0)
     {
-        fingerMetres = metresFromBridge;
-        fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
-    }
-    else if (std::abs(metresFromBridge - fingerMetres) * samplesPerMetre >= 0.5)
-    {
-        fingerMetres = metresFromBridge;
-        fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
+        if (!fingerActive || rubSpeed == 0.0f)
+        {
+            fingerMetres = metresFromBridge;
+            fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
+        }
+        else if (std::abs(metresFromBridge - fingerMetres) * samplesPerMetre >= 0.5)
+        {
+            fingerMetres = metresFromBridge;
+            fingerTap = tapAt(clamp(positionSamples(fingerMetres), 1.0, lastUsablePosition()));
+        }
     }
     rubTarget = static_cast<float>(std::abs(speed));
     rubNewtons = static_cast<float>(newtons);
@@ -1043,7 +1055,7 @@ float StratString::rubbing() noexcept
         const double increment = speed / (spec->wrapMetres * sampleRate);
         rubPhase += increment;
         if (rubPhase >= 1.0)
-            rubPhase -= std::floor(rubPhase);
+            rubPhase -= scalarFloor(rubPhase);
         double saw = 2.0 * rubPhase - 1.0;
         // polyBLEP at the crest.
         const double dt = increment < 0.5 ? increment : 0.5;
@@ -1060,7 +1072,14 @@ float StratString::rubbing() noexcept
                 saw -= t * t + t + t + 1.0;
             }
         }
-        f += static_cast<float>(ridgeDepth * speed / (speed + ridgeSpeed) * saw);
+        const double sawTerm = ridgeDepth * speed / (speed + ridgeSpeed) * saw;
+        if (increment > 0.35)
+        {
+            const double nyquistFade = increment >= 0.49 ? 0.0 : (0.49 - increment) / 0.14;
+            f += static_cast<float>(nyquistFade * sawTerm);
+        }
+        else
+            f += static_cast<float>(sawTerm);
     }
     rubNoise ^= rubNoise << 13;
     rubNoise ^= rubNoise >> 17;
@@ -1138,79 +1157,52 @@ double StratString::neckPhaseDelay(double omega) const noexcept
     return -phase / omega;
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((always_inline))
-#endif
-inline void StratString::readPickupPair(const Tap& tap, float& towardPoles,
-                                      float& alongTop) const noexcept
+ELECTRY_FORCE_INLINE void StratString::readPickupPair(const Tap& tap, float& towardPoles,
+                                                        float& alongTop) const noexcept
 {
-    // Both polarizations use the same spatial tap and rail cursor. Share
-    // their addressing and wrap decision, retaining each scalar dot
-    // product's operation order and the final right + left addition.
+    // Both polarizations use the same spatial tap and rail cursor. Process both
+    // planes in Float2 so each lane keeps the exact scalar operation order.
     const int r = (write - tap.base) & railMask;
     const int l = (write + leftOffset + tap.base) & railMask;
     const float* const w = tap.weight;
+    const Float2 w0 = Float2::splat(w[0]);
+    const Float2 w1 = Float2::splat(w[1]);
+    const Float2 w2 = Float2::splat(w[2]);
+    const Float2 w3 = Float2::splat(w[3]);
     if (r >= 3 && l <= railMask - 3)
     {
         const float* const pr = poles.right.data() + r;
         const float* const pl = poles.left.data() + l;
         const float* const tr = top.right.data() + r;
         const float* const tl = top.left.data() + l;
-        const float pRight = w[0] * pr[0] + w[1] * pr[-1] + w[2] * pr[-2] + w[3] * pr[-3];
-        const float pLeft = w[0] * pl[0] + w[1] * pl[1] + w[2] * pl[2] + w[3] * pl[3];
-        const float tRight = w[0] * tr[0] + w[1] * tr[-1] + w[2] * tr[-2] + w[3] * tr[-3];
-        const float tLeft = w[0] * tl[0] + w[1] * tl[1] + w[2] * tl[2] + w[3] * tl[3];
-        towardPoles = pRight + pLeft;
-        alongTop = tRight + tLeft;
+        const Float2 rightSum
+            = w0 * Float2::load(pr[0], tr[0]) + w1 * Float2::load(pr[-1], tr[-1])
+            + w2 * Float2::load(pr[-2], tr[-2]) + w3 * Float2::load(pr[-3], tr[-3]);
+        const Float2 leftSum
+            = w0 * Float2::load(pl[0], tl[0]) + w1 * Float2::load(pl[1], tl[1])
+            + w2 * Float2::load(pl[2], tl[2]) + w3 * Float2::load(pl[3], tl[3]);
+        const Float2 total = rightSum + leftSum;
+        towardPoles = total[0];
+        alongTop = total[1];
         return;
     }
-    // The rare wrap shares its eight masked indices as well.
     const size_t r0 = static_cast<size_t>(r), r1 = static_cast<size_t>((r - 1) & railMask),
                  r2 = static_cast<size_t>((r - 2) & railMask), r3 = static_cast<size_t>((r - 3) & railMask);
     const size_t l0 = static_cast<size_t>(l), l1 = static_cast<size_t>((l + 1) & railMask),
                  l2 = static_cast<size_t>((l + 2) & railMask), l3 = static_cast<size_t>((l + 3) & railMask);
-    const float pRight = w[0] * poles.right[r0] + w[1] * poles.right[r1]
-        + w[2] * poles.right[r2] + w[3] * poles.right[r3];
-    const float pLeft = w[0] * poles.left[l0] + w[1] * poles.left[l1]
-        + w[2] * poles.left[l2] + w[3] * poles.left[l3];
-    const float tRight = w[0] * top.right[r0] + w[1] * top.right[r1]
-        + w[2] * top.right[r2] + w[3] * top.right[r3];
-    const float tLeft = w[0] * top.left[l0] + w[1] * top.left[l1]
-        + w[2] * top.left[l2] + w[3] * top.left[l3];
-    towardPoles = pRight + pLeft;
-    alongTop = tRight + tLeft;
-}
-
-float StratString::arriveAtFret(Plane& plane, double readAt) noexcept
-{
-    if (readAt != plane.loopTapPosition)
-    {
-        plane.loopTapPosition = readAt;
-        plane.loopTap = loopTapAt(readAt);
-    }
-    const float atFret = readRight(plane, plane.loopTap);
-    plane.lossState = lossGain * (atFret + lossZero * plane.lossInput) - lossPole * plane.lossState;
-    plane.lossInput = atFret;
-    float y = plane.lossState;
-    if (wrapPole != 0.0f)
-    {
-        plane.wrapState = (1.0f - wrapPole) * y + wrapPole * plane.wrapState;
-        y = plane.wrapState;
-    }
-    const float a = allpassCoefficient;
-    float s0 = plane.allpassState[0];
-    float s1 = plane.allpassState[1];
-    float s2 = plane.allpassState[2];
-    float s3 = plane.allpassState[3];
-    const float w0 = y - a * s0; y = a * w0 + s0;
-    const float w1 = y - a * s1; y = a * w1 + s1;
-    const float w2 = y - a * s2; y = a * w2 + s2;
-    const float w3 = y - a * s3; y = a * w3 + s3;
-    plane.allpassState[0] = w0;
-    plane.allpassState[1] = w1;
-    plane.allpassState[2] = w2;
-    plane.allpassState[3] = w3;
-    return y;
+    const Float2 rightSum
+        = w0 * Float2::load(poles.right[r0], top.right[r0])
+        + w1 * Float2::load(poles.right[r1], top.right[r1])
+        + w2 * Float2::load(poles.right[r2], top.right[r2])
+        + w3 * Float2::load(poles.right[r3], top.right[r3]);
+    const Float2 leftSum
+        = w0 * Float2::load(poles.left[l0], top.left[l0])
+        + w1 * Float2::load(poles.left[l1], top.left[l1])
+        + w2 * Float2::load(poles.left[l2], top.left[l2])
+        + w3 * Float2::load(poles.left[l3], top.left[l3]);
+    const Float2 total = rightSum + leftSum;
+    towardPoles = total[0];
+    alongTop = total[1];
 }
 
 void StratString::leaveFret(Plane& plane, float reflected) noexcept
@@ -1254,14 +1246,22 @@ namespace
 // reduction, so the compiler may run them in vector lanes and every float
 // stays bit-identical; the rails are separate arrays, which the restrict
 // parameters tell it.
-void dampSpan(float* __restrict right, float* __restrict left, int count, float absorption) noexcept
+void dampSpanPair(float* __restrict polesRight, float* __restrict polesLeft,
+                  float* __restrict topRight, float* __restrict topLeft,
+                  int count, float absorption) noexcept
 {
     const int last = count - 1;
+    const Float2 absV = Float2::splat(absorption);
     for (int i = 0; i < count; ++i)
     {
-        const float v = absorption * (right[last - i] + left[i]);
-        right[last - i] -= v;
-        left[i] -= v;
+        const int rIdx = last - i;
+        const Float2 r = Float2::load(polesRight[rIdx], topRight[rIdx]);
+        const Float2 l = Float2::load(polesLeft[i], topLeft[i]);
+        const Float2 v = absV * (r + l);
+        polesRight[rIdx] -= v[0];
+        topRight[rIdx] -= v[1];
+        polesLeft[i] -= v[0];
+        topLeft[i] -= v[1];
     }
 }
 } // namespace
@@ -1283,17 +1283,24 @@ void StratString::damp() noexcept
             const size_t l0 = static_cast<size_t>((write + leftOffset + d.position) & railMask);
             const size_t r1 = static_cast<size_t>((write - d.position - 1) & railMask);
             const size_t l1 = static_cast<size_t>((write + leftOffset + d.position + 1) & railMask);
-            const float near = 1.0f - d.next;
-            for (Plane* plane : {&poles, &top})
-            {
-                float* const right = plane->right.data();
-                float* const left = plane->left.data();
-                const float v = d.absorption * (near * (right[r0] + left[l0]) + d.next * (right[r1] + left[l1]));
-                right[r0] -= near * v;
-                left[l0] -= near * v;
-                right[r1] -= d.next * v;
-                left[l1] -= d.next * v;
-            }
+            const Float2 nearV = Float2::splat(1.0f - d.next);
+            const Float2 nextV = Float2::splat(d.next);
+            const Float2 absV = Float2::splat(d.absorption);
+            const Float2 r0v = Float2::load(poles.right[r0], top.right[r0]);
+            const Float2 l0v = Float2::load(poles.left[l0], top.left[l0]);
+            const Float2 r1v = Float2::load(poles.right[r1], top.right[r1]);
+            const Float2 l1v = Float2::load(poles.left[l1], top.left[l1]);
+            const Float2 v = absV * (nearV * (r0v + l0v) + nextV * (r1v + l1v));
+            const Float2 dv0 = nearV * v;
+            const Float2 dv1 = nextV * v;
+            poles.right[r0] -= dv0[0];
+            top.right[r0] -= dv0[1];
+            poles.left[l0] -= dv0[0];
+            top.left[l0] -= dv0[1];
+            poles.right[r1] -= dv1[0];
+            top.right[r1] -= dv1[1];
+            poles.left[l1] -= dv1[0];
+            top.left[l1] -= dv1[1];
             continue;
         }
         const int rStart = (write - d.position) & railMask;
@@ -1301,8 +1308,9 @@ void StratString::damp() noexcept
         if (rStart >= d.count - 1 && lStart + d.count <= railSize)
         {
             const int low = rStart - (d.count - 1);
-            dampSpan(poles.right.data() + low, poles.left.data() + lStart, d.count, d.absorption);
-            dampSpan(top.right.data() + low, top.left.data() + lStart, d.count, d.absorption);
+            dampSpanPair(poles.right.data() + low, poles.left.data() + lStart,
+                         top.right.data() + low, top.left.data() + lStart,
+                         d.count, d.absorption);
             continue;
         }
         for (Plane* plane : {&poles, &top})
@@ -1407,13 +1415,20 @@ float StratString::arrive() noexcept
     // swinging back, and those notes stray 0.06 to 0.18 dB.
     const float meanBleed = dcBleed * static_cast<float>(historyLength);
     const float invLength = historyLength > 0 ? 1.0f / static_cast<float>(historyLength) : 0.0f;
-    for (Plane* plane : {&poles, &top})
     {
-        const float mean = static_cast<float>(plane->historySum) * invLength;
-        plane->dcMean += dcPole * (mean - plane->dcMean);
-        plane->right[static_cast<size_t>(write & railMask)]
-            = -plane->left[static_cast<size_t>((write + leftOffset) & railMask)]
-            + meanBleed * plane->dcMean;
+        const Float2 mean = Float2::load(static_cast<float>(poles.historySum),
+                                         static_cast<float>(top.historySum))
+            * Float2::splat(invLength);
+        const Float2 dc = Float2::load(poles.dcMean, top.dcMean);
+        const Float2 nextDc = dc + Float2::splat(dcPole) * (mean - dc);
+        poles.dcMean = nextDc[0];
+        top.dcMean = nextDc[1];
+        const size_t rw = static_cast<size_t>(write & railMask);
+        const size_t lw = static_cast<size_t>((write + leftOffset) & railMask);
+        const Float2 refl = Float2::load(-poles.left[lw], -top.left[lw])
+            + Float2::splat(meanBleed) * nextDc;
+        poles.right[rw] = refl[0];
+        top.right[rw] = refl[1];
     }
 
     // Fret end.
@@ -1440,16 +1455,66 @@ float StratString::arrive() noexcept
         poles.loopTapPosition = readAt;
         loopTapPair(topAt, readAt, top.loopTap, poles.loopTap);
     }
-    // The fret does not yield along the top; a finger's end damps both
-    // planes alike.
-    const float topArriving = arriveAtFret(top, topAt);
+    else
+    {
+        if (topAt != top.loopTapPosition)
+        {
+            top.loopTapPosition = topAt;
+            top.loopTap = loopTapAt(topAt);
+        }
+        if (readAt != poles.loopTapPosition)
+        {
+            poles.loopTapPosition = readAt;
+            poles.loopTap = loopTapAt(readAt);
+        }
+    }
+    // Process top and poles loop filter + wrap + 4-stage allpass together in Float2.
+    const Float2 atFret = Float2::load(readRight(poles, poles.loopTap), readRight(top, top.loopTap));
+    const Float2 lGain = Float2::splat(lossGain);
+    const Float2 lZero = Float2::splat(lossZero);
+    const Float2 lPole = Float2::splat(lossPole);
+    const Float2 lInput = Float2::load(poles.lossInput, top.lossInput);
+    Float2 lState = Float2::load(poles.lossState, top.lossState);
+    lState = lGain * (atFret + lZero * lInput) - lPole * lState;
+    poles.lossState = lState[0];
+    top.lossState = lState[1];
+    poles.lossInput = atFret[0];
+    top.lossInput = atFret[1];
+    Float2 y = lState;
+    if (wrapPole != 0.0f)
+    {
+        const Float2 wp = Float2::splat(wrapPole);
+        const Float2 oneMinusWp = Float2::splat(1.0f - wrapPole);
+        const Float2 wState = oneMinusWp * y + wp * Float2::load(poles.wrapState, top.wrapState);
+        poles.wrapState = wState[0];
+        top.wrapState = wState[1];
+        y = wState;
+    }
+    const Float2 a = Float2::splat(allpassCoefficient);
+    const Float2 s0 = Float2::load(poles.allpassState[0], top.allpassState[0]);
+    const Float2 s1 = Float2::load(poles.allpassState[1], top.allpassState[1]);
+    const Float2 s2 = Float2::load(poles.allpassState[2], top.allpassState[2]);
+    const Float2 s3 = Float2::load(poles.allpassState[3], top.allpassState[3]);
+    const Float2 w0 = y - a * s0; y = a * w0 + s0;
+    const Float2 w1 = y - a * s1; y = a * w1 + s1;
+    const Float2 w2 = y - a * s2; y = a * w2 + s2;
+    const Float2 w3 = y - a * s3; y = a * w3 + s3;
+    poles.allpassState[0] = w0[0];
+    top.allpassState[0] = w0[1];
+    poles.allpassState[1] = w1[0];
+    top.allpassState[1] = w1[1];
+    poles.allpassState[2] = w2[0];
+    top.allpassState[2] = w2[1];
+    poles.allpassState[3] = w3[0];
+    top.allpassState[3] = w3[1];
+    const float topArriving = y[1];
     leaveFret(top, onFret() ? -topArriving : -fingerEnd * topArriving);
     // A crown collision depends on local displacement and actual clearance,
     // not a travelling wave's velocity at the termination. In particular
     // there is no following crown above the guitar's last fret. Leave the
     // bare string symmetric until a positioned, passive contact is supplied;
     // the former one-sided velocity clip invented a collision without one.
-    arrivingAtNeck = arriveAtFret(poles, readAt);
+    arrivingAtNeck = y[0];
     return arrivingAtNeck;
 }
 
@@ -1486,17 +1551,17 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         // pick's bend: f' = k (v - arriving - f / 2Z), stepped implicitly.
         // The string takes f less what the DC blocker below holds back, so
         // the spring is told how far the string really moved.
-        const double g = contactStiffness / sampleRate;
+        const double g = activeContactStiffness / sampleRate;
         const double twoZ = 2.0 * characteristicImpedance;
         const double heldBack = forceHeld - blockCoefficient * blockedForce - stickBase;
         contact = (contact + g * (stickSpeed - arriving + heldBack / twoZ)) / (1.0 + g / twoZ);
         if (contact * stickLimit < 0.0)
             contact = 0.0; // the string is moving ahead of the pick
         force = stickBase + contact;
-        if (std::abs(contact) >= std::abs(stickLimit) || --stickRemaining == 0)
+        if (scalarAbs(contact) >= scalarAbs(stickLimit) || --stickRemaining == 0)
         {
             stickRemaining = 0;
-            force = stickBase + (std::abs(contact) >= std::abs(stickLimit) ? stickLimit : contact);
+            force = stickBase + (scalarAbs(contact) >= scalarAbs(stickLimit) ? stickLimit : contact);
             startRelease(force, stickBase, stickRelease);
         }
     }
@@ -1518,10 +1583,10 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         ++releasePosition;
         const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);
         double shape = 1.0 - std::cos(0.5 * pi * u);
-        if (stickRelease > 0.0 && spec->wrapMetres > 0.0)
+        if (stickRelease > 0.0 && activeWrapScrape > 0.0 && spec->wrapMetres > 0.0)
         {
             const double wraps = pickBevelMetres / spec->wrapMetres;
-            shape += pickWrapDepth * std::sin(pi * u) * std::sin(2.0 * pi * wraps * u * u);
+            shape += activeWrapScrape * pickWrapDepth * std::sin(pi * u) * std::sin(2.0 * pi * wraps * u * u);
         }
         force = forceStart + (forceEnd - forceStart) * shape;
     }
@@ -1534,9 +1599,9 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         + blockCoefficient * topBlockedForce;
     pendingTopForce = 0.0;
     forceHeld = force;
-    if (std::abs(blockedForce) < 1e-9)
+    if (scalarAbs(blockedForce) < 1e-9)
         blockedForce = 0.0;
-    if (std::abs(topBlockedForce) < 1e-9)
+    if (scalarAbs(topBlockedForce) < 1e-9)
         topBlockedForce = 0.0;
     const float v = static_cast<float>(blockedForce / (2.0 * characteristicImpedance));
     const float topVelocity = static_cast<float>(topBlockedForce / (2.0 * characteristicImpedance));

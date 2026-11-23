@@ -88,7 +88,7 @@ void StratBridge::setBend(int stringIndex, double pitchRatio) noexcept
     if (stringIndex < 0 || stringIndex >= count)
         return;
     bend[static_cast<size_t>(stringIndex)] = pitchRatio > 1.0 ? pitchRatio : 1.0;
-    solve();
+    solveString(stringIndex);
 }
 
 void StratBridge::setPress(int stringIndex, double metres) noexcept
@@ -96,7 +96,15 @@ void StratBridge::setPress(int stringIndex, double metres) noexcept
     if (stringIndex < 0 || stringIndex >= count)
         return;
     press[static_cast<size_t>(stringIndex)] = metres > 0.0 ? metres : 0.0;
-    solve();
+    solveString(stringIndex);
+}
+
+void StratBridge::solveString(int s) noexcept
+{
+    const size_t k = static_cast<size_t>(s);
+    const double t0 = restTension(s);
+    const double unbent = t0 + axialStiffness(s) * (press[k] - saddleHeight * plateAngle);
+    ratio[k] = bend[k] * bend[k] * unbent / t0;
 }
 
 void StratBridge::solve() noexcept
@@ -106,11 +114,7 @@ void StratBridge::solve() noexcept
     // bent string is held at its target over that.
     plateAngle = arm >= 0.0 ? -arm * pullUpLimit() : -arm * diveLimit();
     for (int s = 0; s < count; ++s)
-    {
-        const size_t k = static_cast<size_t>(s);
-        const double unbent = restTension(s) + axialStiffness(s) * (press[k] - saddleHeight * plateAngle);
-        ratio[k] = bend[k] * bend[k] * unbent / restTension(s);
-    }
+        solveString(s);
 }
 
 } // namespace electry
