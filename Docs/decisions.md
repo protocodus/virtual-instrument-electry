@@ -4,6 +4,33 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-23 — Artifacts: a nut ring, a loose part, and no two events alike (B, by the standing rule)
+
+Decided: whether the Artifacts knob gains more kinds of hardware noise and
+draws each event's character afresh, as the owner asked ("increase number of
+artifact types and ensure two (even of the same type) do not sound the
+same").
+
+- A: the shipping 2.7.0 path: bridge-hardware ring, fret contact and saddle
+  rattle, each identical from one identical stroke to the next.
+- B: A plus the string behind the nut ringing at its own length, a loose body
+  part chattering once the body's motion exceeds its play, and a per-event
+  draw of each part's window, clearance, pitch, damping, level and noise
+  colour from the seeded stream.
+
+Material: the same hard E3 four times, two hard open-E strums and one soft
+E4, through the engine
+alone, 48 kHz, block 256, Artifacts at 60%, whole-file RMS matched to
+−26 dBFS (A +11.23 dB, B +11.28 dB). Across the four identical strokes the
+artifact component's spectral centroid spread from 2127 to 2698 Hz in A and
+from 1543 to 3266 Hz in B.
+
+**B ships by the owner's standing rule that the candidate wins unless the
+owner says otherwise; the owner has not yet listened.** The nut lengths, the
+loose part's play, pitch and damping and every spread are conventions and
+estimates, and the new parts' levels (about 30 to 34 dB under the signal at
+60%) were set by ear. Nothing here was measured on a guitar.
+
 ## 2026-11-09 — the Strat's force grows with velocity to the power 1.275 (between A and B)
 
 Decided: how the Strat's picking force grows with MIDI velocity. The attack's

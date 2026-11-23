@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.8.0 — 2026-11-23 — Two more kinds of Artifacts, and no two alike
+
+The Artifacts knob now adds two more kinds of hardware noise: the short
+length of string behind the nut, which rings at its own high pitch when a
+string is struck, and a loose part on the body that chatters when a hard
+strum shakes the guitar past its play. Every artifact event now draws its
+own character: each fret contact its window and clearance, each saddle
+rattle and nut ring its pitch, damping and level, each loose-part chatter its
+pitch and grain. Two identical strokes no longer give the same noise. At 0%
+the path is still exactly bypassed, and identical MIDI still renders
+identical audio. The six-string Rack guitar is unchanged.
+
 ### 2.7.0 — 2026-11-23 — A Telecaster beside the Strat
 
 The six-string guitar can now be a Telecaster: two single coils on a 3-way
@@ -1120,8 +1132,11 @@ behind a 0% knob. CC 120/123 behave as All Sound Off and All Notes Off.
   versus plain) with independent level controls. Identical MIDI always
   renders identical audio.
 - **Artifacts:** a separate deterministic imperfection path adds controllable
-  bridge-hardware ring, velocity-dependent incidental fret contact, and
-  string-specific saddle buzz. This is the mechanical noise of the instrument's
+  bridge-hardware ring, velocity-dependent incidental fret contact,
+  string-specific saddle buzz, the ring of each string's length behind the nut
+  and a loose part on the body that chatters once the body's motion exceeds
+  its play. Each event draws its own window, pitch, damping, level and noise
+  colour from the seeded stream, so no two strokes rattle alike. This is the mechanical noise of the instrument's
   hardware, distinct from the Sympathetic Ring control above, which vibrates
   the actual strings. At 0% it is exactly bypassed and silent; the 18% default
   is intentionally subtle.
@@ -1542,7 +1557,7 @@ this field migrate to on; factory rig selection preserves its current value.
 | Fretting vibrato | Guitar-TECHS CC-BY raw DIs; Magalhães et al.'s eight-player electric-guitar vibrato study | Hold the visible A#0 gesture; velocity controls a smooth-onset, upward-only width, with independent rate, depth and phase draws per physically held stopped string. Pre-held intent waits for a stopped finger; open and key-released strings remain fixed. Picking-hand repicks and overlapping ownership of the same held or delayed note preserve its onset and finger, while a released/refretted note assigns another. Velocity 64 is nominally about 5.6 Hz / 20 cents and 127 about 6.4 Hz / 40 cents | A playable finger-rock model whose existing range overlaps published six-string players; not an exact eight-string calibration or a finger/string force solve |
 | Pitch control | Legacy MIDI pitch bend, the official [MIDI MPE specification](https://midi.org/midi-polyphonic-expression-mpe-specification-adopted), and [MIDI 1.0 RPN/controller semantics](https://midi.org/midi-1-0-control-change-messages) | With no active zone, the latest wheel applies the same ±2 semitone offset to every played and sympathetically ringing string. In a declared lower or upper MPE zone, each member channel owns a physical string and uses the exact semitone-plus-cent per-note range retained alongside JUCE's integer routing state; the exact master range adds to every zone member. Same-pitch member notes remain distinct, layout changes retain outstanding Note Off ownership, a released tail freezes its member interval while its zone master stays live, idle-channel wheel data initializes the next finger, and both paths use Bend Time. CC 121 recentres wheels and nulls RPN selection without deleting the zone or its exact ranges; CC 123 retains whole-instrument release semantics | Standards-gated, fixed-state per-note pitch without changing ordinary MIDI; not a physical vibrato-bar simulation. Per-note pressure, CC 74 timbre and release velocity remain unassigned |
 | Amplifier feedback | Acoustic guitar-to-amplifier feedback practice: a loudspeaker's pressure field re-excites the strings, while high-gain players control unused strings | A sample-rate-derived FIFO holds a voiced nominal 5.805 ms acoustic delay (256 samples at 44.1 kHz), while the plug-in renders, amplifies and returns causal chunks no longer than that delay so DAW block size cannot select the howl. A soft-clipped, gain-scaled copy drives played strings fully and idle sympathetic strings at a voiced one-quarter direct share while leaving their bridge drive unchanged. CC1 resonance, Resonance Depth and rig acoustic loudness scale the path, so a distorted tone at full wheel regenerates while a dry DI never can; every element is bounded | A fixed-delay, level-gated, saturating regeneration path with a performance-voiced unused-string share; not a measured player-to-speaker distance, finger-by-finger muting, room acoustics, speaker directivity, or a standing-wave model |
-| Controllable artifacts | The same touch/collision literature plus bridge-hardware behavior | An exactly bypassable deterministic path combines a bridge-hardware modal bank driven through the selected pickup mix, incidental fret contact on hard-picked notes, and per-string saddle rattle, all driven by played energy. It is mechanical hardware noise, distinct from the sympathetic string coupling above | Plausible procedural imperfection with bounded feed-forward resonators; not measured hardware-noise statistics |
+| Controllable artifacts | The same touch/collision literature plus bridge-hardware behavior | An exactly bypassable deterministic path combines a bridge-hardware modal bank driven through the selected pickup mix, incidental fret contact on hard-picked notes, and per-string saddle rattle, plus the ring of the string behind the nut, and a loose body part that chatters past its play, all driven by played energy, with each event's character drawn afresh from the seeded stream. It is mechanical hardware noise, distinct from the sympathetic string coupling above | Plausible procedural imperfection with bounded feed-forward resonators; not measured hardware-noise statistics |
 | Audible-work culling | Standard realtime-DSP practice | A pickup faded out by the selector is skipped entirely; Mono runs one shared coil/DC/decimation chain and mirrors it; damping-only control moves reuse the existing dispersion fit; the whole engine freezes to exact zero once nothing vibrates and the shared path is below -120 dBFS | Removal of inaudible arithmetic with the audible result unchanged; not a quality/latency trade |
 | Oversampling | Standard nonlinear-audio antialiasing practice | The physical, body, collision, and nonlinear pickup path runs at 2x for host rates through 96 kHz, followed by a fixed 63-tap halfband FIR; higher-rate hosts run 1x. The separate distortion/amplifier High mode uses the smallest 1x, 2x, 4x or 8x path reaching 384 kHz from a 48 kHz host upward, with 44.1 kHz bounded at 8x/352.8 kHz. Default Standard removes one stage, bounded at 1x; prepared banks crossfade on live mode changes | High retains the original -70 dB alias regression target; Standard accepts roughly 9–12 dB worse full-drive amplifier alias rejection in the matched standard-rate probes for lower CPU cost. This is a stated rate/quality trade, not identical audio across modes |
 | Output modes | Phase-coherent divided/hex pickup practice, ordinary double-tracked guitar performance, and four CC-BY HiMMP rhythm DIs | Mono is the conventional summed DI. Stereo weights one engine's modeled strings by physical lateral position and folds coherently to mono. Double runs two complete, differently seeded mono engines into left and right before one shared FX chain; both use the same MIDI timestamps and strum schedule | Stereo is a virtual divided-pickup string field and Double is two deterministic modeled performances rather than a delayed copy. The independent contact variations give each performance its own attack colour |
@@ -1617,6 +1632,12 @@ tip springing clear in a fixed time, the plain strings brighten much less
 with velocity than the wound ones: from velocity 20 to 127 the high E's
 2–6 kHz rises 1.5 dB against its lows below 1.2 kHz, the low E's 9.6
 (fret 5, first 100 ms). Whether a real high E does more is not measured.
+
+The Artifacts path's newer parts are estimates, not measurements: the
+lengths behind the nut (45 mm plus 22 mm a string), the loose part's play,
+pitch and damping, and the spread each event draws are conventions, and
+their levels were set by ear against the signal. No recording of a guitar's
+hardware noise has checked them.
 
 The [automated test scope](Docs/validation/automated-test-scope.md) says what the
 suites do and do not establish, and the

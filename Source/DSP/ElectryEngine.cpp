@@ -1860,6 +1860,7 @@ void ElectryEngine::prepare(double sampleRate, int maxBlockSize)
     retireAttackCoefficient_ = rateAdjustedCoefficient(0.01f, internalRate);
     retireReleaseCoefficient_ = rateAdjustedCoefficient(0.0009f, internalRate);
     artifactBandCoefficient_ = rateAdjustedCoefficient(0.12f, internalRate);
+    loosePartSettleSamples = std::max(1, static_cast<int>(0.050 * internalRate));
     // The palm-mute impact thud's fixed 85 Hz one-pole corner. This was
     // previously recomputed with std::exp on every sample a palm-impact
     // envelope was active, once per voice; it depends only on the internal
@@ -1947,6 +1948,9 @@ void ElectryEngine::reset()
     alternateNextStrokeIsUp_ = false;
     soloStringMask_ = 0;
     noteSequence_ = variationSeed_;
+    loosePart_.reset();
+    loosePart_.noiseState = hash32(variationSeed_ ^ 0x6d2b79f5u);
+    loosePart_.quietSamples = loosePartSettleSamples;
     activeVoiceCount_ = 0;
     sympatheticStringCount_ = 0;
     controlCountdown_ = 0;
@@ -6118,14 +6122,18 @@ void ElectryEngine::startExcitation(Voice& voice, float velocity, bool legato,
         const float contact = std::pow(parameters.artifactAmount, 0.75f)
                             * voice.velocityProfile.collision
                             * (0.70f + 0.30f * voice.lowStringWeight);
+        // The hand never hits the fret quite the same way twice: each stroke
+        // draws its own window length and clearance around the touch's.
+        const float windowSpread = 1.0f + 0.30f * bipolarNoise(voice.artifactNoiseState);
+        const float clearanceSpread = 1.0f + 0.20f * bipolarNoise(voice.artifactNoiseState);
         voice.artifactCollisionLength = static_cast<int>(
-            lerp(0.025f, 0.100f, voice.velocityProfile.collision)
+            lerp(0.025f, 0.100f, voice.velocityProfile.collision) * windowSpread
             * static_cast<float>(sampleRate_));
         voice.artifactCollisionLengthDenominator =
             static_cast<float>(std::max(1, voice.artifactCollisionLength));
         voice.artifactCollisionRemaining = voice.artifactCollisionLength;
         voice.artifactClearance = lerp(looseFretClearanceMetres,
-                                       hardFretClearanceMetres, contact)
+                                       hardFretClearanceMetres, contact) * clearanceSpread
                                 / waveguideDisplacementMetresPerUnit;
 #if ELECTRY_POSITIONED_FRET_COLLISION
         const auto cells = followingFretContactCells(
@@ -7476,15 +7484,37 @@ void ElectryEngine::startVoice(Voice& voice, int midiNote, float velocity,
     // A new stroke adds force to the moving saddle. Preserve its displacement
     // history through repicks/refrets, just like the bridge/body thud below;
     // damping the string does not stop this separate hardware mode instantly.
+    // Every stroke meets the hardware differently: its own share of the
+    // saddle's rattle and Q and its own colour of contact noise, so no two
+    // artifacts are alike, even on the same string and note. These spreads
+    // are conventions for that variety, not measurements (README, Known gaps).
+    const float rattleQSpread = 1.0f + 0.30f * bipolarNoise(voice.artifactNoiseState);
+    voice.saddleRattleLevel = 1.0f + 0.40f * bipolarNoise(voice.artifactNoiseState);
+    const float contactColour = std::exp2(0.6f * bipolarNoise(voice.artifactNoiseState));
     if (! wasRinging)
+    {
         voice.saddleRattle.reset();
+        voice.nutRing.reset();
+    }
     voice.saddleRattle.configure(
         rattleFrequency,
-        lerp(10.0f, 24.0f, smoothedParameters_.artifactAmount), 1.0f,
+        lerp(10.0f, 24.0f, smoothedParameters_.artifactAmount) * rattleQSpread, 1.0f,
         static_cast<float>(sampleRate_));
+    // The string's dead length from the nut to its tuner post, on an in-line
+    // headstock: about 45 mm for the lowest string and 22 mm more for each
+    // string after it (estimate, Known gaps). At the speaking length's tension
+    // it rings at the open pitch times the scale over that length; how much a
+    // stroke sets it going, and how long it rings, differ each time.
+    const float nutMetres = 0.045f + 0.022f * static_cast<float>(voice.stringIndex);
+    const float nutHz = midiToHz(static_cast<float>(
+            stringSpecs()[static_cast<std::size_t>(voice.stringIndex)].openMidiNote))
+        * scaleLengthMetres() / nutMetres;
+    voice.nutRing.configure(nutHz, 40.0f * (1.0f + 0.30f * bipolarNoise(voice.artifactNoiseState)),
+                            1.0f, static_cast<float>(sampleRate_));
+    voice.nutRingLevel = 1.0f + 0.40f * bipolarNoise(voice.artifactNoiseState);
     voice.artifactNoiseShaper.reset();
     voice.artifactNoiseCoefficient = std::exp(
-        -twoPi * (3400.0f + 280.0f * static_cast<float>(voice.stringIndex))
+        -twoPi * (3400.0f + 280.0f * static_cast<float>(voice.stringIndex)) * contactColour
         * inverseSampleRate_);
     voice.artifactNoiseBandState = 0.0f;
     const bool legatoStillMoving = sameHeldFinger
@@ -8118,6 +8148,7 @@ void ElectryEngine::silenceVoice(Voice& voice) noexcept
     voice.artifactNoiseShaper.reset();
     voice.artifactNoiseBandState = 0.0f;
     voice.saddleRattle.reset();
+    voice.nutRing.reset();
     voice.lastConfiguredSemitones = -999.0f;
     voice.lastConfiguredFrequency = -1.0f;
     voice.lastConfiguredLiveFret = -999.0f;
@@ -9210,12 +9241,15 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     // for seconds, overwhelming the correct long-string release spectrum.
     const float injected = excitation + 0.01f * noiseSample;
     float saddleRattle = 0.0f;
+    float nutRing = 0.0f;
     if (artifactsActive_)
     {
         const float rattleDrive = 0.10f * excitation
                                 + 0.65f * artifactContactSignal
                                 + 0.08f * artifactExcess;
-        saddleRattle = voice.saddleRattle.process(rattleDrive);
+        saddleRattle = voice.saddleRattleLevel * voice.saddleRattle.process(rattleDrive);
+        // The stroke's wave crosses the nut into the dead length behind it.
+        nutRing = voice.nutRingLevel * voice.nutRing.process(excitation);
     }
 
     // Articulations attack the string at different angles, splitting energy
@@ -9350,7 +9384,7 @@ void ElectryEngine::renderVoice(Voice& voice, RenderSums& sums) noexcept
     float artifactPickup = 0.0f;
     if (artifactsActive_)
         artifactPickup = artifactContactSignal
-                       + 0.035f * artifactBuzzAmount_ * saddleRattle;
+                       + artifactBuzzAmount_ * (0.035f * saddleRattle + nutRingPickup * nutRing);
 
     float neckSignal = 0.0f;
     float bridgeSignal = 0.0f;
@@ -9700,6 +9734,37 @@ void ElectryEngine::renderSympatheticString(Voice& voice, RenderSums& sums,
         * (total * total - voice.sympatheticEnergy);
 }
 
+float ElectryEngine::loosePartChatter(float bodyDisplacement) noexcept
+{
+    auto& part = loosePart_;
+    const float excess = scalarAbs(bodyDisplacement) - loosePartPlay;
+    float drive = 0.0f;
+    if (excess > 0.0f)
+    {
+        // A contact after the part has settled lands it somewhere new: its
+        // own pitch, Q, level and noise colour until it settles again. The
+        // part and its spreads are estimates (README, Known gaps).
+        if (part.quietSamples >= loosePartSettleSamples)
+        {
+            const float rate = static_cast<float>(sampleRate_);
+            part.mode.configure(
+                820.0f * std::exp2(0.25f * bipolarNoise(part.noiseState)),
+                12.0f * (1.0f + 0.30f * bipolarNoise(part.noiseState)), 1.0f, rate);
+            part.level = 1.0f + 0.40f * bipolarNoise(part.noiseState);
+            part.noiseCoefficient = std::exp(
+                -twoPi * 2500.0f * std::exp2(0.7f * bipolarNoise(part.noiseState)) / rate);
+        }
+        part.quietSamples = 0;
+        drive = part.noiseShaper.process(bipolarNoise(part.noiseState), part.noiseCoefficient)
+              * excess;
+    }
+    else if (part.quietSamples < loosePartSettleSamples)
+    {
+        ++part.quietSamples;
+    }
+    return loosePartLevel * artifactBuzzAmount_ * part.level * part.mode.process(drive);
+}
+
 void ElectryEngine::freezeSharedPath() noexcept
 {
     for (auto& filter : neckCoils_)
@@ -9712,6 +9777,7 @@ void ElectryEngine::freezeSharedPath() noexcept
         mode.reset();
     for (auto& mode : artifactRingModes_)
         mode.reset();
+    loosePart_.reset();
     for (auto& decimator : decimators_)
         decimator.reset();
     previousBodyDisplacement_ = 0.0f;
@@ -9982,12 +10048,14 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
             {
                 for (auto& mode : artifactRingModes_)
                     mode.reset();
+                loosePart_.reset();
                 for (auto& voice : voices_)
                 {
                     voice.artifactCollisionRemaining = 0;
                     voice.artifactNoiseShaper.reset();
                     voice.artifactNoiseBandState = 0.0f;
                     voice.saddleRattle.reset();
+                    voice.nutRing.reset();
                 }
             }
             artifactsActive_ = false;
@@ -10302,6 +10370,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         float ring = 0.0f;
         for (auto& mode : artifactRingModes_)
             ring += mode.process(drive);
+        ring += loosePartChatter(0.080f * sums.body);
         const float mix = 0.85f * smoothedParameters_.artifactAmount;
         const int channelCount = channelsLinked_ ? 1 : 2;
         for (int channel = 0; channel < channelCount; ++channel)
@@ -10391,6 +10460,7 @@ ElectryEngine::StereoSample ElectryEngine::renderInternalSample(
         bodyEmfLowpass_.reset();
         for (auto& mode : artifactRingModes_)
             mode.reset();
+        loosePart_.reset();
         for (auto& decimator : decimators_)
             decimator.reset();
         sympatheticBus_ = 0.0f;

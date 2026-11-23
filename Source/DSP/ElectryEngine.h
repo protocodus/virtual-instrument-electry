@@ -1554,6 +1554,13 @@ private:
         int artifactFollowingFretFar { 3 };
 #endif
         ModalResonator saddleRattle {};
+        // This stroke's share of the saddle's rattle: the saddle is one part,
+        // but where and how hard the string sets it moving differs each time.
+        float saddleRattleLevel { 1.0f };
+        // The string's dead length between the nut and its tuner post rings
+        // when the pick sets the string moving (see startVoice).
+        ModalResonator nutRing {};
+        float nutRingLevel { 0.0f };
 
         // Damping ramp applied by note release and palm muting.
         float releaseGain { 1.0f };
@@ -2327,6 +2334,41 @@ private:
     // waveguide-coupled Sympathetic Ring feature (`sympatheticBus_` and
     // friends below), which actually vibrates the modelled strings.
     std::array<ModalResonator, stringCount> artifactRingModes_ {};
+    // A loose part on the guitar - a pickup's height-screw spring, the jack
+    // nut, the selector's cap - that chatters against the body when the body
+    // moves further than its play. Each new contact lands the part somewhere
+    // else, so it rings at its own pitch, Q, level and noise colour.
+    struct LoosePart
+    {
+        ModalResonator mode {};
+        OnePole noiseShaper {};
+        std::uint32_t noiseState { 0x6d2b79f5u };
+        float noiseCoefficient { 0.5f };
+        float level { 1.0f };
+        // Internal samples since the part last touched, up to settled.
+        int quietSamples { 0 };
+        // Stops its motion; the noise state runs on, so the next phrase's
+        // contacts are not the last phrase's again.
+        void reset() noexcept
+        {
+            mode.reset();
+            noiseShaper.reset();
+        }
+    };
+    LoosePart loosePart_ {};
+    // A part that has not touched for 50 ms has settled (set in prepare()).
+    int loosePartSettleSamples { 1 };
+    float loosePartChatter(float bodyDisplacement) noexcept;
+    // The body displacement (0.080 x the body drive) the loose part's play
+    // takes up before it touches: hard strums peak near 0.05 and stay above
+    // it for about 20 ms, a hard single note for a few samples, a soft note
+    // never. Its chatter's level at full Artifacts is voiced by ear.
+    static constexpr float loosePartPlay = 0.008f;
+    static constexpr float loosePartLevel = 50.0f;
+    // How much of the dead length's ring reaches the pickups, through the nut
+    // into the speaking string beside it; voiced by ear, about 30 dB under a
+    // hard note at 60% Artifacts.
+    static constexpr float nutRingPickup = 6.0f;
     // Each mode's own clamped omega, omega-squared and loss rate, solved once
     // here in configureBody() rather than by bodyConductanceAt() on every
     // call: that call runs per partial inside configureVoiceDamping() (up to

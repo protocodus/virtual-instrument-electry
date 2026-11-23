@@ -275,6 +275,9 @@ struct ElectryEngineTestAccess
         std::uint32_t artifactNoiseState { 0u };
         int artifactCollisionRemaining { 0 };
         int artifactCollisionLength { 0 };
+        float artifactNoiseCoefficient { 0.0f };
+        float saddleRattleLevel { 0.0f };
+        float nutRingLevel { 0.0f };
         float loopDampingCoefficient { 0.0f };
         float vibratoPhase { 0.0f };
         float vibratoRateScale { 1.0f };
@@ -395,6 +398,9 @@ struct ElectryEngineTestAccess
         result.artifactNoiseState = voice.artifactNoiseState;
         result.artifactCollisionRemaining = voice.artifactCollisionRemaining;
         result.artifactCollisionLength = voice.artifactCollisionLength;
+        result.artifactNoiseCoefficient = voice.artifactNoiseCoefficient;
+        result.saddleRattleLevel = voice.saddleRattleLevel;
+        result.nutRingLevel = voice.nutRingLevel;
         result.loopDampingCoefficient = voice.vertical.loopDampingCoefficient;
         result.vibratoPhase = voice.vibratoPhase;
         result.vibratoRateScale = voice.vibratoRateScale;
@@ -1334,6 +1340,16 @@ struct ElectryEngineTestAccess
         ElectryEngine::DelayTap tap;
         tap.setDelay(delaySamples);
         return { tap.offset, tap.c0, tap.c1, tap.c2, tap.c3 };
+    }
+
+    static int loosePartQuietSamples(const ElectryEngine& engine)
+    {
+        return engine.loosePart_.quietSamples;
+    }
+
+    static int loosePartSettleSamples(const ElectryEngine& engine)
+    {
+        return engine.loosePartSettleSamples;
     }
 
     static int stringForNote(const ElectryEngine& engine, int midiNote)
@@ -9408,6 +9424,63 @@ void testArtifactsControl()
     renderInto(engine, strum);
     expect(allFinite(strum) && peakAbs(strum.left) < 0.80f,
            "maximum-artifact eight-string strum became unstable");
+}
+
+// The same stroke on the same string four times: each draws its own contact
+// colour, saddle-rattle share and ring behind the nut, so no two artifacts are
+// alike. A hard strum moves the body far enough for the loose part to touch;
+// a soft note does not.
+void testArtifactEventsDiffer()
+{
+    constexpr double sampleRate = 48000.0;
+    auto engineHeapFixture = std::make_unique<ElectryEngine>();
+    auto& engine = *engineHeapFixture;
+    engine.prepare(sampleRate, 512);
+    EngineParameters parameters;
+    parameters.artifactAmount = 1.0f;
+    engine.setParameters(parameters);
+    engine.reset();
+
+    struct Draw { float colour, rattle, nut; };
+    std::vector<Draw> draws;
+    StereoBuffer gap(static_cast<int>(0.4 * sampleRate));
+    for (int stroke = 0; stroke < 4; ++stroke)
+    {
+        engine.noteOn(52, 0.9f);
+        renderInto(engine, gap);
+        const auto voice = TestAccess::snapshot(engine, TestAccess::stringForNote(engine, 52));
+        draws.push_back({ voice.artifactNoiseCoefficient, voice.saddleRattleLevel, voice.nutRingLevel });
+        engine.noteOff(52);
+        renderInto(engine, gap);
+    }
+    for (std::size_t i = 0; i < draws.size(); ++i)
+        for (std::size_t j = i + 1; j < draws.size(); ++j)
+            expect(draws[i].colour != draws[j].colour && draws[i].rattle != draws[j].rattle
+                       && draws[i].nut != draws[j].nut,
+                   "two strokes of one note drew the same artifacts ("
+                       + std::to_string(i) + ", " + std::to_string(j) + ")");
+    for (const auto& draw : draws)
+        expect(draw.rattle > 0.0f && draw.nut > 0.0f, "an artifact share fell to zero or below");
+
+    const int settled = TestAccess::loosePartSettleSamples(engine);
+    engine.reset();
+    engine.noteOn(64, 0.35f);
+    StereoBuffer soft(static_cast<int>(0.5 * sampleRate));
+    renderInto(engine, soft);
+    expect(TestAccess::loosePartQuietSamples(engine) == settled,
+           "a soft single note set the loose part chattering");
+
+    engine.reset();
+    for (const int note : { 28, 35, 40, 45, 50, 55, 59, 64 })
+        engine.noteOn(note, 1.0f);
+    StereoBuffer strum(static_cast<int>(0.010 * sampleRate));
+    bool touched = false;
+    for (int block = 0; block < 30 && ! touched; ++block)
+    {
+        renderInto(engine, strum);
+        touched = TestAccess::loosePartQuietSamples(engine) < settled;
+    }
+    expect(touched, "a hard eight-string strum never moved the loose part");
 }
 
 #if ELECTRY_POSITIONED_FRET_COLLISION
@@ -23151,6 +23224,7 @@ int main(int argc, char** argv)
     testPickupGeometryFollowsLiveWaveSpeed();
     testHumbuckerTwoCoilNotch();
     testArtifactsControl();
+    testArtifactEventsDiffer();
 #if ELECTRY_POSITIONED_FRET_COLLISION
     testPositionedFretCollision();
 #endif
