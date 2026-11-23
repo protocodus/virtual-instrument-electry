@@ -524,6 +524,61 @@ void testReleaseAndPedal()
     check(s >= 0 && p->stringNote(s) < 0, "lifting the pedal releases it");
 }
 
+// A strummed chord let go just before the next strum keeps ringing into it,
+// as a strumming hand keeps the shape (owner, 2026-11-23: Slow Strum sounded
+// muted at every restrum); let go with no strum after, it stops once the
+// grace runs out, and a single note let go still stops at once.
+void testStrumHoldsTheShape()
+{
+    const int G[] = {43, 47, 50, 55, 59, 67};
+    // dB under the ringing before the key-up, late in the gap and 0.2 s on.
+    // The restrum's notes come `spread` apart, as a humanised chord's do.
+    const auto gap = [&](bool chord, bool strumAgain, bool keysUp, double seconds, double spread) {
+        auto p = makePerformer();
+        if (chord)
+            for (int n : G)
+                p->noteOn(0, n, 100);
+        else
+            p->noteOn(0, 55, 100);
+        const double ringing = energy(render(*p, 0.5), 0.45, 0.05);
+        if (keysUp)
+            for (int n : G)
+                p->noteOff(0, n);
+        const auto y = render(*p, seconds);
+        std::vector<float> z;
+        if (strumAgain)
+            for (int n : G)
+            {
+                p->noteOn(0, n, 76);
+                const auto part = render(*p, spread);
+                z.insert(z.end(), part.begin(), part.end());
+            }
+        const auto rest = render(*p, 0.3);
+        z.insert(z.end(), rest.begin(), rest.end());
+        return std::array<double, 2> {10.0 * std::log10(energy(y, seconds - 0.012, 0.012) / ringing),
+                                      10.0 * std::log10(energy(z, 0.2, 0.05) / ringing)};
+    };
+    // 37 ms: Slow Strum's key-up before each restrum; 100 ms the most a
+    // played or humanised chord change is taken to leave (owner).
+    bool rings = true;
+    for (const double seconds : {0.037, 0.100})
+        for (const double spread : {0.0, 0.008})
+        {
+            const auto kept = gap(true, true, false, seconds, spread);
+            const auto held = gap(true, true, true, seconds, spread);
+            std::printf("strum gap %.0f ms, notes %.0f ms apart: let go %.1f / %.1f dB, "
+                        "kept down %.1f / %.1f dB\n", 1e3 * seconds, 1e3 * spread,
+                        held[0], held[1], kept[0], kept[1]);
+            rings = rings && std::abs(held[0] - kept[0]) < 0.5 && std::abs(held[1] - kept[1]) < 1.0;
+        }
+    check(rings, "a chord let go up to 100 ms before the next strum rings into it as if held");
+    const auto letGo = gap(true, false, true, 0.037, 0.0), single = gap(false, false, true, 0.037, 0.0);
+    std::printf("chord let go then nothing %.1f dB 0.2 s on; single note %.1f dB in the gap\n",
+                letGo[1], single[0]);
+    check(letGo[1] < -30.0, "a chord let go with no strum after stops once the grace runs out");
+    check(single[0] < -10.0, "a single note let go still stops at once");
+}
+
 // The A on the G string's 2nd fret drives the open A at its octave through
 // the neck (StratString's neck); a free string that hears the B-flat rings at
 // its own pitch. The hand that lets the A go stops both, and lifts at the
@@ -2400,6 +2455,7 @@ int main()
     testFingerKey();
     testDampAll();
     testReleaseAndPedal();
+    testStrumHoldsTheShape();
     testRestingHand();
     testReleaseLift();
     testLegatoAndSlide();

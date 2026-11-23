@@ -348,6 +348,17 @@ constexpr double slideSecondsPerFret = 0.043;
 // How soon a stroke must follow the last one to go the other way, as a
 // strumming hand keeps moving. Voiced.
 constexpr double alternateWithinSeconds = 0.35;
+// A strumming player holds the chord's shape between strokes, so its strings
+// ring into the next strum. A sequence lets the keys go a little before it:
+// Electry's Slow Strum demo 37 ms (a 0.95-beat note at 80 bpm), a keyboard
+// player's chords often more. Longer, and a chord let go on purpose would
+// hang on audibly first.
+// 120 ms covers the 100 ms gap the owner asked for (2026-11-23) with a
+// humanised timing's margin.
+constexpr double strumGraceSeconds = 0.120;
+// Notes struck this close together are one chord's, even when a player or a
+// humanise function spreads them (typically 10 to 20 ms).
+constexpr double chordWithinSeconds = 0.030;
 
 // Fretting-hand vibrato: a bend rocking up from the note and back, up to a
 // quarter tone above it at full channel pressure. On IDMT-SMT-Guitar's Stratocaster
@@ -556,6 +567,8 @@ void StratPerformer::reset() noexcept
     strokePick = 0.0;
     steadyStroke = true;
     lastStroke = -1000000;
+    chordStart = -1000000;
+    chordStrings = 0;
     pendingCount = eventCount = 0;
     delayedHead = delayedCount = 0;
     now = 0;
@@ -825,6 +838,16 @@ void StratPerformer::playNoteOff(int channel, int note) noexcept
         st.keyDown = false;
         if (pedal)
             st.sustained = true;
+        else if (st.chord)
+        {
+            // The shape stays for the next strum (strumGraceSeconds).
+            st.strumHeld = true;
+            Event letGo;
+            letGo.time = now + static_cast<std::int64_t>(strumGraceSeconds * sampleRate);
+            letGo.kind = EventKind::letGo;
+            letGo.string = s;
+            schedule(letGo);
+        }
         else if (!strikeQueued(s))
             release(s);
         return;
@@ -1593,6 +1616,7 @@ void StratPerformer::startStroke() noexcept
         schedule(e);
 
         stopRub(s);
+        cancelEvents(s, EventKind::letGo);
         st = StringState {};
         st.place = place;
         st.note = wanted[i];
@@ -1604,6 +1628,31 @@ void StratPerformer::startStroke() noexcept
         if (fret > 0 && fret < lowestFret)
             lowestFret = fret;
     }
+    // Which strings this stroke's chord has struck so far.
+    if (now - chordStart > static_cast<std::int64_t>(chordWithinSeconds * sampleRate))
+    {
+        chordStart = now;
+        chordStrings = 0;
+    }
+    for (int i = 0; i < count; ++i)
+        if (stringFor[static_cast<size_t>(i)] >= 0)
+            chordStrings |= static_cast<std::uint8_t>(1u << stringFor[static_cast<size_t>(i)]);
+    const bool chord = (chordStrings & (chordStrings - 1)) != 0; // two strings or more
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+        if ((chordStrings >> s) & 1u)
+            strings[static_cast<size_t>(s)].chord = chord;
+    // The next shape takes the hand from the strings it held for the strum,
+    // once the rest of its chord has had the time to arrive and take theirs.
+    for (int s = 0; s < StratEngine::stringCount; ++s)
+        if (strings[static_cast<size_t>(s)].strumHeld)
+        {
+            cancelEvents(s, EventKind::letGo);
+            Event letGo;
+            letGo.time = now + static_cast<std::int64_t>(chordWithinSeconds * sampleRate);
+            letGo.kind = EventKind::letGo;
+            letGo.string = s;
+            schedule(letGo);
+        }
     // The hand settles where the shape's lowest fretted note sits.
     if (lowestFret <= frets && (lowestFret < hand - 1.0 || lowestFret > hand + 3.0))
         hand = lowestFret;
@@ -1764,6 +1813,17 @@ void StratPerformer::runEvent(const Event& e) noexcept
 {
     const int s = e.string;
     StringState& st = strings[static_cast<size_t>(s)];
+    if (e.kind == EventKind::letGo)
+    {
+        if (!st.strumHeld)
+            return;
+        st.strumHeld = false;
+        if (pedal)
+            st.sustained = true;
+        else
+            release(s);
+        return;
+    }
     if (e.kind == EventKind::leaveString)
     {
         // Unless the hand has fretted or struck it since.
@@ -1934,7 +1994,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
         st.bendStart = now + static_cast<std::int64_t>(bendDelaySeconds * sampleRate);
         st.bendLength = static_cast<std::int64_t>(bendRiseSeconds * sampleRate);
     }
-    if (!st.keyDown && !st.sustained && st.note >= 0)
+    if (!st.keyDown && !st.sustained && !st.strumHeld && st.note >= 0)
         release(s);
 }
 

@@ -68,7 +68,9 @@ struct StratControls
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
 // the picking hand's palm on the strings across all play modes, from off to
 // a full palm mute at the top; channel pressure adds fretting-hand vibrato;
-// the sustain pedal lets released notes ring.
+// the sustain pedal lets released notes ring. A chord's key let go holds its
+// string through to the next strum, for strumGraceSeconds
+// (StratPerformer.cpp), as a strumming hand keeps the shape between strokes.
 //
 // Events take effect where they are called: render up to an event's sample,
 // then send it; with the lookahead on, latencySamples() later. prepare()
@@ -165,6 +167,8 @@ private:
         int channel = 0;
         bool keyDown = false;
         bool sustained = false; // key up while the pedal is down
+        bool chord = false;     // struck in a stroke across two strings or more
+        bool strumHeld = false; // a chord's key up, held for the next strum
         double fret = 0.0;      // where the fretting hand is
         // Where its fingertip lies behind the fret, a share of the way to
         // the next one toward the nut (StratPerformer.cpp, placeShare).
@@ -209,7 +213,8 @@ private:
         leaveString,
         prepare,   // the fretting hand reads the notes due at `due`
         shift,     // a finger glides along the string to the next fret
-        press      // and presses the string down onto it
+        press,     // and presses the string down onto it
+        letGo      // a chord's finger lets go when no strum came for it
     };
     struct Event
     {
@@ -358,6 +363,10 @@ private:
     double strokePick = 0.0;    // this stroke's pick offset from the control
     bool steadyStroke = true;   // the first stroke after a reset
     std::int64_t lastStroke = -1000000;
+    // The strokes of one chord, played by hand or humanised a little apart
+    // (chordWithinSeconds): when it began and the strings they struck.
+    std::int64_t chordStart = -1000000;
+    std::uint8_t chordStrings = 0;
     std::uint64_t orderCounter = 0;
 
     static constexpr int maxPending = 16;
