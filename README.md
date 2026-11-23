@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.9.0 — 2026-11-23 — Strums ring on, and a limiter instead of a soft clip
+
+On the six-string guitar, a strummed chord now rings until the next strum
+takes its strings, even when the keys come up a little early: a chord let go
+less than 120 ms before the next one, as a sequenced or humanised part
+does, no longer mutes its strings in the gap. Two or more strings struck
+within 30 ms count as a strum; a single note and a chord let go with nothing
+after still stop as before. The output's soft clip from −3.1 dBFS is gone:
+a look-ahead peak limiter holds every sample at or under −1.5 dBFS and
+leaves everything below it untouched. It adds 2 ms of latency, which the
+device reports.
+
 ### 2.8.0 — 2026-11-23 — Two more kinds of Artifacts, and no two alike
 
 The Artifacts knob now adds two more kinds of hardware noise: the short

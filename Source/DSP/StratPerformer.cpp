@@ -428,11 +428,12 @@ constexpr double compressorThresholdVolts = 0.85;
 constexpr double compressorKneeWidth = 1.2;
 constexpr double compressorExponent = -0.72;
 constexpr double compressorMakeup = 1.15;
-// High-headroom safety ceiling in jack volts (where 10 V is 0 dBFS in the
-// host): strictly linear up to 7.0 V (-3.1 dBFS), then a C1-continuous tanh
-// knee asymptotically bounded at 9.5 V (-0.45 dBFS).
-constexpr double headroomKneeVolts = 7.0;
-constexpr double headroomMarginVolts = 2.5;
+// The host reads 10 V at the jack as full scale. The portfolio's look-ahead
+// peak limiter (OutputStage.h) holds the output at or under -1.5 dBFS there,
+// with no distortion: the owner asked for headroom without clipping
+// (2026-11-23). It replaced a tanh knee from -3.1 dBFS, which distorted the
+// hardest strums it bent.
+constexpr double jackToHost = 0.1;
 
 // The string's wave impedance at standard tension, kg/s.
 double impedance(int s) noexcept
@@ -527,6 +528,7 @@ void StratPerformer::prepare(double rate)
     compressorRelease = std::exp(-1.0 / (compressorReleaseSeconds * rate));
     compressorSmooth = 1.0 - std::exp(-1.0 / (compressorSmoothSeconds * rate));
     guitar->prepare(rate);
+    limiter.Prepare(rate);
     reset();
     setControls(current);
 }
@@ -534,6 +536,7 @@ void StratPerformer::prepare(double rate)
 void StratPerformer::reset() noexcept
 {
     guitar->reset();
+    limiter.Reset();
     guitar->setArm(0.0);
     armFrom = armTo = armNow = 0.0;
     armStart = armLength = 0;
@@ -2274,46 +2277,41 @@ void StratPerformer::render(float* out, int samples) noexcept
         for (int i = 0; i < chunk; ++i)
         {
             double v = out[done + i];
-            if (v == 0.0 && compressorEnvelope == 0.0 && compressorMix == compTarget)
+            if (v != 0.0 || compressorEnvelope != 0.0 || compressorMix != compTarget)
             {
-                out[done + i] = static_cast<float>(v);
-                continue;
-            }
-            if (compressorMix != compTarget)
-            {
-                compressorMix += compressorSmooth * (compTarget - compressorMix);
-                if (compTarget == 0.0 && compressorMix < 1e-5)
-                    compressorMix = 0.0;
-                else if (compTarget == 1.0 && compressorMix > 1.0 - 1e-5)
-                    compressorMix = 1.0;
-            }
-            const double absV = scalarAbs(v);
-            const double coeff = absV > compressorEnvelope ? compressorAttack : compressorRelease;
-            compressorEnvelope = coeff * compressorEnvelope + (1.0 - coeff) * absV;
-            if (compressorEnvelope < 1e-30)
-                compressorEnvelope = 0.0;
-            if (compressorMix > 0.0)
-            {
-                double reduction = 1.0;
-                const double over = compressorEnvelope / compressorThresholdVolts;
-                if (over > 1.0)
+                if (compressorMix != compTarget)
                 {
-                    const double t = clamp((over - 1.0) / compressorKneeWidth, 0.0, 1.0);
-                    const double knee = t * t * (3.0 - 2.0 * t);
-                    reduction = std::pow(over, compressorExponent * knee);
+                    compressorMix += compressorSmooth * (compTarget - compressorMix);
+                    if (compTarget == 0.0 && compressorMix < 1e-5)
+                        compressorMix = 0.0;
+                    else if (compTarget == 1.0 && compressorMix > 1.0 - 1e-5)
+                        compressorMix = 1.0;
                 }
-                const double wetGain = reduction * (1.0 + compressorMakeup * compressorMix);
-                v *= 1.0 + compressorMix * (wetGain - 1.0);
+                const double absV = scalarAbs(v);
+                const double coeff = absV > compressorEnvelope ? compressorAttack : compressorRelease;
+                compressorEnvelope = coeff * compressorEnvelope + (1.0 - coeff) * absV;
+                if (compressorEnvelope < 1e-30)
+                    compressorEnvelope = 0.0;
+                if (compressorMix > 0.0)
+                {
+                    double reduction = 1.0;
+                    const double over = compressorEnvelope / compressorThresholdVolts;
+                    if (over > 1.0)
+                    {
+                        const double t = clamp((over - 1.0) / compressorKneeWidth, 0.0, 1.0);
+                        const double knee = t * t * (3.0 - 2.0 * t);
+                        reduction = std::pow(over, compressorExponent * knee);
+                    }
+                    const double wetGain = reduction * (1.0 + compressorMakeup * compressorMix);
+                    v *= 1.0 + compressorMix * (wetGain - 1.0);
+                }
+                v *= outGain;
             }
-            v *= outGain;
-            const double absOut = scalarAbs(v);
-            if (absOut > headroomKneeVolts)
-            {
-                const double compressed = headroomKneeVolts
-                    + headroomMarginVolts * std::tanh((absOut - headroomKneeVolts) / headroomMarginVolts);
-                v = v < 0.0 ? -compressed : compressed;
-            }
-            out[done + i] = static_cast<float>(v);
+            // The limiter runs on every sample, silence included, so its
+            // delay line stays one look-ahead long.
+            std::array<float, 1> frame {static_cast<float>(v * jackToHost)};
+            limiter.Process(frame);
+            out[done + i] = frame[0] / static_cast<float>(jackToHost);
         }
         done += static_cast<int>(chunk);
         now += chunk;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OutputStage.h"
 #include "StratEngine.h"
 
 #include <array>
@@ -146,8 +147,9 @@ public:
     void allNotesOff() noexcept;
 
     void render(float* out, int samples) noexcept;
-    // What the lookahead delays the output by, 0 without it.
-    int latencySamples() const noexcept { return latency; }
+    // What the output is delayed by: the lookahead's, when on, and the
+    // output limiter's 2 ms.
+    int latencySamples() const noexcept { return latency + limiter.DelaySamples(); }
 
     Articulation articulation() const noexcept { return latched; }
     Stroke stroke() const noexcept { return strokes; }
@@ -321,6 +323,7 @@ private:
     }
     double sampleRate = 48000.0;
     double outputGain = 1.0;
+    protocodus::OutputStage<1> limiter;
     double compressorTarget = 0.0;
     double compressorMix = 0.0;
     double compressorSmooth = 0.0;
