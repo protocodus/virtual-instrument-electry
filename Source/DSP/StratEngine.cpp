@@ -20,6 +20,15 @@ constexpr double middleMetres = 0.098;
 constexpr double bridgeBassMetres = 0.046;
 constexpr double bridgeTrebleMetres = 0.036;
 
+// The Telecaster's bridge pickup slants as the Strat's does and sits
+// 0.214 in (5.4 mm) further from the saddles (reported, comparing the two
+// guitars' routing templates); its neck pickup is taken at the Strat's neck
+// coil's place (estimate: the two guitars route it within a few millimetres,
+// and no drawing here says how many).
+constexpr double teleNeckMetres = neckMetres;
+constexpr double teleBridgeBassMetres = bridgeBassMetres + 0.0054;
+constexpr double teleBridgeTrebleMetres = bridgeTrebleMetres + 0.0054;
+
 // Pole-to-string gap, Fender's vintage-style setting: 8/64 in on the bass
 // side and 6/64 in on the treble side, set with the string held at the last
 // fret, and taken as one gap per string between them; the vintage pole
@@ -197,14 +206,18 @@ double besselI0(double x) noexcept
 
 } // namespace
 
-double StratEngine::coilMetres(int coil, int stringIndex) noexcept
+double StratEngine::coilMetres(StratCircuit::Guitar guitar, int coil, int stringIndex) noexcept
 {
+    const bool tele = guitar == StratCircuit::Guitar::tele;
     if (coil == 0)
-        return neckMetres;
+        return tele ? teleNeckMetres : neckMetres;
+    // The Tele's middle slot has no coil wired; its tap stays at the Strat's.
     if (coil == 1)
         return middleMetres;
     const double across = stringIndex / static_cast<double>(stringCount - 1);
-    return bridgeBassMetres + (bridgeTrebleMetres - bridgeBassMetres) * across;
+    const double bass = tele ? teleBridgeBassMetres : bridgeBassMetres;
+    const double treble = tele ? teleBridgeTrebleMetres : bridgeTrebleMetres;
+    return bass + (treble - bass) * across;
 }
 
 // The guitar is set up so its fretted notes play in tune with its open
@@ -282,7 +295,7 @@ void StratEngine::prepare(double sampleRate) noexcept
         string.setIntonation(openMetres, setback);
         string.setRestPitch(restPitch(s) * masterTune);
         string.prepare(stringRate, s, controlPeriod * oversampling);
-        string.setTaps({coilMetres(0, s), coilMetres(1, s), coilMetres(2, s)});
+        string.setTaps({coilMetres(guitar, 0, s), coilMetres(guitar, 1, s), coilMetres(guitar, 2, s)});
         steel[static_cast<size_t>(s)] = static_cast<float>(steelCoupling(s) * poleBalance(s));
         // Two loops of the open string slackened to a quarter of its
         // tension, the longest the string can be.
@@ -341,6 +354,18 @@ void StratEngine::reset() noexcept
 void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
 {
     circuit.setControls(controls);
+    if (controls.guitar == guitar)
+        return;
+    // The other guitar's coils read the same strings from their own places.
+    guitar = controls.guitar;
+    for (int s = 0; s < stringCount; ++s)
+    {
+        strings[static_cast<size_t>(s)].setTaps(
+            {coilMetres(guitar, 0, s), coilMetres(guitar, 1, s), coilMetres(guitar, 2, s)});
+        updateCoilGeometry(s);
+    }
+    if (guitar == StratCircuit::Guitar::tele)
+        setArm(0.0);
 }
 
 // Fretting stretches the string: the finger pushes it past the fret's crown
@@ -465,6 +490,8 @@ void StratEngine::setMasterTune(double pitchRatio) noexcept
 
 void StratEngine::setArm(double position) noexcept
 {
+    if (guitar == StratCircuit::Guitar::tele)
+        position = 0.0;
     tremolo.setArm(position);
     bridgeMoved = true;
 }
@@ -510,7 +537,7 @@ void StratEngine::updateCoilGeometry(int stringIndex) noexcept
     const double setSpeaking = fretMetres(stringIndex, gapSetFret);
     for (int c = 0; c < coilCount; ++c)
     {
-        const double x = coilMetres(c, stringIndex);
+        const double x = coilMetres(guitar, c, stringIndex);
         const double share = speaking > 0.0 ? std::min(x / speaking, 1.0) : 0.0;
         constexpr float invPoleSteps = 1.0f / 80.0f;
         const float bend = static_cast<float>(lateralMetres * share / fluxStepMetres);
@@ -550,7 +577,7 @@ void StratEngine::pluck(int stringIndex, double forceNewtons, double metresFromB
     const double topSign = opposedPlanes ? -1.0 : 1.0;
     for (int c = 0; c < coilCount; ++c)
     {
-        const double rest = string.restingDeflection(held, coilMetres(c, stringIndex)) * stringRate;
+        const double rest = string.restingDeflection(held, coilMetres(guitar, c, stringIndex)) * stringRate;
         swing[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)] += static_cast<float>(rest);
         swingTop[static_cast<size_t>(stringIndex)][static_cast<size_t>(c)]
             += static_cast<float>(topSign * rest);

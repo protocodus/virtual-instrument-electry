@@ -576,8 +576,9 @@ void StratPerformer::setControls(const StratControls& controls) noexcept
             dispatch(m);
         }
     latency = controls.lookahead ? static_cast<int>(std::lround(lookaheadSeconds * sampleRate)) : 0;
-    const bool changedBendMode = controls.fingerBendWheel != current.fingerBendWheel;
+    const bool wasFingerWheel = fingerWheel();
     current = controls;
+    const bool changedBendMode = fingerWheel() != wasFingerWheel;
     if (changedBendMode)
     {
         // A patch or automation may swap the routing while the wheel is held.
@@ -1036,7 +1037,7 @@ void StratPerformer::playPitchBend(int channel, double position) noexcept
         // MIDI stream (controllers send at 10 Hz and more while moving), not
         // a measurement of the hand.
         mainWheelPosition = position;
-        if (current.fingerBendWheel)
+        if (fingerWheel())
             position = std::min(0.0, position);
         const std::int64_t interval = now - lastArmMessage;
         const bool streaming = lastArmMessage >= 0 && interval > 0
@@ -2149,9 +2150,9 @@ void StratPerformer::controlUpdate() noexcept
                 st.vibratoFrom = 0.0;
         }
         double playerPull = st.channel != 0 ? channelBend[static_cast<size_t>(st.channel)] : 0.0;
-        if (current.fingerBendWheel || st.wheelPull > 0.0 || st.wheelMotion > 0.0)
+        if (fingerWheel() || st.wheelPull > 0.0 || st.wheelMotion > 0.0)
         {
-            if (st.channel == 0 && current.fingerBendWheel && lastPickedString == s)
+            if (st.channel == 0 && fingerWheel() && lastPickedString == s)
                 playerPull = 2.0 * std::max(mainWheelPosition, 0.0);
             const double rate = playerPull > st.wheelMotion ? pullRise : pullRelease;
             st.wheelMotion += rate * (playerPull - st.wheelMotion);

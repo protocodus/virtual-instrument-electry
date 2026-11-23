@@ -158,25 +158,62 @@ void exponential(const Matrix& a, Matrix& out) noexcept
 struct Wiring
 {
     bool coil[3];   // neck, middle, bridge
-    bool tone[2];   // Tone 1 (neck), Tone 2 (middle)
+    bool tone[2];   // Tone 1 (neck; the Tele's master), Tone 2 (middle)
 };
 
-Wiring wiringFor(StratCircuit::Position position) noexcept
+Wiring wiringFor(StratCircuit::Guitar guitar, StratCircuit::Position position) noexcept
 {
+    using Position = StratCircuit::Position;
+    if (guitar == StratCircuit::Guitar::tele)
+    {
+        switch (position)
+        {
+            case Position::bridge:
+            case Position::bridgeMiddle:
+                return {{false, false, true}, {true, false}};
+            case Position::middle:
+            case Position::bridgeNeck:
+                return {{true, false, true}, {true, false}};
+            case Position::middleNeck:
+            case Position::neck:
+            default:
+                return {{true, false, false}, {true, false}};
+        }
+    }
     switch (position)
     {
-        case StratCircuit::Position::bridge:
+        case Position::bridge:
             return {{false, false, true}, {false, false}};
-        case StratCircuit::Position::bridgeMiddle:
+        case Position::bridgeMiddle:
             return {{false, true, true}, {false, true}};
-        case StratCircuit::Position::middle:
+        case Position::middle:
+        case Position::bridgeNeck:
             return {{false, true, false}, {false, true}};
-        case StratCircuit::Position::middleNeck:
+        case Position::middleNeck:
             return {{true, true, false}, {true, true}};
-        case StratCircuit::Position::neck:
+        case Position::neck:
         default:
             return {{true, false, false}, {true, false}};
     }
+}
+
+struct Coil
+{
+    double ohms, henries, farads, eddyOhms;
+};
+
+// Neck, middle and bridge coils of the guitar played; the Tele's middle slot
+// is never wired, so its coil only keeps the network's shape.
+std::array<Coil, 3> coilsFor(StratCircuit::Guitar guitar) noexcept
+{
+    using C = StratCircuit;
+    const Coil strat {C::coilOhms, C::coilHenries, C::coilFarads, C::eddyOhms};
+    if (guitar == C::Guitar::tele)
+        return {Coil {C::teleNeckOhms, C::teleNeckHenries, C::teleNeckFarads, C::teleNeckEddyOhms},
+                strat,
+                Coil {C::teleBridgeOhms, C::teleBridgeHenries, C::teleBridgeFarads,
+                      C::teleBridgeEddyOhms}};
+    return {strat, strat, strat};
 }
 
 } // namespace
@@ -219,7 +256,9 @@ void StratCircuit::updateCoefficients() noexcept
     // states: unscaled, the matrix spans ten decades and the exponential's
     // squarings lose six digits (1e-6 against 4e-11 relative, checked
     // against SciPy's expm).
-    const Wiring wiring = wiringFor(current.position);
+    const Wiring wiring = wiringFor(current.guitar, current.position);
+    const std::array<Coil, 3> coils = coilsFor(current.guitar);
+    const double toneFarads = current.guitar == Guitar::tele ? teleToneFarads : StratCircuit::toneFarads;
     activeCount = 0;
     activeCoilCount = 0;
     for (int k = 0; k < 3; ++k)
@@ -276,14 +315,16 @@ void StratCircuit::updateCoefficients() noexcept
             a[row][j] += g * nodeX[j] / c;
         a[row][row] -= g / c;
     };
-    const double coilImpedance = std::sqrt(coilHenries / coilFarads);
+    double coilImpedance[3];
     for (int k = 0; k < 3; ++k)
     {
-        a[k][k] = -coilOhms / coilHenries;
-        a[k][3 + k] = -coilImpedance / coilHenries;
-        a[3 + k][k] = 1.0 / (coilImpedance * coilFarads);
-        a[3 + k][3 + k] -= 1.0 / (eddyOhms * coilFarads);
-        feedFromX(3 + k, coilConductance[k], coilFarads);
+        const Coil& coil = coils[static_cast<size_t>(k)];
+        coilImpedance[k] = std::sqrt(coil.henries / coil.farads);
+        a[k][k] = -coil.ohms / coil.henries;
+        a[k][3 + k] = -coilImpedance[k] / coil.henries;
+        a[3 + k][k] = 1.0 / (coilImpedance[k] * coil.farads);
+        a[3 + k][3 + k] -= 1.0 / (coil.eddyOhms * coil.farads);
+        feedFromX(3 + k, coilConductance[k], coil.farads);
     }
     for (int t = 0; t < 2; ++t)
         feedFromX(6 + t, toneConductance[t], toneFarads);
@@ -297,7 +338,7 @@ void StratCircuit::updateCoefficients() noexcept
             augmented[row * n + column] = a[row][column] * h;
     for (int k = 0; k < inputCount; ++k)
     {
-        augmented[k * n + stateCount + k] = h * coilImpedance / coilHenries;
+        augmented[k * n + stateCount + k] = h * coilImpedance[k] / coils[static_cast<size_t>(k)].henries;
         augmented[(stateCount + k) * n + stateCount + inputCount + k] = 1.0;
     }
 

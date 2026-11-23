@@ -57,6 +57,18 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.7.0 — 2026-11-23 — A Telecaster beside the Strat
+
+The six-string guitar can now be a Telecaster: two single coils on a 3-way
+switch (bridge, both in parallel, neck) with one master Volume and one
+master Tone, on a fixed bridge. Its coils are Fender's Pure Vintage '52 set
+(neck 7.2 kΩ and 2.4 H, bridge 6.6 kΩ and 3.8 H); the bridge coil slants
+5.4 mm further from the saddles than the Strat's. With no arm, the pitch
+wheel bends the last fretted string up and does nothing below centre. The
+strings, neck and playing are the Strat's, and the Strat is bit-identical to
+2.6.2. A T-style guitar recorded direct checks its broad shape, not its
+values ([comparison](Docs/validation/tele-reference-2026-11-23.md)).
+
 ### 2.6.2 — 2026-11-23 — Strat physical-model fixes and bit-exact CPU optimizations
 
 Fixed continuous rub leaks across interrupted releases, slides, harmonics, damp
@@ -1571,8 +1583,20 @@ contact. The real DI comparisons use six-string performance references, and
 do not establish eight-string perceptual parity. Large-jump choking and a
 physical spatial model of the fretting contact remain further work.
 
-The Stratocaster of 2.0.0 plays only in the Reason Rack Extension and in
-`Tools/RenderStrat.cpp`; the plug-in has not moved to it yet.
+The Stratocaster of 2.0.0 and the Telecaster of 2.7.0 play only in the
+Reason Rack Extension and in `Tools/RenderStrat.cpp`; the plug-in has not
+moved to them yet.
+
+The Telecaster of 2.7.0 takes its coils' resistance and inductance from
+Fender's listing, but its winding capacitances, tone capacitor and neck coil's
+place are estimates, and the loss its neck cover and bridge plate add is left
+out, so both coils ring a little more than a Tele's would. Its strings, neck,
+gaps and pole balance are the Strat's. The one T-style DI recording found,
+Guitar-TECHS's Sire T7, does not state its stroke or knobs and has no single
+notes: against it the Tele is 1 to 5 dB off from 200 Hz to 8 kHz with a soft
+stroke, 8 dB over at 1.6 kHz and 4 to 8 dB short below 200 Hz
+([comparison](Docs/validation/tele-reference-2026-11-23.md)). Single notes of
+a Telecaster recorded direct would fit it.
 
 The Strat's two planes of swing split each partial by a fixed share of its
 frequency, the in-plane speaking length fitted on the first partials. On the

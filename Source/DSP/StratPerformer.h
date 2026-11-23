@@ -63,7 +63,8 @@ struct StratControls
 // keeps what the keyswitches latched.
 // Channel 1 uses the tremolo arm by default. With fingerBendWheel enabled,
 // positive wheel pulls the most recently struck fretted string by up to a tone
-// and negative wheel still dips the arm. Pitch bend on channels 2 to 16
+// and negative wheel still dips the arm. The Telecaster has no arm: its wheel
+// always pulls the string so, and below centre does nothing. Pitch bend on channels 2 to 16
 // bends that channel's string at MPE's 48-semitone range. The mod wheel lays
 // the picking hand's palm on the strings across all play modes, from off to
 // a full palm mute at the top; channel pressure adds fretting-hand vibrato;
@@ -308,6 +309,11 @@ private:
 
     std::unique_ptr<StratEngine> guitar;
     StratControls current;
+    // The main wheel bends the last struck string rather than moving an arm.
+    bool fingerWheel() const noexcept
+    {
+        return current.fingerBendWheel || current.circuit.guitar == StratCircuit::Guitar::tele;
+    }
     double sampleRate = 48000.0;
     double outputGain = 1.0;
     double compressorTarget = 0.0;

@@ -1,4 +1,4 @@
-// The Stratocaster circuit against independent circuit math. The expected
+// The Stratocaster and Telecaster circuits against independent circuit math. The expected
 // response is the analog network solved by complex impedances (each coil as a
 // Thevenin source, node X by Millman's theorem, the Volume pot as a loaded
 // divider), not by the engine's state-space form. Ramp invariance makes the
@@ -8,7 +8,9 @@
 //   H(e^jwT) = sum_k Ha(j(w + k ws)) sinc^2((w + k ws) T / 2).
 #include "DSP/StratCircuit.h"
 
+#include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <complex>
 #include <cstdio>
 #include <vector>
@@ -40,39 +42,64 @@ struct Selection
     bool tone[2]; // Tone 1, Tone 2
 };
 
-Selection selectionFor(Position position)
+Selection selectionFor(StratCircuit::Guitar guitar, Position position)
 {
+    if (guitar == StratCircuit::Guitar::tele)
+        switch (position)
+        {
+            case Position::bridge: return {{false, false, true}, {true, false}};
+            case Position::bridgeNeck: return {{true, false, true}, {true, false}};
+            case Position::neck: return {{true, false, false}, {true, false}};
+            default: return {};
+        }
     switch (position)
     {
         case Position::bridge: return {{false, false, true}, {false, false}};
         case Position::bridgeMiddle: return {{false, true, true}, {false, true}};
-        case Position::middle: return {{false, true, false}, {false, true}};
+        case Position::middle:
+        case Position::bridgeNeck: return {{false, true, false}, {false, true}};
         case Position::middleNeck: return {{true, true, false}, {true, true}};
         case Position::neck: return {{true, false, false}, {true, false}};
     }
     return {};
 }
 
+Selection selectionFor(const StratCircuit::Controls& controls)
+{
+    return selectionFor(controls.guitar, controls.position);
+}
+
+struct CoilValues
+{
+    double ohms, henries, farads, eddyOhms;
+};
+
+CoilValues coilValues(StratCircuit::Guitar guitar, int coil)
+{
+    if (guitar == StratCircuit::Guitar::tele && coil == 0)
+        return {StratCircuit::teleNeckOhms, StratCircuit::teleNeckHenries,
+                StratCircuit::teleNeckFarads, StratCircuit::teleNeckEddyOhms};
+    if (guitar == StratCircuit::Guitar::tele && coil == 2)
+        return {StratCircuit::teleBridgeOhms, StratCircuit::teleBridgeHenries,
+                StratCircuit::teleBridgeFarads, StratCircuit::teleBridgeEddyOhms};
+    return {StratCircuit::coilOhms, StratCircuit::coilHenries, StratCircuit::coilFarads,
+            StratCircuit::eddyOhms};
+}
+
 // Analog transfer from coil `input`'s induced voltage to the jack, with the
 // contact and pot-end resistances given explicitly so the ideal 0 Ohm network
-// can be compared.
+// can be compared, and the eddy-current loss optionally left out.
 Complex analogResponse(const StratCircuit::Controls& controls, int input,
                        Complex s,
                        double contactOhms = StratCircuit::contactOhms,
                        double potEndOhms = StratCircuit::potEndOhms,
-                       double eddyOhms = StratCircuit::eddyOhms)
+                       bool eddy = true)
 {
-    const Selection selection = selectionFor(controls.position);
+    const Selection selection = selectionFor(controls);
     if (!selection.coil[input])
         return 0.0;
-
-    const Complex coilSeries = StratCircuit::coilOhms
-        + s * StratCircuit::coilHenries;
-    const Complex winding = 1.0
-        / (s * StratCircuit::coilFarads + (eddyOhms > 0.0 ? 1.0 / eddyOhms : 0.0));
-    const Complex theveninImpedance
-        = coilSeries * winding / (coilSeries + winding);
-    const Complex theveninGain = winding / (coilSeries + winding);
+    const double toneFarads = controls.guitar == StratCircuit::Guitar::tele
+        ? StratCircuit::teleToneFarads : StratCircuit::toneFarads;
 
     const double volume = StratCircuit::audioTaper(controls.volume);
     const double top = (1.0 - volume) * StratCircuit::potOhms + potEndOhms;
@@ -81,12 +108,18 @@ Complex analogResponse(const StratCircuit::Controls& controls, int input,
         / (s * StratCircuit::cableFarads + 1.0 / bottom
            + 1.0 / StratCircuit::ampInputOhms);
 
-    // Millman: node X = sum(source admittance * source) / sum(admittance).
+    // Millman: node X = sum(source admittance * source) / sum(admittance),
+    // each coil a Thevenin source.
     Complex admittance = 1.0 / (top + jack);
     Complex sourceCurrent = 0.0;
     for (int k = 0; k < 3; ++k)
         if (selection.coil[k])
         {
+            const CoilValues c = coilValues(controls.guitar, k);
+            const Complex coilSeries = c.ohms + s * c.henries;
+            const Complex winding = 1.0 / (s * c.farads + (eddy ? 1.0 / c.eddyOhms : 0.0));
+            const Complex theveninImpedance = coilSeries * winding / (coilSeries + winding);
+            const Complex theveninGain = winding / (coilSeries + winding);
             const Complex branch
                 = 1.0 / (theveninImpedance + contactOhms);
             admittance += branch;
@@ -100,7 +133,7 @@ Complex analogResponse(const StratCircuit::Controls& controls, int input,
                 / (contactOhms
                    + StratCircuit::audioTaper(toneRotation[t])
                        * StratCircuit::potOhms
-                   + 1.0 / (s * StratCircuit::toneFarads));
+                   + 1.0 / (s * toneFarads));
     const Complex nodeX = sourceCurrent / admittance;
     return nodeX * jack / (top + jack);
 }
@@ -169,7 +202,7 @@ void testAgainstAnalogMath(double sampleRate)
 {
     const Position positions[] = {Position::bridge, Position::bridgeMiddle,
                                   Position::middle, Position::middleNeck,
-                                  Position::neck};
+                                  Position::neck, Position::bridgeNeck};
     struct Knobs
     {
         double volume, toneNeck, toneMiddle;
@@ -184,11 +217,18 @@ void testAgainstAnalogMath(double sampleRate)
     // leaves its tail below double precision.
     const int length = static_cast<int>(2.0 * sampleRate);
 
+    const Position telePositions[] = {Position::bridge, Position::bridgeNeck, Position::neck};
     double worst = 0.0;
+    for (const auto guitar : {StratCircuit::Guitar::strat, StratCircuit::Guitar::tele})
     for (Position position : positions)
         for (const Knobs& k : knobs)
         {
+            if (guitar == StratCircuit::Guitar::tele
+                && std::find(std::begin(telePositions), std::end(telePositions), position)
+                    == std::end(telePositions))
+                continue;
             StratCircuit::Controls controls;
+            controls.guitar = guitar;
             controls.position = position;
             controls.volume = k.volume;
             controls.toneNeck = k.toneNeck;
@@ -197,7 +237,7 @@ void testAgainstAnalogMath(double sampleRate)
             {
                 const auto response
                     = impulseResponse(controls, input, sampleRate, length);
-                const bool connected = selectionFor(position).coil[input];
+                const bool connected = selectionFor(controls).coil[input];
                 for (double f : frequencies)
                 {
                     if (f >= 0.45 * sampleRate)
@@ -237,7 +277,7 @@ void testConventionsAreInaudible()
             controls.volume = 1.0;
             controls.toneNeck = tone;
             controls.toneMiddle = tone;
-            const Selection selection = selectionFor(controls.position);
+            const Selection selection = selectionFor(controls);
             for (int input = 0; input < 3; ++input)
             {
                 if (!selection.coil[input])
@@ -315,11 +355,74 @@ void testEddyCurrentDamping()
     const Complex s(0.0, 2.0 * pi * 5060.0);
     const double withEddy = std::abs(analogResponse(controls, 2, s));
     const double lossless = std::abs(analogResponse(controls, 2, s, StratCircuit::contactOhms,
-                                                    StratCircuit::potEndOhms, 0.0));
+                                                    StratCircuit::potEndOhms, false));
     const double dampingDb = 20.0 * std::log10(lossless / withEddy);
     std::printf("bridge 5.06 kHz resonance: Alnico 5 eddy loss damps peak by %.2f dB\n", dampingDb);
     check(dampingDb > 2.5 && dampingDb < 5.0,
           "Alnico 5 pole eddy-current shunt damps the un-toned bridge LC resonance");
+}
+
+
+// The Strat's positions on a Telecaster play its 3-way on their side of the
+// switch, and its own both-coils position on a Strat plays the middle coil.
+void testSwitchMapping()
+{
+    const auto same = [](StratCircuit::Guitar g, Position a, Position b) {
+        StratCircuit::Controls x, y;
+        x.guitar = y.guitar = g;
+        x.position = a;
+        y.position = b;
+        for (int input = 0; input < 3; ++input)
+            if (impulseResponse(x, input, 48000.0, 2048) != impulseResponse(y, input, 48000.0, 2048))
+                return false;
+        return true;
+    };
+    using G = StratCircuit::Guitar;
+    check(same(G::tele, Position::bridgeMiddle, Position::bridge), "Tele: position 2 of 5 is the bridge");
+    check(same(G::tele, Position::middle, Position::bridgeNeck), "Tele: the middle is both coils");
+    check(same(G::tele, Position::middleNeck, Position::neck), "Tele: position 4 of 5 is the neck");
+    check(same(G::strat, Position::bridgeNeck, Position::middle), "Strat: no neck-and-bridge position");
+}
+
+// The Tele's bridge coil, at 3.8 H against the neck's 2.4, is the darker of
+// the two at the jack with every knob at 10: the master Tone's 250 kOhm hangs
+// on it in every position, which leaves neither coil much of a peak, so
+// compare where each falls 3 dB under its level at 500 Hz. Its master Tone
+// at 0 cuts 4 kHz on every position.
+void testTeleVoicing()
+{
+    StratCircuit::Controls controls;
+    controls.guitar = StratCircuit::Guitar::tele;
+    const auto cornerHz = [&](Position position, int input) {
+        controls.position = position;
+        controls.toneNeck = 1.0;
+        const auto gain = [&](double f) {
+            return std::abs(analogResponse(controls, input, Complex(0.0, 2.0 * pi * f)));
+        };
+        const double reference = gain(500.0);
+        double f = 500.0;
+        while (f < 20000.0 && gain(f) > reference / std::sqrt(2.0))
+            f *= 1.005;
+        return f;
+    };
+    const double bridge = cornerHz(Position::bridge, 2), neck = cornerHz(Position::neck, 0);
+    std::printf("Tele -3 dB corners at the jack: bridge %.0f Hz, neck %.0f Hz\n", bridge, neck);
+    check(bridge < neck, "Tele: the bridge coil is the darker");
+    check(bridge > 2500.0 && neck < 12000.0, "Tele: corners where single coils of this inductance sit");
+    for (Position position : {Position::bridge, Position::bridgeNeck, Position::neck})
+    {
+        controls.position = position;
+        const int input = position == Position::neck ? 0 : 2;
+        const Complex s(0.0, 2.0 * pi * 4000.0);
+        controls.toneNeck = 1.0;
+        const double open = std::abs(analogResponse(controls, input, s));
+        controls.toneNeck = 0.0;
+        const double closed = std::abs(analogResponse(controls, input, s));
+        check(20.0 * std::log10(open / closed) > 15.0, "Tele: master Tone works on every position");
+        controls.toneMiddle = 0.0;
+        check(std::abs(analogResponse(controls, input, s)) == closed, "Tele: no second Tone");
+        controls.toneMiddle = 1.0;
+    }
 }
 
 } // namespace
@@ -334,6 +437,8 @@ int main()
     testMovingControls();
     testDeterminism();
     testEddyCurrentDamping();
+    testSwitchMapping();
+    testTeleVoicing();
     if (failures == 0)
         std::printf("StratCircuit: all checks passed\n");
     return failures == 0 ? 0 : 1;

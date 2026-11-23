@@ -33,11 +33,13 @@ void check(bool condition, const char* what)
 constexpr double pi = 3.14159265358979323846;
 constexpr double rate = 48000.0;
 
-std::unique_ptr<StratEngine> makeEngine(Position position)
+std::unique_ptr<StratEngine> makeEngine(Position position,
+                                        StratCircuit::Guitar guitar = StratCircuit::Guitar::strat)
 {
     auto engine = std::make_unique<StratEngine>();
     engine->prepare(rate);
     StratCircuit::Controls controls;
+    controls.guitar = guitar;
     controls.position = position;
     engine->setControls(controls);
     return engine;
@@ -123,7 +125,7 @@ void testCoilPositions()
         return level(y, 0.05, 0.5, partial(2)) - level(y, 0.05, 0.5, partial(1));
     };
     const auto expected = [&](int coil) {
-        return 20.0 * std::log10(2.0 * std::cos(pi * StratEngine::coilMetres(coil, 0)
+        return 20.0 * std::log10(2.0 * std::cos(pi * StratEngine::coilMetres(StratCircuit::Guitar::strat, coil, 0)
                                                 / StratString::scaleMetres));
     };
     const double neck = octaveOverFundamental(Position::neck);
@@ -685,7 +687,7 @@ void testStringHeightFollowsFret()
             const double sign = position == Position::neck ? 1.0 : -1.0;
             ratio += sign * level(y, 0.05, 0.2, engine->fundamentalHz(s));
             const int coil = position == Position::neck ? 0 : 2;
-            const double x = StratEngine::coilMetres(coil, s);
+            const double x = StratEngine::coilMetres(StratCircuit::Guitar::strat, coil, s);
             const double speaking = engine->fretMetres(s, fret);
             const double saddle = StratEngine::actionMetres(1e9);
             const double end = fret > 0.0 ? 0.0 : StratEngine::actionMetres(0.0);
@@ -739,6 +741,98 @@ void testBendGeometryLifecycle()
     }
 }
 
+// The Telecaster's two coils where they sit: as testCoilPositions, the
+// octave over the fundamental differs between its positions by what the
+// coils' places say. Its coils differ in inductance, which at 82 and 165 Hz
+// moves the two partials alike to within 0.01 dB.
+void testTeleCoilPositions()
+{
+    using G = StratCircuit::Guitar;
+    const auto& spec = StratString::construction(0);
+    const auto partial = [&](int n) {
+        return n * spec.openHz
+            * std::sqrt((1.0 + spec.stiffness * n * n) / (1.0 + spec.stiffness));
+    };
+    const auto octaveOverFundamental = [&](Position position) {
+        auto engine = makeEngine(position, G::tele);
+        engine->pluck(0, lightNewtons, 0.13, 0.0002);
+        const auto y = render(*engine, 0.6);
+        return level(y, 0.05, 0.5, partial(2)) - level(y, 0.05, 0.5, partial(1));
+    };
+    const auto expected = [&](int coil) {
+        return 20.0 * std::log10(2.0 * std::cos(pi * StratEngine::coilMetres(G::tele, coil, 0)
+                                                / StratString::scaleMetres));
+    };
+    const double neck = octaveOverFundamental(Position::neck);
+    const double bridge = octaveOverFundamental(Position::bridge);
+    std::printf("Tele: octave over fundamental, bridge less neck %.3f dB (coils say %.3f)\n",
+                bridge - neck, expected(2) - expected(0));
+    check(std::abs((bridge - neck) - (expected(2) - expected(0))) < 0.05,
+          "the Tele's positions hear its own coils where they sit");
+    check(StratEngine::coilMetres(G::tele, 2, 0) > StratEngine::coilMetres(G::strat, 2, 0),
+          "the Tele's bridge coil sits further from the saddles than the Strat's");
+}
+
+// A Telecaster's bridge is fixed: the arm moves nothing, a bend still
+// retunes its own string, and taking up the Tele returns a dipped arm.
+void testTeleHasNoArm()
+{
+    auto engine = makeEngine(Position::neck, StratCircuit::Guitar::tele);
+    std::vector<float> y(StratEngine::controlPeriod);
+    engine->process(y.data(), static_cast<int>(y.size()));
+    double before[6];
+    for (int s = 0; s < 6; ++s)
+        before[s] = engine->fundamentalHz(s);
+    engine->setArm(-0.8);
+    engine->process(y.data(), static_cast<int>(y.size()));
+    bool still = engine->bridge().angle() == 0.0;
+    for (int s = 0; s < 6; ++s)
+        still = still && engine->fundamentalHz(s) == before[s];
+    check(still, "the Tele's arm moves nothing");
+    engine->setBend(2, std::pow(2.0, 2.0 / 12.0));
+    engine->process(y.data(), static_cast<int>(y.size()));
+    check(engine->fundamentalHz(2) > before[2] * 1.1 && engine->fundamentalHz(1) == before[1],
+          "a bend on the Tele retunes its own string");
+
+    auto strat = makeEngine(Position::neck);
+    strat->setArm(-0.8);
+    StratCircuit::Controls controls = strat->controls();
+    controls.guitar = StratCircuit::Guitar::tele;
+    strat->setControls(controls);
+    check(strat->bridge().angle() == 0.0, "taking up the Tele lets the arm go");
+}
+
+// Changing guitar under a ringing chord reads the strings from the new
+// coils at once and stays finite; after a reset the changed engine plays
+// exactly as one prepared as a Tele.
+void testGuitarSwitch()
+{
+    using G = StratCircuit::Guitar;
+    auto engine = makeEngine(Position::bridgeNeck);
+    for (int s = 0; s < 6; ++s)
+        engine->pluck(s, lightNewtons, 0.12, 0.0002);
+    auto y = render(*engine, 0.2);
+    StratCircuit::Controls controls = engine->controls();
+    controls.guitar = G::tele;
+    engine->setControls(controls);
+    const auto z = render(*engine, 0.3);
+    bool finite = true;
+    float peak = 0.0f;
+    for (float v : z)
+    {
+        finite = finite && std::isfinite(v);
+        peak = std::max(peak, std::abs(v));
+    }
+    check(finite && peak > 0.0f, "a chord rings on through the change of guitar");
+
+    engine->reset();
+    auto fresh = makeEngine(Position::bridgeNeck, G::tele);
+    engine->pluck(1, lightNewtons, 0.12, 0.0002);
+    fresh->pluck(1, lightNewtons, 0.12, 0.0002);
+    check(render(*engine, 0.3) == render(*fresh, 0.3),
+          "a changed guitar plays as one prepared so");
+}
+
 } // namespace
 
 int main()
@@ -760,6 +854,9 @@ int main()
     testBendGeometryLifecycle();
     testStringHeightFollowsFret();
     testNoSlowSwell();
+    testTeleCoilPositions();
+    testTeleHasNoArm();
+    testGuitarSwitch();
     if (failures == 0)
         std::printf("StratEngine: all checks passed\n");
     return failures == 0 ? 0 : 1;

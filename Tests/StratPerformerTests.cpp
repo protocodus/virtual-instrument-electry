@@ -1767,6 +1767,26 @@ void testFingerWheel()
     std::printf("finger bend wheel: 4ms %.2f cents, 34ms %.2f cents\n", start, moving);
 }
 
+// The Telecaster has no arm: with the bend mode left on the arm, its wheel
+// pulls the last fretted string, and below centre moves nothing.
+void testTeleWheel()
+{
+    auto p = makePerformer();
+    auto config = p->controls();
+    config.circuit.guitar = electry::StratCircuit::Guitar::tele;
+    p->setControls(config);
+    p->noteOn(0, 67, 90, 4);
+    render(*p, .080);
+    p->pitchBend(0, 1.0);
+    render(*p, .250);
+    check(std::abs(1200.0 * std::log2(p->engine().bridge().bendRatio(4)) - 200.0) < .1,
+          "the Tele's wheel pulls the last fretted string");
+    p->pitchBend(0, -1.0);
+    render(*p, .250);
+    check(p->engine().bridge().angle() == 0.0 && p->engine().bridge().tensionRatio(0) == 1.0,
+          "below centre the Tele's wheel moves no arm");
+}
+
 void testPlayerNoise()
 {
     const auto setup = [](double noise) {
@@ -2369,6 +2389,7 @@ void testAllControlsAndKeyswitchesHaveSoundImpact()
 int main()
 {
     testFingerWheel();
+    testTeleWheel();
     testChordShapes();
     testStrums();
     testPickTiming();

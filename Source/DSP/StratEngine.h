@@ -11,7 +11,9 @@ namespace electry
 {
 
 // The guitar from the strings to the jack: six strings on the stabilized
-// tremolo, the three single coils reading them, and the passive circuit. It
+// tremolo, the three single coils reading them, and the passive circuit. As a
+// Telecaster (StratCircuit::Guitar) the same strings run over its two coils
+// and the bridge is fixed: the arm does nothing. It
 // plays what it is told, string by string; MIDI, fingering and articulations
 // belong to the performer. Large (the string rails): construct it on the
 // heap.
@@ -23,7 +25,7 @@ public:
     static constexpr int controlPeriod = StratString::controlPeriod;
 
     // Coil centre under a string, metres from that string's saddle.
-    static double coilMetres(int coil, int stringIndex) noexcept;
+    static double coilMetres(StratCircuit::Guitar guitar, int coil, int stringIndex) noexcept;
 
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;
@@ -61,7 +63,8 @@ public:
     // StratString::fretMetres: from the string's saddle to where `fret`
     // stops it, the nut at fret 0, metres.
     double fretMetres(int stringIndex, double fret) const noexcept;
-    // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge).
+    // The tremolo arm, -1 full dive to +1 full pull-up (StratBridge). A
+    // Telecaster has none and ignores it.
     void setArm(double position) noexcept;
     // A finger bend to `pitchRatio` over the string's unbent pitch.
     void setBend(int stringIndex, double pitchRatio) noexcept;
@@ -111,6 +114,7 @@ private:
 
     std::array<StratString, stringCount> strings {};
     double masterTune = 1.0;
+    StratCircuit::Guitar guitar = StratCircuit::Guitar::strat;
     StratNeck neck;
     std::array<Pending, stringCount> pending {};
     std::array<int, stringCount> quietSamples {};

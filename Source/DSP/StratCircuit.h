@@ -5,8 +5,8 @@
 namespace electry
 {
 
-// The passive Stratocaster output network: the three coils' induced voltages
-// in, the voltage at the amplifier input out.
+// The passive output network of a Stratocaster or a Telecaster: the coils'
+// induced voltages in, the voltage at the amplifier input out.
 //
 // Wiring (vintage 5-way): switch pole A joins the selected coils to node X,
 // the top of the Volume pot; pole B joins Tone 1 to X with the neck coil and
@@ -18,33 +18,53 @@ namespace electry
 // One network serves all five positions: an open contact is a zero
 // conductance and a closed one a small resistance, so every state is a
 // physical current or voltage and a switch or knob move needs no state
-// mapping. The network is discretised exactly for an input that is linear
+// mapping.
+//
+// The Telecaster (modern 3-way): its two coils sit in the neck and bridge
+// slots, the middle slot is never connected, and one master Tone, Tone 1's
+// branch, hangs on node X in every position. Position 1 is the bridge coil,
+// 2 the two in parallel, 3 the neck coil; there is no blend or dark circuit.
+//
+// The network is discretised exactly for an input that is linear
 // between samples (ramp invariance): no frequency warping, and the very fast
 // modes the near-zero contact and pot-end resistances create decay at once
 // instead of ringing at Nyquist as they would under the bilinear transform.
 class StratCircuit
 {
 public:
+    enum class Guitar
+    {
+        strat,
+        tele
+    };
+
     enum class Position
     {
         bridge,       // 1
         bridgeMiddle, // 2, in parallel
         middle,       // 3
         middleNeck,   // 4, in parallel
-        neck          // 5
+        neck,         // 5
+        // The Telecaster's middle position, the neck and bridge coils in
+        // parallel. On a Telecaster the Strat's positions play the Tele
+        // position on their side of the switch (bridgeMiddle the bridge,
+        // middle both, middleNeck the neck); on a Strat this one plays the
+        // middle coil, as the vintage 5-way has no neck-and-bridge setting.
+        bridgeNeck
     };
 
     struct Controls
     {
+        Guitar guitar = Guitar::strat;
         Position position = Position::neck;
         // Knob rotations, 0 (knob at 0) to 1 (knob at 10).
         double volume = 1.0;
-        double toneNeck = 1.0;   // Tone 1
-        double toneMiddle = 1.0; // Tone 2
+        double toneNeck = 1.0;   // Tone 1; the Telecaster's master Tone
+        double toneMiddle = 1.0; // Tone 2; no Telecaster has it
 
         bool operator==(const Controls& other) const noexcept
         {
-            return position == other.position && volume == other.volume
+            return guitar == other.guitar && position == other.position && volume == other.volume
                 && toneNeck == other.toneNeck
                 && toneMiddle == other.toneMiddle;
         }
@@ -76,6 +96,33 @@ public:
     // Voiced within the reported range: 3 m of cable at about 100 pF/m.
     // Lemme gives 300 to 1000 pF for ordinary guitar cables.
     static constexpr double cableFarads = 300e-12;
+
+    // The Telecaster's coils: Fender's Pure Vintage '52 Telecaster set
+    // (product listing 0992119000), Alnico 3, enamel wire, flush poles. The
+    // neck: 7.2 kOhm and 2.4 H, under its chrome cover; the bridge: 6.6 kOhm
+    // and 3.8 H, on its copper-plated steel base plate, which the listed
+    // inductance includes.
+    static constexpr double teleNeckOhms = 7200.0;
+    static constexpr double teleNeckHenries = 2.4;
+    static constexpr double teleBridgeOhms = 6600.0;
+    static constexpr double teleBridgeHenries = 3.8;
+    // Estimates, not measurements, within Lemme's 80 to 200 pF for pickups
+    // in general: the neck coil's narrow bobbin winds about as the Strat's
+    // (100 pF); the bridge's wider, fuller one, and its plate under it, a
+    // little more.
+    static constexpr double teleNeckFarads = 100e-12;
+    static constexpr double teleBridgeFarads = 120e-12;
+    // Eddy-current loss across each coil: the Alnico rods' alone, as for the
+    // Strat (eddyOhms; Alnico 3 conducts about as Alnico 5 does). The neck's
+    // cover and the bridge's plate add their own loss, which nothing here
+    // measures, so it is left out (README, Known gaps): both coils ring a
+    // little more than a Tele's would.
+    static constexpr double teleNeckEddyOhms = eddyOhms;
+    static constexpr double teleBridgeEddyOhms = eddyOhms;
+    // One master Tone of 250 kOhm, audio taper, with 0.05 uF: the value
+    // reported for Fender's vintage-style Telecasters (estimate; the
+    // 0.047 uF of current production moves its corner 6 %).
+    static constexpr double teleToneFarads = 0.05e-6;
     // The standard guitar-amplifier input.
     static constexpr double ampInputOhms = 1e6;
     // Numerical conventions, not voicing: a closed contact and each end of a
