@@ -4,6 +4,32 @@ Directions chosen by ear, recorded per the A–Z listening-test convention in
 the repository's `CLAUDE.md`. A choice made by ear is recorded as made by ear,
 never written up as though a measurement had settled it.
 
+## 2026-11-24 — the Strat's coils lose 1.0 MΩ, and the Telecaster's pickups are its own (B)
+
+Decided: whether each Strat coil's loss is re-pinned from 220 kΩ to the
+1.0 MΩ of Zollner's measured Strat-72, which brightens every position by 2
+to 3 dB from 4 to 7 kHz against the state the Strat's other parts were
+fitted in, and whether 2.11.0's Telecaster pickups ship with it
+([research](research/strat-and-tele-differences-2026-11-24.md)).
+
+- A: the shipping 2.10.0 engine (`0c6be66`).
+- B: 2.11.0 (`d2a55fa`). On the Strat only the coils' loss differs. On the
+  Telecaster the coils' losses, the neck coil's capacitance, cover and
+  place, both sensitivities and the bridge coil's slant differ at once: a
+  preview of measured changes, not a choice between candidates.
+
+Material: one phrase written for it (two strummed open chords, a lick on
+the plain strings, a riff on the wound ones), 10.6 s, every knob at 10,
+48 kHz, block 256, through `StratPerformer`; Strat bridge, bridge and middle
+and neck, Telecaster bridge, both and neck. Each B trimmed to its A's
+whole-file RMS (Strat −0.29, −0.20 and −0.21 dB; Tele −2.36, −0.45 and
++1.62 dB), and 2.11.0's two guitars again untrimmed, side by side.
+
+**The owner chose B** ("go with candidate, push to main") once the set was
+delivered. The loss itself is the bench measurement's, not the ear's; the
+choice licenses shipping it over the earlier fits to recorded Strats, which
+have not been run again. It does not license moving any pickup value by ear.
+
 ## 2026-11-23 — Artifacts: a nut ring, a loose part, and no two events alike (B, by the standing rule)
 
 Decided: whether the Artifacts knob gains more kinds of hardware noise and
