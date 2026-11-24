@@ -9,6 +9,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -769,8 +770,23 @@ void testTeleCoilPositions()
                 bridge - neck, expected(2) - expected(0));
     check(std::abs((bridge - neck) - (expected(2) - expected(0))) < 0.05,
           "the Tele's positions hear its own coils where they sit");
-    check(StratEngine::coilMetres(G::tele, 2, 0) > StratEngine::coilMetres(G::strat, 2, 0),
+    // The places as the drawings give them: the neck coil 0.803 in behind
+    // the end of the pocket of a neck whose heel ends 18.385 in from the nut
+    // of its 25.5 in scale; the bridge coil's centre 0.214 in further from
+    // the saddles than the Strat's, slanting 15 degrees across the 52.7 mm
+    // between the E strings.
+    const auto place = [](G guitar, int coil, int string) {
+        return StratEngine::coilMetres(guitar, coil, string);
+    };
+    check(std::abs(place(G::tele, 0, 0) - (25.5 - 18.385 - 0.803) * 0.0254) < 0.0005,
+          "the Tele's neck coil sits where its rout does");
+    const double centre = 0.5 * (place(G::tele, 2, 0) + place(G::tele, 2, 5));
+    const double stratCentre = 0.5 * (place(G::strat, 2, 0) + place(G::strat, 2, 5));
+    check(std::abs(centre - stratCentre - 0.214 * 0.0254) < 0.0001,
           "the Tele's bridge coil sits further from the saddles than the Strat's");
+    check(std::abs(place(G::tele, 2, 0) - place(G::tele, 2, 5)
+                   - 0.0527 * std::tan(15.0 * pi / 180.0)) < 0.0003,
+          "the Tele's bridge coil slants 15 degrees");
 }
 
 // A Telecaster's bridge is fixed: the arm moves nothing, a bend still
@@ -833,6 +849,148 @@ void testGuitarSwitch()
           "a changed guitar plays as one prepared so");
 }
 
+// A Telecaster's coils alone. The neck's cover is a first-order lag at
+// TeleCoils::coverHz under the coil's sensitivity; as the circuit, it is
+// exact for an input linear between samples, so its response is the analog
+// lag's seen through the linear-interpolation kernel, summed over its
+// images. The bridge coil is its sensitivity and nothing more.
+void testTeleCoils()
+{
+    using electry::TeleCoils;
+    const double neckGain = std::pow(10.0, TeleCoils::neckDb / 20.0);
+    const double bridgeGain = std::pow(10.0, TeleCoils::bridgeDb / 20.0);
+    for (const double sampleRate : {88200.0, 96000.0, 192000.0})
+    {
+        TeleCoils coils;
+        coils.prepare(sampleRate);
+        std::vector<double> impulse(4096);
+        bool bridgeExact = true;
+        for (size_t i = 0; i < impulse.size(); ++i)
+        {
+            double neck = i == 0 ? 1.0 : 0.0, bridge = 0.37;
+            coils.process(neck, bridge);
+            impulse[i] = neck;
+            bridgeExact = bridgeExact && bridge == 0.37 * bridgeGain;
+        }
+        check(bridgeExact, "the Tele's bridge coil is its sensitivity alone");
+        check(impulse.back() == 0.0, "the Tele's neck cover comes to rest");
+        double worst = 0.0;
+        for (const double f : {100.0, 1000.0, 3000.0, 6000.0, 10000.0, 15000.0, 20000.0})
+        {
+            std::complex<double> got = 0.0;
+            for (size_t i = 0; i < impulse.size(); ++i)
+                got += impulse[i] * std::polar(1.0, -2.0 * pi * f * static_cast<double>(i) / sampleRate);
+            std::complex<double> expected = 0.0;
+            for (int image = -4000; image <= 4000; ++image)
+            {
+                const double shifted = f + image * sampleRate;
+                const double x = pi * shifted / sampleRate;
+                const double sinc = x == 0.0 ? 1.0 : std::sin(x) / x;
+                expected += neckGain / std::complex<double>(1.0, shifted / TeleCoils::coverHz)
+                    * sinc * sinc;
+            }
+            worst = std::max(worst, std::abs(got - expected) / std::abs(expected));
+        }
+        std::printf("Tele neck cover at %.0f Hz: worst relative error against the analog lag %.3g\n",
+                    sampleRate, worst);
+        check(worst < 1e-6, "the Tele's neck cover is the analog lag");
+    }
+}
+
+// The cover as Zollner measured it: one Fender Telecaster neck pickup's
+// output read by laser with its cover on and off, into 110 kOhm and 700 pF
+// ("Physics of the Electric Guitar", Fig. 5.10.15; the two curves traced
+// from the figure, the cover on less the cover off, dB). The model's cover
+// is the loss it adds across the coil (StratCircuit::teleNeckEddyOhms in
+// place of the rods' alone, eddyOhms) and the lag between the strings and
+// the coil (TeleCoils::coverHz), on his Tele-52 neck coil.
+void testTeleNeckCoverAgainstMeasurement()
+{
+    constexpr double reading[][2] = {
+        {1250.0, -0.32}, {1500.0, -0.37}, {1750.0, -0.40}, {2000.0, -0.51}, {2250.0, -0.78},
+        {2500.0, -0.90}, {2750.0, -1.07}, {3000.0, -1.42}, {3250.0, -1.61}, {3500.0, -1.73},
+        {3750.0, -1.72}, {4250.0, -1.70}, {4500.0, -1.78}, {5500.0, -1.30}, {6500.0, -1.18},
+        {7500.0, -1.28}, {8500.0, -1.51}, {9500.0, -1.58}};
+    constexpr double ohms = 7630.0, henries = 2.45, loadOhms = 110e3, loadFarads = 700e-12;
+    const auto volts = [&](double f, double lossOhms) {
+        const std::complex<double> s(0.0, 2.0 * pi * f);
+        return std::abs(1.0 / (1.0 + (ohms + s * henries)
+                                         * (1.0 / lossOhms + 1.0 / loadOhms
+                                            + s * (StratCircuit::teleNeckFarads + loadFarads))));
+    };
+    double worst = 0.0, squares = 0.0;
+    for (const auto& point : reading)
+    {
+        const double f = point[0];
+        const double lag = -10.0 * std::log10(1.0 + (f / electry::TeleCoils::coverHz)
+                                                        * (f / electry::TeleCoils::coverHz));
+        const double model = 20.0 * std::log10(volts(f, StratCircuit::teleNeckEddyOhms)
+                                               / volts(f, StratCircuit::eddyOhms)) + lag;
+        worst = std::max(worst, std::abs(model - point[1]));
+        squares += (model - point[1]) * (model - point[1]);
+    }
+    const double rms = std::sqrt(squares / static_cast<double>(std::size(reading)));
+    std::printf("Tele neck cover against the laser reading: worst %.2f dB, rms %.2f dB\n", worst, rms);
+    check(worst < 0.45 && rms < 0.2, "the Tele's neck cover follows the measured one");
+}
+
+// The engine reads each Tele coil through TeleCoils. A light pluck on the
+// open low E, heard by the same coil on each guitar: the fundamental's level
+// on the Tele over the Strat's is the coil's sensitivity, once the mode
+// shape at the two coils' places, the flux law at the string's height over
+// them (as testStringHeightFollowsFret) and the two circuits at that
+// frequency are taken off.
+void testTeleCoilSensitivity()
+{
+    using G = StratCircuit::Guitar;
+    constexpr int s = 0;
+    constexpr double setGap = 8.0 / 64.0 * 0.0254;
+    const auto circuitDb = [](G guitar, Position position, int coil, double f) {
+        constexpr double circuitRate = 96000.0;
+        StratCircuit circuit;
+        circuit.prepare(circuitRate);
+        StratCircuit::Controls controls;
+        controls.guitar = guitar;
+        controls.position = position;
+        circuit.setControls(controls);
+        std::vector<float> y(static_cast<size_t>(0.4 * circuitRate));
+        for (size_t i = 0; i < y.size(); ++i)
+        {
+            double in[3] {};
+            in[coil] = std::sin(2.0 * pi * f * static_cast<double>(i) / circuitRate);
+            y[i] = static_cast<float>(circuit.process(in[0], in[1], in[2]));
+        }
+        return levelAt(y, circuitRate, 0.2, 0.2, f);
+    };
+    for (Position position : {Position::neck, Position::bridge})
+    {
+        const int coil = position == Position::neck ? 0 : 2;
+        double measured = 0.0, known = 0.0;
+        for (G guitar : {G::tele, G::strat})
+        {
+            const double sign = guitar == G::tele ? 1.0 : -1.0;
+            auto engine = makeEngine(position, guitar);
+            engine->pluck(s, lightNewtons, 0.13, 0.0003);
+            const auto y = render(*engine, 0.3);
+            const double f = engine->fundamentalHz(s);
+            measured += sign * level(y, 0.05, 0.2, f);
+            const double x = StratEngine::coilMetres(guitar, coil, s);
+            const double speaking = engine->fretMetres(s, 0.0);
+            const double saddle = StratEngine::actionMetres(1e9);
+            const double height = saddle + (StratEngine::actionMetres(0.0) - saddle) * x / speaking;
+            const double lowest = saddle * (1.0 - x / engine->fretMetres(s, 21.0));
+            known += sign * (20.0 * std::log10(std::sin(pi * x / speaking))
+                             + 20.0 * std::log10(fluxSlope(setGap + height - lowest) / fluxSlope(setGap))
+                             + circuitDb(guitar, position, coil, f));
+        }
+        const double expected = coil == 0 ? electry::TeleCoils::neckDb : electry::TeleCoils::bridgeDb;
+        std::printf("Tele %s coil over the Strat's: %+.2f dB (TeleCoils says %+.2f)\n",
+                    coil == 0 ? "neck" : "bridge", measured - known, expected);
+        check(std::abs(measured - known - expected) < 0.2,
+              "the engine reads each Tele coil at its own sensitivity");
+    }
+}
+
 } // namespace
 
 int main()
@@ -855,6 +1013,9 @@ int main()
     testStringHeightFollowsFret();
     testNoSlowSwell();
     testTeleCoilPositions();
+    testTeleCoils();
+    testTeleNeckCoverAgainstMeasurement();
+    testTeleCoilSensitivity();
     testTeleHasNoArm();
     testGuitarSwitch();
     if (failures == 0)

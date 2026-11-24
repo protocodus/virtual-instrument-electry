@@ -10,10 +10,56 @@
 namespace electry
 {
 
+// What a Telecaster's two coils make of the EMF a Strat coil would read in
+// their places: each coil's own sensitivity, and the neck coil's cover between
+// it and the strings. Their losses and capacitances are the circuit's
+// (StratCircuit).
+class TeleCoils
+{
+public:
+    // Each coil's sensitivity over a Strat coil's, dB. The neck's is measured:
+    // Zollner marks each pickup's low-frequency sensitivity on its data sheet
+    // against a Stratocaster pickup's ("Physics of the Electric Guitar", 5.15),
+    // and his Tele-52 neck stands 1.8 dB under his Strat-72, the pair the
+    // circuit's losses come from. The bridge's is an estimate. Its turns over
+    // the Strat coil's, by the two sets' listed inductances with the 6 % the
+    // base plate adds taken off, sqrt(3.58 H / 2.47 H), give 1.6 dB, and the
+    // plate itself gives 0.6 dB (5.1, Fig. 5.1.4). His table of 40 pickups
+    // (5.4.5; its values are withheld) ranks the Tele-52 bridge over every
+    // Fender Strat coil in it and the Tele-52 neck under them all.
+    static constexpr double neckDb = -1.8;
+    static constexpr double bridgeDb = 2.2;
+    // The neck coil's cover, 0.5 mm of nickel silver, is thin against its skin
+    // depth (2.7 mm at 10 kHz), so the eddy currents the strings' field
+    // drives in it oppose that field as a first-order lag, which the coil's
+    // impedance does not show. Zollner read one Fender Telecaster neck
+    // pickup's output by laser with its cover on and off, into 110 kOhm and
+    // 700 pF (Fig. 5.10.15): on, it gives 0.5 dB less at 2 kHz, 1.4 at 3, 1.7
+    // from 3.5 to 4.5 and 1.2 to 1.6 from 5.5 to 9.5 kHz. The loss the cover
+    // adds to the circuit (StratCircuit) gives most of that up to the
+    // resonance and almost none of it above 6 kHz; with that loss, a corner
+    // at 13 kHz follows the reading within 0.4 dB at each of 18 points from
+    // 1.25 to 9.5 kHz, 0.15 dB rms (StratEngineTests).
+    static constexpr double coverHz = 13000.0;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    // One sample: the EMF at the neck and bridge coils' places in, the coils'
+    // own out.
+    void process(double& neck, double& bridge) noexcept;
+
+private:
+    double neckGain = 1.0, bridgeGain = 1.0;
+    // The lag, exact for an input linear between samples as the circuit is:
+    // volts[n+1] = pole volts[n] + previous in[n] + current in[n+1].
+    double pole = 0.0, previous = 0.0, current = 1.0;
+    double coverVolts = 0.0, coverInput = 0.0;
+};
+
 // The guitar from the strings to the jack: six strings on the stabilized
 // tremolo, the three single coils reading them, and the passive circuit. As a
 // Telecaster (StratCircuit::Guitar) the same strings run over its two coils
-// and the bridge is fixed: the arm does nothing. It
+// (TeleCoils) and the bridge is fixed: the arm does nothing. It
 // plays what it is told, string by string; MIDI, fingering and articulations
 // belong to the performer. Large (the string rails): construct it on the
 // heap.
@@ -111,6 +157,9 @@ private:
     // One sample of every sounding string, and of every string while the
     // neck moves, summed into each coil's EMF.
     void stepStrings(float (&emf)[coilCount]) noexcept;
+    // The coils' EMF through this guitar's coils and circuit: the jack's
+    // voltage at the same instant.
+    double stepCircuit(const float (&emf)[coilCount]) noexcept;
 
     std::array<StratString, stringCount> strings {};
     double masterTune = 1.0;
@@ -135,6 +184,7 @@ private:
     double stringRate = 96000.0; // the strings', coils' and circuit's rate
     StratBridge tremolo;
     bool bridgeMoved = false;
+    TeleCoils teleCoils;
     StratCircuit circuit;
     int phase = 0;
 

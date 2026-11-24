@@ -20,14 +20,18 @@ constexpr double middleMetres = 0.098;
 constexpr double bridgeBassMetres = 0.046;
 constexpr double bridgeTrebleMetres = 0.036;
 
-// The Telecaster's bridge pickup slants as the Strat's does and sits
-// 0.214 in (5.4 mm) further from the saddles (reported, comparing the two
-// guitars' routing templates); its neck pickup is taken at the Strat's neck
-// coil's place (estimate: the two guitars route it within a few millimetres,
-// and no drawing here says how many).
-constexpr double teleNeckMetres = neckMetres;
-constexpr double teleBridgeBassMetres = bridgeBassMetres + 0.0054;
-constexpr double teleBridgeTrebleMetres = bridgeTrebleMetres + 0.0054;
+// The Telecaster's coils. The neck coil's rout is centred 0.803 in behind the
+// end of the neck pocket (Terry Downs, "The Telecaster Body", drawing rev. D),
+// and a 25.5 in neck's heel ends 7.115 in short of the scale line (Ed
+// Hawley's full-size Telecaster neck drawing, 18.385 in from the nut): 6.31 in,
+// 160 mm. The bridge coil's centre sits 0.214 in (5.4 mm) further from the
+// saddles than the Strat's (reported, comparing the two guitars' routing
+// templates), and it slants 15 degrees where the Strat's slants 10 (Seymour
+// Duncan's figures for the two; Downs's rout reads 14.1): 14.1 mm across the
+// 53 mm between the E strings there.
+constexpr double teleNeckMetres = 0.160;
+constexpr double teleBridgeBassMetres = 0.0535;
+constexpr double teleBridgeTrebleMetres = 0.0393;
 
 // Pole-to-string gap, Fender's vintage-style setting: 8/64 in on the bass
 // side and 6/64 in on the treble side, set with the string held at the last
@@ -283,6 +287,35 @@ double StratEngine::restPitch(int stringIndex) noexcept
     return std::pow(2.0, -flatCents[stringIndex < 0 ? 0 : stringIndex % stringCount] / 1200.0);
 }
 
+void TeleCoils::prepare(double sampleRate) noexcept
+{
+    neckGain = std::pow(10.0, neckDb / 20.0);
+    bridgeGain = std::pow(10.0, bridgeDb / 20.0);
+    const double step = 2.0 * pi * coverHz / sampleRate;
+    pole = std::exp(-step);
+    current = 1.0 - (1.0 - pole) / step;
+    previous = (1.0 - pole) / step - pole;
+    reset();
+}
+
+void TeleCoils::reset() noexcept
+{
+    coverVolts = 0.0;
+    coverInput = 0.0;
+}
+
+void TeleCoils::process(double& neck, double& bridge) noexcept
+{
+    const double input = neckGain * neck;
+    const double volts = pole * coverVolts + previous * coverInput + current * input;
+    coverInput = input;
+    // As the circuit flushes its states: a rung-down coil reaches exactly
+    // zero, so the circuit after it can rest.
+    coverVolts = scalarAbs(volts) < 1e-30 ? 0.0 : volts;
+    neck = coverVolts;
+    bridge *= bridgeGain;
+}
+
 void StratEngine::prepare(double sampleRate) noexcept
 {
     oversampling = sampleRate < oversampleBelowHz ? 2 : 1;
@@ -310,6 +343,7 @@ void StratEngine::prepare(double sampleRate) noexcept
     swingSteps = static_cast<float>(acrossShare / (stringRate * fluxStepMetres));
     tremolo = StratBridge {};
     bridgeMoved = false;
+    teleCoils.prepare(stringRate);
     circuit.prepare(stringRate);
     neck.prepare(stringRate);
     {
@@ -344,6 +378,7 @@ void StratEngine::reset() noexcept
         updateCoilGeometry(s);
     }
     neck.reset();
+    teleCoils.reset();
     circuit.reset();
     jackHistory.fill(0.0f);
     jackWrite = 0;
@@ -364,6 +399,7 @@ void StratEngine::setControls(const StratCircuit::Controls& controls) noexcept
             {coilMetres(guitar, 0, s), coilMetres(guitar, 1, s), coilMetres(guitar, 2, s)});
         updateCoilGeometry(s);
     }
+    teleCoils.reset();
     if (guitar == StratCircuit::Guitar::tele)
         setArm(0.0);
 }
@@ -733,6 +769,14 @@ void StratEngine::stepStrings(float (&emf)[coilCount]) noexcept
     }
 }
 
+double StratEngine::stepCircuit(const float (&emf)[coilCount]) noexcept
+{
+    double neckVolts = emf[0], bridgeVolts = emf[2];
+    if (guitar == StratCircuit::Guitar::tele)
+        teleCoils.process(neckVolts, bridgeVolts);
+    return circuit.process(neckVolts, emf[1], bridgeVolts);
+}
+
 void StratEngine::process(float* jackVolts, int samples) noexcept
 {
     constexpr int mask = halfbandHistory - 1;
@@ -747,7 +791,7 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
         {
             float emf[coilCount] {0.0f, 0.0f, 0.0f};
             stepStrings(emf);
-            jackVolts[i] = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+            jackVolts[i] = static_cast<float>(stepCircuit(emf));
             continue;
         }
         float sub[2] {};
@@ -755,7 +799,7 @@ void StratEngine::process(float* jackVolts, int samples) noexcept
         {
             float emf[coilCount] {0.0f, 0.0f, 0.0f};
             stepStrings(emf);
-            const float s = static_cast<float>(circuit.process(emf[0], emf[1], emf[2]));
+            const float s = static_cast<float>(stepCircuit(emf));
             sub[k] = s;
             jackWrite = (jackWrite + 1) & mask;
             jackHistory[static_cast<size_t>(jackWrite)] = s;

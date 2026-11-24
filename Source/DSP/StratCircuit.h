@@ -83,12 +83,17 @@ public:
     // 13 kHz reported for vintage-correct Strat coils (Jungmann 1994, via
     // arXiv:2409.19782).
     static constexpr double coilFarads = 100e-12;
-    // Alnico 5 pole-piece eddy-current loss resistance in parallel with each
-    // coil's inductance and winding capacitance (Jungmann 1994; Horton and
-    // Moore 2009; Lemme 2003): alternating flux in the conductive Alnico 5
-    // rod magnets inside the bobbin damps the unloaded LC resonance (from
-    // Q > 13 down to ~3.2 unloaded and ~1.85 on the un-toned bridge pickup).
-    static constexpr double eddyOhms = 220e3;
+    // The coil's loss, as one resistance across its terminals: alternating
+    // flux drives eddy currents in the conductive Alnico rods inside the
+    // bobbin, which damp the resonance the series resistance alone would leave
+    // at Q 26. Zollner's equivalent circuit of a measured Stratocaster pickup
+    // ("Physics of the Electric Guitar", 5.15, Strat-72: 5.88 kOhm, 2.19 H,
+    // 133 pF) has 1.0 MOhm across its inductance, which across the terminals
+    // is the same to 0.03 dB. It gives his sheet's impedance peaks (57.4, 51.9
+    // and 49.6 dB re 1 kOhm unloaded and with 450 and 750 pF) and its peaks
+    // of 3.8 and 4.8 dB into the 111 kOhm of the guitar's pots and an
+    // amplifier with those cables, all within 0.1 dB.
+    static constexpr double eddyOhms = 1.0e6;
     // 250 kOhm audio-taper Volume and Tones and 0.1 uF tone capacitors, the
     // vintage Stratocaster values; no treble bleed.
     static constexpr double potOhms = 250e3;
@@ -106,19 +111,29 @@ public:
     static constexpr double teleNeckHenries = 2.4;
     static constexpr double teleBridgeOhms = 6600.0;
     static constexpr double teleBridgeHenries = 3.8;
-    // Estimates, not measurements, within Lemme's 80 to 200 pF for pickups
-    // in general: the neck coil's narrow bobbin winds about as the Strat's
-    // (100 pF); the bridge's wider, fuller one, and its plate under it, a
-    // little more.
-    static constexpr double teleNeckFarads = 100e-12;
+    // Winding capacitance. The neck's, under its grounded cover: Zollner's
+    // Tele-52 neck coil resonates unloaded at 8.3 kHz (5.15), 150 pF with
+    // its 2.4 to 2.5 H. The bridge's is an estimate within Lemme's 80 to
+    // 200 pF for pickups in general: more wire than a Strat's coil (100 pF)
+    // on a wider bobbin, with its plate under it.
+    static constexpr double teleNeckFarads = 150e-12;
     static constexpr double teleBridgeFarads = 120e-12;
-    // Eddy-current loss across each coil: the Alnico rods' alone, as for the
-    // Strat (eddyOhms; Alnico 3 conducts about as Alnico 5 does). The neck's
-    // cover and the bridge's plate add their own loss, which nothing here
-    // measures, so it is left out (README, Known gaps): both coils ring a
-    // little more than a Tele's would.
-    static constexpr double teleNeckEddyOhms = eddyOhms;
-    static constexpr double teleBridgeEddyOhms = eddyOhms;
+    // Loss across each coil, as eddyOhms. The neck's cover, 0.5 mm of nickel
+    // silver, is a shorted turn around it: the impedance of Zollner's
+    // Tele-52 neck peaks at 49.1, 45.9 and 44.5 dB re 1 kOhm unloaded and
+    // with 450 and 750 pF (5.15), which its 7.6 kOhm of wire leaves to a
+    // parallel 320 kOhm within 0.2 dB at all three. Another Fender neck
+    // pickup's output, read by laser with its cover on and off (5.10,
+    // Fig. 5.10.15), puts the cover's own share at 370 kOhm: 270 kOhm with
+    // rods that lose as a Strat's. What the cover does to the strings' field
+    // on its way to the coil is the engine's (TeleCoils). The bridge coil's
+    // rods lose as a Strat's, and the steel plate under it takes about 1 dB
+    // more off the loaded peak (5.1, Fig. 5.1.4): 340 kOhm together, into
+    // 111 kOhm with 450 to 700 pF. The steel bridge plate the coil hangs in
+    // damps it further by an amount nothing here measures (README, Known
+    // gaps).
+    static constexpr double teleNeckEddyOhms = 320e3;
+    static constexpr double teleBridgeEddyOhms = 340e3;
     // One master Tone of 250 kOhm, audio taper, with 0.05 uF: the value
     // reported for Fender's vintage-style Telecasters (estimate; the
     // 0.047 uF of current production moves its corner 6 %).

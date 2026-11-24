@@ -57,6 +57,29 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.11.0 — 2026-11-24 — Strat and Telecaster pickups as measured on the bench
+
+The six-string guitar's pickups now take their losses from pickups measured
+on the bench (Zollner, *Physics of the Electric Guitar*), so the two guitars
+differ where a Strat and a Telecaster do. Each Strat coil's magnet rods now
+lose 1.0 MΩ across it where they lost 220 kΩ, which no measurement gave: with
+every knob at 10 the bridge pickup's resonance stands 5.7 dB over its level
+at 200 Hz, at 4.8 kHz, where it stood 2.7 dB over at 4.3 kHz, the neck's
+2.4 dB where it stood 0.7, and every position is 2 to 3 dB brighter from 4
+to 7 kHz.
+
+The Telecaster's two pickups are now its own. The neck coil sits under its
+nickel-silver cover, which loads the coil (320 kΩ, with 150 pF) and shields
+it from the strings' field as a first-order lag at 13 kHz: it is 1.8 dB
+quieter than a Strat coil and 1.8 dB darker at 8 kHz than it was. The bridge
+coil on its steel base plate (340 kΩ) is 2.2 dB louder than a Strat coil and
+reaches 4.9 kHz where it reached 4.5. The neck coil is 160 mm from the saddles, by
+the body and neck drawings, and the bridge coil slants 15 degrees where it
+slanted the Strat's 10. The body's shape and wood change nothing a
+measurement can put a number on at the pickups, so the strings, neck and
+playing stay shared
+([what differs and what does not](Docs/research/strat-and-tele-differences-2026-11-24.md)).
+
 ### 2.10.0 — 2026-11-23 — A harder strum is a faster strum
 
 On the six-string guitar a stroke's velocity now sets how fast the pick
@@ -1631,16 +1654,27 @@ The Stratocaster of 2.0.0 and the Telecaster of 2.7.0 play only in the
 Reason Rack Extension and in `Tools/RenderStrat.cpp`; the plug-in has not
 moved to them yet.
 
-The Telecaster of 2.7.0 takes its coils' resistance and inductance from
-Fender's listing, but its winding capacitances, tone capacitor and neck coil's
-place are estimates, and the loss its neck cover and bridge plate add is left
-out, so both coils ring a little more than a Tele's would. Its strings, neck,
-gaps and pole balance are the Strat's. The one T-style DI recording found,
-Guitar-TECHS's Sire T7, does not state its stroke or knobs and has no single
-notes: against it the Tele is 1 to 5 dB off from 200 Hz to 8 kHz with a soft
-stroke, 8 dB over at 1.6 kHz and 4 to 8 dB short below 200 Hz
-([comparison](Docs/validation/tele-reference-2026-11-23.md)). Single notes of
-a Telecaster recorded direct would fit it.
+The Telecaster takes its coils' resistance and inductance from Fender's
+listing and, since 2.11.0, its neck coil's capacitance, loss, cover and
+sensitivity from Zollner's bench measurements of a Tele-52 neck pickup and of
+one Fender neck pickup with its cover on and off, and both coils' places from
+drawings. Its bridge coil's capacitance and sensitivity and its tone capacitor
+are still estimates, and three things a Telecaster has are not modelled: the
+steel bridge plate the bridge coil hangs in, which damps it further by an
+amount no source here measures; its flush poles under a curved fretboard,
+where the pole balance is the recorded Strat's; and whatever its fixed bridge
+and slab body do to the strings' decay, which is the recorded Strat's (one
+Telecaster measured beside one Strat decays slightly faster, on different
+strings). Every coil on both guitars reads its string at a point, where a
+real one reads a short length of it and loses some more of its top.
+The one T-style DI recording found, Guitar-TECHS's Sire T7, does not state
+its stroke or knobs and has no single notes; 2.7.0's Tele was 1 to 5 dB off
+it from 200 Hz to 8 kHz with a soft stroke, 8 dB over at 1.6 kHz and 4 to
+8 dB short below 200 Hz
+([comparison](Docs/validation/tele-reference-2026-11-23.md)), and the
+comparison has not been run again. Single notes of a Telecaster recorded
+direct would fit what is left
+([what differs and what does not](Docs/research/strat-and-tele-differences-2026-11-24.md)).
 
 The Strat's two planes of swing split each partial by a fixed share of its
 frequency, the in-plane speaking length fitted on the first partials. On the

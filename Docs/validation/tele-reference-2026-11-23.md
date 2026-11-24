@@ -1,7 +1,10 @@
 # The Telecaster against a T-style guitar recorded direct, 23 November 2026
 
 What 2.7.0's Telecaster is built from, and what the one T-style DI recording
-available can and cannot say about it.
+available can and cannot say about it. 2.11.0 gave the Telecaster its own
+losses, neck cover, sensitivities and coil places
+([what differs and what does not](../research/strat-and-tele-differences-2026-11-24.md));
+the comparison below was made before that and has not been run again.
 
 ## What the Tele is
 

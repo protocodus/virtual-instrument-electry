@@ -88,12 +88,11 @@ CoilValues coilValues(StratCircuit::Guitar guitar, int coil)
 
 // Analog transfer from coil `input`'s induced voltage to the jack, with the
 // contact and pot-end resistances given explicitly so the ideal 0 Ohm network
-// can be compared, and the eddy-current loss optionally left out.
+// can be compared.
 Complex analogResponse(const StratCircuit::Controls& controls, int input,
                        Complex s,
                        double contactOhms = StratCircuit::contactOhms,
-                       double potEndOhms = StratCircuit::potEndOhms,
-                       bool eddy = true)
+                       double potEndOhms = StratCircuit::potEndOhms)
 {
     const Selection selection = selectionFor(controls);
     if (!selection.coil[input])
@@ -117,7 +116,7 @@ Complex analogResponse(const StratCircuit::Controls& controls, int input,
         {
             const CoilValues c = coilValues(controls.guitar, k);
             const Complex coilSeries = c.ohms + s * c.henries;
-            const Complex winding = 1.0 / (s * c.farads + (eddy ? 1.0 / c.eddyOhms : 0.0));
+            const Complex winding = 1.0 / (s * c.farads + 1.0 / c.eddyOhms);
             const Complex theveninImpedance = coilSeries * winding / (coilSeries + winding);
             const Complex theveninGain = winding / (coilSeries + winding);
             const Complex branch
@@ -347,21 +346,98 @@ void testDeterminism()
     check(first == second, "the same input gives the same bits");
 }
 
-void testEddyCurrentDamping()
+// A pickup alone on the bench, as Zollner measured them ("Physics of the
+// Electric Guitar", 5.15): its wire and inductance in series, and across its
+// terminals its winding capacitance, its loss and whatever loads it.
+struct BenchCoil
 {
-    StratCircuit::Controls controls;
-    controls.position = Position::bridge;
-    controls.volume = 1.0;
-    const Complex s(0.0, 2.0 * pi * 5060.0);
-    const double withEddy = std::abs(analogResponse(controls, 2, s));
-    const double lossless = std::abs(analogResponse(controls, 2, s, StratCircuit::contactOhms,
-                                                    StratCircuit::potEndOhms, false));
-    const double dampingDb = 20.0 * std::log10(lossless / withEddy);
-    std::printf("bridge 5.06 kHz resonance: Alnico 5 eddy loss damps peak by %.2f dB\n", dampingDb);
-    check(dampingDb > 2.5 && dampingDb < 5.0,
-          "Alnico 5 pole eddy-current shunt damps the un-toned bridge LC resonance");
+    double ohms, henries, farads, lossOhms;
+};
+
+// The peak of the impedance at its terminals with loadFarads across them,
+// dB re 1 kOhm.
+double impedancePeakDb(const BenchCoil& coil, double loadFarads)
+{
+    double peak = 0.0;
+    for (double f = 1000.0; f < 20000.0; f += 1.0)
+    {
+        const Complex s(0.0, 2.0 * pi * f);
+        const Complex admittance = 1.0 / coil.lossOhms + s * (coil.farads + loadFarads)
+            + 1.0 / (coil.ohms + s * coil.henries);
+        peak = std::max(peak, 1.0 / std::abs(admittance));
+    }
+    return 20.0 * std::log10(peak / 1000.0);
 }
 
+// The peak of the voltage it gives into loadOhms and loadFarads, over what
+// it gives at low frequency, dB.
+double loadedPeakDb(const BenchCoil& coil, double loadOhms, double loadFarads)
+{
+    const auto volts = [&](double f) {
+        const Complex s(0.0, 2.0 * pi * f);
+        return std::abs(1.0 / (1.0 + (coil.ohms + s * coil.henries)
+                                         * (1.0 / coil.lossOhms + 1.0 / loadOhms
+                                            + s * (coil.farads + loadFarads))));
+    };
+    double peak = 0.0;
+    for (double f = 1000.0; f < 20000.0; f += 1.0)
+        peak = std::max(peak, volts(f));
+    return 20.0 * std::log10(peak / volts(20.0));
+}
+
+// The coils' losses against the pickups they were read from, each sheet's
+// curves traced from its figure. An earlier check held the Strat's loss to
+// 2.5 to 5 dB off the un-toned bridge's peak, which is what 220 kOhm did and
+// no measurement; these hold the losses to Zollner's.
+void testCoilLossesAgainstMeasurements()
+{
+    // The sheets load each pickup as a guitar does: both pots and the amp.
+    const double loadOhms = 1.0 / (2.0 / StratCircuit::potOhms + 1.0 / StratCircuit::ampInputOhms);
+
+    // His Strat-72 with the Strat's loss: the impedance peaks unloaded and
+    // with 450 and 750 pF, and the loaded peaks with those two cables.
+    const BenchCoil strat {5880.0, 2.19, 133e-12, StratCircuit::eddyOhms};
+    const double stratImpedance[3] = {impedancePeakDb(strat, 0.0), impedancePeakDb(strat, 450e-12),
+                                      impedancePeakDb(strat, 750e-12)};
+    const double stratLoaded[2] = {loadedPeakDb(strat, loadOhms, 450e-12),
+                                   loadedPeakDb(strat, loadOhms, 750e-12)};
+    std::printf("Strat-72 with the Strat's loss: impedance peaks %.2f, %.2f, %.2f dB re 1 kOhm "
+                "(sheet 57.38, 51.88, 49.56); loaded peaks %.2f, %.2f dB (sheet 3.76, 4.75)\n",
+                stratImpedance[0], stratImpedance[1], stratImpedance[2], stratLoaded[0],
+                stratLoaded[1]);
+    check(std::abs(stratImpedance[0] - 57.38) < 0.15 && std::abs(stratImpedance[1] - 51.88) < 0.15
+              && std::abs(stratImpedance[2] - 49.56) < 0.15,
+          "the Strat coil's loss gives the measured Strat's impedance peaks");
+    check(std::abs(stratLoaded[0] - 3.76) < 0.15 && std::abs(stratLoaded[1] - 4.75) < 0.15,
+          "the Strat coil's loss gives the measured Strat's loaded peaks");
+
+    // His Tele-52 neck, under its cover, with the Tele neck's loss.
+    const BenchCoil teleNeck {7630.0, 2.45, StratCircuit::teleNeckFarads,
+                              StratCircuit::teleNeckEddyOhms};
+    const double neckImpedance[3] = {impedancePeakDb(teleNeck, 0.0),
+                                     impedancePeakDb(teleNeck, 450e-12),
+                                     impedancePeakDb(teleNeck, 750e-12)};
+    std::printf("Tele-52 neck with the Tele neck's loss: impedance peaks %.2f, %.2f, %.2f dB re "
+                "1 kOhm (sheet 49.08, 45.92, 44.49)\n",
+                neckImpedance[0], neckImpedance[1], neckImpedance[2]);
+    check(std::abs(neckImpedance[0] - 49.08) < 0.25 && std::abs(neckImpedance[1] - 45.92) < 0.25
+              && std::abs(neckImpedance[2] - 44.49) < 0.25,
+          "the Tele neck coil's loss gives the measured covered coil's impedance peaks");
+
+    // The Tele's bridge coil: its plate takes about 1 dB off the loaded peak
+    // its rods alone would leave (5.1, Fig. 5.1.4).
+    for (const double cable : {450e-12, 700e-12})
+    {
+        BenchCoil bridge {StratCircuit::teleBridgeOhms, StratCircuit::teleBridgeHenries,
+                          StratCircuit::teleBridgeFarads, StratCircuit::teleBridgeEddyOhms};
+        const double plated = loadedPeakDb(bridge, loadOhms, cable);
+        bridge.lossOhms = StratCircuit::eddyOhms;
+        const double bare = loadedPeakDb(bridge, loadOhms, cable);
+        std::printf("Tele bridge coil with %.0f pF: its plate takes %.2f dB off the loaded peak\n",
+                    cable * 1e12, bare - plated);
+        check(std::abs(bare - plated - 1.0) < 0.15, "the Tele bridge coil's plate takes 1 dB off its peak");
+    }
+}
 
 // The Strat's positions on a Telecaster play its 3-way on their side of the
 // switch, and its own both-coils position on a Strat plays the middle coil.
@@ -436,7 +512,7 @@ int main()
     testConventionsAreInaudible();
     testMovingControls();
     testDeterminism();
-    testEddyCurrentDamping();
+    testCoilLossesAgainstMeasurements();
     testSwitchMapping();
     testTeleVoicing();
     if (failures == 0)
