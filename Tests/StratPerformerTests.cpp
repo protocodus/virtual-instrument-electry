@@ -37,7 +37,7 @@ void check(bool condition, const char* what)
 constexpr double pi = 3.14159265358979323846;
 constexpr double rate = 48000.0;
 // The output limiter's ceiling in volts (10 V is 0 dBFS), with float rounding.
-constexpr float ceilingVolts = 10.0f * protocodus::OutputStage<1>::kCeiling * 1.0001f;
+constexpr float ceilingVolts = 10.0f * static_cast<float>(electry::StratPerformer::outputCeiling) * 1.0001f;
 constexpr int openNote[6] = {40, 45, 50, 55, 59, 64};
 
 // What a fret plays over the open string on the intonated guitar
@@ -1583,7 +1583,7 @@ void testLookaheadAndEventInvariants()
 
     // 6. Clean DI compressor and the output limiter: lifts single-note
     // sustain, narrows the chord-to-single-note dynamic gap, and the limiter
-    // holds extreme +12 dB strums at its -1.5 dBFS ceiling.
+    // holds extreme +12 dB strums at its -0.5 dBFS ceiling.
     {
         const auto playSingleAndChord = [](double comp, double outDb = 0.0) {
             electry::StratControls controls;
@@ -1622,7 +1622,8 @@ void testLookaheadAndEventInvariants()
         check(singleLiftDb > 1.8, "the clean DI compressor lifts single-note sustain");
         check(compGapDb < dryGapDb - 1.5,
               "the clean DI compressor narrows the chord-to-single-note dynamic spread");
-        check(hot[2] <= ceilingVolts, "the limiter keeps +12 dB 6-string strums at -1.5 dBFS");
+        check(hot[2] <= ceilingVolts, "the limiter keeps +12 dB 6-string strums at -0.5 dBFS");
+        check(hot[2] > 9.4, "and lets them up to it, past the shared limiter's own -1.5 dBFS");
     }
 
     // 7. Pick gauge (StratControls::pick) shapes plectrum stiffness and

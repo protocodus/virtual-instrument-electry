@@ -24,7 +24,7 @@
 //    reading is the highest of them.
 // Both are read 20 dB under the Output asked for, where the output limiter
 // does nothing, and the 20 dB added back: "before the limiter" is what the
-// limiter is handed, and it works on every sample of that over -1.5 dBFS.
+// limiter is handed, and it works on every sample of that over -0.5 dBFS.
 // The loudest chords are then played at the Output asked for, for the peak
 // and the reading that leave the device.
 //
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
     const Reading free = play(below, loudestChords());
     const Reading out = play(controls, loudestChords());
     const double loudest = *std::max_element(out.events.begin(), out.events.end());
-    const double ceilingDbfs = 20.0 * std::log10(protocodus::OutputStage<1>::kCeiling);
+    const double ceilingDbfs = 20.0 * std::log10(electry::StratPerformer::outputCeiling);
     const double reach = free.peakDbfs + belowLimiterDb - ceilingDbfs;
     std::printf("typical %+.2f VU, peak %+.2f dBFS before the limiter; loudest chords %+.2f VU, peak %+.2f dBFS, "
                 "%+.2f dBFS before the limiter (%s it by %.2f dB)\n",

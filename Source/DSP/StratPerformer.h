@@ -153,6 +153,9 @@ public:
     // What the output is delayed by: the lookahead's, when on, and the
     // output limiter's 2 ms.
     int latencySamples() const noexcept { return latency + limiter.DelaySamples(); }
+    // The highest sample the output limiter lets through, of the host's
+    // full scale: -0.5 dBFS.
+    static constexpr double outputCeiling = 0.9440608762859234;
 
     Articulation articulation() const noexcept { return latched; }
     Stroke stroke() const noexcept { return strokes; }

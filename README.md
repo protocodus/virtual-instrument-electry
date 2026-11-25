@@ -57,6 +57,14 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.11.1 — 2026-11-25 — the six-string guitar's limiter starts at −0.5 dBFS
+
+The Strat and Telecaster's output limiter now leaves every sample up to
+−0.5 dBFS untouched, where it began at −1.5 dBFS. A direct guitar's pick
+attacks stand 9 to 11 dB over its reading on a VU meter, and with the extra
+decibel ordinary playing at −11 VU on Reason's channel meter never reaches
+the limiter. Only output that went over −1.5 dBFS changes.
+
 ### 2.11.0 — 2026-11-24 — Strat and Telecaster pickups as measured on the bench
 
 The six-string guitar's pickups now take their losses from pickups measured

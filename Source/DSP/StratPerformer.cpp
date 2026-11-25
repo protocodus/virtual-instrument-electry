@@ -432,11 +432,19 @@ constexpr double compressorKneeWidth = 1.2;
 constexpr double compressorExponent = -0.72;
 constexpr double compressorMakeup = 1.15;
 // The host reads 10 V at the jack as full scale. The portfolio's look-ahead
-// peak limiter (OutputStage.h) holds the output at or under -1.5 dBFS there,
-// with no distortion: the owner asked for headroom without clipping
+// peak limiter (OutputStage.h) holds the output at or under outputCeiling
+// there, with no distortion: the owner asked for headroom without clipping
 // (2026-11-23). It replaced a tanh knee from -3.1 dBFS, which distorted the
 // hardest strums it bent.
 constexpr double jackToHost = 0.1;
+// The shared limiter's ceiling is -1.5 dBFS. A direct guitar's pick attacks
+// stand 9 to 11 dB over its meter reading, and the owner asked for ordinary
+// playing at -11 VU with the limiter left out of it (2026-11-25), which
+// needs the ceiling at -0.5 dBFS. A limiter's gain depends only on its input
+// over its ceiling, so the signal goes through it that much lower and comes
+// back up.
+constexpr float jackToLimiter =
+    static_cast<float>(jackToHost * protocodus::OutputStage<1>::kCeiling / StratPerformer::outputCeiling);
 
 // The string's wave impedance at standard tension, kg/s.
 double impedance(int s) noexcept
@@ -2343,9 +2351,9 @@ void StratPerformer::render(float* out, int samples) noexcept
             }
             // The limiter runs on every sample, silence included, so its
             // delay line stays one look-ahead long.
-            std::array<float, 1> frame {static_cast<float>(v * jackToHost)};
+            std::array<float, 1> frame {static_cast<float>(v) * jackToLimiter};
             limiter.Process(frame);
-            out[done + i] = frame[0] / static_cast<float>(jackToHost);
+            out[done + i] = frame[0] / jackToLimiter;
         }
         done += static_cast<int>(chunk);
         now += chunk;
