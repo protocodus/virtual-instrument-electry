@@ -202,6 +202,9 @@ endif()
 
 add_executable(ElectryRenderStrat Tools/RenderStrat.cpp)
 target_link_libraries(ElectryRenderStrat PRIVATE ElectryDSP)
+
+add_executable(ElectryStratLevels Tools/StratLevels.cpp)
+target_link_libraries(ElectryStratLevels PRIVATE ElectryDSP)
 add_executable(ElectryRenderRealismComparison Tools/RenderRealismComparison.cpp)
 target_link_libraries(ElectryRenderRealismComparison PRIVATE ElectryDSP)
 if(BUILD_TESTING)
