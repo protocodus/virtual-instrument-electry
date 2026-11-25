@@ -57,6 +57,13 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.11.2 — 2026-11-25 — the fingers ignore the stroke keys
+
+With Fingers latched on the six-string guitar, a chord is plucked from its
+lowest string up whatever stroke was latched before: Up and Alternate no
+longer turn a finger-plucked chord round. The stroke keys still take the
+pick back.
+
 ### 2.11.1 — 2026-11-25 — the six-string guitar's limiter starts at −0.5 dBFS
 
 The Strat and Telecaster's output limiter now leaves every sample up to

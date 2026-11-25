@@ -1558,8 +1558,11 @@ void StratPerformer::startStroke() noexcept
     palmOffset = palmDown && !steadyStroke ? palmScatter * normalDraw(press) : 0.0;
     if (palmDown)
         applyPalm();
-    const bool strokeUp = strokes == Stroke::up
-        || (strokes == Stroke::alternate && alternate && nextStrokeUp);
+    // The stroke keys are the pick's: the fingers pluck a chord from its
+    // lowest string up whatever stroke was latched before them (owner,
+    // 2026-11-25).
+    const bool strokeUp = !fingers
+        && (strokes == Stroke::up || (strokes == Stroke::alternate && alternate && nextStrokeUp));
     nextStrokeUp = !strokeUp;
     lastStroke = now;
     const double sign = strokeUp ? -1.0 : 1.0;

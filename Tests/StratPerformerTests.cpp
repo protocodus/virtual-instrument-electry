@@ -340,6 +340,21 @@ void testFingerKey()
     check(p->isFingerPlucking(), "B1 latches finger plucking");
     p->noteOn(0, StratPerformer::firstStrokeKey, 1);
     check(!p->isFingerPlucking(), "G1 takes the pick back");
+
+    // The fingers ignore the stroke latched before them.
+    const auto chord = [](int strokeKey, bool fingers) {
+        auto q = makePerformer();
+        q->noteOn(0, strokeKey, 1);
+        if (fingers)
+            q->noteOn(0, StratPerformer::fingerKey, 1);
+        for (int n : {45, 52, 57, 61, 64})
+            q->noteOn(0, n, 100);
+        return render(*q, 0.3);
+    };
+    const int down = StratPerformer::firstStrokeKey, up = down + 1;
+    check(chord(up, false) != chord(down, false), "the pick's upstroke is not its downstroke");
+    check(chord(up, true) == chord(down, true) && chord(down + 2, true) == chord(down, true),
+          "the fingers pluck alike whatever stroke is latched");
 }
 
 void testNewNoteOwnsAQueuedString()

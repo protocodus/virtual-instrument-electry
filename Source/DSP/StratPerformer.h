@@ -49,7 +49,9 @@ struct StratControls
 //     strokes (down from rest, alternating while the hand keeps moving);
 //   A#1 (34), held, lays the fretting hand across all six strings: it stops
 //     what rings, and strokes under it are muted;
-//   B1 (35) latches plucking with the fingers; G1 to A1 take the pick back;
+//   B1 (35) latches plucking with the fingers, which pluck a chord from its
+//     lowest string up whatever stroke is latched; G1 to A1 take the pick
+//     back;
 //   C2 to D2 (36 to 38) latch Slide in (slid up into the note from below),
 //     Vibrato (a fretted note the hand rocks as channel pressure's median
 //     player does) and Half bend (struck a semitone low), articulations like
