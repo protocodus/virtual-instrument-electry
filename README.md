@@ -504,7 +504,7 @@ distribution builds arrived during 1.2.0 development.
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 189](https://github.com/protocodus/virtual-instrument-electry/actions/runs/45974788763/artifacts/15188616114)**, built from [`f9885d81faed`](https://github.com/protocodus/virtual-instrument-electry/commit/f9885d81faed9080287688da34e787b8e7693a43). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 190](https://github.com/protocodus/virtual-instrument-electry/actions/runs/45991680129/artifacts/15196741407)**, built from [`c12bdda71778`](https://github.com/protocodus/virtual-instrument-electry/commit/c12bdda7177845bbe17a7276a955dfd7f6923f58). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 This link downloads the complete binary package set, including the plug-ins and
