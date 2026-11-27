@@ -2747,6 +2747,103 @@ void testPerformerStateFixes()
     }
 }
 
+void testArticulationAndPickBalance()
+{
+    // 1. Chained and late legato (including half-step fret 12->13->12 on the high E)
+    // retains clear fundamental sustain relative to a picked reference note.
+    {
+        const auto pickEnergy = [](int s, int note) {
+            auto p = makePerformer();
+            p->noteOn(0, note, 95, s);
+            const auto y = render(*p, 0.30);
+            return energy(y, 0.02, 0.25);
+        };
+        struct Case { int s, fromNote, toNote; };
+        for (const Case c : {Case{1, 50, 52}, Case{3, 60, 62}, Case{5, 76, 77}})
+        {
+            const double refE = pickEnergy(c.s, c.toNote);
+            auto p = makePerformer();
+            p->noteOn(0, c.fromNote, 30, c.s);
+            render(*p, 1.50);
+            p->noteOn(0, 26, 110); // Legato
+            p->noteOn(0, c.toNote, 95, c.s);
+            p->noteOff(0, c.fromNote);
+            const auto ho = render(*p, 0.30);
+            p->noteOn(0, c.fromNote, 95, c.s);
+            p->noteOff(0, c.toNote);
+            const auto po = render(*p, 0.30);
+            const double hoDb = 10.0 * std::log10(energy(ho, 0.02, 0.25) / refE);
+            const double poDb = 10.0 * std::log10(energy(po, 0.02, 0.25) / refE);
+            std::printf("legato string %d %d->%d: HO %+.1f dB, PO %+.1f dB vs picked\n", c.s,
+                        c.fromNote, c.toNote, hoDb, poDb);
+            check(hoDb > -11.0 && poDb > -11.0,
+                  "late hammer-on and half-step pull-off remain clearly audible vs picked reference");
+        }
+    }
+
+    // 2. Picked attacks (funk chords, dead scratches, palm-muted chugs) carry a stronger
+    // upper-band transient over a quiescent/fingered attack.
+    {
+        const auto hiEnergy = [](int ks, double wheel, std::initializer_list<int> notes) {
+            auto p = makePerformer();
+            auto c = p->controls();
+            c.circuit.position = electry::StratCircuit::Position::bridgeMiddle;
+            c.pick = 0.65;
+            p->setControls(c);
+            p->modWheel(wheel);
+            p->noteOn(0, ks, 110);
+            for (int n : notes)
+                p->noteOn(0, n, 96);
+            const auto y = render(*p, 0.045);
+            double bandSum = 0.0;
+            for (int f = 2000; f <= 6000; f += 250)
+                bandSum += std::pow(10.0, level(y, 0.0, 0.020, static_cast<double>(f)) / 10.0);
+            return 10.0 * std::log10(bandSum);
+        };
+        const double funkPicked = hiEnergy(24, 0.0, {57, 62, 66, 69});
+        const double funkFingers = hiEnergy(35, 0.0, {57, 62, 66, 69});
+        const double deadPicked = hiEnergy(25, 0.0, {57, 62, 66, 69});
+        const double palmPicked = hiEnergy(24, 0.85, {45, 52});
+        const double palmFingers = hiEnergy(35, 0.85, {45, 52});
+        std::printf("pick attack 2-6 kHz: funk %+.1f vs fingers %+.1f, dead %.1f, palm %+.1f vs fingers %+.1f\n",
+                    funkPicked, funkFingers, deadPicked, palmPicked, palmFingers);
+        check(funkPicked > funkFingers + 2.0 && palmPicked > palmFingers + 3.0 && deadPicked > funkPicked - 10.0,
+              "picked funk chords, dead scratches and palm mutes carry clear plectrum bite");
+    }
+
+    // 3. Natural harmonics and pinch harmonics stay audibly balanced across Neck & Bridge.
+    {
+        const auto relHarm = [](electry::StratCircuit::Position pos, int ks, int note, int s) {
+            auto make = [pos]() {
+                auto p = makePerformer();
+                auto c = p->controls();
+                c.circuit.position = pos;
+                c.pickMetres = 0.085;
+                c.pick = 0.70;
+                p->setControls(c);
+                return p;
+            };
+            auto pn = make(), ph = make();
+            pn->noteOn(0, 24, 110);
+            pn->noteOn(0, note, 105, s);
+            ph->noteOn(0, ks, 110);
+            ph->noteOn(0, note, 105, s);
+            const auto yn = render(*pn, 0.60);
+            const auto yh = render(*ph, 0.60);
+            return 10.0 * std::log10(energy(yh, 0.02, 0.55) / energy(yn, 0.02, 0.55));
+        };
+        const double h12 = relHarm(electry::StratCircuit::Position::neck, 28, 76, 5);
+        const double h7 = relHarm(electry::StratCircuit::Position::neck, 28, 59, 0);
+        const double pNeckG13 = relHarm(electry::StratCircuit::Position::neck, 29, 68, 3);
+        const double pBrG13 = relHarm(electry::StratCircuit::Position::bridge, 29, 68, 3);
+        const double pBrE13 = relHarm(electry::StratCircuit::Position::bridge, 29, 77, 5);
+        std::printf("harmonic/pinch balance: H12 %+.1f, H7 %+.1f, PinchNeck %+.1f, PinchBrG13 %+.1f, PinchBrF5 %+.1f dB\n",
+                    h12, h7, pNeckG13, pBrG13, pBrE13);
+        check(h12 > -9.0 && h7 > -10.0 && pNeckG13 > -10.0 && pBrG13 > -10.0 && pBrE13 > -10.0,
+              "natural and pinch harmonics stay audibly present across Neck and Bridge");
+    }
+}
+
 int main()
 {
     testFingerWheel();
@@ -2795,6 +2892,7 @@ int main()
     testAllControlsAndKeyswitchesHaveSoundImpact();
     testAllTonesTuned();
     testPerformerStateFixes();
+    testArticulationAndPickBalance();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

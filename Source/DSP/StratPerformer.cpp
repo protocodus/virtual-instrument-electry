@@ -262,18 +262,14 @@ constexpr double harmonicTouchSeconds = 0.2;
 constexpr double touchSeconds = 0.040;
 
 // A pinch harmonic: the thumb beside the pick catches the string as the pick
-// leaves it and, as a harmonic's touch does, takes the waves passing it for
-// the same time, leaving the partials with a node under it. The player moves
-// the hand until the thumb lands on a node, the lowest partial's within reach
-// of the pick, and the pick strikes the thumb's width off it (on the node it
-// would leave out the very partial the thumb keeps). At the ordinary pick
-// position the open strings' 5th partial then stands 26 to 63 dB further
-// over the fundamental than a stroke leaves it; with the pick 5 mm off, 20
-// to 56; the thumb lifting after 10 or 20 ms instead, 10 to 45. Voiced: no
-// recording of a pinch was at hand.
-constexpr double pinchReachMetres = 0.010;
+// leaves it and takes the waves passing it for a brief window, leaving
+// partials with a node under it. The hand settles on a bright musical partial
+// (preferring 3..7 with strong coupling into the active pickup so a node
+// cannot fall into a pickup null) and the pick strikes cleanly at that
+// partial's antinode beside the thumb.
+constexpr double pinchReachMetres = 0.025;
 constexpr double thumbOffsetMetres = 0.010;
-constexpr int pinchHighestPartial = 24;
+constexpr int pinchHighestPartial = 10;
 
 // Plucking with the fingers. IDMT-SMT-Guitar's Stratocaster plays its licks
 // three ways (dataset 2), and 173 notes of 15 licks match note for note
@@ -293,12 +289,12 @@ constexpr int pinchHighestPartial = 24;
 constexpr double fingerOffsetMetres = 0.020;
 constexpr double fingerReleaseShare = 1.0;
 
-// A hammer-on or pull-off: the finger strikes or flicks the string at its
-// fret with a share of a pick's force, and releases it slowly, being soft.
-// Voiced at half the 1.4 N ordinary stroke the glide gave before the pick
-// held a share at rest; the same 0.7 N is this share of the 1.88 N one.
-constexpr double legatoShare = 0.375;
-constexpr double fingerReleaseSeconds = 0.002;
+// A hammer-on or pull-off: the finger strikes or flicks the string inside
+// the active speaking length with a pitch-scaled release so chained legatos and
+// half-step pull-offs on high frets retain singing fundamental energy instead
+// of cancelling at the rigid fret boundary.
+constexpr double legatoHammerShare = 0.72;
+constexpr double legatoPullOffShare = 0.82;
 
 // The fretting finger's own sounds. Between the notes of IDMT-SMT-Guitar's
 // Stratocaster fret runs (dataset 2, every string from fret 0 to 20, picked
@@ -506,21 +502,93 @@ double logBetween(double low, double high, double u) noexcept
 double reach(double u) noexcept { return u * u * u * (10.0 - 15.0 * u + 6.0 * u * u); }
 double reachSpeed(double u) noexcept { return 30.0 * u * u * (1.0 - u) * (1.0 - u); }
 
-// Where the thumb lands for a pinch on `length` of string picked `pick` from
-// the bridge.
-double pinchNode(double length, double pick) noexcept
+// Where the thumb lands for a pinch harmonic on `length` of string picked near
+// `pick`, selecting a partial (3..pinchHighestPartial) whose harmonic wave
+// couples strongly into `coilMetres` and places an antinode near the pick.
+struct PinchPlacement
 {
-    double nearest = 0.5 * length;
-    for (int k = 2; k <= pinchHighestPartial; ++k)
+    double node = 0.0;
+    double antinodeOffset = thumbOffsetMetres;
+    int partial = 5;
+};
+
+PinchPlacement pinchPlacement(double length, double pick, double coilMetres) noexcept
+{
+    PinchPlacement best;
+    best.node = 0.25 * length;
+    double bestScore = -1e9;
+    const double clampedPick = clamp(pick, 0.012, std::max(0.012, 0.85 * length));
+    for (int k = 3; k <= pinchHighestPartial; ++k)
+    {
+        // Pickup spatial sensitivity |sin(k * pi * coil / length)| avoids dead pickup nulls!
+        const double coupling = std::abs(std::sin(k * pi * clamp(coilMetres / length, 0.01, 0.99)));
+        // Sweet spot for pinch scream partials is k = 3..6
+        const double sweet = (k >= 3 && k <= 6) ? 1.35 : (k == 7 ? 1.0 : 0.72);
+        const double halfWave = 0.5 * length / k;
         for (int j = 1; j < k; ++j)
         {
             const double x = j * length / k;
-            if (std::abs(x - pick) <= pinchReachMetres)
-                return x;
-            if (std::abs(x - pick) < std::abs(nearest - pick))
-                nearest = x;
+            const double dist = std::abs(x - clampedPick);
+            if (dist > 0.14)
+                continue;
+            const double reachBonus = dist <= pinchReachMetres ? 0.5 : 0.0;
+            const double score = sweet * coupling - 12.0 * dist + reachBonus;
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best.node = x;
+                best.partial = k;
+                best.antinodeOffset = clamp(halfWave, 0.008, 0.032);
+            }
         }
-    return nearest;
+    }
+    return best;
+}
+
+double activePickupMetres(const StratCircuit::Controls& c, int stringIndex) noexcept
+{
+    const auto cm = [&](int coil) {
+        return StratEngine::coilMetres(c.guitar, coil, stringIndex);
+    };
+    if (c.guitar == StratCircuit::Guitar::tele)
+    {
+        if (c.position == StratCircuit::Position::bridge)
+            return cm(2);
+        if (c.position == StratCircuit::Position::neck)
+            return cm(0);
+        return 0.5 * (cm(0) + cm(2));
+    }
+    switch (c.position)
+    {
+    case StratCircuit::Position::bridge: return cm(2);
+    case StratCircuit::Position::bridgeMiddle: return 0.5 * (cm(1) + cm(2));
+    case StratCircuit::Position::middle: return cm(1);
+    case StratCircuit::Position::middleNeck: return 0.5 * (cm(0) + cm(1));
+    case StratCircuit::Position::neck: return cm(0);
+    case StratCircuit::Position::bridgeNeck: return cm(1);
+    }
+    return cm(0);
+}
+
+double harmonicPickAntinode(double length, int partial, double preferredPick) noexcept
+{
+    if (partial < 2)
+        return preferredPick;
+    double best = preferredPick;
+    double bestDist = 1e9;
+    for (int m = 0; m < partial; ++m)
+    {
+        const double antinode = (m + 0.5) * length / partial;
+        if (antinode < 0.025 || antinode > 0.245 || antinode > 0.85 * length)
+            continue;
+        const double d = std::abs(antinode - preferredPick);
+        if (d < bestDist)
+        {
+            bestDist = d;
+            best = antinode;
+        }
+    }
+    return clamp(best, 0.025, std::min(0.245, std::max(0.025, 0.85 * length)));
 }
 
 } // namespace
@@ -1268,21 +1336,24 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
             guitar->setFret(s, fret);
         if (fret > 0)
             startVibrato();
-        // A hammer-on strikes just inside the speaking length at the new fret
-        // crown; a pull-off hooks laterally at the old fret crown inside the
-        // new speaking length and brushes the fingertip callous across the string.
+        // Distribute the hammer-on impact / pull-off lateral flick into the
+        // speaking length (rather than right beside the rigid fret node) and
+        // scale finger release inversely with pitch so chained legatos and
+        // half-step pull-offs on high frets keep clear fundamental sustain.
         const double place = nextPlace();
         const bool pullOff = fret < from;
+        const double speaking = guitar->fretMetres(s, fret);
         double at = 0.0;
         if (!pullOff)
         {
-            const double crown = guitar->fretMetres(s, fret);
-            const double span = guitar->fretMetres(s, std::max(0, fret - 1)) - crown;
-            at = crown - 0.25 * place * span;
+            at = clamp(speaking * (1.0 - 0.16 * (0.85 + 0.30 * place)),
+                       0.015, std::max(0.015, speaking - 0.012));
         }
         else
         {
-            at = guitar->fretMetres(s, std::max(from, 1.0));
+            const double oldAt = guitar->fretMetres(s, std::max(from, 1.0));
+            at = clamp(std::min(oldAt, speaking * 0.84),
+                       0.015, std::max(0.015, speaking - 0.012));
             const double noise = current.releaseNoise > 0.0 && !damping
                 ? rubForce(s, 0.65 * releaseBrushNewtons * (2.0 * current.releaseNoise))
                 : 0.0;
@@ -1290,15 +1361,19 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
             if (noise > 0.0 && brushLength > 0)
             {
                 st.releasing = true;
-                st.releaseAt = at;
+                st.releaseAt = oldAt;
                 st.releaseStart = now;
                 st.releaseLength = brushLength;
                 st.rubNewtons = noise;
             }
         }
-        const double force = legatoShare * velocityForce(p.velocity);
-        guitar->pluck(s, nextStrokeUp ? -force : force, at,
-                      (pullOff ? 1.25 : 1.0) * fingerReleaseSeconds, 0.0, pullOff);
+        const double f0 = std::max(guitar->fundamentalHz(s), 60.0);
+        const double rel = clamp((pullOff ? 0.24 : 0.20) / f0,
+                                 pullOff ? 0.00040 : 0.00032,
+                                 pullOff ? 0.0015 : 0.0012);
+        const double force = (pullOff ? legatoPullOffShare : legatoHammerShare)
+            * velocityForce(p.velocity);
+        guitar->pluck(s, nextStrokeUp ? -force : force, at, rel, 0.0, pullOff);
         st.place = place;
         st.slide = false;
     }
@@ -1405,6 +1480,7 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
     e.string = string;
     e.fret = fret;
     e.force = force;
+    e.harmonicPartial = partial;
     // The node nearest the nut, where a player touches.
     e.touchMetres = guitar->fretMetres(string, fret) * (partial - 1) / partial;
     e.touchResistance = harmonicTouchShare * impedance(string);
@@ -1945,6 +2021,9 @@ void StratPerformer::runEvent(const Event& e) noexcept
     const double speaking = guitar->fretMetres(s, e.fret);
     double pickAt = current.pickMetres + pickLine[s] + e.pickOffset;
     const bool pinched = !damping && e.pinch;
+    const bool naturalHarmonic = !damping && !pinched && e.harmonicPartial >= 2;
+    const bool deadOrDamp = damping || e.touchWidth > 0.0;
+    double pinchAntinodeOffset = thumbOffsetMetres;
     if (damping)
     {
         // A stroke under the damping hand, which stays.
@@ -1964,9 +2043,13 @@ void StratPerformer::runEvent(const Event& e) noexcept
             const double pinchRef = e.fret > frets
                 ? clamp(pickAt, 0.012, std::max(0.012, 0.45 * speaking))
                 : clamp(pickAt, 0.025, std::min(0.250, 0.85 * speaking));
-            const double node = pinchNode(speaking, pinchRef);
-            pickAt = node - thumbOffsetMetres;
-            guitar->setDamper(s, 1, node, impedance(s));
+            const double coil = activePickupMetres(current.circuit, s);
+            const PinchPlacement pp = pinchPlacement(speaking, pinchRef, coil);
+            pinchAntinodeOffset = pp.antinodeOffset;
+            pickAt = (pp.node - pinchAntinodeOffset >= 0.012)
+                ? (pp.node - pinchAntinodeOffset)
+                : (pp.node + pinchAntinodeOffset);
+            guitar->setDamper(s, 1, pp.node, impedance(s));
             Event lift;
             lift.time = now + static_cast<std::int64_t>(touchSeconds * sampleRate);
             lift.kind = EventKind::liftTouch;
@@ -1980,15 +2063,27 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (st.channel == 0)
         lastPickedString = !damping && e.fret > 0.0 && e.touchResistance == 0.0 && !pinched ? s : -1;
     guitar->setBend(s, st.bend);
-    const double force = std::abs(e.force);
+    double effectiveForce = e.force;
+    if (pinched)
+        effectiveForce *= 1.85;
+    else if (naturalHarmonic)
+        effectiveForce *= (e.harmonicPartial <= 2 ? 1.40 : 1.55);
+    else if (deadOrDamp && !fingers)
+        effectiveForce *= 1.45;
+    const double force = std::abs(effectiveForce);
     // An upstroke catches the string from the treble side at a slightly steeper
     // wrist angle, striking 2.5 mm nearer the bridge with a slightly crisper
     // release than a downstroke.
     // The event owns its stroke direction, including the first stroke and
     // a string reached after another stroke has already been scheduled.
-    const bool upstroke = e.force < 0.0;
+    const bool upstroke = effectiveForce < 0.0;
     if (pinched)
         pickAt = clamp(pickAt, 0.010, std::max(0.010, speaking - 0.010));
+    else if (naturalHarmonic)
+    {
+        const double pref = fingers ? pickAt + fingerOffsetMetres : pickAt;
+        pickAt = harmonicPickAntinode(speaking, e.harmonicPartial, pref);
+    }
     else
     {
         if (fingers)
@@ -2011,6 +2106,10 @@ void StratPerformer::runEvent(const Event& e) noexcept
         : std::pow(clamp(pickAt / refPick, 0.35, 2.2), 0.22);
     double relSeconds
         = boundaryYield * (upstroke && !fingers ? 0.92 : 1.0) * releaseSeconds(s, force);
+    if (pinched)
+        relSeconds *= 0.50;
+    else if (naturalHarmonic)
+        relSeconds *= 0.72;
     if (current.playerNoise > 0.0)
     {
         if (!fingers)
@@ -2035,8 +2134,10 @@ void StratPerformer::runEvent(const Event& e) noexcept
     const double contactStiffness = fingers
         ? 500.0
         : StratString::contactStiffness * (0.65 + 0.70 * current.pick);
-    const double wrapScrapeScale = fingers ? 0.0 : (0.5 + current.pick) * (1.0 - 0.85 * wheel);
-    guitar->pluck(s, e.force, pickAt, relSeconds,
+    const double wrapScrapeScale = fingers
+        ? 0.0
+        : (0.25 + 1.45 * current.pick) * (1.0 - 0.65 * wheel * wheel);
+    guitar->pluck(s, effectiveForce, pickAt, relSeconds,
                   pushRatio * force / (2.0 * impedance(s)), nextTiltOpposed(), heldShare,
                   contactStiffness, wrapScrapeScale);
     if (e.slideFrets > 0.0 && !damping)

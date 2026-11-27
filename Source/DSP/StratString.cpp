@@ -81,9 +81,15 @@ constexpr double landingShare = 0.55;
 // When a pick slips off a wound string, its bevelled edge (~0.55 mm) skims
 // across two to four wrap ridges (0.15-0.35 mm pitch) during the release,
 // adding a zero-mean wrap-ridge ripple to the release slope that restores the
-// 2.5 to 5 kHz plectrum edge on wound strings (StratPerformer.cpp).
+// 2.5 to 5 kHz plectrum edge on wound strings (StratPerformer.cpp). Plain
+// strings get a subtle high-frequency plectrum edge snap across the same
+// slip window so single-coil strumming, dead notes and palm-muted attacks keep
+// crisp celluloid attack bite without altering DC or fundamental energy.
 constexpr double pickBevelMetres = 0.00055;
-constexpr double pickWrapDepth = 0.028;
+constexpr double pickWrapDepth = 0.24;
+constexpr double pickPlainScrapeDepth = 0.20;
+constexpr double pickEdgeClickDepth = 0.22;
+constexpr double pickScrapeRefSeconds = 0.00075;
 
 double clamp(double value, double low, double high) noexcept
 {
@@ -1711,10 +1717,33 @@ void StratString::leave(float neckVelocity, std::array<float, tapCount>& towardP
         ++releasePosition;
         const double u = clamp(releasePosition * releaseRate, 0.0, 1.0);
         double shape = 1.0 - std::cos(0.5 * pi * u);
-        if (stickRelease > 0.0 && activeWrapScrape > 0.0 && spec->wrapMetres > 0.0)
+        if (stickRelease > 0.0 && activeWrapScrape > 0.0)
         {
-            const double wraps = pickBevelMetres / spec->wrapMetres;
-            shape += activeWrapScrape * pickWrapDepth * std::sin(pi * u) * std::sin(2.0 * pi * wraps * u * u);
+            // Keep the plectrum edge snap and wound wrap-ridge scrape in the
+            // physical 2.5–5.5 kHz band with constant transient energy when
+            // palm-bracing stretches a wound-string release past ~0.75 ms,
+            // while staying proportional to u on unmuted and plain-string strokes.
+            const double palmStretch = spec->wrapMetres > 0.0
+                ? clamp((static_cast<double>(releaseLength) / sampleRate) / pickScrapeRefSeconds, 1.0, 3.5)
+                : 1.0;
+            const double clickEnd = 0.50 / palmStretch;
+            const double stretchGain = std::sqrt(palmStretch);
+            if (u < clickEnd)
+            {
+                const double uc = u / clickEnd;
+                shape += activeWrapScrape * pickEdgeClickDepth * stretchGain
+                    * std::sin(2.0 * pi * uc) * std::sin(pi * uc);
+            }
+            if (spec->wrapMetres > 0.0)
+            {
+                const double wraps = (pickBevelMetres / spec->wrapMetres) * palmStretch;
+                shape += activeWrapScrape * pickWrapDepth * stretchGain
+                    * std::sin(pi * u) * std::sin(2.0 * pi * wraps * u * u);
+            }
+            else
+            {
+                shape += activeWrapScrape * pickPlainScrapeDepth * std::sin(pi * u) * std::sin(2.0 * pi * 3.0 * u);
+            }
         }
         force = forceStart + (forceEnd - forceStart) * shape;
     }

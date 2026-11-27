@@ -237,6 +237,7 @@ private:
         double touchResistance = 0.0;
         double touchWidth = 0.0;
         bool pinch = false;
+        int harmonicPartial = 0; // natural harmonic partial (2..6), 0 otherwise
         double pickOffset = 0.0; // the hand's wander this stroke
         std::int64_t due = 0;    // prepare: when the notes are picked
         double from = 0.0, to = 0.0; // shift: fingertip metres from the bridge

@@ -57,6 +57,12 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.11.4 — 2026-11-27 — Stronger legato sustain, pick bite and harmonic/pinch prominence
+
+- **Legato sustain** (`StratPerformer::playOnSoundingString`): spaced hammer-on and pull-off excitation inside the active speaking length, pitch-scaled finger release (`clamp(0.20..0.24 / f0)`), `legatoHammerShare = 0.72`, and `legatoPullOffShare = 0.82` so chained legatos, half-step pull-offs on high frets, and late hammer-ons stay clearly audible.
+- **Pick attack on funk chords, dead notes & palm mutes** (`StratString::leave`, `StratPerformer::runEvent`): added plectrum slip-edge snap (`pickEdgeClickDepth = 0.22`), plain-string bevel scrape (`pickPlainScrapeDepth = 0.20`), and stronger wound-string wrap scrape (`pickWrapDepth = 0.24`) with wound-string `palmStretch` compensation past `0.75 ms` and `std::sqrt(palmStretch)` transient energy normalization, gauge-responsive `(0.25 + 1.45 * pick) * (1 - 0.65 * wheel^2)` scrape scaling, and `1.45x` dead/damp chuck force.
+- **Natural & pinch harmonics** (`pinchPlacement()`, `harmonicPickAntinode()`, `StratPerformer::runEvent`): pickup-null-avoiding pinch placement (`partials 3..10`), antinode pick placement for both natural and pinch harmonics, and balanced excitation (`1.85x` pinch, `1.40–1.55x` natural harmonic) with crisp release and `touchSeconds = 0.040`.
+
 ### 2.11.3 — 2026-11-27 — In-tune palm mutes, 12-TET harmonics and performer fixes
 
 On the six-string guitar, near-saddle palm muting now compensates the damper's
