@@ -1148,6 +1148,66 @@ void testBareStringPolarity()
         }
 }
 
+void testResetBitExactness()
+{
+    const double rate = 48000.0;
+    auto used = makeString(rate, 0, 5);
+    used->pluck(1.5, pickMetres, 0.0003);
+    run(*used, rate, 1.0, 0);
+    used->reset();
+    used->pluck(1.5, pickMetres, 0.0003);
+    const auto afterReset = run(*used, rate, 0.4, 0);
+
+    auto fresh = makeString(rate, 0, 5);
+    fresh->pluck(1.5, pickMetres, 0.0003);
+    const auto expected = run(*fresh, rate, 0.4, 0);
+    check(afterReset == expected, "StratString::reset() leaves bit-exact fresh state across ring wraps");
+}
+
+void testPalmTuning()
+{
+    double worst = 0.0;
+    for (const double rate : {44100.0, 48000.0, 96000.0})
+        for (int s : {0, 3, 5})
+            for (int fret : {0, 12, 21})
+            {
+                auto string = makeString(rate, s, fret);
+                string->setDamper(0, 0.020, 2.0, 0.015);
+                string->pluck(lightNewtons, pickMetres, 0.0002);
+                const auto y = run(*string, rate, 0.12, 0);
+                const double f0 = equalTempered(openNotes[s] + fret);
+                const double measured = peakFrequency(y, rate, 0.008, 0.080, f0, 0.10 * f0);
+                const double error = std::abs(cents(measured, f0));
+                worst = error > worst ? error : worst;
+            }
+    std::printf("palm-muted fundamental error across 44.1-96 kHz: %.2f cents at worst\n", worst);
+    check(worst < 2.5, "near-saddle palm damping keeps the fundamental in tune");
+
+    const double rate = 48000.0;
+    auto string = makeString(rate, 3, 5);
+    string->pluck(1.5, pickMetres, 0.0003);
+    std::array<float, StratString::tapCount> taps {};
+    std::array<float, StratString::tapCount> alongTop {};
+    bool ok = true;
+    double peak = 0.0;
+    for (int i = 0; i < 24000; ++i)
+    {
+        if (i % StratString::controlPeriod == 0)
+        {
+            const double phase = std::sin(pi * i / 24000.0);
+            string->setDamper(0, 0.020, 2.0 * phase * phase, 0.015);
+        }
+        string->process(taps, alongTop);
+        for (int k = 0; k < StratString::tapCount; ++k)
+        {
+            ok = ok && std::isfinite(taps[static_cast<size_t>(k)])
+                    && std::isfinite(alongTop[static_cast<size_t>(k)]);
+            peak = std::max<double>(peak, std::abs(taps[static_cast<size_t>(k)]));
+        }
+    }
+    check(ok && peak < 40.0, "live palm-damper sweeps stay finite and bounded");
+}
+
 } // namespace
 
 int main()
@@ -1179,6 +1239,8 @@ int main()
     testZeroHertzBleedAndRepeatedPlucks();
     testNearSaddleMidpointDashpot();
     testBareStringPolarity();
+    testResetBitExactness();
+    testPalmTuning();
     if (failures == 0)
         std::printf("StratString: all checks passed\n");
     return failures == 0 ? 0 : 1;

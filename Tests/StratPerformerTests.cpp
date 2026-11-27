@@ -2533,6 +2533,220 @@ void testAllControlsAndKeyswitchesHaveSoundImpact()
     }
 }
 
+double peakCentsFrom(const std::vector<float>& x, double fs, double startSeconds,
+                     double lengthSeconds, double expectedHz)
+{
+    const size_t start = static_cast<size_t>(startSeconds * fs);
+    const size_t length = static_cast<size_t>(lengthSeconds * fs);
+    if (start + length > x.size() || length < 2)
+        return 0.0;
+    const auto mag = [&](double f) {
+        std::complex<double> sum = 0.0;
+        const std::complex<double> step = std::polar(1.0, -2.0 * pi * f / fs);
+        std::complex<double> phasor = 1.0;
+        for (size_t i = 0; i < length; ++i)
+        {
+            const double window = 0.5
+                - 0.5 * std::cos(2.0 * pi * static_cast<double>(i) / static_cast<double>(length - 1));
+            sum += static_cast<double>(x[start + i]) * window * phasor;
+            phasor *= step;
+        }
+        return std::norm(sum);
+    };
+    const double lo = -180.0, hi = 180.0;
+    constexpr int grid = 36;
+    const double gridStep = (hi - lo) / grid;
+    double bestC = 0.0, bestMag = -1.0;
+    for (int k = 0; k <= grid; ++k)
+    {
+        const double c = lo + k * gridStep;
+        const double m = mag(expectedHz * std::pow(2.0, c / 1200.0));
+        if (m > bestMag)
+        {
+            bestMag = m;
+            bestC = c;
+        }
+    }
+    double a = bestC - gridStep, b = bestC + gridStep;
+    constexpr double golden = 0.6180339887498949;
+    double x1 = b - golden * (b - a), x2 = a + golden * (b - a);
+    double m1 = mag(expectedHz * std::pow(2.0, x1 / 1200.0));
+    double m2 = mag(expectedHz * std::pow(2.0, x2 / 1200.0));
+    for (int it = 0; it < 24; ++it)
+    {
+        if (m1 > m2)
+        {
+            b = x2; x2 = x1; m2 = m1;
+            x1 = b - golden * (b - a);
+            m1 = mag(expectedHz * std::pow(2.0, x1 / 1200.0));
+        }
+        else
+        {
+            a = x1; x1 = x2; m1 = m2;
+            x2 = a + golden * (b - a);
+            m2 = mag(expectedHz * std::pow(2.0, x2 / 1200.0));
+        }
+    }
+    return 0.5 * (a + b);
+}
+
+void testAllTonesTuned()
+{
+    auto p = makePerformer();
+    double worstKey = 0.0;
+    for (int note = 21; note <= 108; ++note)
+    {
+        if (note >= 24 && note <= 38)
+            continue;
+        p->reset();
+        p->noteOn(0, note, 77);
+        const bool high = note > 85;
+        const auto y = render(*p, high ? 0.35 : 0.85);
+        const double target = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const double err = std::abs(peakCentsFrom(y, rate, high ? 0.12 : 0.35, high ? 0.20 : 0.45, target));
+        worstKey = std::max(worstKey, err);
+    }
+    std::printf("all Strat piano keys (21..108) at ordinary velocity: %.2f cents worst\n", worstKey);
+    check(worstKey < 2.5, "every Strat piano key is accurately tuned");
+
+    auto tele = makePerformer();
+    auto tc = tele->controls();
+    tc.circuit.guitar = electry::StratCircuit::Guitar::tele;
+    tele->setControls(tc);
+    double worstTele = 0.0;
+    for (int note : {21, 39, 40, 45, 50, 55, 59, 64, 76, 85, 96, 108})
+    {
+        tele->reset();
+        tele->noteOn(0, note, 77);
+        const bool high = note > 85;
+        const auto y = render(*tele, high ? 0.35 : 0.85);
+        const double target = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const double err = std::abs(peakCentsFrom(y, rate, high ? 0.12 : 0.35, high ? 0.20 : 0.45, target));
+        worstTele = std::max(worstTele, err);
+    }
+    std::printf("Telecaster piano sweep: %.2f cents worst\n", worstTele);
+    check(worstTele < 2.5, "Telecaster notes are accurately tuned");
+
+    double worstHarm = 0.0;
+    for (int note = 40; note <= 98; ++note)
+    {
+        p->reset();
+        p->noteOn(0, 28, 100);
+        p->noteOn(0, note, 77);
+        const auto y = render(*p, 0.7);
+        const double target = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const double err = std::abs(peakCentsFrom(y, rate, 0.22, 0.40, target));
+        worstHarm = std::max(worstHarm, err);
+    }
+    std::printf("untabbed harmonics (40..98): %.2f cents worst\n", worstHarm);
+    check(worstHarm < 4.0, "every untabbed harmonic sounds within 4 cents of equal temperament");
+
+    double worstPalm = 0.0;
+    for (int s = 0; s < 6; ++s)
+        for (int fret : {0, 5, 12, 17, 21})
+        {
+            p->reset();
+            p->noteOn(0, 24, 100); // reset preserves latched keyswitch (Harmonic above); restore Sustain
+            p->modWheel(1.0);
+            const int note = openNote[s] + fret;
+            p->noteOn(0, note, 77, s);
+            const auto y = render(*p, 0.10);
+            const double target = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+            const double err = std::abs(peakCentsFrom(y, rate, 0.008, 0.080, target));
+            worstPalm = std::max(worstPalm, err);
+        }
+    std::printf("full palm mute across strings 0..5 frets 0..21: %.2f cents worst\n", worstPalm);
+    check(worstPalm < 4.0, "full palm mute stays in tune across all strings and frets");
+
+    // Sweeping the mod wheel on ringing notes keeps pitch steady without clicks.
+    for (int note : {55, 64})
+    {
+        p->reset();
+        p->noteOn(0, 24, 100);
+        p->noteOn(0, note, 77);
+        std::vector<float> out(48000);
+        double maxDiff = 0.0;
+        for (int b = 0; b < 48000 / 64; ++b)
+        {
+            const double t = b * 64.0 / rate;
+            double mw = 0.0;
+            if (t >= 0.15 && t < 0.35)
+                mw = (t - 0.15) / 0.20;
+            else if (t >= 0.35 && t < 0.50)
+                mw = 1.0;
+            else if (t >= 0.50 && t < 0.70)
+                mw = 1.0 - (t - 0.50) / 0.20;
+            p->modWheel(mw);
+            p->render(out.data() + b * 64, 64);
+        }
+        for (size_t i = 4800; i + 1 < out.size(); ++i)
+            maxDiff = std::max<double>(maxDiff, std::abs(out[i + 1] - out[i]));
+        const double target = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        check(std::abs(peakCentsFrom(out, rate, 0.05, 0.10, target)) < 4.0
+                  && std::abs(peakCentsFrom(out, rate, 0.25, 0.10, target)) < 4.0
+                  && std::abs(peakCentsFrom(out, rate, 0.35, 0.08, target)) < 4.0
+                  && maxDiff < 0.2,
+              "live mod wheel palm-mute sweep keeps ringing notes in tune and click-free");
+    }
+}
+
+void testPerformerStateFixes()
+{
+    // Releasing or damping an extended low key (< E2) returns string 0 to open E2.
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 21, 77);
+        render(*p, 0.1);
+        p->noteOff(0, 21);
+        render(*p, 0.1);
+        check(std::abs(p->engine().fundamentalHz(0) - tunedHz(0)) < 1.0,
+              "releasing an extended low key restores open string 0 tuning");
+
+        p->reset();
+        p->noteOn(0, 21, 77);
+        render(*p, 0.1);
+        p->noteOn(0, 34, 100); // Damp key
+        render(*p, 0.01);
+        check(std::abs(p->engine().fundamentalHz(0) - tunedHz(0)) < 1.0,
+              "damping an extended low key restores open string 0 tuning");
+    }
+
+    // Legato during the strum grace window cancels pending letGo so the new held note stays alive.
+    {
+        auto p = makePerformer();
+        p->noteOn(0, 40, 77);
+        p->noteOn(0, 47, 77);
+        p->noteOn(0, 52, 77);
+        render(*p, 0.1);
+        p->noteOff(0, 40);
+        p->noteOff(0, 47);
+        p->noteOff(0, 52);
+        render(*p, 0.05);
+        p->noteOn(0, 26, 100); // Legato
+        p->noteOn(0, 54, 77);
+        render(*p, 0.2);
+        check(p->stringNote(2) == 54, "legato inside a chord grace window cancels pending letGo");
+    }
+
+    // Pending leaveString from a prior release must not un-fret a queued chord string.
+    {
+        auto p = makePerformer();
+        auto c = p->controls();
+        c.strumSeconds = 0.030;
+        p->setControls(c);
+        p->noteOn(0, 43, 77); // fret 3 on string 0
+        render(*p, 0.1);
+        p->noteOff(0, 43);
+        render(*p, 0.002);
+        p->noteOn(0, 32, 100); // Upstroke: string 0 is struck last (+150 ms)
+        for (int n : {43, 47, 52, 56, 59, 64})
+            p->noteOn(0, n, 77);
+        render(*p, 0.04); // past leaveString (~15 ms), before string 0 strike (150 ms)
+        check(p->engine().fundamentalHz(0) > 95.0,
+              "a pending leaveString does not un-fret a newly assigned slow-strum string");
+    }
+}
+
 int main()
 {
     testFingerWheel();
@@ -2579,6 +2793,8 @@ int main()
     testConnectedLookaheadFretNoise();
     testPickEdgeCases();
     testAllControlsAndKeyswitchesHaveSoundImpact();
+    testAllTonesTuned();
+    testPerformerStateFixes();
     if (failures == 0)
         std::printf("StratPerformer: all checks passed\n");
     return failures == 0 ? 0 : 1;

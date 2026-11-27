@@ -319,6 +319,8 @@ private:
     int leftTarget = 0;       // where a glide is taking it
     // The whole loop in samples less the fret-end filters' phase delay;
     // rail R is read at loopDelay - leftLength.
+    double baseLoopDelay = 0.0;
+    double damperDelay = 0.0;
     double loopDelay = 0.0;
     double loopDelayTarget = 0.0;
     double loopDelayStep = 0.0;
@@ -426,6 +428,9 @@ private:
     double pendingTopForce = 0.0;
     double blockCoefficient = 0.0;
     void placeDampers() noexcept;
+    void placeDampers(double lastUsable) noexcept;
+    double damperPhaseDelay(double omega) const noexcept;
+    void updateDamperTuning() noexcept;
     double lastUsablePosition() const noexcept;
 
     // The fretting finger: its rubbing force, and the fret end's press.

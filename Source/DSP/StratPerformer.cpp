@@ -895,7 +895,7 @@ void StratPerformer::release(int s) noexcept
     const double lift = steadyStroke
         ? liftSeconds
         : logBetween(shortestLiftSeconds, longestLiftSeconds, uniformDraw(fretHand));
-    if (st.fret > 0.0)
+    if (st.fret != 0.0)
     {
         const double flesh = steadyStroke
             ? fingerResistance
@@ -997,7 +997,7 @@ void StratPerformer::dampStrings(bool down) noexcept
         cancelEvents(s, EventKind::press);
         stopRub(s);
         guitar->setDamper(s, 1, fingerMetres(*guitar, s, hand), fingerResistance, fingerWidth);
-        if (st.fret > 0.0)
+        if (st.fret != 0.0)
             guitar->setFret(s, 0.0);
         // Bent strings stay bent under the hand (release).
         const double bent = st.bend;
@@ -1240,6 +1240,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     // hammer-on from the open string.
     const bool lifted = st.note < 0 && st.released;
     const double from = lifted ? st.restFret : st.fret;
+    cancelEvents(s, EventKind::letGo);
     cancelEvents(s, EventKind::liftTouch);
     cancelEvents(s, EventKind::leaveString);
     cancelEvents(s, EventKind::shift);
@@ -1247,6 +1248,7 @@ bool StratPerformer::playOnSoundingString(const Pending& p) noexcept
     stopRub(s);
     if (!damping)
         liftRestingHand();
+    st.strumHeld = false;
     st.released = false;
     st.handResting = false;
     guitar->setDamper(s, 1, 0.0, 0.0);
@@ -1356,10 +1358,12 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
         string = p.string;
         partial = partialOn(string);
     }
-    // The soloed strings first, then all of them.
+    // The soloed strings first, then all of them. Untabbed playing prefers
+    // 12-TET-compatible natural harmonics (2, 3, 4, 6) and artificial octave
+    // harmonics over the 5th partial (-13.7 cents flat of equal temperament).
     for (const unsigned mask : {static_cast<unsigned>(solo), 0x3Fu})
     {
-        for (int k = 2; k <= 6 && string < 0; ++k)
+        for (const int k : {2, 3, 4, 6})
             for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
                 if (((mask >> s) & 1u) != 0 && partialOn(s) == k)
                 {
@@ -1378,11 +1382,19 @@ bool StratPerformer::playHarmonic(const Pending& p, double force) noexcept
                     fret = f;
                 }
             }
+        if (string < 0)
+            for (int s = 0; s < StratEngine::stringCount && string < 0; ++s)
+                if (((mask >> s) & 1u) != 0 && partialOn(s) == 5)
+                {
+                    string = s;
+                    partial = 5;
+                }
     }
     if (string < 0)
         return false;
 
     cancelEvents(string, EventKind::strike);
+    cancelEvents(string, EventKind::letGo);
     cancelEvents(string, EventKind::liftTouch);
     cancelEvents(string, EventKind::leaveString);
     cancelEvents(string, EventKind::shift);
@@ -1665,6 +1677,7 @@ void StratPerformer::startStroke() noexcept
 
         stopRub(s);
         cancelEvents(s, EventKind::letGo);
+        cancelEvents(s, EventKind::leaveString);
         st = StringState {};
         st.place = place;
         st.note = wanted[i];
@@ -1875,7 +1888,7 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (e.kind == EventKind::leaveString)
     {
         // Unless the hand has fretted or struck it since.
-        if (!st.fretted || st.struckAt < 0)
+        if (!st.fretted && st.struckAt < 0)
             guitar->setFret(s, 0.0);
         return;
     }
@@ -2012,12 +2025,12 @@ void StratPerformer::runEvent(const Event& e) noexcept
     if (!fingers && wheel > 0.0)
     {
         // A braced picking hand releases the pick over a longer effective contact.
-        // Fit to the first 48 ms of Clean El. Guitar palm mutes: at full pressure
-        // add a quarter of the struck string's period (3 ms at E2, 0.76 ms at
-        // E4). This keeps the treble attack clearer. Taper the extra duration
-        // toward a light touch; the heel's separately measured damping stays
-        // on the string, including when the wheel moves after this stroke.
-        relSeconds += 0.25 * wheel * wheel / guitar->fundamentalHz(s);
+        // Fit to the first 48 ms of Clean El. Guitar palm mutes with the palm's
+        // pitch shift compensated: at full pressure add 0.30 of the struck
+        // string's period (3.6 ms at E2, 0.91 ms at E4). Taper the extra
+        // duration toward a light touch; the heel's separately measured damping
+        // stays on the string, including when the wheel moves after this stroke.
+        relSeconds += 0.30 * wheel * wheel / guitar->fundamentalHz(s);
     }
     const double contactStiffness = fingers
         ? 500.0

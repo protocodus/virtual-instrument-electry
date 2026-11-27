@@ -364,6 +364,7 @@ void StratString::reset() noexcept
         plane->dcMean = 0.0f;
         plane->loopTapPosition = -1.0;
     }
+    write = 0;
     ownNeck.reset();
     skipped = -1;
     arrivingAtNeck = 0.0f;
@@ -651,8 +652,16 @@ void StratString::setTuning(double newFret, double tensionRatio, bool glide) noe
     neckDelay = neckPhaseDelay(w0);
     const double filterDelay = lossPhaseDelay(w0, lossZero, lossPole) - std::arg(wrapResponse(w0)) / w0
         + dispersionSections * allpassPhaseDelay(w0, allpassCoefficient) + neckDelay;
-    double total = sampleRate / fundamental - filterDelay;
-    total = clamp(total, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
+    baseLoopDelay = sampleRate / fundamental - filterDelay;
+    double total = clamp(baseLoopDelay, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
+    damperDelay = 0.0;
+    if (dampers[0].resistance > 0.0)
+    {
+        const double provisionalUsable = static_cast<double>(static_cast<int>(0.5 * total)) - 3.0;
+        placeDampers(provisionalUsable);
+        damperDelay = damperPhaseDelay(w0);
+        total = clamp(baseLoopDelay - damperDelay, 8.0, 2.0 * (railSize - 2 * leftOffset - 8));
+    }
     const double half = 0.5 * total;
     const int halfWhole = static_cast<int>(half);
 
@@ -744,18 +753,131 @@ void StratString::setDamper(int damper, double metresFromBridge, double kilogram
     dampers[static_cast<size_t>(damper)].resistance = kilogramsPerSecond;
     dampers[static_cast<size_t>(damper)].width = widthMetres;
     placeDampers();
+    if (damper == 0 && tuned)
+        updateDamperTuning();
+}
+
+double StratString::damperPhaseDelay(double omega) const noexcept
+{
+    const Damper& d = dampers[0];
+    if (d.absorption <= 0.0f || d.next > 0.0f || omega <= 0.0)
+        return 0.0;
+    const int last = d.position + d.count - 1;
+    // Only compensate near-saddle palm contacts (within the bridge fifth of
+    // the speaking length): inside that span the phase advance lies strictly
+    // in [0, 0.4 pi) with no wrap, and mid-string full-hand mutes are left
+    // alone.
+    if (2.0 * omega * last >= 0.4 * pi)
+        return 0.0;
+    // Solve the waveguide's damped fundamental pole z = exp(-sigma + j omega)
+    // where |z^-T * Gamma(z) / Gamma_undamped(z)| = 1, then take the phase
+    // advance at that true damped pole rather than on the unit circle.
+    const double a = static_cast<double>(d.absorption);
+    const double period = 2.0 * pi / omega;
+    const double maxSigma = 0.5 * omega;
+    double sigma = 0.0;
+    double phase = 0.0;
+    for (int iter = 0; iter < 8; ++iter)
+    {
+        const std::complex<double> step
+            = std::exp(std::complex<double>(2.0 * sigma, -2.0 * omega));
+        std::complex<double> gamma = -std::exp(
+            std::complex<double>(2.0 * sigma * d.position, -2.0 * omega * d.position));
+        bool valid = true;
+        for (int i = 0; i < d.count; ++i)
+        {
+            if (i > 0)
+                gamma *= step;
+            const std::complex<double> denom = 1.0 + a * gamma;
+            if (std::norm(denom) <= 1e-18)
+            {
+                valid = false;
+                break;
+            }
+            gamma = ((1.0 - 2.0 * a) * gamma - a) / denom;
+        }
+        if (!valid)
+            break;
+        const std::complex<double> undamped
+            = -std::exp(std::complex<double>(2.0 * sigma * last, -2.0 * omega * last));
+        const std::complex<double> ratio = gamma / undamped;
+        const double mag = std::abs(ratio);
+        const double nextPhase = std::arg(ratio);
+        if (!(mag > 1e-12) || !std::isfinite(nextPhase))
+            break;
+        phase = nextPhase;
+        const double loopSamples = period + phase / omega;
+        if (!(loopSamples > 0.0))
+            break;
+        const double nextSigma = clamp(-std::log(mag) / loopSamples, 0.0, maxSigma);
+        if (std::abs(nextSigma - sigma) < 1e-11)
+        {
+            sigma = nextSigma;
+            break;
+        }
+        sigma = nextSigma;
+    }
+    return clamp(-phase / omega, -2.0 * static_cast<double>(last), 0.0);
+}
+
+void StratString::updateDamperTuning() noexcept
+{
+    const double w0 = 2.0 * pi * fundamental / sampleRate;
+    const double nextDelay = damperPhaseDelay(w0);
+    if (nextDelay == damperDelay)
+        return;
+    damperDelay = nextDelay;
+    const double total = clamp(baseLoopDelay - damperDelay,
+                               8.0, 2.0 * (railSize - 2 * leftOffset - 8));
+    const double half = 0.5 * total;
+    const int halfWhole = static_cast<int>(half);
+    if (!isDriven() && historySquares <= 1e-15)
+    {
+        if (halfWhole < leftLength)
+            clearLeft(halfWhole, leftLength + 3);
+        else if (halfWhole > leftLength)
+            clearLeft(leftLength, halfWhole + 3);
+        const double oldRead = loopDelay - leftLength;
+        const double newRead = total - halfWhole;
+        if (newRead > oldRead)
+            clearRight(static_cast<int>(oldRead) + 5,
+                       static_cast<int>(newRead) + 5);
+        leftLength = leftTarget = halfWhole;
+        loopDelay = loopDelayTarget = total;
+        loopDelayStep = 0.0;
+        rampRemaining = 0;
+        setTaps(tapMetres);
+        placeDampers();
+        tunedLeftLength = leftLength;
+        return;
+    }
+    const double split = total - leftLength;
+    if (std::abs(split - half) > 0.1 * half + 2.0)
+        leftTarget = halfWhole;
+    loopDelayTarget = total;
+    rampRemaining = rampSamples;
+    loopDelayStep = (loopDelayTarget - loopDelay) / rampSamples;
+    setTaps(tapMetres);
+    placeDampers();
+    tunedLeftLength = leftLength == leftTarget ? leftLength : -1;
 }
 
 void StratString::placeDampers() noexcept
 {
+    placeDampers(lastUsablePosition());
+}
+
+void StratString::placeDampers(double lastUsable) noexcept
+{
     const double z = characteristicImpedance;
+    const double usable = lastUsable < 1.0 ? 1.0 : lastUsable;
     for (Damper& d : dampers)
     {
         // A finite contact can replace a fractional harmonic touch. Its
         // new width must not inherit the old point's interpolation weight.
         d.next = 0.0f;
-        const double at = clamp(positionSamples(d.metres), 1.0, lastUsablePosition());
-        const int last = static_cast<int>(lastUsablePosition());
+        const double at = clamp(positionSamples(d.metres), 1.0, usable);
+        const int last = static_cast<int>(usable);
         d.count = std::clamp(static_cast<int>(std::lround(positionSamples(d.width))), 1, last);
         if (d.count > 1)
         {
@@ -1115,10 +1237,16 @@ float StratString::readRight(const Plane& plane, const LoopTap& tap) const noexc
         return ((((((w[0] * r[0] + w[1] * r[-1]) + w[2] * r[-2]) + w[3] * r[-3])
                   + w[4] * r[-4]) + w[5] * r[-5]) + w[6] * r[-6]) + w[7] * r[-7];
     }
-    float sum = 0.0f;
-    for (int k = 0; k < 8; ++k)
-        sum += tap.weight[k] * plane.right[static_cast<size_t>((index - k) & railMask)];
-    return sum;
+    const float* w = tap.weight;
+    const float* r = plane.right.data();
+    return ((((((w[0] * r[static_cast<size_t>(index)]
+               + w[1] * r[static_cast<size_t>((index - 1) & railMask)])
+              + w[2] * r[static_cast<size_t>((index - 2) & railMask)])
+             + w[3] * r[static_cast<size_t>((index - 3) & railMask)])
+            + w[4] * r[static_cast<size_t>((index - 4) & railMask)])
+           + w[5] * r[static_cast<size_t>((index - 5) & railMask)])
+          + w[6] * r[static_cast<size_t>((index - 6) & railMask)])
+         + w[7] * r[static_cast<size_t>((index - 7) & railMask)];
 }
 
 float StratString::readLeft(const Plane& plane, const Tap& tap) const noexcept

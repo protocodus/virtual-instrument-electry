@@ -466,6 +466,8 @@ void StratEngine::setFret(int stringIndex, double fret, bool glide) noexcept
         p.changed = true;
         return;
     }
+    p.changed = false;
+    p.glide = false;
     strings[static_cast<size_t>(stringIndex)].setTuning(
         fret, tremolo.tensionRatio(stringIndex));
     updateCoilGeometry(stringIndex);

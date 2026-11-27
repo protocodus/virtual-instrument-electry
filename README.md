@@ -57,6 +57,21 @@ No tagged release has been published yet: every build so far is a development
 build from `main`. Per-change notes are in the
 [development checkpoints](Docs/research/development-checkpoints.md).
 
+### 2.11.3 — 2026-11-27 — In-tune palm mutes, 12-TET harmonics and performer fixes
+
+On the six-string guitar, near-saddle palm muting now compensates the damper's
+phase advance at the string's damped pole across all strings, frets and sample
+rates instead of pulling heavy palm mutes sharp, while keeping unmuted ordinary
+playing bit-identical to 2.11.2; the braced palm-mute release duration factor is
+re-calibrated to `0.30` of the period for the corrected pitch alignment.
+Untabbed harmonics now prefer equal-temperament-aligned open harmonics
+(`2, 3, 4, 6`) and artificial octave harmonics before the just 5th partial
+(keeping tabbed 5th harmonics intact). Also fixed `StratString::reset()` ring
+cursor reset and `LoopTap` wrap contraction determinism, cleared stale
+non-glide pending flags in `StratEngine::setFret`, and resolved
+`StratPerformer` state bugs around extended-low-key release/damp reset,
+strum-grace legato `letGo` cancellation, and `leaveString`.
+
 ### 2.11.2 — 2026-11-25 — the fingers ignore the stroke keys
 
 With Fingers latched on the six-string guitar, a chord is plucked from its
